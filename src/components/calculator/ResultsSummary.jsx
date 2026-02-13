@@ -32,13 +32,13 @@ export default function ResultsSummary({ summary, currency }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06 }}
-            className="bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-lg transition-shadow duration-300"
+            className="bg-slate-800/30 backdrop-blur-sm rounded-2xl border border-white/10 p-5 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 hover:border-white/20"
           >
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center mb-3`}>
-              <Icon className="w-4 h-4 text-white" />
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 shadow-lg`}>
+              <Icon className="w-5 h-5 text-white" />
             </div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{card.label}</p>
-            <p className={`text-lg font-bold ${card.textColor}`}>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-2">{card.label}</p>
+            <p className="text-xl font-black text-white">
               {formatNumber(value, sym)}
             </p>
           </motion.div>
@@ -49,21 +49,21 @@ export default function ResultsSummary({ summary, currency }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-lg transition-shadow duration-300 col-span-2 lg:col-span-3"
+        className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl border border-purple-400/20 p-6 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 col-span-2 lg:col-span-3"
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Percent className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <Percent className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Return</p>
-              <p className="text-lg font-bold text-purple-600">{summary.totalReturnPercent}%</p>
+              <p className="text-[10px] font-bold text-purple-300 uppercase tracking-[0.15em]">Total Return</p>
+              <p className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{summary.totalReturnPercent}%</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Annualized Return (net of fees)</p>
-            <p className="text-lg font-bold text-slate-700">{summary.annualizedReturn.toFixed(1)}%</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Annualized Return (net)</p>
+            <p className="text-2xl font-black text-white">{summary.annualizedReturn.toFixed(1)}%</p>
           </div>
         </div>
       </motion.div>

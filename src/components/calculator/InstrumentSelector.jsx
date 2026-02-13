@@ -23,34 +23,34 @@ export default function InstrumentSelector({ selected, onSelect }) {
         return (
           <motion.button
             key={inst.id}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onSelect(inst.id)}
             className={cn(
-              "relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
+              "relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300",
               isActive
-                ? "border-transparent bg-gradient-to-br shadow-lg shadow-slate-200/50"
-                : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md"
+                ? "border-transparent shadow-2xl shadow-indigo-500/20"
+                : "border-white/10 bg-slate-800/30 backdrop-blur-sm hover:border-white/20 hover:bg-slate-800/50"
             )}
           >
             <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-lg",
               isActive
-                ? `bg-gradient-to-br ${inst.color} text-white`
-                : "bg-slate-100 text-slate-500"
+                ? `bg-gradient-to-br ${inst.color} text-white shadow-indigo-500/30`
+                : "bg-slate-700/50 text-slate-400"
             )}>
-              <Icon className="w-5 h-5" />
+              <Icon className="w-6 h-6" />
             </div>
             <span className={cn(
-              "text-xs font-semibold tracking-wide",
-              isActive ? "text-slate-800" : "text-slate-500"
+              "text-xs font-bold tracking-wide",
+              isActive ? "text-white" : "text-slate-400"
             )}>
               {inst.label}
             </span>
             {isActive && (
               <motion.div
                 layoutId="instrument-active"
-                className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${inst.color} opacity-[0.07]`}
+                className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${inst.color} opacity-10`}
               />
             )}
           </motion.button>
