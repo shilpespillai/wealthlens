@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Calculator, BarChart3, Table2, Layers } from "lucide-react";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
 import InvestmentForm, { getDefaultRate } from "@/components/calculator/InvestmentForm";
@@ -8,6 +8,7 @@ import GrowthChart from "@/components/calculator/GrowthChart";
 import ResultsSummary from "@/components/calculator/ResultsSummary";
 import ScenarioComparison from "@/components/calculator/ScenarioComparison";
 import YearlyBreakdown from "@/components/calculator/YearlyBreakdown";
+import MarketSentiment from "@/components/calculator/MarketSentiment";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
 export default function CalculatorPage() {
@@ -102,12 +103,16 @@ export default function CalculatorPage() {
             {/* Summary Cards */}
             <ResultsSummary summary={results.summary} currency={params.currency} />
 
-            {/* Tabs for Chart / Scenarios / Table */}
+            {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
             <Tabs defaultValue="chart" className="w-full">
               <TabsList className="bg-slate-100/80 p-1 rounded-2xl h-auto">
                 <TabsTrigger value="chart" className="rounded-xl px-4 py-2.5 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
                   Growth Chart
+                </TabsTrigger>
+                <TabsTrigger value="market" className="rounded-xl px-4 py-2.5 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+                  Market Analysis
                 </TabsTrigger>
                 <TabsTrigger value="scenarios" className="rounded-xl px-4 py-2.5 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   <Layers className="w-3.5 h-3.5 mr-1.5" />
@@ -124,6 +129,10 @@ export default function CalculatorPage() {
                   <h3 className="text-sm font-bold text-slate-800 mb-4">Portfolio Growth Over Time</h3>
                   <GrowthChart data={results.yearlyData} currency={params.currency} />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="market" className="mt-6">
+                <MarketSentiment instrument={instrument} currency={params.currency} />
               </TabsContent>
 
               <TabsContent value="scenarios" className="mt-6">
