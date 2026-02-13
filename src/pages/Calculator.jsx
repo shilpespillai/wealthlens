@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Calculator, BarChart3, Table2, Layers, TrendingUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
+import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
 import InvestmentForm, { getDefaultRate } from "@/components/calculator/InvestmentForm";
 import GrowthChart from "@/components/calculator/GrowthChart";
 import ResultsSummary from "@/components/calculator/ResultsSummary";
@@ -61,15 +62,40 @@ export default function CalculatorPage() {
               <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">Calculator</span>
             </h1>
             <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light">
-              Professional-grade financial modeling with real-time market insights.
+              Whether you're starting with $50 or managing millions, make informed investment decisions.
               <br className="hidden sm:block" />
-              Plan your wealth journey with institutional-level precision.
+              Professional-grade tools for every investor.
             </p>
+            <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Accessible to All</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                <span>Real-Time Analysis</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-violet-400" />
+                <span>20+ Currencies</span>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16 relative z-10">
+        {/* Investment Profiles */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-10"
+        >
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
+          <InvestmentProfiles onSelect={(defaults) => setParams(prev => ({ ...prev, ...defaults }))} />
+        </motion.div>
+
         {/* Instrument Selector */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

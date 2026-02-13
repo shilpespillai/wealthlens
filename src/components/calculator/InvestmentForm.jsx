@@ -41,9 +41,11 @@ export default function InvestmentForm({ params, setParams }) {
           <Input
             type="number"
             min={0}
+            max={10000000}
             value={params.initialAmount}
             onChange={(e) => update("initialAmount", parseFloat(e.target.value) || 0)}
             className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
+            placeholder="Any amount from $1 to $10M"
           />
         </div>
       </div>
@@ -56,9 +58,11 @@ export default function InvestmentForm({ params, setParams }) {
           <Input
             type="number"
             min={0}
+            max={1000000}
             value={params.monthlyContribution}
             onChange={(e) => update("monthlyContribution", parseFloat(e.target.value) || 0)}
             className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
+            placeholder="Any amount from $0 to $1M"
           />
         </div>
       </div>
