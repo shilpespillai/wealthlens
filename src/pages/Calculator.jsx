@@ -148,6 +148,10 @@ export default function CalculatorPage() {
                   <TrendingUp className="w-3.5 h-3.5 mr-2" />
                   Market Analysis
                 </TabsTrigger>
+                <TabsTrigger value="tax" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                  <Shield className="w-3.5 h-3.5 mr-2" />
+                  Tax Strategies
+                </TabsTrigger>
                 <TabsTrigger value="scenarios" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
                   <Layers className="w-3.5 h-3.5 mr-2" />
                   Scenarios
@@ -159,7 +163,7 @@ export default function CalculatorPage() {
               </TabsList>
 
               <TabsContent value="chart" className="mt-6">
-                <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
+                <div ref={chartRef} className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
                   <h3 className="text-sm font-bold text-white mb-6">Portfolio Growth Over Time</h3>
                   <GrowthChart data={results.yearlyData} currency={params.currency} />
                 </div>
@@ -167,6 +171,10 @@ export default function CalculatorPage() {
 
               <TabsContent value="market" className="mt-6">
                 <MarketSentiment instrument={instrument} currency={params.currency} />
+              </TabsContent>
+
+              <TabsContent value="tax" className="mt-6">
+                <TaxOptimization params={params} instrument={instrument} results={results} />
               </TabsContent>
 
               <TabsContent value="scenarios" className="mt-6">
