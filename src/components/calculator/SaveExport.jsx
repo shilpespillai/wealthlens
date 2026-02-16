@@ -48,7 +48,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
   });
 
   const exportToPDF = async () => {
-    toast.loading("Generating PDF report...");
+    const loadingToast = toast.loading("Generating PDF report...");
     
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -57,21 +57,17 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       
       // Title
       pdf.setFontSize(24);
-      pdf.setFont(undefined, 'bold');
       pdf.text('Investment Analysis Report', pageWidth / 2, 20, { align: 'center' });
       
       // Date
       pdf.setFontSize(10);
-      pdf.setFont(undefined, 'normal');
       pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: 'center' });
       
       // Parameters Section
       pdf.setFontSize(14);
-      pdf.setFont(undefined, 'bold');
       pdf.text('Investment Parameters', 15, 40);
       
       pdf.setFontSize(10);
-      pdf.setFont(undefined, 'normal');
       let yPos = 50;
       const params_list = [
         `Asset Type: ${instrument.toUpperCase()}`,
@@ -93,12 +89,10 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       // Results Section
       yPos += 10;
       pdf.setFontSize(14);
-      pdf.setFont(undefined, 'bold');
       pdf.text('Projected Results', 15, yPos);
       yPos += 10;
       
       pdf.setFontSize(10);
-      pdf.setFont(undefined, 'normal');
       const results_list = [
         `Final Portfolio Value: ${sym}${results.summary.finalPortfolioValue.toLocaleString()}`,
         `Total Contributions: ${sym}${results.summary.totalContributed.toLocaleString()}`,
@@ -116,38 +110,56 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       
       // Capture chart if available
       if (chartRef?.current) {
-        yPos += 10;
-        const canvas = await html2canvas(chartRef.current, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = pageWidth - 30;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        if (yPos + imgHeight > 270) {
-          pdf.addPage();
-          yPos = 20;
+        try {
+          yPos += 10;
+          const canvas = await html2canvas(chartRef.current, { 
+            scale: 1.5,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+          });
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = pageWidth - 30;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          if (yPos + imgHeight > 270) {
+            pdf.addPage();
+            yPos = 20;
+          }
+          
+          pdf.addImage(imgData, 'PNG', 15, yPos, imgWidth, imgHeight);
+        } catch (chartError) {
+          console.error('Chart capture failed:', chartError);
         }
-        
-        pdf.addImage(imgData, 'PNG', 15, yPos, imgWidth, imgHeight);
       }
       
       // Disclaimer
       pdf.addPage();
       pdf.setFontSize(12);
-      pdf.setFont(undefined, 'bold');
       pdf.text('Important Disclaimer', 15, 20);
       
       pdf.setFontSize(9);
-      pdf.setFont(undefined, 'normal');
       const disclaimer = 'This calculator provides estimates for educational purposes only. Actual investment returns will vary based on market conditions, timing, specific instruments chosen, and other factors. Past performance does not guarantee future results. Always consult a qualified financial advisor before making investment decisions.';
       const splitDisclaimer = pdf.splitTextToSize(disclaimer, pageWidth - 30);
       pdf.text(splitDisclaimer, 15, 30);
       
-      pdf.save(`Investment-Report-${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.dismiss();
+      // For mobile/tablet compatibility
+      const pdfBlob = pdf.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Investment-Report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.dismiss(loadingToast);
       toast.success("PDF report downloaded");
     } catch (error) {
-      toast.dismiss();
-      toast.error("Failed to generate PDF");
+      console.error('PDF export error:', error);
+      toast.dismiss(loadingToast);
+      toast.error(`Failed to generate PDF: ${error.message}`);
     }
   };
 
