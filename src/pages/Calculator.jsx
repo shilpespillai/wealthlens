@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Calculator, BarChart3, Table2, Layers, TrendingUp } from "lucide-react";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
 import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
@@ -10,6 +10,8 @@ import ResultsSummary from "@/components/calculator/ResultsSummary";
 import ScenarioComparison from "@/components/calculator/ScenarioComparison";
 import YearlyBreakdown from "@/components/calculator/YearlyBreakdown";
 import MarketSentiment from "@/components/calculator/MarketSentiment";
+import TaxOptimization from "@/components/calculator/TaxOptimization";
+import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
 export default function CalculatorPage() {
@@ -25,6 +27,8 @@ export default function CalculatorPage() {
     taxRate: 15,
     fees: 0.5,
   });
+  
+  const chartRef = useRef(null);
 
   const handleInstrumentChange = (id) => {
     setInstrument(id);
@@ -136,6 +140,11 @@ export default function CalculatorPage() {
           >
             {/* Summary Cards */}
             <ResultsSummary summary={results.summary} currency={params.currency} />
+            
+            {/* Save & Export */}
+            <div className="flex justify-end">
+              <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
+            </div>
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
             <Tabs defaultValue="chart" className="w-full">
