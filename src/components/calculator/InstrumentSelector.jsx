@@ -47,12 +47,6 @@ export default function InstrumentSelector({ selected, onSelect }) {
             )}>
               {inst.label}
             </span>
-            {isActive && (
-              <motion.div
-                layoutId="instrument-active"
-                className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${inst.color} opacity-10`}
-              />
-            )}
           </motion.button>
         );
       })}
