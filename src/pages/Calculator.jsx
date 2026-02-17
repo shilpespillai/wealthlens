@@ -12,6 +12,7 @@ import YearlyBreakdown from "@/components/calculator/YearlyBreakdown";
 import MarketSentiment from "@/components/calculator/MarketSentiment";
 import TaxOptimization from "@/components/calculator/TaxOptimization";
 import InvestmentCoach from "@/components/calculator/InvestmentCoach";
+import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -146,6 +147,11 @@ export default function CalculatorPage() {
             <div className="flex justify-end">
               <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
             </div>
+
+            {/* Property-Specific Analysis */}
+            {instrument === "property" && (
+              <PropertyAnalyzer currency={params.currency} />
+            )}
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
             <Tabs defaultValue="coach" className="w-full">
