@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield } from "lucide-react";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
 import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
@@ -11,6 +11,7 @@ import ScenarioComparison from "@/components/calculator/ScenarioComparison";
 import YearlyBreakdown from "@/components/calculator/YearlyBreakdown";
 import MarketSentiment from "@/components/calculator/MarketSentiment";
 import TaxOptimization from "@/components/calculator/TaxOptimization";
+import InvestmentCoach from "@/components/calculator/InvestmentCoach";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -147,8 +148,12 @@ export default function CalculatorPage() {
             </div>
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
-            <Tabs defaultValue="chart" className="w-full">
+            <Tabs defaultValue="coach" className="w-full">
               <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl h-auto">
+                <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                  <Sparkles className="w-3.5 h-3.5 mr-2" />
+                  AI Coach
+                </TabsTrigger>
                 <TabsTrigger value="chart" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
                   <BarChart3 className="w-3.5 h-3.5 mr-2" />
                   Growth Chart
@@ -170,6 +175,10 @@ export default function CalculatorPage() {
                   Yearly Breakdown
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="coach" className="mt-6">
+                <InvestmentCoach params={params} instrument={instrument} results={results} />
+              </TabsContent>
 
               <TabsContent value="chart" className="mt-6">
                 <div ref={chartRef} className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
