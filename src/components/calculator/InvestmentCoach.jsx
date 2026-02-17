@@ -12,30 +12,33 @@ export default function InvestmentCoach({ params, instrument, results }) {
   const [error, setError] = useState(null);
 
   const fetchCoaching = async () => {
+    if (!results?.summary) return;
+    
     setLoading(true);
     setError(null);
     try {
       const sym = getCurrencySymbol(params.currency);
+      const summary = results.summary;
       
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `You are an experienced financial coach. Analyze this investment scenario and provide personalized, actionable advice in a friendly, mentor-like tone.
 
 Investment Details:
 - Asset: ${instrument}
-- Initial Investment: ${sym}${params.initialAmount.toLocaleString()}
-- Monthly Contribution: ${sym}${params.monthlyContribution.toLocaleString()}
-- Time Horizon: ${params.years} years
-- Expected Return: ${params.returnRate}%
-- Inflation Rate: ${params.inflationRate}%
-- Tax Rate: ${params.taxRate}%
-- Annual Fees: ${params.fees}%
+- Initial Investment: ${sym}${params.initialAmount?.toLocaleString() || 0}
+- Monthly Contribution: ${sym}${params.monthlyContribution?.toLocaleString() || 0}
+- Time Horizon: ${params.years || 0} years
+- Expected Return: ${params.returnRate || 0}%
+- Inflation Rate: ${params.inflationRate || 0}%
+- Tax Rate: ${params.taxRate || 0}%
+- Annual Fees: ${params.fees || 0}%
 
 Projected Results:
-- Final Value: ${sym}${results.summary.finalPortfolioValue.toLocaleString()}
-- Real Value (inflation-adjusted): ${sym}${results.summary.realValue.toLocaleString()}
-- After-Tax Value: ${sym}${results.summary.afterTaxValue.toLocaleString()}
-- Total Returns: ${sym}${results.summary.totalReturns.toLocaleString()}
-- Annualized Return: ${results.summary.annualizedReturn.toFixed(1)}%
+- Final Value: ${sym}${summary.finalPortfolioValue?.toLocaleString() || 0}
+- Real Value (inflation-adjusted): ${sym}${summary.realValue?.toLocaleString() || 0}
+- After-Tax Value: ${sym}${summary.afterTaxValue?.toLocaleString() || 0}
+- Total Returns: ${sym}${summary.totalReturns?.toLocaleString() || 0}
+- Annualized Return: ${summary.annualizedReturn?.toFixed(1) || 0}%
 
 Provide:
 1. A personalized assessment of their strategy (1-2 sentences, direct and honest)
