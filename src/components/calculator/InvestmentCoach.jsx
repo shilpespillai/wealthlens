@@ -67,9 +67,11 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
         }
       });
       
+      console.log("AI Coach response:", result);
       setCoaching(result);
     } catch (err) {
-      setError("Failed to generate coaching advice. Please try again.");
+      console.error("AI Coach error:", err);
+      setError(`Failed to generate coaching advice: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
