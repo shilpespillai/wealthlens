@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Building2, TrendingUp, DollarSign, Percent, Home, Calculator } from "lucide-react";
+import { Building2, TrendingUp, DollarSign, Percent, Home, Calculator, PiggyBank } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { getCurrencySymbol } from "./CurrencySelector";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function PropertyAnalyzer({ currency }) {
   const sym = getCurrencySymbol(currency);
@@ -25,6 +27,14 @@ export default function PropertyAnalyzer({ currency }) {
   const [insurance, setInsurance] = useState(1200);
   const [councilRates, setCouncilRates] = useState(2000);
   const [suburbYield, setSuburbYield] = useState(3.8);
+
+  // Mortgage State
+  const [depositPercent, setDepositPercent] = useState(20);
+  const [interestRate, setInterestRate] = useState(6);
+  const [loanTerm, setLoanTerm] = useState(30);
+  const [loanType, setLoanType] = useState("principal"); // principal or interestOnly
+  const [extraRepayments, setExtraRepayments] = useState(0);
+  const [enableExtraRepayments, setEnableExtraRepayments] = useState(false);
 
   // Capital Growth Calculations
   const growthResults = useMemo(() => {
@@ -79,6 +89,99 @@ export default function PropertyAnalyzer({ currency }) {
     };
   }, [weeklyRent, vacancyRate, managementFees, maintenance, insurance, councilRates, purchasePrice, suburbYield]);
 
+  // Mortgage Calculations
+  const mortgageResults = useMemo(() => {
+    const deposit = purchasePrice * (depositPercent / 100);
+    const loanAmount = purchasePrice - deposit;
+    const monthlyRate = interestRate / 100 / 12;
+    const numPayments = loanTerm * 12;
+    
+    let monthlyRepayment;
+    let totalInterest;
+    let payoffMonths = numPayments;
+    let equityTimeline = [];
+    
+    if (loanType === "interestOnly") {
+      monthlyRepayment = loanAmount * monthlyRate;
+      totalInterest = monthlyRepayment * numPayments;
+      
+      // Build equity timeline for interest-only
+      for (let year = 0; year <= loanTerm; year++) {
+        const propertyValue = purchasePrice * Math.pow(1 + growthRate / 100, year);
+        equityTimeline.push({
+          year,
+          equity: propertyValue - loanAmount,
+          propertyValue,
+          loanBalance: loanAmount,
+          lvr: (loanAmount / propertyValue) * 100
+        });
+      }
+    } else {
+      // Principal & Interest
+      monthlyRepayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+      
+      let balance = loanAmount;
+      let totalInterestPaid = 0;
+      let month = 0;
+      const extraMonthly = enableExtraRepayments ? extraRepayments : 0;
+      
+      // Calculate with extra repayments
+      while (balance > 0 && month < numPayments) {
+        const interestPayment = balance * monthlyRate;
+        const principalPayment = monthlyRepayment - interestPayment + extraMonthly;
+        totalInterestPaid += interestPayment;
+        balance = Math.max(0, balance - principalPayment);
+        month++;
+      }
+      
+      totalInterest = totalInterestPaid;
+      payoffMonths = month;
+      
+      // Build equity timeline
+      balance = loanAmount;
+      for (let year = 0; year <= Math.ceil(payoffMonths / 12); year++) {
+        const monthsElapsed = Math.min(year * 12, payoffMonths);
+        
+        // Calculate balance at this year
+        let tempBalance = loanAmount;
+        for (let m = 0; m < monthsElapsed; m++) {
+          const interest = tempBalance * monthlyRate;
+          const principal = monthlyRepayment - interest + extraMonthly;
+          tempBalance = Math.max(0, tempBalance - principal);
+        }
+        
+        const propertyValue = purchasePrice * Math.pow(1 + growthRate / 100, year);
+        const equity = propertyValue - tempBalance;
+        const lvr = tempBalance > 0 ? (tempBalance / propertyValue) * 100 : 0;
+        
+        equityTimeline.push({
+          year,
+          equity,
+          propertyValue,
+          loanBalance: tempBalance,
+          lvr
+        });
+      }
+    }
+    
+    const monthlyWithExtra = enableExtraRepayments ? monthlyRepayment + extraRepayments : monthlyRepayment;
+    const payoffYears = payoffMonths / 12;
+    const interestSaved = enableExtraRepayments ? (monthlyRepayment * numPayments - totalInterest) : 0;
+    
+    return {
+      deposit,
+      loanAmount,
+      monthlyRepayment,
+      monthlyWithExtra,
+      totalInterest,
+      totalRepaid: loanAmount + totalInterest,
+      payoffMonths,
+      payoffYears,
+      equityTimeline,
+      interestSaved
+    };
+  }, [purchasePrice, depositPercent, interestRate, loanTerm, loanType, growthRate, extraRepayments, enableExtraRepayments]);
+
   const fmt = (num) => `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
@@ -106,6 +209,10 @@ export default function PropertyAnalyzer({ currency }) {
           <TabsTrigger value="yield" className="rounded-lg px-4 py-2 text-xs font-bold">
             <DollarSign className="w-3.5 h-3.5 mr-2" />
             Rental Yield
+          </TabsTrigger>
+          <TabsTrigger value="mortgage" className="rounded-lg px-4 py-2 text-xs font-bold">
+            <PiggyBank className="w-3.5 h-3.5 mr-2" />
+            Mortgage & Leverage
           </TabsTrigger>
         </TabsList>
 
@@ -384,6 +491,204 @@ export default function PropertyAnalyzer({ currency }) {
                   {yieldResults.yieldVsSuburb > 0 ? '+' : ''}{yieldResults.yieldVsSuburb.toFixed(2)}% {yieldResults.yieldVsSuburb > 0 ? 'above' : 'below'} suburb average
                 </p>
               </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Mortgage & Leverage Engine */}
+        <TabsContent value="mortgage" className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Inputs */}
+            <div className="space-y-5">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Loan Parameters</h4>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Label className="text-xs text-slate-300">Deposit</Label>
+                  <span className="text-sm font-bold text-emerald-400">{depositPercent}%</span>
+                </div>
+                <Slider value={[depositPercent]} onValueChange={([v]) => setDepositPercent(v)} min={5} max={50} step={1} />
+                <p className="text-xs text-slate-500">Amount: {fmt(mortgageResults.deposit)}</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Label className="text-xs text-slate-300">Interest Rate</Label>
+                  <span className="text-sm font-bold text-white">{interestRate}%</span>
+                </div>
+                <Slider value={[interestRate]} onValueChange={([v]) => setInterestRate(v)} min={1} max={15} step={0.1} />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Label className="text-xs text-slate-300">Loan Term</Label>
+                  <span className="text-sm font-bold text-white">{loanTerm} years</span>
+                </div>
+                <Slider value={[loanTerm]} onValueChange={([v]) => setLoanTerm(v)} min={5} max={40} step={1} />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-300">Loan Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setLoanType("principal")}
+                    className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
+                      loanType === "principal"
+                        ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
+                        : "bg-slate-700/30 text-slate-400 border border-white/10"
+                    }`}
+                  >
+                    Principal & Interest
+                  </button>
+                  <button
+                    onClick={() => setLoanType("interestOnly")}
+                    className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
+                      loanType === "interestOnly"
+                        ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
+                        : "bg-slate-700/30 text-slate-400 border border-white/10"
+                    }`}
+                  >
+                    Interest Only
+                  </button>
+                </div>
+              </div>
+
+              {/* Extra Repayments Toggle */}
+              <div className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-2xl p-4 border border-emerald-400/20">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-xs font-bold text-emerald-300">Extra Repayments</Label>
+                  <Switch
+                    checked={enableExtraRepayments}
+                    onCheckedChange={setEnableExtraRepayments}
+                  />
+                </div>
+                
+                {enableExtraRepayments && (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                      <Input
+                        type="number"
+                        value={extraRepayments}
+                        onChange={(e) => setExtraRepayments(parseFloat(e.target.value) || 0)}
+                        className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                        placeholder="Monthly extra"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Repayment Analysis</h4>
+              
+              <div className="bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl p-4 border border-indigo-400/20">
+                <p className="text-xs text-indigo-300 mb-1">Monthly Repayment</p>
+                <p className="text-3xl font-black text-white">{fmt(mortgageResults.monthlyWithExtra)}</p>
+                {enableExtraRepayments && extraRepayments > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Base: {fmt(mortgageResults.monthlyRepayment)} + {fmt(extraRepayments)} extra
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
+                  <p className="text-[10px] text-slate-400 mb-1">Loan Amount</p>
+                  <p className="text-lg font-black text-white">{fmt(mortgageResults.loanAmount)}</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
+                  <p className="text-[10px] text-slate-400 mb-1">Total Interest</p>
+                  <p className="text-lg font-black text-rose-400">{fmt(mortgageResults.totalInterest)}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
+                <p className="text-xs text-slate-400 mb-1">Loan Payoff Time</p>
+                <p className="text-2xl font-black text-white">{mortgageResults.payoffYears.toFixed(1)} years</p>
+                {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" && (
+                  <p className="text-xs text-emerald-400 mt-2 font-semibold">
+                    ⚡ {(loanTerm - mortgageResults.payoffYears).toFixed(1)} years faster!
+                  </p>
+                )}
+              </div>
+
+              {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" && (
+                <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-4 border border-emerald-400/20">
+                  <p className="text-xs text-emerald-300 mb-1">Interest Saved</p>
+                  <p className="text-2xl font-black text-emerald-400">{fmt(mortgageResults.interestSaved)}</p>
+                </div>
+              )}
+
+              <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
+                <p className="text-xs text-slate-400 mb-2">Total Amount Repaid</p>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Principal</span>
+                    <span className="text-white font-semibold">{fmt(mortgageResults.loanAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Interest</span>
+                    <span className="text-rose-400 font-semibold">{fmt(mortgageResults.totalInterest)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-white/10">
+                    <span className="text-white font-bold">Total</span>
+                    <span className="text-white font-bold">{fmt(mortgageResults.totalRepaid)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Equity Growth & LVR Timeline */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Equity Growth & LVR Timeline</h4>
+            
+            <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={mortgageResults.equityTimeline}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis 
+                    dataKey="year" 
+                    stroke="#94a3b8"
+                    label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
+                  />
+                  <YAxis 
+                    stroke="#94a3b8"
+                    tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                    labelStyle={{ color: '#e2e8f0' }}
+                    formatter={(value, name) => {
+                      if (name === "LVR") return [`${value.toFixed(1)}%`, name];
+                      return [fmt(value), name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ color: '#94a3b8' }} />
+                  <Line type="monotone" dataKey="propertyValue" stroke="#10b981" strokeWidth={2} name="Property Value" />
+                  <Line type="monotone" dataKey="equity" stroke="#6366f1" strokeWidth={2} name="Your Equity" />
+                  <Line type="monotone" dataKey="loanBalance" stroke="#ef4444" strokeWidth={2} name="Loan Balance" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5">
+              <h5 className="text-xs font-bold text-slate-300 mb-4">LVR (Loan-to-Value Ratio) Over Time</h5>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={mortgageResults.equityTimeline}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="year" stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" tickFormatter={(val) => `${val}%`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                    formatter={(value) => [`${value.toFixed(1)}%`, "LVR"]}
+                  />
+                  <Line type="monotone" dataKey="lvr" stroke="#f59e0b" strokeWidth={3} name="LVR %" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </TabsContent>
