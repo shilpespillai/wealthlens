@@ -13,6 +13,7 @@ import MarketSentiment from "@/components/calculator/MarketSentiment";
 import TaxOptimization from "@/components/calculator/TaxOptimization";
 import InvestmentCoach from "@/components/calculator/InvestmentCoach";
 import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
+import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -152,6 +153,9 @@ export default function CalculatorPage() {
             {instrument === "property" && (
               <PropertyAnalyzer currency={params.currency} />
             )}
+
+            {/* Property vs ETF Comparison */}
+            <PropertyVsETF currency={params.currency} />
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
             <Tabs defaultValue="coach" className="w-full">
