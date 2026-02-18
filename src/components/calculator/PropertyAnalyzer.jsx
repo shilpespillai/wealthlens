@@ -35,6 +35,7 @@ export default function PropertyAnalyzer({ currency }) {
   const [loanType, setLoanType] = useState("principal"); // principal or interestOnly
   const [extraRepayments, setExtraRepayments] = useState(0);
   const [enableExtraRepayments, setEnableExtraRepayments] = useState(false);
+  const [stressTestRate, setStressTestRate] = useState(9);
 
   // Capital Growth Calculations
   const growthResults = useMemo(() => {
@@ -181,6 +182,49 @@ export default function PropertyAnalyzer({ currency }) {
       interestSaved
     };
   }, [purchasePrice, depositPercent, interestRate, loanTerm, loanType, growthRate, extraRepayments, enableExtraRepayments]);
+
+  // Stress Test Calculations
+  const stressTestResults = useMemo(() => {
+    const loanAmount = purchasePrice * (1 - depositPercent / 100);
+    const monthlyRate = stressTestRate / 100 / 12;
+    const numPayments = loanTerm * 12;
+    
+    let stressRepayment;
+    if (loanType === "interestOnly") {
+      stressRepayment = loanAmount * monthlyRate;
+    } else {
+      stressRepayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+    }
+    
+    const repaymentIncrease = stressRepayment - mortgageResults.monthlyRepayment;
+    const increasePercent = (repaymentIncrease / mortgageResults.monthlyRepayment) * 100;
+    
+    // Calculate cashflow impact (using rental income if available)
+    const monthlyRentalIncome = yieldResults.monthlyCashflow;
+    const netCashflowAtStress = monthlyRentalIncome - stressRepayment;
+    const cashflowImpact = netCashflowAtStress - (monthlyRentalIncome - mortgageResults.monthlyRepayment);
+    
+    // Risk level based on increase
+    let riskLevel = "Low";
+    let riskColor = "emerald";
+    if (increasePercent > 30) {
+      riskLevel = "High";
+      riskColor = "rose";
+    } else if (increasePercent > 15) {
+      riskLevel = "Medium";
+      riskColor = "amber";
+    }
+    
+    return {
+      stressRepayment,
+      repaymentIncrease,
+      increasePercent,
+      cashflowImpact,
+      netCashflowAtStress,
+      riskLevel,
+      riskColor
+    };
+  }, [stressTestRate, purchasePrice, depositPercent, loanTerm, loanType, mortgageResults.monthlyRepayment, yieldResults.monthlyCashflow]);
 
   const fmt = (num) => `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -638,6 +682,80 @@ export default function PropertyAnalyzer({ currency }) {
                     <span className="text-white font-bold">{fmt(mortgageResults.totalRepaid)}</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Interest Rate Stress Test */}
+          <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-6 border border-amber-400/20">
+            <h4 className="text-sm font-bold text-amber-300 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Interest Rate Stress Test
+            </h4>
+            <p className="text-xs text-slate-400 mb-4">What if interest rates rise?</p>
+            
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs text-slate-300">Stress Test Rate</Label>
+                  <span className="text-lg font-black text-amber-300">{stressTestRate}%</span>
+                </div>
+                <Slider 
+                  value={[stressTestRate]} 
+                  onValueChange={([v]) => setStressTestRate(v)} 
+                  min={interestRate} 
+                  max={15} 
+                  step={0.1}
+                  className="py-2"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
+                  <span>Current: {interestRate}%</span>
+                  <span>15%</span>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <p className="text-xs text-slate-400 mb-2">New Monthly Repayment</p>
+                  <p className="text-xl font-black text-white">{fmt(stressTestResults.stressRepayment)}</p>
+                  <p className="text-xs text-rose-400 mt-1 font-semibold">
+                    +{fmt(stressTestResults.repaymentIncrease)} ({stressTestResults.increasePercent.toFixed(1)}%)
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <p className="text-xs text-slate-400 mb-2">Cashflow Impact</p>
+                  <p className={`text-xl font-black ${stressTestResults.cashflowImpact < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                    {stressTestResults.cashflowImpact < 0 ? '' : '+'}{fmt(stressTestResults.cashflowImpact)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Net: {fmt(stressTestResults.netCashflowAtStress)}/mo
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <p className="text-xs text-slate-400 mb-2">Risk Level</p>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-${stressTestResults.riskColor}-500/20 border border-${stressTestResults.riskColor}-400/30`}>
+                    <div className={`w-2 h-2 rounded-full bg-${stressTestResults.riskColor}-400`} />
+                    <span className={`text-sm font-bold text-${stressTestResults.riskColor}-300`}>
+                      {stressTestResults.riskLevel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">
+                    {stressTestResults.increasePercent.toFixed(0)}% increase
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/30 rounded-xl p-4 border border-white/5">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  <strong className="text-white">Scenario:</strong> If rates increase from {interestRate}% to {stressTestRate}%, 
+                  your monthly repayments would rise by {fmt(stressTestResults.repaymentIncrease)}. 
+                  {stressTestResults.netCashflowAtStress < 0 
+                    ? ` This would result in negative cashflow of ${fmt(Math.abs(stressTestResults.netCashflowAtStress))} per month.`
+                    : ` You would still maintain positive cashflow of ${fmt(stressTestResults.netCashflowAtStress)} per month.`
+                  }
+                </p>
               </div>
             </div>
           </div>
