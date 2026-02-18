@@ -14,6 +14,7 @@ import TaxOptimization from "@/components/calculator/TaxOptimization";
 import InvestmentCoach from "@/components/calculator/InvestmentCoach";
 import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
 import PropertyVsETF from "@/components/calculator/PropertyVsETF";
+import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -156,6 +157,9 @@ export default function CalculatorPage() {
 
             {/* Property vs ETF Comparison */}
             <PropertyVsETF currency={params.currency} />
+
+            {/* Equity Unlock Planner */}
+            <EquityUnlockPlanner currency={params.currency} />
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
             <Tabs defaultValue="coach" className="w-full">
