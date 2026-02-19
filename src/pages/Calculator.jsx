@@ -116,39 +116,45 @@ export default function CalculatorPage() {
         </motion.div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Form Sidebar */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-4"
-          >
-            <div className="sticky top-6 bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-              <h3 className="text-sm font-bold text-white mb-8 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                  <Calculator className="w-4 h-4 text-white" />
-                </div>
-                Investment Parameters
-              </h3>
-              <InvestmentForm params={params} setParams={setParams} />
-            </div>
-          </motion.div>
+        <div className={instrument === "property" ? "" : "grid grid-cols-1 lg:grid-cols-12 gap-8"}>
+          {/* Form Sidebar - Hidden for Property */}
+          {instrument !== "property" && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="lg:col-span-4"
+            >
+              <div className="sticky top-6 bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
+                <h3 className="text-sm font-bold text-white mb-8 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <Calculator className="w-4 h-4 text-white" />
+                  </div>
+                  Investment Parameters
+                </h3>
+                <InvestmentForm params={params} setParams={setParams} />
+              </div>
+            </motion.div>
+          )}
 
           {/* Results Area */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="lg:col-span-8 space-y-8"
+            className={instrument === "property" ? "space-y-8" : "lg:col-span-8 space-y-8"}
           >
-            {/* Summary Cards */}
-            <ResultsSummary summary={results.summary} currency={params.currency} />
-            
-            {/* Save & Export */}
-            <div className="flex justify-end">
-              <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
-            </div>
+            {/* Summary Cards - Hidden for Property */}
+            {instrument !== "property" && (
+              <>
+                <ResultsSummary summary={results.summary} currency={params.currency} />
+                
+                {/* Save & Export */}
+                <div className="flex justify-end">
+                  <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
+                </div>
+              </>
+            )}
 
             {/* Property-Specific Analysis */}
             {instrument === "property" && (
@@ -161,8 +167,9 @@ export default function CalculatorPage() {
             {/* Equity Unlock Planner */}
             <EquityUnlockPlanner currency={params.currency} />
 
-            {/* Tabs for Chart / Scenarios / Table / Market Analysis */}
-            <Tabs defaultValue="coach" className="w-full">
+            {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
+            {instrument !== "property" && (
+              <Tabs defaultValue="coach" className="w-full">
               <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl h-auto">
                 <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
@@ -224,6 +231,7 @@ export default function CalculatorPage() {
                 </div>
               </TabsContent>
             </Tabs>
+            )}
 
             {/* Disclaimer */}
             <div className="bg-slate-800/30 backdrop-blur-sm border border-amber-400/20 rounded-2xl p-5">
