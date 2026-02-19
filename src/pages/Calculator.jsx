@@ -158,14 +158,16 @@ export default function CalculatorPage() {
 
             {/* Property-Specific Analysis */}
             {instrument === "property" && (
-              <PropertyAnalyzer currency={params.currency} />
+              <>
+                <PropertyAnalyzer currency={params.currency} />
+                
+                {/* Property vs ETF Comparison */}
+                <PropertyVsETF currency={params.currency} />
+
+                {/* Equity Unlock Planner */}
+                <EquityUnlockPlanner currency={params.currency} />
+              </>
             )}
-
-            {/* Property vs ETF Comparison */}
-            <PropertyVsETF currency={params.currency} />
-
-            {/* Equity Unlock Planner */}
-            <EquityUnlockPlanner currency={params.currency} />
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
             {instrument !== "property" && (
