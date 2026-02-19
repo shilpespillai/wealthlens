@@ -15,6 +15,7 @@ import InvestmentCoach from "@/components/calculator/InvestmentCoach";
 import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
 import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
+import PortfolioOverview from "@/components/calculator/PortfolioOverview";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -144,6 +145,16 @@ export default function CalculatorPage() {
             transition={{ delay: 0.3 }}
             className={instrument === "property" ? "space-y-8" : "lg:col-span-8 space-y-8"}
           >
+            {/* Portfolio Overview Dashboard */}
+            {instrument !== "property" && (
+              <PortfolioOverview 
+                params={params} 
+                instrument={instrument} 
+                results={results} 
+                currency={params.currency} 
+              />
+            )}
+
             {/* Summary Cards - Hidden for Property */}
             {instrument !== "property" && (
               <>
