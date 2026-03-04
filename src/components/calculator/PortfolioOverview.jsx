@@ -205,7 +205,7 @@ export default function PortfolioOverview({ params, instrument, results, currenc
         <ul className="space-y-2 text-sm text-slate-300">
           <li className="flex items-start gap-2">
             <span className="text-emerald-400 mt-0.5">•</span>
-            <span>Your {instrument} investment shows a projected {portfolioMetrics.annualizedReturn.toFixed(1)}% annualized return</span>
+            <span>Your {instrument} investment shows a projected {safe(portfolioMetrics.annualizedReturn).toFixed(1)}% annualized return</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-indigo-400 mt-0.5">•</span>
