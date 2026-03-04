@@ -45,7 +45,7 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     };
   }, [params, instrument, results, currency]);
 
-  const fmt = (num) => `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const fmt = (num) => `${sym}${(num || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <motion.div
