@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles } from "lucide-react";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, BrainCircuit } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
 import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
