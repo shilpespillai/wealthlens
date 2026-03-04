@@ -93,14 +93,16 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       yPos += 10;
       
       pdf.setFontSize(10);
+      const s = results.summary;
+      const fmt = (n) => (n || 0).toLocaleString();
       const results_list = [
-        `Final Portfolio Value: ${sym}${results.summary.finalPortfolioValue.toLocaleString()}`,
-        `Total Contributions: ${sym}${results.summary.totalContributed.toLocaleString()}`,
-        `Total Returns: ${sym}${results.summary.totalReturns.toLocaleString()}`,
-        `Total Return: ${results.summary.totalReturnPercent}%`,
-        `Annualized Return: ${results.summary.annualizedReturn.toFixed(1)}%`,
-        `Real Value (Inflation Adj.): ${sym}${results.summary.realValue.toLocaleString()}`,
-        `After-Tax Value: ${sym}${results.summary.afterTaxValue.toLocaleString()}`,
+        `Final Portfolio Value: ${sym}${fmt(s.finalValue)}`,
+        `Total Contributions: ${sym}${fmt(s.totalContributed)}`,
+        `Total Returns: ${sym}${fmt(s.totalReturns)}`,
+        `Total Return: ${s.totalReturnPercent}%`,
+        `Annualized Return: ${(s.annualizedReturn || 0).toFixed(1)}%`,
+        `Real Value (Inflation Adj.): ${sym}${fmt(s.realValue)}`,
+        `After-Tax Value: ${sym}${fmt(s.afterTax)}`,
       ];
       
       results_list.forEach(line => {
