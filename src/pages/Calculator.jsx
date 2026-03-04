@@ -224,6 +224,14 @@ export default function CalculatorPage() {
                 <InvestmentCoach params={params} instrument={instrument} results={results} />
               </TabsContent>
 
+              <TabsContent value="portfolio_builder" className="mt-6">
+                <AIPortfolioBuilder currency={params.currency} />
+              </TabsContent>
+
+              <TabsContent value="retirement" className="mt-6">
+                <RetirementPlanner currency={params.currency} />
+              </TabsContent>
+
               <TabsContent value="chart" className="mt-6">
                 <div ref={chartRef} className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
                   <h3 className="text-sm font-bold text-white mb-6">Portfolio Growth Over Time</h3>
