@@ -185,10 +185,18 @@ export default function CalculatorPage() {
             {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
             {instrument !== "property" && (
               <Tabs defaultValue="coach" className="w-full">
-              <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl h-auto">
+              <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl h-auto flex-wrap">
                 <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
                   AI Coach
+                </TabsTrigger>
+                <TabsTrigger value="portfolio_builder" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                  <BrainCircuit className="w-3.5 h-3.5 mr-2" />
+                  AI Portfolio
+                </TabsTrigger>
+                <TabsTrigger value="retirement" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                  <Palmtree className="w-3.5 h-3.5 mr-2" />
+                  Retirement
                 </TabsTrigger>
                 <TabsTrigger value="chart" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
                   <BarChart3 className="w-3.5 h-3.5 mr-2" />
