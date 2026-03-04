@@ -16,6 +16,8 @@ import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
 import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import PortfolioOverview from "@/components/calculator/PortfolioOverview";
+import AIPortfolioBuilder from "@/components/calculator/AIPortfolioBuilder";
+import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
