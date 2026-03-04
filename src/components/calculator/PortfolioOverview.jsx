@@ -45,7 +45,8 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     };
   }, [params, instrument, results, currency]);
 
-  const fmt = (num) => `${sym}${(num || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const safe = (num) => (isFinite(num) && !isNaN(num) ? num : 0);
+  const fmt = (num) => `${sym}${safe(num).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <motion.div
