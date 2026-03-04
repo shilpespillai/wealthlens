@@ -50,118 +50,80 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
   });
 
   const exportToPDF = async () => {
-    const loadingToast = toast.loading("Generating PDF report...");
-    
+    const loadingToast = toast.loading("Generating visual PDF report...");
+
     try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      // Render the visual template off-screen
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.top = "0";
+      container.style.zIndex = "-1";
+      document.body.appendChild(container);
+
+      await new Promise((resolve) => {
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <PdfReportTemplate params={params} results={results} instrument={instrument} ref={(el) => {
+            if (el) {
+              container._el = el;
+              resolve();
+            }
+          }} />
+        );
+        // fallback resolve after short delay
+        setTimeout(resolve, 1200);
+      });
+
+      // Wait a tick for recharts to paint
+      await new Promise(r => setTimeout(r, 800));
+
+      const el = container.querySelector("div");
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#0f172a",
+      });
+
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const sym = getCurrencySymbol(params.currency);
-      
-      // Title
-      pdf.setFontSize(24);
-      pdf.text('Investment Analysis Report', pageWidth / 2, 20, { align: 'center' });
-      
-      // Date
-      pdf.setFontSize(10);
-      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: 'center' });
-      
-      // Parameters Section
-      pdf.setFontSize(14);
-      pdf.text('Investment Parameters', 15, 40);
-      
-      pdf.setFontSize(10);
-      let yPos = 50;
-      const params_list = [
-        `Asset Type: ${instrument.toUpperCase()}`,
-        `Currency: ${params.currency}`,
-        `Initial Investment: ${sym}${params.initialAmount.toLocaleString()}`,
-        `Monthly Contribution: ${sym}${params.monthlyContribution.toLocaleString()}`,
-        `Time Horizon: ${params.years} years`,
-        `Expected Return: ${params.returnRate}%`,
-        `Inflation Rate: ${params.inflationRate}%`,
-        `Tax Rate: ${params.taxRate}%`,
-        `Annual Fees: ${params.fees}%`,
-      ];
-      
-      params_list.forEach(line => {
-        pdf.text(line, 15, yPos);
-        yPos += 6;
-      });
-      
-      // Results Section
-      yPos += 10;
-      pdf.setFontSize(14);
-      pdf.text('Projected Results', 15, yPos);
-      yPos += 10;
-      
-      pdf.setFontSize(10);
-      const s = results.summary;
-      const fmt = (n) => (n || 0).toLocaleString();
-      const results_list = [
-        `Final Portfolio Value: ${sym}${fmt(s.finalValue)}`,
-        `Total Contributions: ${sym}${fmt(s.totalContributed)}`,
-        `Total Returns: ${sym}${fmt(s.totalReturns)}`,
-        `Total Return: ${s.totalReturnPercent}%`,
-        `Annualized Return: ${(s.annualizedReturn || 0).toFixed(1)}%`,
-        `Real Value (Inflation Adj.): ${sym}${fmt(s.realValue)}`,
-        `After-Tax Value: ${sym}${fmt(s.afterTax)}`,
-      ];
-      
-      results_list.forEach(line => {
-        pdf.text(line, 15, yPos);
-        yPos += 6;
-      });
-      
-      // Capture chart if available
-      if (chartRef?.current) {
-        try {
-          yPos += 10;
-          const canvas = await html2canvas(chartRef.current, { 
-            scale: 1.5,
-            useCORS: true,
-            allowTaint: true,
-            logging: false
-          });
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = pageWidth - 30;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          
-          if (yPos + imgHeight > 270) {
-            pdf.addPage();
-            yPos = 20;
-          }
-          
-          pdf.addImage(imgData, 'PNG', 15, yPos, imgWidth, imgHeight);
-        } catch (chartError) {
-          console.error('Chart capture failed:', chartError);
-        }
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
-      
-      // Disclaimer
-      pdf.addPage();
-      pdf.setFontSize(12);
-      pdf.text('Important Disclaimer', 15, 20);
-      
-      pdf.setFontSize(9);
-      const disclaimer = 'This calculator provides estimates for educational purposes only. Actual investment returns will vary based on market conditions, timing, specific instruments chosen, and other factors. Past performance does not guarantee future results. Always consult a qualified financial advisor before making investment decisions.';
-      const splitDisclaimer = pdf.splitTextToSize(disclaimer, pageWidth - 30);
-      pdf.text(splitDisclaimer, 15, 30);
-      
-      // For mobile/tablet compatibility
-      const pdfBlob = pdf.output('blob');
+
+      const pdfBlob = pdf.output("blob");
       const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `Investment-Report-${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = `Investment-Report-${new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.dismiss(loadingToast);
-      toast.success("PDF report downloaded");
+      toast.success("Visual PDF report downloaded!");
     } catch (error) {
-      console.error('PDF export error:', error);
+      console.error("PDF export error:", error);
       toast.dismiss(loadingToast);
       toast.error(`Failed to generate PDF: ${error.message}`);
     }
