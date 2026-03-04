@@ -224,15 +224,21 @@ export default function CalculatorPage() {
               </TabsList>
 
               <TabsContent value="coach" className="mt-6">
-                <InvestmentCoach params={params} instrument={instrument} results={results} />
+                <PremiumGate featureName="AI Investment Coach" isPremium={isPremium}>
+                  <InvestmentCoach params={params} instrument={instrument} results={results} />
+                </PremiumGate>
               </TabsContent>
 
               <TabsContent value="portfolio_builder" className="mt-6">
-                <AIPortfolioBuilder currency={params.currency} />
+                <PremiumGate featureName="AI Portfolio Builder" isPremium={isPremium}>
+                  <AIPortfolioBuilder currency={params.currency} />
+                </PremiumGate>
               </TabsContent>
 
               <TabsContent value="retirement" className="mt-6">
-                <RetirementPlanner currency={params.currency} />
+                <PremiumGate featureName="Retirement Planner" isPremium={isPremium}>
+                  <RetirementPlanner currency={params.currency} />
+                </PremiumGate>
               </TabsContent>
 
               <TabsContent value="chart" className="mt-6">
@@ -243,11 +249,15 @@ export default function CalculatorPage() {
               </TabsContent>
 
               <TabsContent value="market" className="mt-6">
-                <MarketSentiment instrument={instrument} currency={params.currency} />
+                <PremiumGate featureName="Market Sentiment Analysis" isPremium={isPremium}>
+                  <MarketSentiment instrument={instrument} currency={params.currency} />
+                </PremiumGate>
               </TabsContent>
 
               <TabsContent value="tax" className="mt-6">
-                <TaxOptimization params={params} instrument={instrument} results={results} />
+                <PremiumGate featureName="Tax Optimization Strategies" isPremium={isPremium}>
+                  <TaxOptimization params={params} instrument={instrument} results={results} />
+                </PremiumGate>
               </TabsContent>
 
               <TabsContent value="scenarios" className="mt-6">
