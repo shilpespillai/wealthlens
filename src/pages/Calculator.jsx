@@ -19,6 +19,8 @@ import PortfolioOverview from "@/components/calculator/PortfolioOverview";
 import AIPortfolioBuilder from "@/components/calculator/AIPortfolioBuilder";
 import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
+import PremiumGate from "@/components/calculator/PremiumGate";
+import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
 export default function CalculatorPage() {
