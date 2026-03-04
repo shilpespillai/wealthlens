@@ -38,6 +38,7 @@ export default function CalculatorPage() {
   });
   
   const chartRef = useRef(null);
+  const { isPremium, loading: subLoading } = useSubscription();
 
   const handleInstrumentChange = (id) => {
     setInstrument(id);
