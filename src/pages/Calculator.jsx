@@ -189,8 +189,10 @@ export default function CalculatorPage() {
                 {/* Property vs ETF Comparison */}
                 <PropertyVsETF currency={params.currency} />
 
-                {/* Equity Unlock Planner */}
-                <EquityUnlockPlanner currency={params.currency} />
+                {/* Equity Unlock Planner — Premium */}
+                <PremiumGate featureName="Equity Unlock Planner" isPremium={isPremium}>
+                  <EquityUnlockPlanner currency={params.currency} />
+                </PremiumGate>
               </>
             )}
 
