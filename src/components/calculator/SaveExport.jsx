@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import ReactDOM from "react-dom/client";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Save, FileText, Trash2, TrendingUp } from "lucide-react";
+import { Download, Save, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getCurrencySymbol } from "./CurrencySelector";
+import PdfReportTemplate from "./PdfReportTemplate";
 
 export default function SaveExport({ params, instrument, results, chartRef }) {
   const [saveName, setSaveName] = useState("");
