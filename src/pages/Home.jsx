@@ -245,6 +245,69 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Live Market Data */}
+      <section className="bg-white border-y border-gray-200 py-12 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="mb-8"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Live Market Data</h2>
+              </div>
+            </div>
+            <p className="text-gray-600 text-sm">Real-time market information updated every 5 minutes</p>
+          </motion.div>
+
+          {marketLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="w-6 h-6 text-indigo-600 animate-spin" />
+            </div>
+          ) : marketData ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {marketData.stocks && (
+                <>
+                  <LiveMarketTicker
+                    symbol="SP500"
+                    label="S&P 500"
+                    value={marketData.stocks.sp500?.value}
+                    change={marketData.stocks.sp500?.change}
+                    changePercent={marketData.stocks.sp500?.changePercent}
+                  />
+                  <LiveMarketTicker
+                    symbol="NASDAQ"
+                    label="NASDAQ"
+                    value={marketData.stocks.nasdaq?.value}
+                    change={marketData.stocks.nasdaq?.change}
+                    changePercent={marketData.stocks.nasdaq?.changePercent}
+                  />
+                  <LiveMarketTicker
+                    symbol="DOW"
+                    label="DOW JONES"
+                    value={marketData.stocks.dow?.value}
+                    change={marketData.stocks.dow?.change}
+                    changePercent={marketData.stocks.dow?.changePercent}
+                  />
+                </>
+              )}
+              {marketData.crypto && (
+                <LiveMarketTicker
+                  symbol="BTC"
+                  label="Bitcoin"
+                  value={marketData.crypto.bitcoin?.value}
+                  change={marketData.crypto.bitcoin?.change}
+                  changePercent={marketData.crypto.bitcoin?.changePercent}
+                />
+              )}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
       {/* News Section */}
       <section className="bg-gray-50 py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
