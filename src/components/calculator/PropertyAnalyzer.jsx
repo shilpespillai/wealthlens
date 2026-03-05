@@ -232,20 +232,20 @@ export default function PropertyAnalyzer({ currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
     >
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg">
           <Building2 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Property Investment Analysis</h3>
-          <p className="text-xs text-slate-400">Advanced property investment tools</p>
+          <h3 className="text-lg font-bold text-slate-900">Property Investment Analysis</h3>
+          <p className="text-xs text-slate-600">Advanced property investment tools</p>
         </div>
       </div>
 
       <Tabs defaultValue="growth" className="w-full">
-        <TabsList className="bg-slate-700/40 border border-white/10 p-1 rounded-xl mb-6">
+        <TabsList className="bg-slate-100 border border-slate-200 p-1 rounded-xl mb-6">
           <TabsTrigger value="growth" className="rounded-lg px-4 py-2 text-xs font-bold">
             <TrendingUp className="w-3.5 h-3.5 mr-2" />
             Capital Growth
@@ -265,41 +265,41 @@ export default function PropertyAnalyzer({ currency }) {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Inputs */}
             <div className="space-y-5">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Inputs</h4>
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em]">Inputs</h4>
               
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Purchase Price</Label>
+                <Label className="text-xs text-slate-700">Purchase Price</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                   <Input
                     type="number"
                     value={purchasePrice}
                     onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Annual Growth Rate</Label>
-                  <span className="text-sm font-bold text-emerald-400">{growthRate}%</span>
+                  <Label className="text-xs text-slate-700">Annual Growth Rate</Label>
+                  <span className="text-sm font-bold text-emerald-600">{growthRate}%</span>
                 </div>
                 <Slider value={[growthRate]} onValueChange={([v]) => setGrowthRate(v)} min={0} max={20} step={0.5} />
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Holding Period</Label>
-                  <span className="text-sm font-bold text-white">{holdingPeriod} years</span>
+                  <Label className="text-xs text-slate-700">Holding Period</Label>
+                  <span className="text-sm font-bold text-slate-900">{holdingPeriod} years</span>
                 </div>
                 <Slider value={[holdingPeriod]} onValueChange={([v]) => setHoldingPeriod(v)} min={1} max={30} step={1} />
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Selling Costs</Label>
-                  <span className="text-sm font-bold text-white">{sellingCosts}%</span>
+                  <Label className="text-xs text-slate-700">Selling Costs</Label>
+                  <span className="text-sm font-bold text-slate-900">{sellingCosts}%</span>
                 </div>
                 <Slider value={[sellingCosts]} onValueChange={([v]) => setSellingCosts(v)} min={0} max={10} step={0.5} />
               </div>
@@ -307,26 +307,26 @@ export default function PropertyAnalyzer({ currency }) {
 
             {/* Results */}
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Projected Results</h4>
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em]">Projected Results</h4>
               
-              <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
-                <p className="text-xs text-slate-400 mb-1">Future Property Value</p>
-                <p className="text-2xl font-black text-white">{fmt(growthResults.futureValue)}</p>
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                <p className="text-xs text-slate-600 mb-1">Future Property Value</p>
+                <p className="text-2xl font-black text-slate-900">{fmt(growthResults.futureValue)}</p>
               </div>
 
-              <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
-                <p className="text-xs text-slate-400 mb-1">Equity Built</p>
-                <p className="text-xl font-black text-emerald-400">{fmt(growthResults.equityBuilt)}</p>
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                <p className="text-xs text-slate-600 mb-1">Equity Built</p>
+                <p className="text-xl font-black text-emerald-600">{fmt(growthResults.equityBuilt)}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                  <p className="text-[10px] text-slate-400 mb-1">Total ROI</p>
-                  <p className="text-lg font-black text-white">{growthResults.totalROI.toFixed(1)}%</p>
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <p className="text-[10px] text-slate-600 mb-1">Total ROI</p>
+                  <p className="text-lg font-black text-slate-900">{growthResults.totalROI.toFixed(1)}%</p>
                 </div>
-                <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                  <p className="text-[10px] text-slate-400 mb-1">Annualized Return</p>
-                  <p className="text-lg font-black text-white">{growthResults.annualizedReturn.toFixed(1)}%</p>
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <p className="text-[10px] text-slate-600 mb-1">Annualized Return</p>
+                  <p className="text-lg font-black text-slate-900">{growthResults.annualizedReturn.toFixed(1)}%</p>
                 </div>
               </div>
 
