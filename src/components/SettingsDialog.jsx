@@ -28,23 +28,6 @@ const LINKS = [
 ];
 
 export default function SettingsDialog({ isOpen, onClose }) {
-  const [currentTheme, setCurrentTheme] = useState("indigo");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("wealthlens-theme");
-    if (saved) setCurrentTheme(saved);
-  }, []);
-
-  const handleThemeChange = (themeKey) => {
-    setCurrentTheme(themeKey);
-    localStorage.setItem("wealthlens-theme-key", themeKey);
-    
-    const theme = THEMES.find(t => t.key === themeKey);
-    if (theme) {
-      document.documentElement.style.setProperty("--accent-color", theme.colors.accent);
-      localStorage.setItem("wealthlens-theme", JSON.stringify(theme.colors));
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
