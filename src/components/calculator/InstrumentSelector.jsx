@@ -43,7 +43,7 @@ export default function InstrumentSelector({ selected, onSelect }) {
             </div>
             <span className={cn(
               "text-xs font-bold tracking-wide",
-              isActive ? "text-white" : "text-slate-400"
+              isActive ? "text-slate-900" : "text-slate-400"
             )}>
               {inst.label}
             </span>
