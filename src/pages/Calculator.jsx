@@ -132,8 +132,8 @@ function CalculatorContent() {
               transition={{ delay: 0.2 }}
               className="lg:col-span-4"
             >
-              <div className="sticky top-6 bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-                <h3 className="text-sm font-bold text-white mb-8 flex items-center gap-3">
+              <div className="sticky top-6 bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
+                <h3 className="text-sm font-bold text-slate-900 mb-8 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                     <Calculator className="w-4 h-4 text-white" />
                   </div>
