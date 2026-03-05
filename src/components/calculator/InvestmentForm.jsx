@@ -13,7 +13,7 @@ const defaultRates = {
   mutual_funds: { conservative: 5, moderate: 8, aggressive: 12 },
   fixed_deposit: { conservative: 3, moderate: 5, aggressive: 7 },
   crypto: { conservative: 5, moderate: 20, aggressive: 40 },
-  gold: { conservative: 2, moderate: 5, aggressive: 8 },
+  gold: { conservative: 2, moderate: 5, aggressive: 8 }
 };
 
 export function getDefaultRate(instrument, scenario) {
@@ -23,7 +23,7 @@ export function getDefaultRate(instrument, scenario) {
 export default function InvestmentForm({ params, setParams }) {
   const sym = getCurrencySymbol(params.currency);
 
-  const update = (key, val) => setParams(prev => ({ ...prev, [key]: val }));
+  const update = (key, val) => setParams((prev) => ({ ...prev, [key]: val }));
 
   return (
     <div className="space-y-6">
@@ -45,8 +45,8 @@ export default function InvestmentForm({ params, setParams }) {
             value={params.initialAmount}
             onChange={(e) => update("initialAmount", parseFloat(e.target.value) || 0)}
             className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
-            placeholder="Any amount from $1 to $10M"
-          />
+            placeholder="Any amount from $1 to $10M" />
+
         </div>
       </div>
 
@@ -62,8 +62,8 @@ export default function InvestmentForm({ params, setParams }) {
             value={params.monthlyContribution}
             onChange={(e) => update("monthlyContribution", parseFloat(e.target.value) || 0)}
             className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
-            placeholder="Any amount from $0 to $1M"
-          />
+            placeholder="Any amount from $0 to $1M" />
+
         </div>
       </div>
 
@@ -79,8 +79,8 @@ export default function InvestmentForm({ params, setParams }) {
           min={1}
           max={40}
           step={1}
-          className="py-2"
-        />
+          className="py-2" />
+
         <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
           <span>1 yr</span>
           <span>10 yrs</span>
@@ -102,15 +102,15 @@ export default function InvestmentForm({ params, setParams }) {
           min={0}
           max={50}
           step={0.5}
-          className="py-2"
-        />
+          className="py-2" />
+
       </div>
 
       {/* Inflation Rate */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Inflation Rate</Label>
-          <span className="text-sm font-black text-slate-300">{params.inflationRate}%</span>
+          <span className="text-slate-500 text-sm font-black">{params.inflationRate}%</span>
         </div>
         <Slider
           value={[params.inflationRate]}
@@ -118,8 +118,8 @@ export default function InvestmentForm({ params, setParams }) {
           min={0}
           max={15}
           step={0.5}
-          className="py-2"
-        />
+          className="py-2" />
+
       </div>
 
       {/* Contribution Frequency */}
@@ -149,8 +149,8 @@ export default function InvestmentForm({ params, setParams }) {
           min={0}
           max={50}
           step={1}
-          className="py-2"
-        />
+          className="py-2" />
+
       </div>
 
       {/* Annual Fees */}
@@ -165,9 +165,9 @@ export default function InvestmentForm({ params, setParams }) {
           min={0}
           max={5}
           step={0.05}
-          className="py-2"
-        />
+          className="py-2" />
+
       </div>
-    </div>
-  );
+    </div>);
+
 }
