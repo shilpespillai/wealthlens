@@ -32,15 +32,11 @@ export default function PremiumGate({ children, featureName, isPremium }) {
 
     setLoading(true);
     try {
-      // Get email
-      let email = localStorage.getItem("userEmail");
-      if (!email) {
-        email = prompt("Enter your email for the subscription:");
-        if (!email) {
-          setLoading(false);
-          return;
-        }
-        localStorage.setItem("userEmail", email);
+      // Get authenticated user
+      const user = await base44.auth.me();
+      
+      if (!user) {
+        throw new Error("User not authenticated");
       }
 
       // Fetch publishable key from backend
@@ -59,7 +55,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
       
       const response = await base44.functions.invoke("stripeCheckout", {
         priceId: "price_1T7UdNPrZtddngW3cWEyr5ay",
-        email,
+        email: user.email,
         successUrl: window.location.href + "?upgraded=true",
         cancelUrl: window.location.href,
       });

@@ -9,19 +9,11 @@ export function useSubscription() {
   useEffect(() => {
     async function checkSubscription() {
       try {
-        // Get email from localStorage or prompt
-        let email = localStorage.getItem("userEmail");
-
-        if (!email) {
-          email = prompt("Enter your email to check subscription status:");
-          if (email) {
-            localStorage.setItem("userEmail", email);
-          }
-        }
-
-        if (email) {
+        const user = await base44.auth.me();
+        
+        if (user) {
           const response = await base44.functions.invoke("checkSubscription", {
-            email,
+            email: user.email,
           });
 
           setIsPremium(response.data.isActive);
