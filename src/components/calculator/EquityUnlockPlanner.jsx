@@ -106,93 +106,93 @@ export default function EquityUnlockPlanner({ currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
     >
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
           <Key className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Equity Unlock Planner</h3>
-          <p className="text-xs text-slate-400">Leverage existing property to build wealth faster</p>
+          <h3 className="text-lg font-bold text-slate-900">Equity Unlock Planner</h3>
+          <p className="text-xs text-slate-600">Leverage existing property to build wealth faster</p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Existing Property */}
-        <div className="bg-slate-700/30 rounded-2xl p-5 border border-white/10">
-          <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Your Existing Property
           </h4>
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Current Value</Label>
+              <Label className="text-xs text-slate-700">Current Value</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                 <Input
                   type="number"
                   value={currentValue}
                   onChange={(e) => setCurrentValue(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                  className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Loan Balance</Label>
+              <Label className="text-xs text-slate-700">Loan Balance</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                 <Input
                   type="number"
                   value={loanBalance}
                   onChange={(e) => setLoanBalance(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                  className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Bank LVR Limit</Label>
-                <span className="text-sm font-bold text-white">{bankLVR}%</span>
+                <Label className="text-xs text-slate-700">Bank LVR Limit</Label>
+                <span className="text-sm font-bold text-slate-900">{bankLVR}%</span>
               </div>
               <Slider value={[bankLVR]} onValueChange={([v]) => setBankLVR(v)} min={60} max={90} step={5} />
             </div>
 
-            <div className="bg-slate-800/50 rounded-xl p-4 mt-4">
-              <p className="text-xs text-slate-400 mb-2">Your Equity</p>
-              <p className="text-2xl font-black text-emerald-400">{fmt(analysis.currentEquity)}</p>
+            <div className="bg-slate-100 rounded-xl p-4 mt-4">
+              <p className="text-xs text-slate-600 mb-2">Your Equity</p>
+              <p className="text-2xl font-black text-emerald-600">{fmt(analysis.currentEquity)}</p>
             </div>
           </div>
         </div>
 
         {/* Usable Equity */}
         <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-400/20">
-          <h4 className="text-sm font-bold text-amber-300 mb-4 flex items-center gap-2">
+          <h4 className="text-sm font-bold text-amber-900 mb-4 flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Available Equity Power
           </h4>
           
           <div className="space-y-4">
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <p className="text-xs text-slate-400 mb-1">Max Borrowing Capacity</p>
-              <p className="text-xl font-bold text-white">{fmt(analysis.maxBorrowingCapacity)}</p>
-              <p className="text-xs text-slate-500 mt-1">({bankLVR}% of {fmt(currentValue)})</p>
+            <div className="bg-slate-100 rounded-xl p-4">
+              <p className="text-xs text-slate-600 mb-1">Max Borrowing Capacity</p>
+              <p className="text-xl font-bold text-slate-900">{fmt(analysis.maxBorrowingCapacity)}</p>
+              <p className="text-xs text-slate-600 mt-1">({bankLVR}% of {fmt(currentValue)})</p>
             </div>
 
-            <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-xl p-5 border border-emerald-400/30">
-              <p className="text-xs text-emerald-300 mb-2">💰 Usable Equity</p>
-              <p className="text-3xl font-black text-white">{fmt(analysis.usableEquity)}</p>
-              <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-                You can access <strong className="text-emerald-400">{fmt(analysis.usableEquity)}</strong> to invest in another property
+            <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-200">
+              <p className="text-xs text-emerald-700 mb-2">💰 Usable Equity</p>
+              <p className="text-3xl font-black text-slate-900">{fmt(analysis.usableEquity)}</p>
+              <p className="text-xs text-slate-700 mt-3 leading-relaxed">
+                You can access <strong className="text-emerald-600">{fmt(analysis.usableEquity)}</strong> to invest in another property
               </p>
             </div>
 
             {analysis.canBuy ? (
-              <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-400/20">
-                <p className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
                   ✓ You can buy Property #2!
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
@@ -200,8 +200,8 @@ export default function EquityUnlockPlanner({ currency }) {
                 </p>
               </div>
             ) : (
-              <div className="bg-rose-500/10 rounded-xl p-4 border border-rose-400/20">
-                <p className="text-sm font-bold text-rose-400">
+              <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
+                <p className="text-sm font-bold text-rose-700">
                   ✗ Insufficient equity
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
@@ -216,28 +216,28 @@ export default function EquityUnlockPlanner({ currency }) {
       {/* Property #2 Simulation */}
       {analysis.canBuy && (
         <>
-          <div className="bg-indigo-500/10 rounded-2xl p-5 border border-indigo-400/20 mb-8">
-            <h4 className="text-sm font-bold text-indigo-300 mb-4 flex items-center gap-2">
+          <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200 mb-8">
+            <h4 className="text-sm font-bold text-indigo-900 mb-4 flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               Property #2 - Investment Simulation
             </h4>
             
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Purchase Price</Label>
+                <Label className="text-xs text-slate-700">Purchase Price</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                   <Input
                     type="number"
                     value={property2Price}
                     onChange={(e) => setProperty2Price(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Weekly Rent</Label>
+                <Label className="text-xs text-slate-700">Weekly Rent</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                   <Input
@@ -253,33 +253,33 @@ export default function EquityUnlockPlanner({ currency }) {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Growth Rate</Label>
-                  <span className="text-xs font-bold text-emerald-400">{property2Growth}%</span>
+                  <Label className="text-xs text-slate-700">Growth Rate</Label>
+                  <span className="text-xs font-bold text-emerald-600">{property2Growth}%</span>
                 </div>
                 <Slider value={[property2Growth]} onValueChange={([v]) => setProperty2Growth(v)} min={0} max={15} step={0.5} />
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Mortgage Rate</Label>
-                  <span className="text-xs font-bold text-white">{mortgageRate}%</span>
+                  <Label className="text-xs text-slate-700">Mortgage Rate</Label>
+                  <span className="text-xs font-bold text-slate-900">{mortgageRate}%</span>
                 </div>
                 <Slider value={[mortgageRate]} onValueChange={([v]) => setMortgageRate(v)} min={2} max={12} step={0.1} />
               </div>
             </div>
 
             <div className="grid md:grid-cols-3 gap-3 mt-4">
-              <div className="bg-slate-800/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Loan Amount</p>
-                <p className="text-lg font-bold text-white">{fmt(analysis.property2Loan)}</p>
+              <div className="bg-slate-100 rounded-xl p-3">
+                <p className="text-xs text-slate-600 mb-1">Loan Amount</p>
+                <p className="text-lg font-bold text-slate-900">{fmt(analysis.property2Loan)}</p>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Monthly Repayment</p>
-                <p className="text-lg font-bold text-white">{fmt(analysis.monthlyRepayment)}</p>
+              <div className="bg-slate-100 rounded-xl p-3">
+                <p className="text-xs text-slate-600 mb-1">Monthly Repayment</p>
+                <p className="text-lg font-bold text-slate-900">{fmt(analysis.monthlyRepayment)}</p>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">Cashflow</p>
-                <p className={`text-lg font-bold ${analysis.monthlyCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <div className="bg-slate-100 rounded-xl p-3">
+                <p className="text-xs text-slate-600 mb-1">Cashflow</p>
+                <p className={`text-lg font-bold ${analysis.monthlyCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {analysis.monthlyCashflow >= 0 ? '+' : ''}{fmt(analysis.monthlyCashflow)}
                 </p>
               </div>
@@ -300,21 +300,21 @@ export default function EquityUnlockPlanner({ currency }) {
             </div>
 
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-slate-700/30 rounded-xl p-4 border border-white/5">
-                <p className="text-xs text-slate-400 mb-1">Without Property #2</p>
-                <p className="text-xl font-bold text-white">{fmt(analysis.finalWithout)}</p>
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <p className="text-xs text-slate-600 mb-1">Without Property #2</p>
+                <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWithout)}</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-xl p-4 border border-emerald-400/20">
-                <p className="text-xs text-emerald-300 mb-1">With Property #2</p>
-                <p className="text-xl font-bold text-white">{fmt(analysis.finalWith)}</p>
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                <p className="text-xs text-emerald-700 mb-1">With Property #2</p>
+                <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWith)}</p>
               </div>
-              <div className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-xl p-4 border border-violet-400/20">
-                <p className="text-xs text-violet-300 mb-1">Wealth Gain</p>
-                <p className="text-xl font-bold text-emerald-400">+{fmt(analysis.wealthGain)}</p>
+              <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
+                <p className="text-xs text-violet-700 mb-1">Wealth Gain</p>
+                <p className="text-xl font-bold text-emerald-600">+{fmt(analysis.wealthGain)}</p>
               </div>
             </div>
 
-            <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5">
+            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={analysis.yearlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -339,10 +339,10 @@ export default function EquityUnlockPlanner({ currency }) {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-400/20">
-              <p className="text-xs text-amber-300 font-bold mb-2">💡 Strategy Insight</p>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                By leveraging your existing property equity, you can build an additional <strong className="text-emerald-400">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years. 
+            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200">
+              <p className="text-xs text-amber-900 font-bold mb-2">💡 Strategy Insight</p>
+              <p className="text-sm text-slate-800 leading-relaxed">
+                By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years. 
                 This is the power of property leverage - your equity works for you to create more wealth.
               </p>
             </div>

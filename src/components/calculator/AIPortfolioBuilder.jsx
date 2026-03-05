@@ -88,15 +88,15 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
   const sym = currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
 
   return (
-    <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">AI Portfolio Builder</h3>
-          <p className="text-xs text-slate-400">Get a personalized investment plan built by AI</p>
+          <h3 className="text-lg font-bold text-slate-900">AI Portfolio Builder</h3>
+          <p className="text-xs text-slate-600">Get a personalized investment plan built by AI</p>
         </div>
       </div>
 
@@ -105,8 +105,8 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
         {step === 1 && (
           <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <div className="mb-8">
-              <h4 className="text-sm font-bold text-white mb-1">What are your investment goals?</h4>
-              <p className="text-xs text-slate-400 mb-4">Select all that apply</p>
+              <h4 className="text-sm font-bold text-slate-900 mb-1">What are your investment goals?</h4>
+              <p className="text-xs text-slate-600 mb-4">Select all that apply</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {goals.map(g => (
                   <button
@@ -114,30 +114,30 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
                     onClick={() => toggleGoal(g.id)}
                     className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
                       selectedGoals.includes(g.id)
-                        ? "border-indigo-500 bg-indigo-500/10"
-                        : "border-white/10 bg-slate-700/30 hover:border-white/20"
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-300"
                     }`}
                   >
                     <span className="text-xl">{g.icon}</span>
-                    <span className="text-xs font-semibold text-white">{g.label}</span>
+                    <span className="text-xs font-semibold text-slate-900">{g.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mb-8">
-              <h4 className="text-sm font-bold text-white mb-4">Risk Tolerance</h4>
+              <h4 className="text-sm font-bold text-slate-900 mb-4">Risk Tolerance</h4>
               <div className="grid grid-cols-3 gap-3">
                 {riskLevels.map(r => (
                   <button
                     key={r.id}
                     onClick={() => setRisk(r.id)}
                     className={`p-4 rounded-2xl border-2 transition-all text-left ${
-                      risk === r.id ? "border-indigo-500 bg-indigo-500/10" : "border-white/10 bg-slate-700/30 hover:border-white/20"
+                      risk === r.id ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-slate-50 hover:border-slate-300"
                     }`}
                   >
                     <div className={`text-xs font-bold mb-1 ${r.color}`}>{r.label}</div>
-                    <div className="text-xs text-slate-400">{r.desc}</div>
+                    <div className="text-xs text-slate-700">{r.desc}</div>
                   </button>
                 ))}
               </div>
@@ -159,29 +159,29 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
             <div className="space-y-8 mb-8">
               <div>
                 <div className="flex justify-between mb-2">
-                  <label className="text-sm font-semibold text-white">Your Age</label>
-                  <span className="text-sm font-bold text-indigo-400">{age} years</span>
+                  <label className="text-sm font-semibold text-slate-900">Your Age</label>
+                  <span className="text-sm font-bold text-indigo-600">{age} years</span>
                 </div>
                 <Slider value={[age]} onValueChange={([v]) => setAge(v)} min={18} max={75} step={1} className="w-full" />
               </div>
               <div>
                 <div className="flex justify-between mb-2">
-                  <label className="text-sm font-semibold text-white">Monthly Investment</label>
-                  <span className="text-sm font-bold text-indigo-400">{sym}{monthlyAmount.toLocaleString()}</span>
+                  <label className="text-sm font-semibold text-slate-900">Monthly Investment</label>
+                  <span className="text-sm font-bold text-indigo-600">{sym}{monthlyAmount.toLocaleString()}</span>
                 </div>
                 <Slider value={[monthlyAmount]} onValueChange={([v]) => setMonthlyAmount(v)} min={50} max={10000} step={50} className="w-full" />
               </div>
               <div>
                 <div className="flex justify-between mb-2">
-                  <label className="text-sm font-semibold text-white">Time Horizon</label>
-                  <span className="text-sm font-bold text-indigo-400">{horizon} years</span>
+                  <label className="text-sm font-semibold text-slate-900">Time Horizon</label>
+                  <span className="text-sm font-bold text-indigo-600">{horizon} years</span>
                 </div>
                 <Slider value={[horizon]} onValueChange={([v]) => setHorizon(v)} min={1} max={40} step={1} className="w-full" />
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button onClick={() => setStep(1)} variant="outline" className="border-white/10 text-white hover:bg-slate-700/50 flex-1">Back</Button>
+              <Button onClick={() => setStep(1)} variant="outline" className="border-slate-200 text-slate-900 hover:bg-slate-100 flex-1">Back</Button>
               <Button
                 onClick={buildPortfolio}
                 disabled={loading}
@@ -197,25 +197,25 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
         {step === 3 && result && (
           <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             {/* Summary Banner */}
-            <div className="bg-gradient-to-r from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 rounded-2xl p-5 mb-6">
-              <p className="text-sm text-slate-200 leading-relaxed">{result.summary}</p>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 mb-6">
+              <p className="text-sm text-slate-800 leading-relaxed">{result.summary}</p>
               <div className="flex gap-6 mt-4">
                 <div>
-                  <div className="text-xs text-slate-400">Expected Return</div>
-                  <div className="text-xl font-bold text-indigo-400">{result.expectedReturn}% p.a.</div>
+                  <div className="text-xs text-slate-600">Expected Return</div>
+                  <div className="text-xl font-bold text-indigo-600">{result.expectedReturn}% p.a.</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400">Risk Score</div>
-                  <div className="text-xl font-bold text-violet-400">{result.riskScore}/10</div>
+                  <div className="text-xs text-slate-600">Risk Score</div>
+                  <div className="text-xl font-bold text-violet-600">{result.riskScore}/10</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400">Projected Value</div>
-                  <div className="text-xl font-bold text-emerald-400">{sym}{(result.projectedValue || 0).toLocaleString()}</div>
+                  <div className="text-xs text-slate-600">Projected Value</div>
+                  <div className="text-xl font-bold text-emerald-600">{sym}{(result.projectedValue || 0).toLocaleString()}</div>
                 </div>
                 {result.monthlyIncome > 0 && (
                   <div>
-                    <div className="text-xs text-slate-400">Monthly Income</div>
-                    <div className="text-xl font-bold text-amber-400">{sym}{(result.monthlyIncome || 0).toLocaleString()}</div>
+                    <div className="text-xs text-slate-600">Monthly Income</div>
+                    <div className="text-xl font-bold text-amber-600">{sym}{(result.monthlyIncome || 0).toLocaleString()}</div>
                   </div>
                 )}
               </div>
@@ -224,7 +224,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
             {/* Pie + Allocations */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
               <div>
-                <h4 className="text-sm font-bold text-white mb-4">Asset Allocation</h4>
+                <h4 className="text-sm font-bold text-slate-900 mb-4">Asset Allocation</h4>
                 <ResponsiveContainer width="100%" height={200}>
                   <RechartsPie>
                     <Pie
@@ -252,11 +252,11 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
                     <div className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <span className="text-sm font-semibold text-white">{a.asset}</span>
+                        <span className="text-sm font-semibold text-slate-900">{a.asset}</span>
                         <span className="text-sm font-bold" style={{ color: COLORS[i % COLORS.length] }}>{a.percentage}%</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">{a.rationale}</p>
-                      {a.examples && <p className="text-xs text-indigo-400 mt-0.5">{a.examples}</p>}
+                      <p className="text-xs text-slate-600 mt-0.5">{a.rationale}</p>
+                      {a.examples && <p className="text-xs text-indigo-600 mt-0.5">{a.examples}</p>}
                     </div>
                   </div>
                 ))}
@@ -265,11 +265,11 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
 
             {/* Strategies */}
             {result.strategies?.length > 0 && (
-              <div className="bg-slate-700/30 rounded-2xl p-5 mb-4">
-                <h4 className="text-sm font-bold text-white mb-3">Recommended Strategies</h4>
+              <div className="bg-slate-50 rounded-2xl p-5 mb-4">
+                <h4 className="text-sm font-bold text-slate-900 mb-3">Recommended Strategies</h4>
                 <ul className="space-y-2">
                   {result.strategies.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                       <span className="text-indigo-400 mt-0.5">✦</span> {s}
                     </li>
                   ))}
@@ -290,7 +290,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
             <Button
               onClick={() => { setStep(1); setResult(null); setSelectedGoals([]); }}
               variant="outline"
-              className="border-white/10 text-white hover:bg-slate-700/50 w-full"
+              className="border-slate-200 text-slate-900 hover:bg-slate-100 w-full"
             >
               <RefreshCw className="w-4 h-4 mr-2" /> Rebuild Portfolio
             </Button>

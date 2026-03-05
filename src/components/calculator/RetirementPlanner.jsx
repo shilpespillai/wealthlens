@@ -129,15 +129,15 @@ export default function RetirementPlanner({ currency = "USD" }) {
   };
 
   return (
-    <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
           <Palmtree className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Retirement Planner</h3>
-          <p className="text-xs text-slate-400">Find out when you can retire and if you're on track</p>
+          <h3 className="text-lg font-bold text-slate-900">Retirement Planner</h3>
+          <p className="text-xs text-slate-600">Find out when you can retire and if you're on track</p>
         </div>
       </div>
 
@@ -147,58 +147,58 @@ export default function RetirementPlanner({ currency = "USD" }) {
           {/* Ages */}
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Current Age</label>
-              <span className="text-sm font-bold text-emerald-400">{currentAge}</span>
+              <label className="text-sm font-semibold text-slate-900">Current Age</label>
+              <span className="text-sm font-bold text-emerald-600">{currentAge}</span>
             </div>
             <Slider value={[currentAge]} onValueChange={([v]) => setCurrentAge(Math.min(v, retirementAge - 1))} min={18} max={70} step={1} />
           </div>
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Target Retirement Age</label>
-              <span className="text-sm font-bold text-emerald-400">{retirementAge}</span>
+              <label className="text-sm font-semibold text-slate-900">Target Retirement Age</label>
+              <span className="text-sm font-bold text-emerald-600">{retirementAge}</span>
             </div>
             <Slider value={[retirementAge]} onValueChange={([v]) => setRetirementAge(Math.max(v, currentAge + 1))} min={40} max={80} step={1} />
           </div>
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Life Expectancy</label>
-              <span className="text-sm font-bold text-emerald-400">{lifeExpectancy}</span>
+              <label className="text-sm font-semibold text-slate-900">Life Expectancy</label>
+              <span className="text-sm font-bold text-emerald-600">{lifeExpectancy}</span>
             </div>
             <Slider value={[lifeExpectancy]} onValueChange={([v]) => setLifeExpectancy(v)} min={70} max={100} step={1} />
           </div>
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Current Savings</label>
-              <span className="text-sm font-bold text-emerald-400">{fmt(currentSavings, sym)}</span>
+              <label className="text-sm font-semibold text-slate-900">Current Savings</label>
+              <span className="text-sm font-bold text-emerald-600">{fmt(currentSavings, sym)}</span>
             </div>
             <Slider value={[currentSavings]} onValueChange={([v]) => setCurrentSavings(v)} min={0} max={1000000} step={1000} />
           </div>
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Monthly Contribution</label>
-              <span className="text-sm font-bold text-emerald-400">{sym}{monthlyContribution.toLocaleString()}</span>
+              <label className="text-sm font-semibold text-slate-900">Monthly Contribution</label>
+              <span className="text-sm font-bold text-emerald-600">{sym}{monthlyContribution.toLocaleString()}</span>
             </div>
             <Slider value={[monthlyContribution]} onValueChange={([v]) => setMonthlyContribution(v)} min={0} max={10000} step={50} />
           </div>
           <div>
             <div className="flex justify-between mb-2">
-              <label className="text-sm font-semibold text-white">Desired Monthly Income in Retirement</label>
-              <span className="text-sm font-bold text-emerald-400">{sym}{desiredIncome.toLocaleString()}</span>
+              <label className="text-sm font-semibold text-slate-900">Desired Monthly Income in Retirement</label>
+              <span className="text-sm font-bold text-emerald-600">{sym}{desiredIncome.toLocaleString()}</span>
             </div>
             <Slider value={[desiredIncome]} onValueChange={([v]) => setDesiredIncome(v)} min={500} max={20000} step={100} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <label className="text-xs font-semibold text-white">Return Rate</label>
-                <span className="text-xs font-bold text-emerald-400">{returnRate}%</span>
-              </div>
+             <div>
+               <div className="flex justify-between mb-2">
+                 <label className="text-xs font-semibold text-slate-900">Return Rate</label>
+                 <span className="text-xs font-bold text-emerald-600">{returnRate}%</span>
+               </div>
               <Slider value={[returnRate]} onValueChange={([v]) => setReturnRate(v)} min={1} max={15} step={0.5} />
             </div>
             <div>
               <div className="flex justify-between mb-2">
-                <label className="text-xs font-semibold text-white">Inflation</label>
-                <span className="text-xs font-bold text-emerald-400">{inflationRate}%</span>
+                <label className="text-xs font-semibold text-slate-900">Inflation</label>
+                <span className="text-xs font-bold text-emerald-600">{inflationRate}%</span>
               </div>
               <Slider value={[inflationRate]} onValueChange={([v]) => setInflationRate(v)} min={0} max={8} step={0.5} />
             </div>
@@ -220,7 +220,7 @@ export default function RetirementPlanner({ currency = "USD" }) {
             <div className="flex items-center gap-3">
               <span className="text-3xl">{results.isOnTrack ? "✅" : "⚠️"}</span>
               <div>
-                <div className={`text-base font-bold ${results.isOnTrack ? "text-emerald-400" : "text-red-400"}`}>
+                <div className={`text-base font-bold ${results.isOnTrack ? "text-emerald-600" : "text-red-600"}`}>
                   {results.isOnTrack ? "You're on track!" : "You have a gap"}
                 </div>
                 <div className="text-xs text-slate-300">
@@ -234,14 +234,14 @@ export default function RetirementPlanner({ currency = "USD" }) {
 
           {/* Key Stats */}
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Years to Retire", value: results.yearsToRetire, unit: "yrs", color: "text-indigo-400" },
-              { label: "Projected Nest Egg", value: fmt(results.retirementNestEgg, sym), unit: "", color: "text-emerald-400" },
-              { label: "Needed Nest Egg", value: fmt(results.neededNestEgg, sym), unit: "", color: "text-violet-400" },
-              { label: "Inflation-adj. Income", value: `${sym}${results.inflationAdjIncome.toLocaleString()}`, unit: "/mo", color: "text-amber-400" },
-            ].map(item => (
-              <div key={item.label} className="bg-slate-700/30 rounded-2xl p-4">
-                <div className="text-xs text-slate-400 mb-1">{item.label}</div>
+          {[
+            { label: "Years to Retire", value: results.yearsToRetire, unit: "yrs", color: "text-indigo-600" },
+            { label: "Projected Nest Egg", value: fmt(results.retirementNestEgg, sym), unit: "", color: "text-emerald-600" },
+            { label: "Needed Nest Egg", value: fmt(results.neededNestEgg, sym), unit: "", color: "text-violet-600" },
+            { label: "Inflation-adj. Income", value: `${sym}${results.inflationAdjIncome.toLocaleString()}`, unit: "/mo", color: "text-amber-600" },
+          ].map(item => (
+            <div key={item.label} className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                <div className="text-xs text-slate-600 mb-1">{item.label}</div>
                 <div className={`text-lg font-bold ${item.color}`}>{item.value}<span className="text-xs ml-1 text-slate-400">{item.unit}</span></div>
               </div>
             ))}
@@ -249,11 +249,11 @@ export default function RetirementPlanner({ currency = "USD" }) {
 
           {/* Progress bar */}
           <div>
-            <div className="flex justify-between mb-2">
-              <span className="text-xs text-slate-400">Retirement Readiness</span>
-              <span className="text-xs font-bold text-white">{results.replacementRate}%</span>
-            </div>
-            <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+          <div className="flex justify-between mb-2">
+            <span className="text-xs text-slate-600">Retirement Readiness</span>
+            <span className="text-xs font-bold text-slate-900">{results.replacementRate}%</span>
+          </div>
+          <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(100, results.replacementRate)}%` }}
@@ -276,8 +276,8 @@ export default function RetirementPlanner({ currency = "USD" }) {
 
       {/* Chart */}
       <div className="mt-8">
-        <h4 className="text-sm font-bold text-white mb-1">Wealth Journey</h4>
-        <p className="text-xs text-slate-400 mb-4">Accumulation phase → Retirement drawdown</p>
+        <h4 className="text-sm font-bold text-slate-900 mb-1">Wealth Journey</h4>
+        <p className="text-xs text-slate-600 mb-4">Accumulation phase → Retirement drawdown</p>
         <ResponsiveContainer width="100%" height={240}>
           <AreaChart data={results.chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
             <defs>
@@ -308,9 +308,9 @@ export default function RetirementPlanner({ currency = "USD" }) {
       </div>
 
       {/* Disclaimer */}
-      <div className="mt-6 p-4 bg-slate-700/20 rounded-2xl border border-white/5">
-        <p className="text-xs text-slate-400">
-          <strong className="text-slate-300">Note:</strong> Uses the 4% safe withdrawal rule. Projections are estimates and actual results will vary. Consult a financial advisor for personalized advice.
+      <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+        <p className="text-xs text-slate-700">
+          <strong className="text-slate-900">Note:</strong> Uses the 4% safe withdrawal rule. Projections are estimates and actual results will vary. Consult a financial advisor for personalized advice.
         </p>
       </div>
     </div>

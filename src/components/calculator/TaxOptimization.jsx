@@ -102,13 +102,13 @@ export default function TaxOptimization({ params, instrument, results }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-6"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8 space-y-6"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-bold text-white mb-1">Tax Optimization Strategies</h3>
-          <p className="text-xs text-slate-400">Maximize your after-tax returns</p>
+          <h3 className="text-sm font-bold text-slate-900 mb-1">Tax Optimization Strategies</h3>
+          <p className="text-xs text-slate-600">Maximize your after-tax returns</p>
         </div>
         <Button onClick={fetchStrategies} variant="ghost" size="icon" className="h-8 w-8">
           <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
@@ -116,27 +116,27 @@ export default function TaxOptimization({ params, instrument, results }) {
       </div>
 
       {/* Summary */}
-      <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 rounded-2xl p-5 border border-indigo-400/20">
-        <p className="text-sm text-slate-200 leading-relaxed">{strategies.summary}</p>
+      <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+        <p className="text-sm text-slate-800 leading-relaxed">{strategies.summary}</p>
       </div>
 
       {/* Tax Strategies */}
       {strategies.strategies && strategies.strategies.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
             <Lightbulb className="w-4 h-4 text-amber-400" />
             Recommended Strategies
           </h4>
           <div className="space-y-3">
             {strategies.strategies.map((strategy, i) => (
-              <div key={i} className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-white/5">
+              <div key={i} className="bg-slate-50 backdrop-blur-sm rounded-2xl p-5 border border-slate-200">
                 <div className="flex items-start justify-between mb-3">
-                  <h5 className="text-sm font-bold text-white">{strategy.title}</h5>
+                  <h5 className="text-sm font-bold text-slate-900">{strategy.title}</h5>
                   <Badge className={`${difficultyColors[strategy.difficulty]} border`}>
                     {strategy.difficulty}
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-300 mb-3 leading-relaxed">{strategy.description}</p>
+                <p className="text-sm text-slate-700 mb-3 leading-relaxed">{strategy.description}</p>
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5 text-emerald-400">
@@ -158,10 +158,10 @@ export default function TaxOptimization({ params, instrument, results }) {
       {/* Account Recommendations */}
       {strategies.account_recommendations && strategies.account_recommendations.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-4">Tax-Advantaged Accounts</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-4">Tax-Advantaged Accounts</h4>
           <div className="grid gap-3">
             {strategies.account_recommendations.map((account, i) => (
-              <div key={i} className="bg-slate-700/30 backdrop-blur-sm rounded-xl p-4 border border-white/5">
+              <div key={i} className="bg-slate-50 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
                 <h5 className="text-sm font-bold text-indigo-300 mb-2">{account.account_type}</h5>
                 <p className="text-xs text-slate-300 mb-2">{account.benefits}</p>
                 <p className="text-xs text-slate-400 italic">{account.contribution_limits}</p>
@@ -174,9 +174,9 @@ export default function TaxOptimization({ params, instrument, results }) {
       {/* Withdrawal Strategy */}
       {strategies.withdrawal_strategy && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Optimal Withdrawal Strategy</h4>
-          <div className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-white/5">
-            <p className="text-sm text-slate-200 leading-relaxed">{strategies.withdrawal_strategy}</p>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Optimal Withdrawal Strategy</h4>
+          <div className="bg-slate-50 backdrop-blur-sm rounded-2xl p-5 border border-slate-200">
+            <p className="text-sm text-slate-800 leading-relaxed">{strategies.withdrawal_strategy}</p>
           </div>
         </div>
       )}
@@ -184,12 +184,12 @@ export default function TaxOptimization({ params, instrument, results }) {
       {/* Key Tips */}
       {strategies.key_tips && strategies.key_tips.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Key Tips</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Key Tips</h4>
           <div className="space-y-2">
             {strategies.key_tips.map((tip, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 mt-1.5 flex-shrink-0" />
-                <p className="text-sm text-slate-300 flex-1 leading-relaxed">{tip}</p>
+                <p className="text-sm text-slate-700 flex-1 leading-relaxed">{tip}</p>
               </div>
             ))}
           </div>

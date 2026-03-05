@@ -132,7 +132,7 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-6"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8 space-y-6"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -141,11 +141,11 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               AI Investment Coach
-              <MessageCircle className="w-4 h-4 text-indigo-400" />
+              <MessageCircle className="w-4 h-4 text-indigo-600" />
             </h3>
-            <p className="text-xs text-slate-400">Personalized guidance for your strategy</p>
+            <p className="text-xs text-slate-600">Personalized guidance for your strategy</p>
           </div>
         </div>
         <Button onClick={fetchCoaching} variant="ghost" size="icon" className="h-8 w-8">
@@ -154,16 +154,16 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
       </div>
 
       {/* Assessment */}
-      <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 rounded-2xl p-6 border border-indigo-400/20">
+      <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-200">
         <div className="flex items-start gap-3">
           <ToneIcon className={`w-5 h-5 ${config.color} mt-0.5 flex-shrink-0`} />
-          <p className="text-base text-slate-100 leading-relaxed font-medium">{coaching.assessment}</p>
+          <p className="text-base text-slate-800 leading-relaxed font-medium">{coaching.assessment}</p>
         </div>
       </div>
 
       {/* Recommendations */}
       <div>
-        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
           <Target className="w-4 h-4 text-indigo-400" />
           Action Items
         </h4>
@@ -174,7 +174,7 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-white/5 hover:border-indigo-400/30 transition-all"
+              className="bg-slate-50 backdrop-blur-sm rounded-2xl p-5 border border-slate-200 hover:border-indigo-300 transition-all"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
@@ -186,8 +186,8 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
                   </Badge>
                 </div>
               </div>
-              <p className="text-sm font-semibold text-white mb-1.5 pl-9">{rec.action}</p>
-              <p className="text-xs text-slate-300 leading-relaxed pl-9">{rec.impact}</p>
+              <p className="text-sm font-semibold text-slate-900 mb-1.5 pl-9">{rec.action}</p>
+              <p className="text-xs text-slate-700 leading-relaxed pl-9">{rec.impact}</p>
             </motion.div>
           ))}
         </div>
@@ -196,12 +196,12 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
       {/* Key Insights */}
       {coaching.key_insights && coaching.key_insights.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Key Insights</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Key Insights</h4>
           <div className="space-y-2.5">
             {coaching.key_insights.map((insight, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 mt-2 flex-shrink-0" />
-                <p className="text-sm text-slate-200 leading-relaxed flex-1">{insight}</p>
+                <p className="text-sm text-slate-800 leading-relaxed flex-1">{insight}</p>
               </div>
             ))}
           </div>
@@ -209,8 +209,8 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
       )}
 
       {/* Closing Motivation */}
-      <div className="bg-gradient-to-r from-indigo-500/10 via-violet-500/10 to-purple-500/10 rounded-2xl p-5 border border-indigo-400/20">
-        <p className="text-sm text-slate-100 leading-relaxed italic text-center">{coaching.closing_motivation}</p>
+      <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+        <p className="text-sm text-slate-800 leading-relaxed italic text-center">{coaching.closing_motivation}</p>
       </div>
 
       <p className="text-[10px] text-slate-500 italic text-center pt-2">

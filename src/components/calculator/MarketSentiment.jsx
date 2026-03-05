@@ -108,13 +108,13 @@ export default function MarketSentiment({ instrument, currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-6"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8 space-y-6"
     >
       {/* Header with sentiment */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-bold text-white mb-1">Market Analysis</h3>
-          <p className="text-xs text-slate-400">{instrumentNames[instrument]}</p>
+          <h3 className="text-sm font-bold text-slate-900 mb-1">Market Analysis</h3>
+          <p className="text-xs text-slate-600">{instrumentNames[instrument]}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className={`${config.bg} ${config.color} ${config.border} border flex items-center gap-1.5 px-3 py-1`}>
@@ -128,19 +128,19 @@ export default function MarketSentiment({ instrument, currency }) {
       </div>
 
       {/* Summary */}
-      <div className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-white/5">
-        <p className="text-sm text-slate-200 leading-relaxed">{analysis.summary}</p>
+      <div className="bg-slate-50 backdrop-blur-sm rounded-2xl p-5 border border-slate-200">
+        <p className="text-sm text-slate-800 leading-relaxed">{analysis.summary}</p>
       </div>
 
       {/* Key Trends */}
       {analysis.key_trends && analysis.key_trends.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Key Trends</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Key Trends</h4>
           <div className="space-y-3">
             {analysis.key_trends.map((trend, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 mt-1.5 flex-shrink-0" />
-                <p className="text-sm text-slate-300 flex-1 leading-relaxed">{trend}</p>
+                <p className="text-sm text-slate-700 flex-1 leading-relaxed">{trend}</p>
               </div>
             ))}
           </div>
@@ -150,20 +150,20 @@ export default function MarketSentiment({ instrument, currency }) {
       {/* Outlook */}
       {analysis.outlook && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Outlook</h4>
-          <p className="text-sm text-slate-200 leading-relaxed">{analysis.outlook}</p>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Outlook</h4>
+          <p className="text-sm text-slate-800 leading-relaxed">{analysis.outlook}</p>
         </div>
       )}
 
       {/* Risks */}
       {analysis.risks && analysis.risks.length > 0 && (
         <div>
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em] mb-3">Risk Factors</h4>
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Risk Factors</h4>
           <div className="space-y-3">
             {analysis.risks.map((risk, i) => (
               <div key={i} className="flex items-start gap-3">
                 <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-slate-300 flex-1 leading-relaxed">{risk}</p>
+                <p className="text-sm text-slate-700 flex-1 leading-relaxed">{risk}</p>
               </div>
             ))}
           </div>
@@ -172,7 +172,7 @@ export default function MarketSentiment({ instrument, currency }) {
 
       {/* Recommended Rates */}
       {analysis.recommended_rates && (
-        <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 rounded-2xl p-5 border border-indigo-400/20">
+        <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
           <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-[0.15em] mb-4">Suggested Return Rates</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">

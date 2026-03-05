@@ -145,22 +145,22 @@ export default function PropertyVsETF({ currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8"
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
     >
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
           <Zap className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Property vs ETF Wealth Builder</h3>
-          <p className="text-xs text-slate-400">Compare 20-year wealth outcomes side-by-side</p>
+          <h3 className="text-lg font-bold text-slate-900">Property vs ETF Wealth Builder</h3>
+          <p className="text-xs text-slate-600">Compare 20-year wealth outcomes side-by-side</p>
         </div>
       </div>
 
       {/* Shared Inputs */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="space-y-2">
-          <Label className="text-xs text-slate-300">Starting Capital</Label>
+          <Label className="text-xs text-slate-700">Starting Capital</Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
             <Input
@@ -174,8 +174,8 @@ export default function PropertyVsETF({ currency }) {
 
         <div className="space-y-3">
           <div className="flex justify-between">
-            <Label className="text-xs text-slate-300">Time Horizon</Label>
-            <span className="text-sm font-bold text-white">{yearsToCompare} years</span>
+            <Label className="text-xs text-slate-700">Time Horizon</Label>
+            <span className="text-sm font-bold text-slate-900">{yearsToCompare} years</span>
           </div>
           <Slider value={[yearsToCompare]} onValueChange={([v]) => setYearsToCompare(v)} min={5} max={40} step={1} />
         </div>
@@ -299,10 +299,10 @@ export default function PropertyVsETF({ currency }) {
       </div>
 
       {/* Winner Banner */}
-      <div className={`rounded-2xl p-6 border mb-8 ${
+      <div className={`rounded-2xl p-6 border mb-8 bg-white ${
         comparison.winner === "property" 
-          ? "bg-emerald-500/10 border-emerald-400/20" 
-          : "bg-indigo-500/10 border-indigo-400/20"
+          ? "border-emerald-200" 
+          : "border-indigo-200"
       }`}>
         <div className="text-center">
           <p className="text-xs text-slate-400 mb-2">After {yearsToCompare} years</p>
@@ -321,8 +321,8 @@ export default function PropertyVsETF({ currency }) {
       </div>
 
       {/* Wealth Comparison Chart */}
-      <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5 mb-8">
-        <h4 className="text-sm font-bold text-white mb-4">20-Year Wealth Outcome</h4>
+      <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 mb-8">
+        <h4 className="text-sm font-bold text-slate-900 mb-4">20-Year Wealth Outcome</h4>
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={comparison.yearlyData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
