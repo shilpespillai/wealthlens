@@ -304,3 +304,11 @@ function CalculatorContent() {
     </div>
   );
 }
+
+export default function CalculatorPage() {
+  return (
+    <AuthGuard>
+      <CalculatorContent />
+    </AuthGuard>
+  );
+}
