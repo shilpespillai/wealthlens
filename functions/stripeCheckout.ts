@@ -6,18 +6,30 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { priceId, successUrl, cancelUrl } = await req.json();
+    const { priceId, successUrl, cancelUrl, email } = await req.json();
 
     // Validate required parameters
-    if (!priceId || !successUrl || !cancelUrl) {
+    if (!priceId || !successUrl || !cancelUrl || !email) {
       return Response.json(
-        { error: "Missing required parameters: priceId, successUrl, cancelUrl" },
+        { error: "Missing required parameters: priceId, successUrl, cancelUrl, email" },
         { status: 400 }
       );
     }
 
+    // Get or create Stripe customer
+    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    let customerId;
+
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+    } else {
+      const customer = await stripe.customers.create({ email });
+      customerId = customer.id;
+    }
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
+      customer: customerId,
       payment_method_types: ["card"],
       line_items: [
         {
@@ -33,7 +45,7 @@ Deno.serve(async (req) => {
       },
     });
 
-    console.log(`Checkout session created: ${session.id}`);
+    console.log(`Checkout session created: ${session.id} for customer: ${customerId}`);
 
     return Response.json({ sessionId: session.id });
   } catch (error) {

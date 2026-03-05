@@ -5,16 +5,29 @@ import { base44 } from "@/api/base44Client";
 export function useSubscription() {
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
 
   useEffect(() => {
     async function checkSubscription() {
       try {
-        const me = await base44.auth.me();
-        setUser(me);
-        // We store subscription status on the user object
-        setIsPremium(me?.subscription_status === "active");
-      } catch {
+        // Get email from localStorage or prompt
+        let email = localStorage.getItem("userEmail");
+
+        if (!email) {
+          email = prompt("Enter your email to check subscription status:");
+          if (email) {
+            localStorage.setItem("userEmail", email);
+          }
+        }
+
+        if (email) {
+          const response = await base44.functions.invoke("checkSubscription", {
+            email,
+          });
+
+          setIsPremium(response.data.isActive);
+        }
+      } catch (error) {
+        console.error("Subscription check failed:", error);
         setIsPremium(false);
       } finally {
         setLoading(false);
@@ -23,5 +36,5 @@ export function useSubscription() {
     checkSubscription();
   }, []);
 
-  return { isPremium, loading, user };
+  return { isPremium, loading };
 }

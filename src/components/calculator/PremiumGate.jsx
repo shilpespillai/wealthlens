@@ -32,10 +32,23 @@ export default function PremiumGate({ children, featureName, isPremium }) {
 
     setLoading(true);
     try {
-      const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      // Get email
+      let email = localStorage.getItem("userEmail");
+      if (!email) {
+        email = prompt("Enter your email for the subscription:");
+        if (!email) {
+          setLoading(false);
+          return;
+        }
+        localStorage.setItem("userEmail", email);
+      }
+
+      // Fetch publishable key from backend
+      const keyResponse = await base44.functions.invoke("getStripeKey");
+      const publishableKey = keyResponse.data.publishableKey;
       
       if (!publishableKey) {
-        throw new Error("Stripe publishable key not configured");
+        throw new Error("Stripe publishable key not available");
       }
 
       const stripe = await loadStripe(publishableKey);
@@ -46,6 +59,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
       
       const response = await base44.functions.invoke("stripeCheckout", {
         priceId: "price_1T7UdNPrZtddngW3cWEyr5ay",
+        email,
         successUrl: window.location.href + "?upgraded=true",
         cancelUrl: window.location.href,
       });
