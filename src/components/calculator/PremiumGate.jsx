@@ -32,19 +32,35 @@ export default function PremiumGate({ children, featureName, isPremium }) {
 
     setLoading(true);
     try {
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      
+      if (!publishableKey) {
+        throw new Error("Stripe publishable key not configured");
+      }
+
+      const stripe = await loadStripe(publishableKey);
+      
+      if (!stripe) {
+        throw new Error("Failed to load Stripe");
+      }
       
       const response = await base44.functions.invoke("stripeCheckout", {
-        priceId: "price_1T7UdNPrZtddngW3cWEyr5ay", // Premium monthly price
+        priceId: "price_1T7UdNPrZtddngW3cWEyr5ay",
         successUrl: window.location.href + "?upgraded=true",
         cancelUrl: window.location.href,
       });
 
       const { sessionId } = response.data;
-      await stripe.redirectToCheckout({ sessionId });
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+      
+      if (error) {
+        console.error("Stripe error:", error);
+        alert("Checkout failed: " + error.message);
+        setLoading(false);
+      }
     } catch (error) {
       console.error("Checkout error:", error);
-      alert("Failed to start checkout. Please try again.");
+      alert("Failed to start checkout: " + error.message);
       setLoading(false);
     }
   };
