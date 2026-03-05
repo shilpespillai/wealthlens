@@ -173,7 +173,7 @@ export default function MarketSentiment({ instrument, currency }) {
       {/* Recommended Rates */}
       {analysis.recommended_rates && (
         <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
-          <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-[0.15em] mb-4">Suggested Return Rates</h4>
+          <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-[0.15em] mb-4">Suggested Return Rates</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Conservative</p>

@@ -162,7 +162,7 @@ export default function TaxOptimization({ params, instrument, results }) {
           <div className="grid gap-3">
             {strategies.account_recommendations.map((account, i) => (
               <div key={i} className="bg-slate-50 backdrop-blur-sm rounded-xl p-4 border border-slate-200">
-                <h5 className="text-sm font-bold text-indigo-300 mb-2">{account.account_type}</h5>
+                <h5 className="text-sm font-bold text-indigo-700 mb-2">{account.account_type}</h5>
                 <p className="text-xs text-slate-300 mb-2">{account.benefits}</p>
                 <p className="text-xs text-slate-400 italic">{account.contribution_limits}</p>
               </div>

@@ -143,7 +143,7 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
           <div>
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               AI Investment Coach
-              <MessageCircle className="w-4 h-4 text-indigo-600" />
+              <MessageCircle className="w-4 h-4 text-indigo-700" />
             </h3>
             <p className="text-xs text-slate-600">Personalized guidance for your strategy</p>
           </div>

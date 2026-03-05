@@ -185,7 +185,7 @@ export default function PropertyVsETF({ currency }) {
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Property Inputs */}
         <div className="bg-emerald-500/10 rounded-2xl p-5 border border-emerald-400/20">
-          <h4 className="text-sm font-bold text-emerald-300 mb-4 flex items-center gap-2">
+          <h4 className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Property Investment
           </h4>
@@ -259,7 +259,7 @@ export default function PropertyVsETF({ currency }) {
 
         {/* ETF Inputs */}
         <div className="bg-indigo-500/10 rounded-2xl p-5 border border-indigo-400/20">
-          <h4 className="text-sm font-bold text-indigo-300 mb-4 flex items-center gap-2">
+          <h4 className="text-sm font-bold text-indigo-700 mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4" />
             ETF Investment
           </h4>
@@ -350,7 +350,7 @@ export default function PropertyVsETF({ currency }) {
       {/* Comparison Stats */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="bg-emerald-500/10 rounded-2xl p-5 border border-emerald-400/20">
-          <h5 className="text-sm font-bold text-emerald-300 mb-4">Property Results</h5>
+          <h5 className="text-sm font-bold text-emerald-700 mb-4">Property Results</h5>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-300">Final Equity</span>
@@ -374,7 +374,7 @@ export default function PropertyVsETF({ currency }) {
         </div>
 
         <div className="bg-indigo-500/10 rounded-2xl p-5 border border-indigo-400/20">
-          <h5 className="text-sm font-bold text-indigo-300 mb-4">ETF Results</h5>
+          <h5 className="text-sm font-bold text-indigo-700 mb-4">ETF Results</h5>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-300">Final Value</span>
@@ -399,7 +399,7 @@ export default function PropertyVsETF({ currency }) {
       {/* Pros & Cons */}
       <div className="grid md:grid-cols-2 gap-6">
         <div>
-          <h5 className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-3">Property Pros & Cons</h5>
+          <h5 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">Property Pros & Cons</h5>
           <div className="space-y-2 mb-3">
             {propertyPros.map((pro, i) => (
               <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
@@ -419,7 +419,7 @@ export default function PropertyVsETF({ currency }) {
         </div>
 
         <div>
-          <h5 className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">ETF Pros & Cons</h5>
+          <h5 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">ETF Pros & Cons</h5>
           <div className="space-y-2 mb-3">
             {etfPros.map((pro, i) => (
               <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
