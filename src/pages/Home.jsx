@@ -161,7 +161,7 @@ export default function Home() {
 
   const handleLogin = async () => {
     try {
-      await base44.auth.redirectToLogin();
+      await base44.auth.redirectToLogin(createPageUrl("Calculator"));
     } catch (error) {
       console.error("Login error:", error);
     }
