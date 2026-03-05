@@ -92,7 +92,7 @@ export default function InvestmentProfiles({ onSelect }) {
               <Icon className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-slate-700 mb-1 text-sm font-bold">{profile.label}</h3>
-            <p className="text-xs text-slate-400 mb-3">{profile.description}</p>
+            <p className="text-slate-600 mb-3 text-xs">{profile.description}</p>
             <div className="space-y-1 text-xs text-slate-500">
               <p>Initial: ${profile.defaults.initialAmount.toLocaleString()}</p>
               <p>Monthly: ${profile.defaults.monthlyContribution.toLocaleString()}</p>
