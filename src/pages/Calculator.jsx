@@ -281,8 +281,8 @@ function CalculatorContent() {
               </TabsContent>
 
               <TabsContent value="table" className="mt-6">
-                <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-                  <h3 className="text-sm font-bold text-white mb-6">Year-by-Year Breakdown</h3>
+                <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
+                  <h3 className="text-sm font-bold text-slate-900 mb-6">Year-by-Year Breakdown</h3>
                   <YearlyBreakdown data={results.yearlyData} currency={params.currency} />
                 </div>
               </TabsContent>
