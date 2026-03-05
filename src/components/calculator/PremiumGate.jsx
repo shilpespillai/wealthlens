@@ -21,7 +21,9 @@ export default function PremiumGate({ children, featureName, isPremium }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (isPremium) return children;
+  // Dev mode: unlock all premium features
+  const isDev = process.env.NODE_ENV === "development";
+  if (isPremium || isDev) return children;
 
   const handleUpgrade = async () => {
     // Check if running in iframe (preview mode)
