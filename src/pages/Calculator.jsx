@@ -290,9 +290,9 @@ function CalculatorContent() {
             )}
 
             {/* Disclaimer */}
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-amber-400/20 rounded-2xl p-5">
-              <p className="text-xs text-amber-200/70 leading-relaxed">
-                <strong className="text-amber-300">Disclaimer:</strong> This calculator provides estimates for educational purposes only. 
+            <div className="bg-amber-50/50 backdrop-blur-sm border border-amber-200 rounded-2xl p-5">
+              <p className="text-xs text-amber-900 leading-relaxed">
+                <strong className="text-amber-900">Disclaimer:</strong> This calculator provides estimates for educational purposes only. 
                 Actual investment returns will vary based on market conditions, timing, specific instruments chosen, 
                 and other factors. Past performance does not guarantee future results. 
                 Always consult a qualified financial advisor before making investment decisions.
