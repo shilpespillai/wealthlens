@@ -118,7 +118,7 @@ function CalculatorContent() {
           transition={{ delay: 0.1 }}
           className="mb-10"
         >
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
+          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
           <InstrumentSelector selected={instrument} onSelect={handleInstrumentChange} />
         </motion.div>
 
