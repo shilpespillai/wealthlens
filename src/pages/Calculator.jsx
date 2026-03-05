@@ -107,7 +107,7 @@ function CalculatorContent() {
           transition={{ delay: 0.05 }}
           className="mb-10"
         >
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
+          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
           <InvestmentProfiles onSelect={(defaults) => setParams(prev => ({ ...prev, ...defaults }))} />
         </motion.div>
 
