@@ -1,65 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, X, ExternalLink, Palette } from "lucide-react";
+import { Settings, X, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-const THEMES = [
-  {
-    name: "Indigo (Default)",
-    key: "indigo",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "226 100% 55%",
-    },
-    preview: "bg-indigo-600",
-  },
-  {
-    name: "Violet",
-    key: "violet",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "259 100% 65%",
-    },
-    preview: "bg-violet-600",
-  },
-  {
-    name: "Purple",
-    key: "purple",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "280 100% 50%",
-    },
-    preview: "bg-purple-600",
-  },
-  {
-    name: "Blue",
-    key: "blue",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "217 100% 61%",
-    },
-    preview: "bg-blue-600",
-  },
-  {
-    name: "Emerald",
-    key: "emerald",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "160 84% 39%",
-    },
-    preview: "bg-emerald-600",
-  },
-  {
-    name: "Orange",
-    key: "orange",
-    colors: {
-      primary: "0 0% 9%",
-      accent: "33 100% 53%",
-    },
-    preview: "bg-orange-600",
-  },
-];
 
 const LINKS = [
   {
