@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, X, ExternalLink } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
+import AccountSection from "./settings/AccountSection";
+import DataPrivacySection from "./settings/DataPrivacySection";
+import AppSettingsSection from "./settings/AppSettingsSection";
+import DocumentationSection from "./settings/DocumentationSection";
 
-const LINKS = [
-  {
-    label: "Documentation",
-    url: "https://docs.wealthlens.com",
-    icon: "📚",
-  },
+const EXTERNAL_LINKS = [
   {
     label: "Privacy Policy",
     url: "https://wealthlens.com/privacy",
     icon: "🔒",
-  },
-  {
-    label: "Data Policy",
-    url: "https://wealthlens.com/data-policy",
-    icon: "📋",
   },
   {
     label: "Terms of Service",
@@ -28,6 +22,21 @@ const LINKS = [
 ];
 
 export default function SettingsDialog({ isOpen, onClose }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const me = await base44.auth.me();
+        setUser(me);
+      } catch {
+        setUser(null);
+      }
+    }
+    if (isOpen) {
+      loadUser();
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -39,15 +48,30 @@ export default function SettingsDialog({ isOpen, onClose }) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-8 pt-4">
-           {/* Documentation & Policies */}
+        <div className="space-y-10 pt-4">
+          {/* Documentation */}
+          <DocumentationSection />
+
+          {/* Account & Profile */}
+          {user && <AccountSection user={user} />}
+
+          {/* Data & Privacy */}
+          <DataPrivacySection />
+
+          {/* App Settings */}
+          <AppSettingsSection />
+
+          {/* External Links */}
           <div>
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <ExternalLink className="w-5 h-5 text-emerald-400" />
-              Resources
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-300">
+              Legal
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {LINKS.map((link) => (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
+              {EXTERNAL_LINKS.map((link) => (
                 <motion.a
                   key={link.label}
                   href={link.url}
@@ -60,14 +84,13 @@ export default function SettingsDialog({ isOpen, onClose }) {
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{link.label}</p>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-slate-400" />
                 </motion.a>
               ))}
-            </div>
+            </motion.div>
           </div>
 
           {/* App Info */}
-          <div className="bg-slate-800/30 rounded-xl border border-white/10 p-4">
+          <div className="bg-slate-800/30 rounded-xl border border-white/10 p-4 border-t pt-8">
             <p className="text-xs text-slate-400 leading-relaxed">
               <strong className="text-slate-300">WealthLens</strong> — Professional investment analysis and portfolio planning tools. 
               All data is processed securely and in compliance with international data protection standards.
