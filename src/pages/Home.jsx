@@ -68,6 +68,24 @@ const FEATURES = [
   { icon: Shield, label: "Secure & Reliable", color: "from-orange-500 to-red-500" },
 ];
 
+function LiveMarketTicker({ symbol, label, value, change, changePercent }) {
+  const isPositive = change >= 0;
+  return (
+    <div className="bg-white rounded-xl p-4 border border-gray-200 hover:border-indigo-300 transition-colors">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold text-gray-600 uppercase">{label}</p>
+          <p className="text-lg font-bold text-gray-900">${value?.toFixed(2) || "N/A"}</p>
+        </div>
+        <div className={`flex items-center gap-1 text-sm font-bold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
+          {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+          {changePercent?.toFixed(2) || "0"}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NewsCard({ item }) {
   const isBullish = item.sentiment === "bullish";
   
