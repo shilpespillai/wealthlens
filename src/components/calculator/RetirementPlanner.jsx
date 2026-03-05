@@ -4,8 +4,8 @@ import { Palmtree, TrendingUp, DollarSign, Clock, Target, AlertCircle } from "lu
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
-} from "recharts";
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from
+"recharts";
 import { getCurrencySymbol } from "./CurrencySelector";
 
 const fmt = (n, sym) => {
@@ -113,7 +113,7 @@ export default function RetirementPlanner({ currency = "USD" }) {
       yearsInRetirement,
       chartData,
       runsOutAge,
-      replacementRate: retirementNestEgg > 0 ? Math.min(200, Math.round((retirementNestEgg / neededNestEgg) * 100)) : 0,
+      replacementRate: retirementNestEgg > 0 ? Math.min(200, Math.round(retirementNestEgg / neededNestEgg * 100)) : 0
     };
   }, [currentAge, retirementAge, currentSavings, monthlyContribution, desiredIncome, returnRate, inflationRate, lifeExpectancy]);
 
@@ -124,8 +124,8 @@ export default function RetirementPlanner({ currency = "USD" }) {
         <div className="text-xs text-slate-400 mb-1">Age {label}</div>
         <div className="text-sm font-bold text-white">{fmt(payload[0]?.value, sym)}</div>
         <div className="text-xs text-slate-400">{payload[0]?.payload?.phase === "accumulation" ? "Accumulation" : "Retirement"}</div>
-      </div>
-    );
+      </div>);
+
   };
 
   return (
@@ -212,21 +212,21 @@ export default function RetirementPlanner({ currency = "USD" }) {
             key={results.isOnTrack ? "on" : "off"}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`rounded-2xl p-5 border ${results.isOnTrack
-              ? "bg-emerald-500/10 border-emerald-500/30"
-              : "bg-red-500/10 border-red-500/30"
-            }`}
-          >
+            className={`rounded-2xl p-5 border ${results.isOnTrack ?
+            "bg-emerald-500/10 border-emerald-500/30" :
+            "bg-red-500/10 border-red-500/30"}`
+            }>
+
             <div className="flex items-center gap-3">
               <span className="text-3xl">{results.isOnTrack ? "✅" : "⚠️"}</span>
               <div>
                 <div className={`text-base font-bold ${results.isOnTrack ? "text-emerald-600" : "text-red-600"}`}>
                   {results.isOnTrack ? "You're on track!" : "You have a gap"}
                 </div>
-                <div className="text-xs text-slate-300">
-                  {results.isOnTrack
-                    ? `You'll have ${fmt(results.retirementNestEgg, sym)} — ${results.replacementRate}% of your goal`
-                    : `Need ${fmt(results.extraMonthly, sym)}/mo more to close the ${fmt(results.gap, sym)} gap`}
+                <div className="text-slate-700 text-xs">
+                  {results.isOnTrack ?
+                  `You'll have ${fmt(results.retirementNestEgg, sym)} — ${results.replacementRate}% of your goal` :
+                  `Need ${fmt(results.extraMonthly, sym)}/mo more to close the ${fmt(results.gap, sym)} gap`}
                 </div>
               </div>
             </div>
@@ -238,13 +238,13 @@ export default function RetirementPlanner({ currency = "USD" }) {
             { label: "Years to Retire", value: results.yearsToRetire, unit: "yrs", color: "text-indigo-600" },
             { label: "Projected Nest Egg", value: fmt(results.retirementNestEgg, sym), unit: "", color: "text-emerald-600" },
             { label: "Needed Nest Egg", value: fmt(results.neededNestEgg, sym), unit: "", color: "text-violet-600" },
-            { label: "Inflation-adj. Income", value: `${sym}${results.inflationAdjIncome.toLocaleString()}`, unit: "/mo", color: "text-amber-600" },
-          ].map(item => (
+            { label: "Inflation-adj. Income", value: `${sym}${results.inflationAdjIncome.toLocaleString()}`, unit: "/mo", color: "text-amber-600" }].
+            map((item) =>
             <div key={item.label} className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
                 <div className="text-xs text-slate-600 mb-1">{item.label}</div>
                 <div className={`text-lg font-bold ${item.color}`}>{item.value}<span className="text-xs ml-1 text-slate-400">{item.unit}</span></div>
               </div>
-            ))}
+            )}
           </div>
 
           {/* Progress bar */}
@@ -258,19 +258,19 @@ export default function RetirementPlanner({ currency = "USD" }) {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(100, results.replacementRate)}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className={`h-full rounded-full ${results.replacementRate >= 100 ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-red-500 to-amber-500"}`}
-              />
+                className={`h-full rounded-full ${results.replacementRate >= 100 ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-gradient-to-r from-red-500 to-amber-500"}`} />
+
             </div>
           </div>
 
-          {results.runsOutAge && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex gap-3">
+          {results.runsOutAge &&
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex gap-3">
               <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-amber-200">
                 At current withdrawal rate, savings may run out at age <strong>{Math.round(results.runsOutAge)}</strong>. Consider increasing contributions or adjusting spending.
               </p>
             </div>
-          )}
+          }
         </div>
       </div>
 
@@ -292,7 +292,7 @@ export default function RetirementPlanner({ currency = "USD" }) {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="age" tick={{ fill: "#94a3b8", fontSize: 10 }} label={{ value: "Age", position: "insideBottomRight", fill: "#64748b", fontSize: 10 }} />
-            <YAxis tickFormatter={v => fmt(v, sym)} tick={{ fill: "#94a3b8", fontSize: 10 }} width={70} />
+            <YAxis tickFormatter={(v) => fmt(v, sym)} tick={{ fill: "#94a3b8", fontSize: 10 }} width={70} />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine x={retirementAge} stroke="#6366f1" strokeDasharray="4 4" label={{ value: "Retirement", position: "top", fill: "#818cf8", fontSize: 10 }} />
             <Area
@@ -301,8 +301,8 @@ export default function RetirementPlanner({ currency = "USD" }) {
               stroke="#10b981"
               fill="url(#accGrad)"
               strokeWidth={2.5}
-              dot={false}
-            />
+              dot={false} />
+
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -313,6 +313,6 @@ export default function RetirementPlanner({ currency = "USD" }) {
           <strong className="text-slate-900">Note:</strong> Uses the 4% safe withdrawal rule. Projections are estimates and actual results will vary. Consult a financial advisor for personalized advice.
         </p>
       </div>
-    </div>
-  );
+    </div>);
+
 }
