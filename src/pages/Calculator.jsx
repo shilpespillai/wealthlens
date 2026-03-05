@@ -254,8 +254,8 @@ function CalculatorContent() {
               </TabsContent>
 
               <TabsContent value="chart" className="mt-6">
-                <div ref={chartRef} className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-                  <h3 className="text-sm font-bold text-white mb-6">Portfolio Growth Over Time</h3>
+                <div ref={chartRef} className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
+                  <h3 className="text-sm font-bold text-slate-900 mb-6">Portfolio Growth Over Time</h3>
                   <GrowthChart data={results.yearlyData} currency={params.currency} />
                 </div>
               </TabsContent>
