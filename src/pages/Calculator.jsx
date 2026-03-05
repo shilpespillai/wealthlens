@@ -71,12 +71,12 @@ function CalculatorContent() {
               <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/f6715e80c_generated_image.png" alt="WealthLens logo" className="w-12 h-12 rounded-2xl shadow-lg shadow-indigo-500/30" />
               <span className="text-2xl font-black text-white tracking-tight">WealthLens</span>
             </div>
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight mb-6">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 tracking-tight leading-tight mb-6">
               See Your Financial
               <br />
-              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">Future Clearly</span>
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">Future Clearly</span>
             </h1>
-            <p className="mt-6 text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light">
+            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">
               Whether you're starting with $50 or managing millions, make informed investment decisions.
               <br className="hidden sm:block" />
               Professional-grade tools for every investor.
