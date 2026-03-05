@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import SettingsDialog from "@/components/SettingsDialog";
 
 export default function Layout({ children }) {
   const [user, setUser] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -15,6 +17,19 @@ export default function Layout({ children }) {
       }
     }
     loadUser();
+  }, []);
+
+  useEffect(() => {
+    // Apply saved theme on mount
+    const savedTheme = localStorage.getItem("wealthlens-theme");
+    if (savedTheme) {
+      try {
+        const colors = JSON.parse(savedTheme);
+        document.documentElement.style.setProperty("--accent-color", colors.accent);
+      } catch {
+        // Fallback to default if stored theme is invalid
+      }
+    }
   }, []);
 
   const handleLogout = async () => {
