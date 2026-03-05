@@ -124,6 +124,8 @@ function NewsCard({ item }) {
 export default function Home() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [marketData, setMarketData] = useState(null);
+  const [marketLoading, setMarketLoading] = useState(true);
 
   useEffect(() => {
     async function checkAuth() {
@@ -137,6 +139,23 @@ export default function Home() {
       }
     }
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    async function fetchMarketData() {
+      try {
+        const response = await base44.functions.invoke("fetchLiveMarketData");
+        setMarketData(response.data);
+      } catch (error) {
+        console.error("Failed to fetch market data:", error);
+      } finally {
+        setMarketLoading(false);
+      }
+    }
+    fetchMarketData();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchMarketData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogin = () => {
