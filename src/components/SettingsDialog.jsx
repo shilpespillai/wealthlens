@@ -40,32 +40,7 @@ export default function SettingsDialog({ isOpen, onClose }) {
         </DialogHeader>
 
         <div className="space-y-8 pt-4">
-          {/* Theme Colors */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <Palette className="w-5 h-5 text-violet-400" />
-              <h3 className="text-lg font-bold">Theme Colors</h3>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {THEMES.map((theme) => (
-                <motion.button
-                  key={theme.key}
-                  onClick={() => handleThemeChange(theme.key)}
-                  whileHover={{ scale: 1.05 }}
-                  className={`p-4 rounded-2xl border-2 transition-all ${
-                    currentTheme === theme.key
-                      ? "border-indigo-400 bg-indigo-500/10"
-                      : "border-white/10 bg-slate-800/50 hover:border-white/20"
-                  }`}
-                >
-                  <div className={`w-full h-8 rounded-lg mb-3 ${theme.preview} shadow-lg`} />
-                  <p className="text-sm font-semibold text-center">{theme.name}</p>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          {/* Documentation & Policies */}
+           {/* Documentation & Policies */}
           <div>
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
               <ExternalLink className="w-5 h-5 text-emerald-400" />
