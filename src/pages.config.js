@@ -58,7 +58,7 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "Calculator",
+    mainPage: "Home",
     Pages: PAGES,
     Layout: __Layout,
 };
