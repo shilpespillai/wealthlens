@@ -59,8 +59,8 @@ function CalculatorContent() {
       </div>
 
       {/* Hero */}
-      <div className="relative overflow-hidden border-b border-white/5">
-        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 via-transparent to-transparent" />
+      <div className="relative overflow-hidden border-b border-slate-200">
+        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/3 via-transparent to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
