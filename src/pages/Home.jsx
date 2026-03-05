@@ -158,8 +158,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = () => {
-    base44.auth.redirectToLogin();
+  const handleLogin = async () => {
+    try {
+      await base44.auth.redirectToLogin();
+    } catch (error) {
+      console.error("Login error:", error);
+    }
   };
 
   if (loading) {
