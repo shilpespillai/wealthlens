@@ -24,19 +24,27 @@ export default function PremiumGate({ children, featureName, isPremium }) {
   if (isPremium) return children;
 
   const handleUpgrade = async () => {
+    // Check if running in iframe (preview mode)
+    if (window.self !== window.top) {
+      alert("Checkout works only from the published app. Please open this app in a new tab to complete your purchase.");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Redirect to Stripe checkout
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-      const { sessionId } = await base44.integrations.Stripe.createCheckoutSession({
-        price_id: import.meta.env.VITE_STRIPE_PRICE_ID,
-        success_url: window.location.href + "?upgraded=true",
-        cancel_url: window.location.href,
-        mode: "subscription",
+      
+      const response = await base44.functions.invoke("stripeCheckout", {
+        priceId: "price_1T7UdNPrZtddngW3cWEyr5ay", // Premium monthly price
+        successUrl: window.location.href + "?upgraded=true",
+        cancelUrl: window.location.href,
       });
+
+      const { sessionId } = response.data;
       await stripe.redirectToCheckout({ sessionId });
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Failed to start checkout. Please try again.");
       setLoading(false);
     }
   };
