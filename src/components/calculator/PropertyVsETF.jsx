@@ -33,52 +33,52 @@ export default function PropertyVsETF({ currency }) {
     const loanAmount = propertyPrice - deposit;
     const monthlyRate = mortgageRate / 100 / 12;
     const numPayments = 30 * 12;
-    
+
     // Property monthly repayment
     const monthlyRepayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
     const annualRent = weeklyRent * 52;
     const netRentalIncome = annualRent - propertyExpenses;
-    const monthlyCashflow = (netRentalIncome / 12) - monthlyRepayment;
-    
+    const monthlyCashflow = netRentalIncome / 12 - monthlyRepayment;
+
     const yearlyData = [];
-    
+
     // Property simulation
     let propertyValue = propertyPrice;
     let loanBalance = loanAmount;
     let propertyEquity = deposit;
-    
+
     // ETF simulation
     let etfValue = initialCapital;
-    
+
     for (let year = 0; year <= yearsToCompare; year++) {
       // Property calculations
       if (year > 0) {
-        propertyValue *= (1 + propertyGrowth / 100);
-        
+        propertyValue *= 1 + propertyGrowth / 100;
+
         // Pay down loan
         for (let m = 0; m < 12; m++) {
           const interest = loanBalance * monthlyRate;
           const principal = monthlyRepayment - interest;
           loanBalance = Math.max(0, loanBalance - principal);
         }
-        
+
         propertyEquity = propertyValue - loanBalance;
       }
-      
+
       // Tax benefit on property (simplified)
       const propertyAfterTax = propertyEquity * (1 + taxBenefit / 100 / 10);
-      
+
       // ETF calculations
       if (year > 0) {
         // Annual contributions
         const yearlyContribution = monthlyContribution * 12;
         etfValue += yearlyContribution;
-        
+
         // Apply returns after fees
         const netReturn = etfReturn - etfFees;
-        etfValue *= (1 + netReturn / 100);
+        etfValue *= 1 + netReturn / 100;
       }
-      
+
       yearlyData.push({
         year,
         propertyEquity: Math.round(propertyEquity),
@@ -87,15 +87,15 @@ export default function PropertyVsETF({ currency }) {
         loanBalance: Math.round(loanBalance)
       });
     }
-    
+
     const finalProperty = yearlyData[yearsToCompare].propertyEquity;
     const finalETF = yearlyData[yearsToCompare].etfValue;
-    const totalPropertyInvested = deposit + (Math.max(0, -monthlyCashflow) * 12 * yearsToCompare);
-    const totalETFInvested = initialCapital + (monthlyContribution * 12 * yearsToCompare);
-    
-    const propertyROI = ((finalProperty - totalPropertyInvested) / totalPropertyInvested) * 100;
-    const etfROI = ((finalETF - totalETFInvested) / totalETFInvested) * 100;
-    
+    const totalPropertyInvested = deposit + Math.max(0, -monthlyCashflow) * 12 * yearsToCompare;
+    const totalETFInvested = initialCapital + monthlyContribution * 12 * yearsToCompare;
+
+    const propertyROI = (finalProperty - totalPropertyInvested) / totalPropertyInvested * 100;
+    const etfROI = (finalETF - totalETFInvested) / totalETFInvested * 100;
+
     return {
       yearlyData,
       finalProperty,
@@ -114,39 +114,39 @@ export default function PropertyVsETF({ currency }) {
   const fmt = (num) => `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   const propertyPros = [
-    "Leveraged growth (5x capital)",
-    "Rental income stream",
-    "Tax deductions (interest, depreciation)",
-    "Tangible asset"
-  ];
+  "Leveraged growth (5x capital)",
+  "Rental income stream",
+  "Tax deductions (interest, depreciation)",
+  "Tangible asset"];
+
 
   const propertyCons = [
-    "Illiquid - hard to sell quickly",
-    "Maintenance costs",
-    "Vacancy risk",
-    "Location dependent"
-  ];
+  "Illiquid - hard to sell quickly",
+  "Maintenance costs",
+  "Vacancy risk",
+  "Location dependent"];
+
 
   const etfPros = [
-    "Highly liquid",
-    "Globally diversified",
-    "No maintenance",
-    "Low fees"
-  ];
+  "Highly liquid",
+  "Globally diversified",
+  "No maintenance",
+  "Low fees"];
+
 
   const etfCons = [
-    "No leverage",
-    "Market volatility",
-    "No income (unless dividend ETF)",
-    "Capital gains tax on sale"
-  ];
+  "No leverage",
+  "Market volatility",
+  "No income (unless dividend ETF)",
+  "Capital gains tax on sale"];
+
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
-    >
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8">
+
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
           <Zap className="w-6 h-6 text-white" />
@@ -167,8 +167,8 @@ export default function PropertyVsETF({ currency }) {
               type="number"
               value={initialCapital}
               onChange={(e) => setInitialCapital(parseFloat(e.target.value) || 0)}
-              className="pl-8 bg-slate-700/30 border-white/10 text-white"
-            />
+              className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
           </div>
         </div>
 
@@ -199,10 +199,10 @@ export default function PropertyVsETF({ currency }) {
                   type="number"
                   value={propertyPrice}
                   onChange={(e) => setPropertyPrice(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                />
+                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
               </div>
-              <p className="text-xs text-slate-500">Deposit: {fmt(initialCapital)} ({((initialCapital/propertyPrice)*100).toFixed(0)}%)</p>
+              <p className="text-xs text-slate-500">Deposit: {fmt(initialCapital)} ({(initialCapital / propertyPrice * 100).toFixed(0)}%)</p>
             </div>
 
             <div className="space-y-2">
@@ -221,8 +221,8 @@ export default function PropertyVsETF({ currency }) {
                   type="number"
                   value={weeklyRent}
                   onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                />
+                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
               </div>
             </div>
 
@@ -234,8 +234,8 @@ export default function PropertyVsETF({ currency }) {
                   type="number"
                   value={propertyExpenses}
                   onChange={(e) => setPropertyExpenses(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                />
+                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
               </div>
             </div>
 
@@ -281,8 +281,8 @@ export default function PropertyVsETF({ currency }) {
                   type="number"
                   value={monthlyContribution}
                   onChange={(e) => setMonthlyContribution(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                />
+                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
               </div>
               <p className="text-xs text-slate-500">Annual: {fmt(monthlyContribution * 12)}</p>
             </div>
@@ -300,15 +300,15 @@ export default function PropertyVsETF({ currency }) {
 
       {/* Winner Banner */}
       <div className={`rounded-2xl p-6 border mb-8 bg-white ${
-        comparison.winner === "property" 
-          ? "border-emerald-200" 
-          : "border-indigo-200"
-      }`}>
+      comparison.winner === "property" ?
+      "border-emerald-200" :
+      "border-indigo-200"}`
+      }>
         <div className="text-center">
           <p className="text-xs text-slate-400 mb-2">After {yearsToCompare} years</p>
           <p className={`text-3xl font-black mb-2 ${
-            comparison.winner === "property" ? "text-emerald-400" : "text-indigo-400"
-          }`}>
+          comparison.winner === "property" ? "text-emerald-400" : "text-indigo-400"}`
+          }>
             {comparison.winner === "property" ? "🏠 Property Wins!" : "📈 ETF Wins!"}
           </p>
           <p className="text-lg font-bold text-white">
@@ -326,20 +326,20 @@ export default function PropertyVsETF({ currency }) {
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={comparison.yearlyData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis 
-              dataKey="year" 
+            <XAxis
+              dataKey="year"
               stroke="#94a3b8"
-              label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
-            />
-            <YAxis 
+              label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }} />
+
+            <YAxis
               stroke="#94a3b8"
-              tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
-            />
+              tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`} />
+
             <Tooltip
               contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
               labelStyle={{ color: '#e2e8f0' }}
-              formatter={(value) => fmt(value)}
-            />
+              formatter={(value) => fmt(value)} />
+
             <Legend />
             <Line type="monotone" dataKey="propertyEquity" stroke="#10b981" strokeWidth={3} name="Property Equity" />
             <Line type="monotone" dataKey="etfValue" stroke="#6366f1" strokeWidth={3} name="ETF Portfolio" />
@@ -401,43 +401,43 @@ export default function PropertyVsETF({ currency }) {
         <div>
           <h5 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">Property Pros & Cons</h5>
           <div className="space-y-2 mb-3">
-            {propertyPros.map((pro, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+            {propertyPros.map((pro, i) =>
+            <div key={i} className="text-slate-600 text-xs flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                 <span>{pro}</span>
               </div>
-            ))}
+            )}
           </div>
           <div className="space-y-2">
-            {propertyCons.map((con, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
+            {propertyCons.map((con, i) =>
+            <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
                 <XCircle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
                 <span>{con}</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
         <div>
           <h5 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">ETF Pros & Cons</h5>
           <div className="space-y-2 mb-3">
-            {etfPros.map((pro, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+            {etfPros.map((pro, i) =>
+            <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
                 <CheckCircle className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                 <span>{pro}</span>
               </div>
-            ))}
+            )}
           </div>
           <div className="space-y-2">
-            {etfCons.map((con, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
+            {etfCons.map((con, i) =>
+            <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
                 <XCircle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
                 <span>{con}</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
