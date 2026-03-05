@@ -268,7 +268,7 @@ export default function PropertyAnalyzer({ currency }) {
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em]">Inputs</h4>
               
               <div className="space-y-2">
-                <Label className="text-xs text-slate-700">Purchase Price</Label>
+                <Label className="text-xs text-slate-900">Purchase Price</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                   <Input
@@ -282,7 +282,7 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-700">Annual Growth Rate</Label>
+                  <Label className="text-xs text-slate-900">Annual Growth Rate</Label>
                   <span className="text-sm font-bold text-emerald-600">{growthRate}%</span>
                 </div>
                 <Slider value={[growthRate]} onValueChange={([v]) => setGrowthRate(v)} min={0} max={20} step={0.5} />
@@ -290,7 +290,7 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-700">Holding Period</Label>
+                  <Label className="text-xs text-slate-900">Holding Period</Label>
                   <span className="text-sm font-bold text-slate-900">{holdingPeriod} years</span>
                 </div>
                 <Slider value={[holdingPeriod]} onValueChange={([v]) => setHoldingPeriod(v)} min={1} max={30} step={1} />
@@ -298,7 +298,7 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-700">Selling Costs</Label>
+                  <Label className="text-xs text-slate-900">Selling Costs</Label>
                   <span className="text-sm font-bold text-slate-900">{sellingCosts}%</span>
                 </div>
                 <Slider value={[sellingCosts]} onValueChange={([v]) => setSellingCosts(v)} min={0} max={10} step={0.5} />
@@ -579,7 +579,7 @@ export default function PropertyAnalyzer({ currency }) {
                     className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
                       loanType === "principal"
                         ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
-                        : "bg-slate-700/30 text-slate-400 border border-white/10"
+                        : "bg-slate-700/30 text-slate-600 border border-white/10"
                     }`}
                   >
                     Principal & Interest
@@ -589,7 +589,7 @@ export default function PropertyAnalyzer({ currency }) {
                     className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
                       loanType === "interestOnly"
                         ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
-                        : "bg-slate-700/30 text-slate-400 border border-white/10"
+                        : "bg-slate-700/30 text-slate-600 border border-white/10"
                     }`}
                   >
                     Interest Only
