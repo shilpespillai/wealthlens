@@ -9,16 +9,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Email required" }, { status: 400 });
     }
 
-    const subscriptions = await base44.asServiceRole.entities.Subscription.filter({
+    const purchases = await base44.asServiceRole.entities.Subscription.filter({
       email: email,
-      status: "active",
+      status: "completed",
     });
 
-    const isActive = subscriptions.length > 0;
+    const isActive = purchases.length > 0;
 
     return Response.json({
       isActive,
-      subscription: isActive ? subscriptions[0] : null,
+      purchase: isActive ? purchases[0] : null,
     });
   } catch (error) {
     console.error("Subscription check error:", error);

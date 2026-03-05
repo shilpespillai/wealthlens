@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: "subscription",
+      mode: "payment",
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {

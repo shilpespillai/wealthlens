@@ -31,51 +31,33 @@ Deno.serve(async (req) => {
 
     const base44 = createClientFromRequest(req);
 
-    // Handle subscription events
-    if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
-      const subscription = event.data.object;
-      const customerId = subscription.customer;
-      const customer = await stripe.customers.retrieve(customerId);
+    // Handle successful payment
+    if (event.type === "charge.succeeded") {
+      const charge = event.data.object;
+      const customerId = charge.customer;
 
-      const subscriptionData = {
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: subscription.id,
-        email: customer.email,
-        status: subscription.status,
-        priceId: subscription.items.data[0].price.id,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000).toISOString(),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-      };
+      if (customerId) {
+        const customer = await stripe.customers.retrieve(customerId);
 
-      // Check if subscription exists
-      const existing = await base44.asServiceRole.entities.Subscription.filter({
-        stripeSubscriptionId: subscription.id,
-      });
+        const purchaseData = {
+          stripeCustomerId: customerId,
+          stripePaymentId: charge.id,
+          email: customer.email,
+          status: "completed",
+          priceId: charge.metadata.priceId || "",
+          purchasedAt: new Date(charge.created * 1000).toISOString(),
+        };
 
-      if (existing.length > 0) {
-        // Update existing
-        await base44.asServiceRole.entities.Subscription.update(existing[0].id, subscriptionData);
-        console.log(`Updated subscription: ${subscription.id}`);
-      } else {
-        // Create new
-        await base44.asServiceRole.entities.Subscription.create(subscriptionData);
-        console.log(`Created subscription: ${subscription.id}`);
-      }
-    }
-
-    // Handle cancellation
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object;
-      const existing = await base44.asServiceRole.entities.Subscription.filter({
-        stripeSubscriptionId: subscription.id,
-      });
-
-      if (existing.length > 0) {
-        await base44.asServiceRole.entities.Subscription.update(existing[0].id, {
-          status: "canceled",
-          canceledAt: new Date().toISOString(),
+        // Check if purchase already exists
+        const existing = await base44.asServiceRole.entities.Subscription.filter({
+          stripePaymentId: charge.id,
         });
-        console.log(`Canceled subscription: ${subscription.id}`);
+
+        if (existing.length === 0) {
+          // Create new purchase record
+          await base44.asServiceRole.entities.Subscription.create(purchaseData);
+          console.log(`Created purchase record: ${charge.id}`);
+        }
       }
     }
 
