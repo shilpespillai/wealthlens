@@ -107,7 +107,7 @@ function CalculatorContent() {
           transition={{ delay: 0.05 }}
           className="mb-10"
         >
-          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
           <InvestmentProfiles onSelect={(defaults) => setParams(prev => ({ ...prev, ...defaults }))} />
         </motion.div>
 
@@ -118,7 +118,7 @@ function CalculatorContent() {
           transition={{ delay: 0.1 }}
           className="mb-10"
         >
-          <h2 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
           <InstrumentSelector selected={instrument} onSelect={handleInstrumentChange} />
         </motion.div>
 
@@ -200,36 +200,36 @@ function CalculatorContent() {
             {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
             {instrument !== "property" && (
               <Tabs defaultValue="coach" className="w-full">
-              <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl h-auto flex-wrap">
-                <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+              <TabsList className="bg-slate-100 border border-slate-300 p-1.5 rounded-2xl h-auto flex-wrap">
+                <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
                   AI Coach
                 </TabsTrigger>
-                <TabsTrigger value="portfolio_builder" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="portfolio_builder" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <BrainCircuit className="w-3.5 h-3.5 mr-2" />
                   AI Portfolio
                 </TabsTrigger>
-                <TabsTrigger value="retirement" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="retirement" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Palmtree className="w-3.5 h-3.5 mr-2" />
                   Retirement
                 </TabsTrigger>
-                <TabsTrigger value="chart" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="chart" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <BarChart3 className="w-3.5 h-3.5 mr-2" />
                   Growth Chart
                 </TabsTrigger>
-                <TabsTrigger value="market" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="market" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <TrendingUp className="w-3.5 h-3.5 mr-2" />
                   Market Analysis
                 </TabsTrigger>
-                <TabsTrigger value="tax" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="tax" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Shield className="w-3.5 h-3.5 mr-2" />
                   Tax Strategies
                 </TabsTrigger>
-                <TabsTrigger value="scenarios" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="scenarios" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Layers className="w-3.5 h-3.5 mr-2" />
                   Scenarios
                 </TabsTrigger>
-                <TabsTrigger value="table" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-400 transition-all">
+                <TabsTrigger value="table" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Table2 className="w-3.5 h-3.5 mr-2" />
                   Yearly Breakdown
                 </TabsTrigger>
@@ -275,7 +275,7 @@ function CalculatorContent() {
               <TabsContent value="scenarios" className="mt-6">
                 <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                   <h3 className="text-sm font-bold text-slate-900 mb-1">Market Scenario Analysis</h3>
-                  <p className="text-xs text-slate-600 mb-6">Compare conservative, moderate, and aggressive market outcomes</p>
+                  <p className="text-xs text-slate-700 mb-6">Compare conservative, moderate, and aggressive market outcomes</p>
                   <ScenarioComparison scenarios={scenarios} currency={params.currency} />
                 </div>
               </TabsContent>
