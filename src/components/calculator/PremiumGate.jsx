@@ -97,7 +97,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
             <p className="text-sm text-slate-300 mb-6 max-w-xs">
-              <strong className="text-amber-400">{featureName}</strong> is available in Premium for a one-time <strong className="text-white">$29</strong> purchase.
+              <strong className="text-amber-400">{featureName}</strong> is available in Premium for a one-time <strong className="text-white">$10</strong> purchase.
             </p>
             <Button
               onClick={() => setOpen(true)}
@@ -118,7 +118,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
           <Crown className="w-5 h-5 text-white" />
         </div>
-        Premium — One-Time $29
+        Premium — One-Time $10
       </DialogTitle>
       </DialogHeader>
 
@@ -137,7 +137,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
             </div>
 
             <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
-              <div className="text-3xl font-black text-white">$29<span className="text-base font-normal text-slate-400"> one-time</span></div>
+              <div className="text-3xl font-black text-white">$10<span className="text-base font-normal text-slate-400"> one-time</span></div>
               <div className="text-xs text-slate-400 mt-1">Lifetime access • All features</div>
             </div>
 
@@ -146,7 +146,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
               disabled={loading}
               className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold py-4 rounded-xl text-base"
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><Crown className="w-4 h-4 mr-2" /> Unlock Premium — $29</>}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><Crown className="w-4 h-4 mr-2" /> Unlock Premium — $10</>}
             </Button>
 
             <p className="text-center text-xs text-slate-500">Secured by Stripe. No subscriptions.</p>
