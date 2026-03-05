@@ -81,7 +81,7 @@ function CalculatorContent() {
               <br className="hidden sm:block" />
               Professional-grade tools for every investor.
             </p>
-            <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-400">
+            <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Accessible to All</span>
