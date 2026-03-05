@@ -273,9 +273,9 @@ function CalculatorContent() {
               </TabsContent>
 
               <TabsContent value="scenarios" className="mt-6">
-                <div className="bg-slate-800/40 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8">
-                  <h3 className="text-sm font-bold text-white mb-1">Market Scenario Analysis</h3>
-                  <p className="text-xs text-slate-400 mb-6">Compare conservative, moderate, and aggressive market outcomes</p>
+                <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">Market Scenario Analysis</h3>
+                  <p className="text-xs text-slate-600 mb-6">Compare conservative, moderate, and aggressive market outcomes</p>
                   <ScenarioComparison scenarios={scenarios} currency={params.currency} />
                 </div>
               </TabsContent>
