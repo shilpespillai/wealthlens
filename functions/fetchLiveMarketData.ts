@@ -5,8 +5,9 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     
     // Fetch live market data from LLM with web search
+    const now = new Date().toISOString();
     const marketData = await base44.integrations.Core.InvokeLLM({
-      prompt: `Provide the latest real-time market data in the following JSON format. Get current data from today's market:
+      prompt: `It is currently ${now}. Provide the LATEST real-time market data as of right now. Search the web for current prices. Get live data from today's market:
 {
   "stocks": {
     "sp500": {
