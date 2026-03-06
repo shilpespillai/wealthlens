@@ -38,18 +38,25 @@ export default function PricingSection({ onGetStarted }) {
   };
 
   const handleUpgrade = async () => {
+    const email = prompt("Enter your email:");
+    if (!email) {
+      alert("Email is required to proceed with checkout.");
+      return;
+    }
     try {
       const response = await base44.functions.invoke('stripeCheckout', {
         priceId: LIVE_PRICE_ID,
-        email: prompt("Enter your email:") || "",
+        email: email.trim(),
         successUrl: window.location.origin + createPageUrl("Calculator"),
         cancelUrl: window.location.href
       });
       if (response.data?.sessionId) {
         window.location.href = `https://checkout.stripe.com/pay/${response.data.sessionId}`;
+      } else {
+        alert("Checkout session creation failed. Please try again.");
       }
     } catch (err) {
-      alert("Checkout failed. Please try again.");
+      alert(`Checkout failed: ${err.message || 'Please try again.'}`);
     }
   };
 
