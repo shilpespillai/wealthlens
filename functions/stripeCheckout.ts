@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
     console.log(`Checkout session created: ${session.id} for customer: ${customerId}`);
 
-    return Response.json({ sessionId: session.id });
+    return Response.json({ sessionId: session.id, url: session.url });
   } catch (error) {
     console.error("Stripe checkout error:", error.message);
     return Response.json(
