@@ -184,7 +184,7 @@ export default function PropertyVsETF({ currency }) {
       {/* Side by Side Inputs */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Property Inputs */}
-        <div className="bg-slate-50 text-slate-600 p-5 rounded-2xl border border-emerald-400/20">
+        <div className="bg-orange-100 text-slate-600 p-5 rounded-2xl border border-emerald-400/20">
           <h4 className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Property Investment
@@ -192,21 +192,21 @@ export default function PropertyVsETF({ currency }) {
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Property Price</Label>
+              <Label className="text-slate-300 text-xs font-medium opacity-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Property Price</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                 <Input
                   type="number"
                   value={propertyPrice}
-                  onChange={(e) => setPropertyPrice(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                  onChange={(e) => setPropertyPrice(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
               </div>
               <p className="text-xs text-slate-500">Deposit: {fmt(initialCapital)} ({(initialCapital / propertyPrice * 100).toFixed(0)}%)</p>
             </div>
 
             <div className="space-y-2">
-              <div className="flex justify-between">
+              <div className="text-slate-600 flex justify-between">
                 <Label className="text-xs text-slate-300">Annual Growth</Label>
                 <span className="text-xs font-bold text-emerald-400">{propertyGrowth}%</span>
               </div>
@@ -220,8 +220,8 @@ export default function PropertyVsETF({ currency }) {
                 <Input
                   type="number"
                   value={weeklyRent}
-                  onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                  onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
               </div>
             </div>
@@ -233,8 +233,8 @@ export default function PropertyVsETF({ currency }) {
                 <Input
                   type="number"
                   value={propertyExpenses}
-                  onChange={(e) => setPropertyExpenses(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                  onChange={(e) => setPropertyExpenses(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
               </div>
             </div>
