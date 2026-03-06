@@ -408,7 +408,7 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Vacancy Rate</Label>
+                  <Label className="text-xs text-slate-700">Vacancy Rate</Label>
                   <span className="text-sm font-bold text-white">{vacancyRate}%</span>
                 </div>
                 <Slider value={[vacancyRate]} onValueChange={([v]) => setVacancyRate(v)} min={0} max={20} step={0.5} />
@@ -416,14 +416,14 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Management Fees</Label>
+                  <Label className="text-xs text-slate-700">Management Fees</Label>
                   <span className="text-sm font-bold text-white">{managementFees}%</span>
                 </div>
                 <Slider value={[managementFees]} onValueChange={([v]) => setManagementFees(v)} min={0} max={15} step={0.5} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Annual Maintenance</Label>
+                <Label className="text-xs text-slate-700">Annual Maintenance</Label>
                 <div className="relative">
                   
                   <Input
