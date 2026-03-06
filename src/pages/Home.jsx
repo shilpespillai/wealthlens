@@ -361,7 +361,9 @@ export default function Home() {
       </section>
 
       <Testimonials />
+      <ComparisonTable />
       <PricingSection />
+      <FAQ />
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
