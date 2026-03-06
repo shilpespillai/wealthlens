@@ -82,11 +82,21 @@ export default function AccountSection({ user }) {
           </div>
         </div>
 
+        {/* Logout Button */}
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          className="w-full mt-6 border-white/20 text-white hover:bg-white/5"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
+
         {/* Delete Account */}
         <Button
           onClick={() => setDeleteOpen(true)}
           variant="destructive"
-          className="w-full mt-6"
+          className="w-full mt-3"
         >
           <AlertCircle className="w-4 h-4 mr-2" />
           Delete Account & All Data
