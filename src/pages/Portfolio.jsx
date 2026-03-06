@@ -153,6 +153,21 @@ function PortfolioContent() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 text-sm"
+              onClick={() => {
+                try {
+                  generatePortfolioPdf({ holdings, currency });
+                  toast.success("Portfolio PDF downloaded!");
+                } catch (e) {
+                  toast.error("Failed to generate PDF");
+                }
+              }}
+            >
+              <Download className="w-4 h-4" /> Export PDF
+            </Button>
           </div>
         </div>
       </div>
