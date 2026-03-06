@@ -389,7 +389,7 @@ export default function PropertyAnalyzer({ currency }) {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Inputs */}
             <div className="space-y-5">
-              <h4 className="text-slate-600 text-xs font-bold uppercase tracking-[0.15em]">INCOME & EXPENSES</h4>
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Income & Expenses</h4>
               
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Weekly Rent</Label>
