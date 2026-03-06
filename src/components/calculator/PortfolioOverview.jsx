@@ -14,12 +14,34 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     const totalReturn = results.summary.totalReturns;
     const annualizedReturn = (Math.pow(finalValue / totalInvested, 1 / params.years) - 1) * 100;
 
-    // Diversification breakdown (simulated based on best practices)
+    // Diversification breakdown — dynamically based on selected instrument
+    const INSTRUMENT_META = {
+      stocks:        { name: 'Stocks',        color: '#6366f1' },
+      etf:           { name: 'ETF',           color: '#8b5cf6' },
+      property:      { name: 'Property',      color: '#10b981' },
+      crypto:        { name: 'Crypto',        color: '#f59e0b' },
+      bonds:         { name: 'Bonds',         color: '#3b82f6' },
+      fixed_deposit: { name: 'Fixed Deposit', color: '#06b6d4' },
+      mutual_funds:  { name: 'Mutual Funds',  color: '#ec4899' },
+      gold:          { name: 'Gold',          color: '#d97706' },
+      commodities:   { name: 'Commodities',  color: '#84cc16' },
+      forex:         { name: 'Forex',        color: '#f43f5e' },
+    };
+    const meta = INSTRUMENT_META[instrument] || { name: instrument, color: '#6366f1' };
+    // Show selected instrument as 60%, then suggest a complementary split
+    const complementary = Object.entries(INSTRUMENT_META)
+      .filter(([id]) => id !== instrument)
+      .slice(0, 3);
+    const complementaryTotal = 40;
+    const eachShare = Math.floor(complementaryTotal / complementary.length);
     const diversificationData = [
-    { name: 'Stocks/ETFs', value: instrument === 'stocks' || instrument === 'etf' ? 60 : 40, color: '#6366f1' },
-    { name: 'Property', value: instrument === 'property' ? 30 : 25, color: '#10b981' },
-    { name: 'Bonds/Fixed', value: instrument === 'bonds' || instrument === 'fixed_deposit' ? 20 : 20, color: '#f59e0b' },
-    { name: 'Alternative', value: instrument === 'crypto' || instrument === 'gold' ? 15 : 15, color: '#8b5cf6' }];
+      { name: meta.name, value: 60, color: meta.color },
+      ...complementary.map(([, m], i) => ({
+        name: m.name,
+        value: i === complementary.length - 1 ? complementaryTotal - eachShare * (complementary.length - 1) : eachShare,
+        color: m.color,
+      })),
+    ];
 
 
     // Cash flow analysis
