@@ -45,21 +45,6 @@ export default function Layout({ children }) {
         }
       `}</style>
       
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-
-      {user && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-white rounded-lg shadow-md px-4 py-3">
-          <span className="text-sm text-slate-700">{user.email}</span>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4 text-slate-600" />
-          </button>
-        </div>
-      )}
-      
       {children}
     </div>
   );
