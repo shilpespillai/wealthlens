@@ -249,7 +249,7 @@ export default function PropertyVsETF({ currency }) {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Tax Benefit</Label>
+                <Label className="text-xs text-slate-900">Tax Benefit</Label>
                 <span className="text-xs font-bold text-white">{taxBenefit}%</span>
               </div>
               <Slider value={[taxBenefit]} onValueChange={([v]) => setTaxBenefit(v)} min={0} max={30} step={1} />
