@@ -24,14 +24,51 @@ const ASSET_CLASSES = [
 
 const CURRENCIES = ["USD", "AUD", "EUR", "GBP", "JPY", "CAD", "SGD", "INR", "NZD"];
 
+const DEFAULT_HOLDINGS = [
+  { id: 1, asset: "stocks", currentValue: 50000, invested: 35000, label: "US Stocks" },
+  { id: 2, asset: "property", currentValue: 450000, invested: 380000, label: "Investment Property" },
+  { id: 3, asset: "etf", currentValue: 25000, invested: 20000, label: "Index ETF" },
+];
+
 function PortfolioContent() {
   const [currency, setCurrency] = useState("AUD");
-  const [holdings, setHoldings] = useState([
-    { id: 1, asset: "stocks", currentValue: 50000, invested: 35000, label: "US Stocks" },
-    { id: 2, asset: "property", currentValue: 450000, invested: 380000, label: "Investment Property" },
-    { id: 3, asset: "etf", currentValue: 25000, invested: 20000, label: "Index ETF" },
-  ]);
+  const [holdings, setHoldings] = useState(DEFAULT_HOLDINGS);
   const [nextId, setNextId] = useState(4);
+  const [userLoaded, setUserLoaded] = useState(false);
+
+  // Load from user profile on mount
+  useEffect(() => {
+    async function loadFromProfile() {
+      try {
+        const user = await base44.auth.me();
+        if (user?.portfolio_holdings) {
+          const saved = JSON.parse(user.portfolio_holdings);
+          setHoldings(saved);
+          const maxId = saved.reduce((m, h) => Math.max(m, h.id || 0), 0);
+          setNextId(maxId + 1);
+        }
+        if (user?.portfolio_currency) {
+          setCurrency(user.portfolio_currency);
+        }
+      } catch {}
+      setUserLoaded(true);
+    }
+    loadFromProfile();
+  }, []);
+
+  // Debounced save to user profile
+  useEffect(() => {
+    if (!userLoaded) return;
+    const timer = setTimeout(async () => {
+      try {
+        await base44.auth.updateMe({
+          portfolio_holdings: JSON.stringify(holdings),
+          portfolio_currency: currency
+        });
+      } catch {}
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [holdings, currency, userLoaded]);
 
   const sym = getCurrencySymbol(currency);
 
