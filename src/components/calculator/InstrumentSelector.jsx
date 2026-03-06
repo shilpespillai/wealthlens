@@ -25,13 +25,13 @@ export default function InstrumentSelector({ selected, onSelect }) {
             key={inst.id}
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => onSelect(inst.id)}
-            className={cn(
-              "relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300",
-              isActive ?
-              "border-transparent shadow-2xl shadow-indigo-500/20" :
-              "border-white/10 bg-slate-800/30 backdrop-blur-sm hover:border-white/20 hover:bg-slate-800/50"
-            )}>
+            onClick={() => onSelect(inst.id)} className="bg-zinc-300 p-5 rounded-2xl relative flex flex-col items-center gap-3 border-2 transition-all duration-300 border-transparent shadow-2xl shadow-indigo-500/20">
+
+
+
+
+
+
 
             <div className={cn(
               "w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-lg",
