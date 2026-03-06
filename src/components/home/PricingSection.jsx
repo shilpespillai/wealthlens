@@ -48,7 +48,7 @@ export default function PricingSection({ onGetStarted }) {
         priceId: LIVE_PRICE_ID,
         email: email.trim(),
         successUrl: window.location.origin + createPageUrl("Calculator"),
-        cancelUrl: window.location.href
+        cancelUrl: window.location.origin + createPageUrl("Home")
       });
       if (response.data?.sessionId) {
         window.location.href = `https://checkout.stripe.com/pay/${response.data.sessionId}`;
