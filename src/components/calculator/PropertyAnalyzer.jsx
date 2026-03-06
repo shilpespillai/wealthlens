@@ -479,59 +479,59 @@ export default function PropertyAnalyzer({ currency }) {
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Yield Analysis</h4>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl p-4 border border-blue-400/20">
-                  <p className="text-xs text-blue-300 mb-1 flex items-center gap-1">
-                    <Percent className="w-3 h-3" />
-                    Gross Yield
+                <div className="bg-orange-100 p-4 rounded-2xl from-blue-500/20 to-cyan-500/20 border border-blue-400/20">
+                  <p className="text-green-700 mb-1 text-xs flex items-center gap-1">Gross Yield
+
+
                   </p>
-                  <p className="text-2xl font-black text-white">{yieldResults.grossYield.toFixed(2)}%</p>
+                  <p className="text-slate-600 text-2xl font-black">{yieldResults.grossYield.toFixed(2)}%</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-4 border border-emerald-400/20">
-                  <p className="text-xs text-emerald-300 mb-1 flex items-center gap-1">
-                    <Percent className="w-3 h-3" />
-                    Net Yield
+                <div className="bg-orange-100 text-slate-600 p-4 rounded-2xl from-emerald-500/20 to-green-500/20 border border-emerald-400/20">
+                  <p className="text-green-700 mb-1 text-xs flex items-center gap-1">Net Yield
+
+
                   </p>
-                  <p className="text-2xl font-black text-white">{yieldResults.netYield.toFixed(2)}%</p>
+                  <p className="text-slate-600 text-2xl font-black">{yieldResults.netYield.toFixed(2)}%</p>
                 </div>
               </div>
 
               <div className={`rounded-2xl p-4 border ${yieldResults.monthlyCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-400/20' : 'bg-rose-500/10 border-rose-400/20'}`}>
-                <p className="text-xs text-slate-300 mb-1">Monthly Cashflow</p>
+                <p className="text-green-700 mb-1 text-xs">Monthly Cashflow</p>
                 <p className={`text-2xl font-black ${yieldResults.monthlyCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {yieldResults.monthlyCashflow >= 0 ? '+' : ''}{fmt(yieldResults.monthlyCashflow)}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-slate-600 mt-1 text-xs">
                   {yieldResults.monthlyCashflow >= 0 ? 'Positive' : 'Negative'} cashflow property
                 </p>
               </div>
 
-              <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
-                <p className="text-xs text-slate-400 mb-2">Annual Breakdown</p>
+              <div className="bg-slate-300 p-4 rounded-2xl border border-white/5">
+                <p className="text-slate-600 mb-2 text-xs">Annual Breakdown</p>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-300">Gross Rent</span>
-                    <span className="text-white font-semibold">{fmt(yieldResults.annualRent)}</span>
+                    <span className="text-slate-800">Gross Rent</span>
+                    <span className="text-slate-700 font-semibold">{fmt(yieldResults.annualRent)}</span>
                   </div>
                   <div className="flex justify-between text-rose-400">
-                    <span>Total Expenses</span>
-                    <span className="font-semibold">-{fmt(yieldResults.totalExpenses)}</span>
+                    <span className="text-[#db0f0f]">Total Expenses</span>
+                    <span className="text-[#d50b0b] font-semibold">-{fmt(yieldResults.totalExpenses)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-white/10">
-                    <span className="text-emerald-300 font-bold">Net Income</span>
-                    <span className="text-emerald-400 font-bold">{fmt(yieldResults.netRent)}</span>
+                    <span className="text-green-800 font-bold">Net Income</span>
+                    <span className="text-emerald-700 font-bold">{fmt(yieldResults.netRent)}</span>
                   </div>
                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 rounded-2xl p-4 border border-indigo-400/20">
-                <p className="text-xs text-indigo-300 mb-2">Yield vs Suburb Average</p>
+                <p className="text-slate-700 mb-2 text-xs">Yield vs Suburb Average</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white">{yieldResults.netYield.toFixed(2)}%</span>
+                  <span className="text-slate-600 text-2xl font-black">{yieldResults.netYield.toFixed(2)}%</span>
                   <span className="text-sm text-slate-400">vs</span>
-                  <span className="text-lg font-bold text-slate-300">{suburbYield}%</span>
+                  <span className="text-slate-700 text-lg font-bold">{suburbYield}%</span>
                 </div>
-                <p className={`text-xs mt-2 font-semibold ${yieldResults.yieldVsSuburb > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <p className="text-lime-800 mt-2 text-xs font-semibold">
                   {yieldResults.yieldVsSuburb > 0 ? '+' : ''}{yieldResults.yieldVsSuburb.toFixed(2)}% {yieldResults.yieldVsSuburb > 0 ? 'above' : 'below'} suburb average
                 </p>
               </div>
