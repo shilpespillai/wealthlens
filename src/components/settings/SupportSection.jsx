@@ -18,17 +18,17 @@ export default function SupportSection({ userEmail }) {
 
     try {
       setLoading(true);
-      await base44.integrations.Core.SendEmail({
-        to: "support@wealthlens.com",
-        subject: `Support Request: ${subject}`,
-        body: `From: ${userEmail}\n\n${message}`,
-        from_name: "WealthLens Support"
+      const response = await base44.functions.invoke('sendSupportEmail', {
+        subject,
+        message,
+        userEmail
       });
       setStatus({ type: "success", text: "Message sent! We'll get back to you soon." });
       setSubject("");
       setMessage("");
       setTimeout(() => setStatus(null), 5000);
     } catch (error) {
+      console.error("Error:", error);
       setStatus({ type: "error", text: "Failed to send message. Please try again." });
     } finally {
       setLoading(false);
