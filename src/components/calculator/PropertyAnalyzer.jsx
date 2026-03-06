@@ -43,7 +43,7 @@ export default function PropertyAnalyzer({ currency }) {
     const equityBuilt = futureValue - purchasePrice;
     const sellingCostsAmount = futureValue * (sellingCosts / 100);
     const netProceeds = futureValue - sellingCostsAmount - purchasePrice;
-    const totalROI = (netProceeds / purchasePrice) * 100;
+    const totalROI = netProceeds / purchasePrice * 100;
     const annualizedReturn = (Math.pow(futureValue / purchasePrice, 1 / holdingPeriod) - 1) * 100;
 
     // What-if scenario
@@ -51,7 +51,7 @@ export default function PropertyAnalyzer({ currency }) {
     const whatIfEquity = whatIfValue - purchasePrice;
     const whatIfSellingCosts = whatIfValue * (sellingCosts / 100);
     const whatIfNet = whatIfValue - whatIfSellingCosts - purchasePrice;
-    const whatIfROI = (whatIfNet / purchasePrice) * 100;
+    const whatIfROI = whatIfNet / purchasePrice * 100;
 
     return {
       futureValue,
@@ -70,13 +70,13 @@ export default function PropertyAnalyzer({ currency }) {
   // Rental Yield Calculations
   const yieldResults = useMemo(() => {
     const annualRent = weeklyRent * 52;
-    const grossYield = (annualRent / purchasePrice) * 100;
-    
+    const grossYield = annualRent / purchasePrice * 100;
+
     const vacancyLoss = annualRent * (vacancyRate / 100);
     const managementCost = annualRent * (managementFees / 100);
     const totalExpenses = vacancyLoss + managementCost + maintenance + insurance + councilRates;
     const netRent = annualRent - totalExpenses;
-    const netYield = (netRent / purchasePrice) * 100;
+    const netYield = netRent / purchasePrice * 100;
     const monthlyCashflow = netRent / 12;
 
     return {
@@ -96,16 +96,16 @@ export default function PropertyAnalyzer({ currency }) {
     const loanAmount = purchasePrice - deposit;
     const monthlyRate = interestRate / 100 / 12;
     const numPayments = loanTerm * 12;
-    
+
     let monthlyRepayment;
     let totalInterest;
     let payoffMonths = numPayments;
     let equityTimeline = [];
-    
+
     if (loanType === "interestOnly") {
       monthlyRepayment = loanAmount * monthlyRate;
       totalInterest = monthlyRepayment * numPayments;
-      
+
       // Build equity timeline for interest-only
       for (let year = 0; year <= loanTerm; year++) {
         const propertyValue = purchasePrice * Math.pow(1 + growthRate / 100, year);
@@ -114,18 +114,18 @@ export default function PropertyAnalyzer({ currency }) {
           equity: propertyValue - loanAmount,
           propertyValue,
           loanBalance: loanAmount,
-          lvr: (loanAmount / propertyValue) * 100
+          lvr: loanAmount / propertyValue * 100
         });
       }
     } else {
       // Principal & Interest
       monthlyRepayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-      
+
       let balance = loanAmount;
       let totalInterestPaid = 0;
       let month = 0;
       const extraMonthly = enableExtraRepayments ? extraRepayments : 0;
-      
+
       // Calculate with extra repayments
       while (balance > 0 && month < numPayments) {
         const interestPayment = balance * monthlyRate;
@@ -134,15 +134,15 @@ export default function PropertyAnalyzer({ currency }) {
         balance = Math.max(0, balance - principalPayment);
         month++;
       }
-      
+
       totalInterest = totalInterestPaid;
       payoffMonths = month;
-      
+
       // Build equity timeline
       balance = loanAmount;
       for (let year = 0; year <= Math.ceil(payoffMonths / 12); year++) {
         const monthsElapsed = Math.min(year * 12, payoffMonths);
-        
+
         // Calculate balance at this year
         let tempBalance = loanAmount;
         for (let m = 0; m < monthsElapsed; m++) {
@@ -150,11 +150,11 @@ export default function PropertyAnalyzer({ currency }) {
           const principal = monthlyRepayment - interest + extraMonthly;
           tempBalance = Math.max(0, tempBalance - principal);
         }
-        
+
         const propertyValue = purchasePrice * Math.pow(1 + growthRate / 100, year);
         const equity = propertyValue - tempBalance;
-        const lvr = tempBalance > 0 ? (tempBalance / propertyValue) * 100 : 0;
-        
+        const lvr = tempBalance > 0 ? tempBalance / propertyValue * 100 : 0;
+
         equityTimeline.push({
           year,
           equity,
@@ -164,11 +164,11 @@ export default function PropertyAnalyzer({ currency }) {
         });
       }
     }
-    
+
     const monthlyWithExtra = enableExtraRepayments ? monthlyRepayment + extraRepayments : monthlyRepayment;
     const payoffYears = payoffMonths / 12;
-    const interestSaved = enableExtraRepayments ? (monthlyRepayment * numPayments - totalInterest) : 0;
-    
+    const interestSaved = enableExtraRepayments ? monthlyRepayment * numPayments - totalInterest : 0;
+
     return {
       deposit,
       loanAmount,
@@ -188,22 +188,22 @@ export default function PropertyAnalyzer({ currency }) {
     const loanAmount = purchasePrice * (1 - depositPercent / 100);
     const monthlyRate = stressTestRate / 100 / 12;
     const numPayments = loanTerm * 12;
-    
+
     let stressRepayment;
     if (loanType === "interestOnly") {
       stressRepayment = loanAmount * monthlyRate;
     } else {
       stressRepayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
     }
-    
+
     const repaymentIncrease = stressRepayment - mortgageResults.monthlyRepayment;
-    const increasePercent = (repaymentIncrease / mortgageResults.monthlyRepayment) * 100;
-    
+    const increasePercent = repaymentIncrease / mortgageResults.monthlyRepayment * 100;
+
     // Calculate cashflow impact (using rental income if available)
     const monthlyRentalIncome = yieldResults.monthlyCashflow;
     const netCashflowAtStress = monthlyRentalIncome - stressRepayment;
     const cashflowImpact = netCashflowAtStress - (monthlyRentalIncome - mortgageResults.monthlyRepayment);
-    
+
     // Risk level based on increase
     let riskLevel = "Low";
     let riskColor = "emerald";
@@ -214,7 +214,7 @@ export default function PropertyAnalyzer({ currency }) {
       riskLevel = "Medium";
       riskColor = "amber";
     }
-    
+
     return {
       stressRepayment,
       repaymentIncrease,
@@ -232,8 +232,8 @@ export default function PropertyAnalyzer({ currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
-    >
+      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8">
+
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg">
           <Building2 className="w-6 h-6 text-white" />
@@ -275,8 +275,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={purchasePrice}
                     onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
-                  />
+                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900" />
+
                 </div>
               </div>
 
@@ -338,44 +338,44 @@ export default function PropertyAnalyzer({ currency }) {
           </div>
 
           {/* What-If Scenario */}
-          <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-400/20">
-            <h4 className="text-sm font-bold text-amber-300 mb-4 flex items-center gap-2">
-              <Calculator className="w-4 h-4" />
-              What If Growth Rate Changes?
+          <div className="bg-slate-50 p-5 rounded-2xl from-amber-500/10 to-orange-500/10 border border-amber-400/20">
+            <h4 className="text-slate-600 mb-4 text-sm font-bold flex items-center gap-2">What If Growth Rate Changes?
+
+
             </h4>
             
             <div className="space-y-3 mb-4">
               <div className="flex justify-between">
                 <Label className="text-xs text-slate-300">Alternative Growth Rate</Label>
-                <span className="text-sm font-bold text-amber-300">{whatIfGrowth}%</span>
+                <span className="text-slate-600 text-sm font-bold">{whatIfGrowth}%</span>
               </div>
-              <Slider 
-                value={[whatIfGrowth]} 
-                onValueChange={([v]) => setWhatIfGrowth(v)} 
-                min={0} 
-                max={15} 
+              <Slider
+                value={[whatIfGrowth]}
+                onValueChange={([v]) => setWhatIfGrowth(v)}
+                min={0}
+                max={15}
                 step={0.5}
-                className="py-2"
-              />
+                className="py-2" />
+
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-800/50 rounded-xl p-3">
+              <div className="bg-slate-50 text-slate-600 p-3 rounded-xl">
                 <p className="text-[10px] text-slate-400 mb-1">Property Value</p>
-                <p className="text-sm font-bold text-white">{fmt(growthResults.whatIfValue)}</p>
+                <p className="bg-slate-50 text-slate-600 text-sm font-bold">{fmt(growthResults.whatIfValue)}</p>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-3">
+              <div className="bg-slate-50 p-3 rounded-xl">
                 <p className="text-[10px] text-slate-400 mb-1">Equity</p>
                 <p className="text-sm font-bold text-emerald-400">{fmt(growthResults.whatIfEquity)}</p>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-3">
-                <p className="text-[10px] text-slate-400 mb-1">ROI</p>
-                <p className="text-sm font-bold text-white">{growthResults.whatIfROI.toFixed(1)}%</p>
+              <div className="bg-slate-50 p-3 rounded-xl">
+                <p className="text-slate-600 mb-1">ROI</p>
+                <p className="bg-slate-50 text-slate-600 text-sm font-bold">{growthResults.whatIfROI.toFixed(1)}%</p>
               </div>
             </div>
 
             <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-xs text-slate-300">
+              <p className="text-slate-500 text-xs">
                 Difference: <span className={`font-bold ${growthResults.difference > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {growthResults.difference > 0 ? '+' : ''}{fmt(growthResults.difference)}
                 </span> compared to {growthRate}% growth
@@ -399,8 +399,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={weeklyRent}
                     onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                  />
+                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
                 </div>
                 <p className="text-xs text-slate-500">Annual: {fmt(weeklyRent * 52)}</p>
               </div>
@@ -429,8 +429,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={maintenance}
                     onChange={(e) => setMaintenance(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                  />
+                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
                 </div>
               </div>
 
@@ -442,8 +442,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={insurance}
                     onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                  />
+                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
                 </div>
               </div>
 
@@ -455,8 +455,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={councilRates}
                     onChange={(e) => setCouncilRates(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                  />
+                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+
                 </div>
               </div>
 
@@ -467,8 +467,8 @@ export default function PropertyAnalyzer({ currency }) {
                     type="number"
                     value={suburbYield}
                     onChange={(e) => setSuburbYield(parseFloat(e.target.value) || 0)}
-                    className="bg-slate-700/30 border-white/10 text-white"
-                  />
+                    className="bg-slate-700/30 border-white/10 text-white" />
+
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
                 </div>
               </div>
@@ -577,21 +577,21 @@ export default function PropertyAnalyzer({ currency }) {
                   <button
                     onClick={() => setLoanType("principal")}
                     className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
-                      loanType === "principal"
-                        ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
-                        : "bg-slate-700/30 text-slate-600 border border-white/10"
-                    }`}
-                  >
+                    loanType === "principal" ?
+                    "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg" :
+                    "bg-slate-700/30 text-slate-600 border border-white/10"}`
+                    }>
+
                     Principal & Interest
                   </button>
                   <button
                     onClick={() => setLoanType("interestOnly")}
                     className={`py-3 px-4 rounded-xl text-xs font-bold transition-all ${
-                      loanType === "interestOnly"
-                        ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg"
-                        : "bg-slate-700/30 text-slate-600 border border-white/10"
-                    }`}
-                  >
+                    loanType === "interestOnly" ?
+                    "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg" :
+                    "bg-slate-700/30 text-slate-600 border border-white/10"}`
+                    }>
+
                     Interest Only
                   </button>
                 </div>
@@ -603,24 +603,24 @@ export default function PropertyAnalyzer({ currency }) {
                   <Label className="text-xs font-bold text-emerald-300">Extra Repayments</Label>
                   <Switch
                     checked={enableExtraRepayments}
-                    onCheckedChange={setEnableExtraRepayments}
-                  />
+                    onCheckedChange={setEnableExtraRepayments} />
+
                 </div>
                 
-                {enableExtraRepayments && (
-                  <div className="space-y-2">
+                {enableExtraRepayments &&
+                <div className="space-y-2">
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                       <Input
-                        type="number"
-                        value={extraRepayments}
-                        onChange={(e) => setExtraRepayments(parseFloat(e.target.value) || 0)}
-                        className="pl-8 bg-slate-700/30 border-white/10 text-white"
-                        placeholder="Monthly extra"
-                      />
+                      type="number"
+                      value={extraRepayments}
+                      onChange={(e) => setExtraRepayments(parseFloat(e.target.value) || 0)}
+                      className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                      placeholder="Monthly extra" />
+
                     </div>
                   </div>
-                )}
+                }
               </div>
             </div>
 
@@ -631,11 +631,11 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl p-4 border border-indigo-400/20">
                 <p className="text-xs text-indigo-300 mb-1">Monthly Repayment</p>
                 <p className="text-3xl font-black text-white">{fmt(mortgageResults.monthlyWithExtra)}</p>
-                {enableExtraRepayments && extraRepayments > 0 && (
-                  <p className="text-xs text-slate-400 mt-1">
+                {enableExtraRepayments && extraRepayments > 0 &&
+                <p className="text-xs text-slate-400 mt-1">
                     Base: {fmt(mortgageResults.monthlyRepayment)} + {fmt(extraRepayments)} extra
                   </p>
-                )}
+                }
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -652,19 +652,19 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
                 <p className="text-xs text-slate-400 mb-1">Loan Payoff Time</p>
                 <p className="text-2xl font-black text-white">{mortgageResults.payoffYears.toFixed(1)} years</p>
-                {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" && (
-                  <p className="text-xs text-emerald-400 mt-2 font-semibold">
+                {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" &&
+                <p className="text-xs text-emerald-400 mt-2 font-semibold">
                     ⚡ {(loanTerm - mortgageResults.payoffYears).toFixed(1)} years faster!
                   </p>
-                )}
+                }
               </div>
 
-              {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" && (
-                <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-4 border border-emerald-400/20">
+              {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" &&
+              <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-4 border border-emerald-400/20">
                   <p className="text-xs text-emerald-300 mb-1">Interest Saved</p>
                   <p className="text-2xl font-black text-emerald-400">{fmt(mortgageResults.interestSaved)}</p>
                 </div>
-              )}
+              }
 
               <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
                 <p className="text-xs text-slate-400 mb-2">Total Amount Repaid</p>
@@ -700,14 +700,14 @@ export default function PropertyAnalyzer({ currency }) {
                   <Label className="text-xs text-slate-300">Stress Test Rate</Label>
                   <span className="text-lg font-black text-amber-300">{stressTestRate}%</span>
                 </div>
-                <Slider 
-                  value={[stressTestRate]} 
-                  onValueChange={([v]) => setStressTestRate(v)} 
-                  min={interestRate} 
-                  max={15} 
+                <Slider
+                  value={[stressTestRate]}
+                  onValueChange={([v]) => setStressTestRate(v)}
+                  min={interestRate}
+                  max={15}
                   step={0.1}
-                  className="py-2"
-                />
+                  className="py-2" />
+
                 <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
                   <span>Current: {interestRate}%</span>
                   <span>15%</span>
@@ -751,9 +751,9 @@ export default function PropertyAnalyzer({ currency }) {
                 <p className="text-xs text-slate-300 leading-relaxed">
                   <strong className="text-white">Scenario:</strong> If rates increase from {interestRate}% to {stressTestRate}%, 
                   your monthly repayments would rise by {fmt(stressTestResults.repaymentIncrease)}. 
-                  {stressTestResults.netCashflowAtStress < 0 
-                    ? ` This would result in negative cashflow of ${fmt(Math.abs(stressTestResults.netCashflowAtStress))} per month.`
-                    : ` You would still maintain positive cashflow of ${fmt(stressTestResults.netCashflowAtStress)} per month.`
+                  {stressTestResults.netCashflowAtStress < 0 ?
+                  ` This would result in negative cashflow of ${fmt(Math.abs(stressTestResults.netCashflowAtStress))} per month.` :
+                  ` You would still maintain positive cashflow of ${fmt(stressTestResults.netCashflowAtStress)} per month.`
                   }
                 </p>
               </div>
@@ -768,23 +768,23 @@ export default function PropertyAnalyzer({ currency }) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={mortgageResults.equityTimeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis 
-                    dataKey="year" 
+                  <XAxis
+                    dataKey="year"
                     stroke="#94a3b8"
-                    label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
-                  />
-                  <YAxis 
+                    label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }} />
+
+                  <YAxis
                     stroke="#94a3b8"
-                    tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
-                  />
+                    tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`} />
+
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                     labelStyle={{ color: '#e2e8f0' }}
                     formatter={(value, name) => {
                       if (name === "LVR") return [`${value.toFixed(1)}%`, name];
                       return [fmt(value), name];
-                    }}
-                  />
+                    }} />
+
                   <Legend wrapperStyle={{ color: '#94a3b8' }} />
                   <Line type="monotone" dataKey="propertyValue" stroke="#10b981" strokeWidth={2} name="Property Value" />
                   <Line type="monotone" dataKey="equity" stroke="#6366f1" strokeWidth={2} name="Your Equity" />
@@ -802,8 +802,8 @@ export default function PropertyAnalyzer({ currency }) {
                   <YAxis stroke="#94a3b8" tickFormatter={(val) => `${val}%`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                    formatter={(value) => [`${value.toFixed(1)}%`, "LVR"]}
-                  />
+                    formatter={(value) => [`${value.toFixed(1)}%`, "LVR"]} />
+
                   <Line type="monotone" dataKey="lvr" stroke="#f59e0b" strokeWidth={3} name="LVR %" />
                 </LineChart>
               </ResponsiveContainer>
@@ -811,6 +811,6 @@ export default function PropertyAnalyzer({ currency }) {
           </div>
         </TabsContent>
       </Tabs>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
