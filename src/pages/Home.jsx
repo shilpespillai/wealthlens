@@ -39,10 +39,10 @@ function LiveMarketTicker({ symbol, label, value, change, changePercent }) {
   );
 }
 
-function NewsCard({ item }) {
+function NewsCard({ item, index }) {
   const isBullish = item.sentiment === "bullish";
   const isBearish = item.sentiment === "bearish";
-  const image = CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["default"];
+  const image = NEWS_IMAGES[index % NEWS_IMAGES.length];
 
   return (
     <motion.a
