@@ -56,8 +56,8 @@ export default function AccountSection({ user }) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="space-y-4"
-      >
+        className="space-y-4">
+
         {/* Email Display */}
         <div className="bg-slate-800/30 rounded-xl p-4 border border-white/10">
           <p className="text-xs text-slate-400 mb-1">Email</p>
@@ -75,8 +75,8 @@ export default function AccountSection({ user }) {
               onClick={() => setEditOpen(true)}
               variant="ghost"
               size="sm"
-              className="text-indigo-400 hover:text-indigo-300"
-            >
+              className="text-indigo-400 hover:text-indigo-300">
+
               <Edit2 className="w-4 h-4" />
             </Button>
           </div>
@@ -85,9 +85,9 @@ export default function AccountSection({ user }) {
         {/* Logout Button */}
         <Button
           onClick={handleLogout}
-          variant="outline"
-          className="w-full mt-6 border-white/20 text-white hover:bg-white/5"
-        >
+          variant="outline" className="bg-slate-50 text-slate-600 mt-6 px-4 py-2 text-sm font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5">
+
+
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </Button>
@@ -96,8 +96,8 @@ export default function AccountSection({ user }) {
         <Button
           onClick={() => setDeleteOpen(true)}
           variant="destructive"
-          className="w-full mt-3"
-        >
+          className="w-full mt-3">
+
           <AlertCircle className="w-4 h-4 mr-2" />
           Delete Account & All Data
         </Button>
@@ -117,22 +117,22 @@ export default function AccountSection({ user }) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:border-indigo-500 outline-none"
-                placeholder="Enter your full name"
-              />
+                placeholder="Enter your full name" />
+
             </div>
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={() => setEditOpen(false)}
                 variant="outline"
-                className="flex-1 text-white border-white/20 hover:bg-white/5"
-              >
+                className="flex-1 text-white border-white/20 hover:bg-white/5">
+
                 Cancel
               </Button>
               <Button
                 onClick={handleUpdateProfile}
                 disabled={loading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-              >
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
@@ -156,13 +156,13 @@ export default function AccountSection({ user }) {
             <AlertDialogAction
               onClick={handleDeleteAccount}
               disabled={loading}
-              className="bg-red-600 hover:bg-red-700"
-            >
+              className="bg-red-600 hover:bg-red-700">
+
               {loading ? "Deleting..." : "Delete Account"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
