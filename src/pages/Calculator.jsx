@@ -119,8 +119,8 @@ function CalculatorContent() {
       <button
         onClick={() => setSettingsOpen(true)}
         className="fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-slate-100 transition-colors"
-        title="Settings"
-      >
+        title="Settings">
+
         <Settings className="w-5 h-5 text-slate-600" />
       </button>
 
@@ -142,11 +142,12 @@ function CalculatorContent() {
               <br />
               <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">Future Clearly</span>
             </h1>
-            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">
-              Whether you're starting with $50 or managing millions, make informed investment decisions.
-              <br className="hidden sm:block" />
-              Professional-grade tools for every investor.
-            </p>
+            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">Whether you're starting with $50 or managing millions, make informed investment decisions.
+Professional-grade tools for every investor.   How the Investment Growth Calculator Works
+
+The WealthLens investment growth calculator helps investors estimate how their ETF portfolio could grow over time. By entering monthly contributions, expected returns, and investment duration, users can visualize long-term portfolio growth through compound returns.
+
+This tool is ideal for long-term investors planning retirement, financial independence, or wealth accumulation strategies.</p>
             <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -172,11 +173,10 @@ function CalculatorContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16 relative z-10">
         {/* Investment Profiles */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="mb-10">
+        <motion.div initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="mb-10">
 
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
           <InvestmentProfiles onSelect={(defaults) => setParams((prev) => ({ ...prev, ...defaults }))} />
