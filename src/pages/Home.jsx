@@ -5,15 +5,14 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 
-const CATEGORY_IMAGES = {
-  "Markets": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
-  "Economy": "https://images.unsplash.com/photo-1553729784-e91953dec042?w=400&h=250&fit=crop",
-  "Crypto": "https://images.unsplash.com/photo-1518594934405-e27d1e575f57?w=400&h=250&fit=crop",
-  "Real Estate": "https://images.unsplash.com/photo-1577720643272-265f434a89f6?w=400&h=250&fit=crop",
-  "Sectors": "https://images.unsplash.com/photo-1509391366360-2e938d440220?w=400&h=250&fit=crop",
-  "Earnings": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop",
-  "default": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
-};
+const NEWS_IMAGES = [
+  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
+  "https://images.unsplash.com/photo-1553729784-e91953dec042?w=400&h=250&fit=crop",
+  "https://images.unsplash.com/photo-1518594934405-e27d1e575f57?w=400&h=250&fit=crop",
+  "https://images.unsplash.com/photo-1577720643272-265f434a89f6?w=400&h=250&fit=crop",
+  "https://images.unsplash.com/photo-1509391366360-2e938d440220?w=400&h=250&fit=crop",
+  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop",
+];
 
 const FEATURES = [
   { icon: TrendingUp, label: "Real-Time Analysis", color: "from-blue-500 to-cyan-500" },
