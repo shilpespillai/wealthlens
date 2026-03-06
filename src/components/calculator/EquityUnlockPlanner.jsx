@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Key, TrendingUp, Building2, Zap, ArrowRight } from "lucide-react";
+import { Key, TrendingUp, Building2, Zap, ArrowRight, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { getCurrencySymbol } from "./CurrencySelector";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -15,12 +16,31 @@ export default function EquityUnlockPlanner({ currency }) {
   const [loanBalance, setLoanBalance] = useState(400000);
   const [bankLVR, setBankLVR] = useState(80);
 
-  // Property #2 parameters
-  const [property2Price, setProperty2Price] = useState(600000);
-  const [property2Growth, setProperty2Growth] = useState(6);
-  const [property2Rent, setProperty2Rent] = useState(550);
-  const [mortgageRate, setMortgageRate] = useState(6);
+  // Multiple properties
+  const [properties, setProperties] = useState([
+    { id: 1, price: 600000, growth: 6, rent: 550, mortgageRate: 6 },
+    { id: 2, price: 500000, growth: 6, rent: 450, mortgageRate: 6 }
+  ]);
   const [years, setYears] = useState(15);
+
+  const addProperty = () => {
+    const newId = Math.max(...properties.map(p => p.id), 0) + 1;
+    setProperties([...properties, { 
+      id: newId, 
+      price: 500000, 
+      growth: 6, 
+      rent: 400, 
+      mortgageRate: 6 
+    }]);
+  };
+
+  const removeProperty = (id) => {
+    setProperties(properties.filter(p => p.id !== id));
+  };
+
+  const updateProperty = (id, field, value) => {
+    setProperties(properties.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
 
   // Calculations
   const analysis = useMemo(() => {
@@ -29,17 +49,26 @@ export default function EquityUnlockPlanner({ currency }) {
     const maxBorrowingCapacity = currentValue * (bankLVR / 100);
     const usableEquity = maxBorrowingCapacity - loanBalance;
     
-    // Can they buy property 2?
-    const requiredDeposit = property2Price * 0.2; // 20% deposit
-    const canBuy = usableEquity >= requiredDeposit;
-    
-    // Property 2 loan details
-    const property2Loan = property2Price - Math.min(usableEquity, requiredDeposit);
-    const monthlyRate = mortgageRate / 100 / 12;
-    const numPayments = 30 * 12;
-    const monthlyRepayment = property2Loan * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-    const annualRent = property2Rent * 52;
-    const monthlyCashflow = (annualRent / 12) - monthlyRepayment;
+    // Calculate each property's loan and cashflow
+    const propertyAnalyses = properties.map(prop => {
+      const requiredDeposit = prop.price * 0.2;
+      const canBuy = usableEquity >= requiredDeposit;
+      const propertyLoan = prop.price - Math.min(usableEquity, requiredDeposit);
+      const monthlyRate = prop.mortgageRate / 100 / 12;
+      const numPayments = 30 * 12;
+      const monthlyRepayment = propertyLoan * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+      const annualRent = prop.rent * 52;
+      const monthlyCashflow = (annualRent / 12) - monthlyRepayment;
+
+      return {
+        ...prop,
+        requiredDeposit,
+        canBuy,
+        propertyLoan,
+        monthlyRepayment,
+        monthlyCashflow
+      };
+    });
 
     // Wealth projection
     const yearlyData = [];
@@ -48,33 +77,38 @@ export default function EquityUnlockPlanner({ currency }) {
       const prop1Value = currentValue * Math.pow(1 + 0.06, year);
       const prop1Equity = prop1Value - loanBalance;
       
-      let prop2Value = 0;
-      let prop2Balance = property2Loan;
-      let prop2Equity = 0;
+      let totalOtherEquity = 0;
       
-      if (canBuy && year > 0) {
-        prop2Value = property2Price * Math.pow(1 + property2Growth / 100, year);
-        
-        // Pay down property 2 loan
-        for (let m = 0; m < 12; m++) {
-          const interest = prop2Balance * monthlyRate;
-          const principal = monthlyRepayment - interest;
-          prop2Balance = Math.max(0, prop2Balance - principal);
+      propertyAnalyses.forEach(prop => {
+        if (prop.canBuy && year > 0) {
+          let propValue = prop.price * Math.pow(1 + prop.growth / 100, year);
+          let propBalance = prop.propertyLoan;
+          
+          for (let m = 0; m < 12; m++) {
+            const monthlyRate = prop.mortgageRate / 100 / 12;
+            const interest = propBalance * monthlyRate;
+            const principal = prop.monthlyRepayment - interest;
+            propBalance = Math.max(0, propBalance - principal);
+          }
+          
+          totalOtherEquity += propValue - propBalance;
+        } else if (prop.canBuy && year === 0) {
+          totalOtherEquity += prop.price - prop.propertyLoan;
         }
-        
-        prop2Equity = prop2Value - prop2Balance;
-      } else if (canBuy && year === 0) {
-        prop2Value = property2Price;
-        prop2Equity = property2Price - property2Loan;
-      }
+      });
       
-      const totalEquity = prop1Equity + prop2Equity;
-      const totalValue = prop1Value + prop2Value;
+      const totalEquity = prop1Equity + totalOtherEquity;
+      const totalValue = prop1Value + propertyAnalyses.reduce((sum, p) => {
+        if (p.canBuy) {
+          return sum + (p.price * Math.pow(1 + p.growth / 100, year));
+        }
+        return sum;
+      }, 0);
       
       yearlyData.push({
         year,
         property1Equity: Math.round(prop1Equity),
-        property2Equity: Math.round(prop2Equity),
+        totalOtherEquity: Math.round(totalOtherEquity),
         totalEquity: Math.round(totalEquity),
         totalValue: Math.round(totalValue)
       });
@@ -88,17 +122,13 @@ export default function EquityUnlockPlanner({ currency }) {
       currentEquity,
       usableEquity,
       maxBorrowingCapacity,
-      canBuy,
-      requiredDeposit,
-      property2Loan,
-      monthlyRepayment,
-      monthlyCashflow,
+      propertyAnalyses,
       yearlyData,
       finalWithout,
       finalWith,
       wealthGain
     };
-  }, [currentValue, loanBalance, bankLVR, property2Price, property2Growth, property2Rent, mortgageRate, years]);
+  }, [currentValue, loanBalance, bankLVR, properties, years]);
 
   const fmt = (num) => `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
@@ -186,17 +216,17 @@ export default function EquityUnlockPlanner({ currency }) {
               <p className="text-xs text-emerald-700 mb-2">💰 Usable Equity</p>
               <p className="text-3xl font-black text-slate-900">{fmt(analysis.usableEquity)}</p>
               <p className="text-xs text-slate-700 mt-3 leading-relaxed">
-                You can access <strong className="text-emerald-600">{fmt(analysis.usableEquity)}</strong> to invest in another property
+                You can access <strong className="text-emerald-600">{fmt(analysis.usableEquity)}</strong> to invest in additional properties
               </p>
             </div>
 
-            {analysis.canBuy ? (
+            {analysis.propertyAnalyses.some(p => p.canBuy) ? (
               <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
                 <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                  ✓ You can buy Property #2!
+                  ✓ You can buy additional properties!
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Required deposit: {fmt(analysis.requiredDeposit)}
+                  {analysis.propertyAnalyses.filter(p => p.canBuy).length} property(ies) are viable
                 </p>
               </div>
             ) : (
@@ -204,23 +234,43 @@ export default function EquityUnlockPlanner({ currency }) {
                 <p className="text-sm font-bold text-rose-700">
                   ✗ Insufficient equity
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Need {fmt(analysis.requiredDeposit - analysis.usableEquity)} more
-                </p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Property #2 Simulation */}
-      {analysis.canBuy && (
-        <>
-          <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200 mb-8">
-            <h4 className="text-sm font-bold text-indigo-900 mb-4 flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Property #2 - Investment Simulation
-            </h4>
+      {/* Multiple Properties Inputs */}
+      <div className="space-y-4 mb-8">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900">Investment Properties</h4>
+          <Button 
+            onClick={addProperty}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+            size="sm"
+          >
+            <Plus className="w-4 h-4" /> Add Property
+          </Button>
+        </div>
+
+        {properties.map((prop, idx) => (
+          <div key={prop.id} className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+            <div className="flex items-center justify-between mb-4">
+              <h5 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                Property #{idx + 1}
+              </h5>
+              {properties.length > 1 && (
+                <Button 
+                  onClick={() => removeProperty(prop.id)}
+                  variant="ghost"
+                  className="text-rose-600 hover:bg-rose-50 p-1"
+                  size="sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div className="space-y-2">
@@ -229,8 +279,8 @@ export default function EquityUnlockPlanner({ currency }) {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                   <Input
                     type="number"
-                    value={property2Price}
-                    onChange={(e) => setProperty2Price(parseFloat(e.target.value) || 0)}
+                    value={prop.price}
+                    onChange={(e) => updateProperty(prop.id, 'price', parseFloat(e.target.value) || 0)}
                     className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                   />
                 </div>
@@ -239,12 +289,12 @@ export default function EquityUnlockPlanner({ currency }) {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-700">Weekly Rent</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
                   <Input
                     type="number"
-                    value={property2Rent}
-                    onChange={(e) => setProperty2Rent(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                    value={prop.rent}
+                    onChange={(e) => updateProperty(prop.id, 'rent', parseFloat(e.target.value) || 0)}
+                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
                   />
                 </div>
               </div>
@@ -254,101 +304,103 @@ export default function EquityUnlockPlanner({ currency }) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <Label className="text-xs text-slate-700">Growth Rate</Label>
-                  <span className="text-xs font-bold text-emerald-600">{property2Growth}%</span>
+                  <span className="text-xs font-bold text-emerald-600">{prop.growth}%</span>
                 </div>
-                <Slider value={[property2Growth]} onValueChange={([v]) => setProperty2Growth(v)} min={0} max={15} step={0.5} />
+                <Slider value={[prop.growth]} onValueChange={([v]) => updateProperty(prop.id, 'growth', v)} min={0} max={15} step={0.5} />
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <Label className="text-xs text-slate-700">Mortgage Rate</Label>
-                  <span className="text-xs font-bold text-slate-900">{mortgageRate}%</span>
+                  <span className="text-xs font-bold text-slate-900">{prop.mortgageRate}%</span>
                 </div>
-                <Slider value={[mortgageRate]} onValueChange={([v]) => setMortgageRate(v)} min={2} max={12} step={0.1} />
+                <Slider value={[prop.mortgageRate]} onValueChange={([v]) => updateProperty(prop.id, 'mortgageRate', v)} min={2} max={12} step={0.1} />
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-3 mt-4">
-              <div className="bg-slate-100 rounded-xl p-3">
-                <p className="text-xs text-slate-600 mb-1">Loan Amount</p>
-                <p className="text-lg font-bold text-slate-900">{fmt(analysis.property2Loan)}</p>
-              </div>
-              <div className="bg-slate-100 rounded-xl p-3">
-                <p className="text-xs text-slate-600 mb-1">Monthly Repayment</p>
-                <p className="text-lg font-bold text-slate-900">{fmt(analysis.monthlyRepayment)}</p>
-              </div>
-              <div className="bg-slate-100 rounded-xl p-3">
-                <p className="text-xs text-slate-600 mb-1">Cashflow</p>
-                <p className={`text-lg font-bold ${analysis.monthlyCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {analysis.monthlyCashflow >= 0 ? '+' : ''}{fmt(analysis.monthlyCashflow)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Wealth Strategy Modeling */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-white">Wealth Strategy Model</h4>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-slate-400">Timeline:</Label>
-                  <span className="text-sm font-bold text-white">{years} years</span>
+            {analysis.propertyAnalyses.find(p => p.id === prop.id) && (
+              <div className="grid md:grid-cols-3 gap-3 mt-4">
+                <div className="bg-slate-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-600 mb-1">Loan Amount</p>
+                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).propertyLoan)}</p>
                 </div>
-                <Slider value={[years]} onValueChange={([v]) => setYears(v)} min={5} max={30} step={1} className="w-32" />
+                <div className="bg-slate-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-600 mb-1">Monthly Repayment</p>
+                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyRepayment)}</p>
+                </div>
+                <div className="bg-slate-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-600 mb-1">Cashflow</p>
+                  <p className={`text-lg font-bold ${analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow >= 0 ? '+' : ''}{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow)}
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <p className="text-xs text-slate-600 mb-1">Without Property #2</p>
-                <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWithout)}</p>
-              </div>
-              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-                <p className="text-xs text-emerald-700 mb-1">With Property #2</p>
-                <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWith)}</p>
-              </div>
-              <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
-                <p className="text-xs text-violet-700 mb-1">Wealth Gain</p>
-                <p className="text-xl font-bold text-emerald-600">+{fmt(analysis.wealthGain)}</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={analysis.yearlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis 
-                    dataKey="year" 
-                    stroke="#94a3b8"
-                    label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
-                  />
-                  <YAxis 
-                    stroke="#94a3b8"
-                    tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                    labelStyle={{ color: '#e2e8f0' }}
-                    formatter={(value) => fmt(value)}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="property1Equity" stroke="#94a3b8" strokeWidth={2} name="Property #1 Equity" strokeDasharray="5 5" />
-                  <Line type="monotone" dataKey="totalEquity" stroke="#10b981" strokeWidth={3} name="Total Equity (Both Properties)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200">
-              <p className="text-xs text-amber-900 font-bold mb-2">💡 Strategy Insight</p>
-              <p className="text-sm text-slate-800 leading-relaxed">
-                By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years. 
-                This is the power of property leverage - your equity works for you to create more wealth.
-              </p>
-            </div>
+            )}
           </div>
-        </>
-      )}
+        ))}
+      </div>
+
+      {/* Wealth Strategy Modeling */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-900">Wealth Strategy Model</h4>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-slate-600">Timeline:</Label>
+              <span className="text-sm font-bold text-slate-900">{years} years</span>
+            </div>
+            <Slider value={[years]} onValueChange={([v]) => setYears(v)} min={5} max={30} step={1} className="w-32" />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <p className="text-xs text-slate-600 mb-1">Without Additional Properties</p>
+            <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWithout)}</p>
+          </div>
+          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+            <p className="text-xs text-emerald-700 mb-1">With Additional Properties</p>
+            <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWith)}</p>
+          </div>
+          <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
+            <p className="text-xs text-violet-700 mb-1">Wealth Gain</p>
+            <p className="text-xl font-bold text-emerald-600">+{fmt(analysis.wealthGain)}</p>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={analysis.yearlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis 
+                dataKey="year" 
+                stroke="#94a3b8"
+                label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
+              />
+              <YAxis 
+                stroke="#94a3b8"
+                tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                labelStyle={{ color: '#e2e8f0' }}
+                formatter={(value) => fmt(value)}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="property1Equity" stroke="#94a3b8" strokeWidth={2} name="Property #1 Equity" strokeDasharray="5 5" />
+              <Line type="monotone" dataKey="totalEquity" stroke="#10b981" strokeWidth={3} name="Total Equity (All Properties)" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200">
+          <p className="text-xs text-amber-900 font-bold mb-2">💡 Strategy Insight</p>
+          <p className="text-sm text-slate-800 leading-relaxed">
+            By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years across {properties.length} investment propert{properties.length > 1 ? 'ies' : 'y'}. 
+            This is the power of property leverage - your equity works for you to create more wealth.
+          </p>
+        </div>
+      </div>
     </motion.div>
   );
 }
