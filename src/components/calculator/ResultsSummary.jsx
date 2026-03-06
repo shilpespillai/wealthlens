@@ -58,12 +58,12 @@ export default function ResultsSummary({ summary, currency }) {
             </div>
             <div>
               <p className="text-[10px] font-bold text-purple-300 uppercase tracking-[0.15em]">Total Return</p>
-              <p className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{summary.totalReturnPercent}%</p>
+              <p className="bg-clip-text text-green-600 text-2xl font-black from-purple-400 to-pink-400">{summary.totalReturnPercent}%</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Annualized Return (net)</p>
-            <p className="text-2xl font-black text-white">{summary.annualizedReturn.toFixed(1)}%</p>
+            <p className="text-green-600 text-2xl font-black">{summary.annualizedReturn.toFixed(1)}%</p>
           </div>
         </div>
       </motion.div>
