@@ -547,7 +547,7 @@ export default function PropertyAnalyzer({ currency }) {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Inputs */}
             <div className="space-y-5">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Loan Parameters</h4>
+              <h4 className="text-slate-700 text-xs font-bold uppercase tracking-[0.15em]">LOAN PARAMETERS</h4>
               
               <div className="space-y-3">
                 <div className="flex justify-between">
@@ -632,8 +632,8 @@ export default function PropertyAnalyzer({ currency }) {
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Repayment Analysis</h4>
               
               <div className="bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl p-4 border border-indigo-400/20">
-                <p className="text-xs text-indigo-300 mb-1">Monthly Repayment</p>
-                <p className="text-3xl font-black text-white">{fmt(mortgageResults.monthlyWithExtra)}</p>
+                <p className="text-slate-700 mb-1 text-xs">Monthly Repayment</p>
+                <p className="text-slate-600 text-3xl font-black">{fmt(mortgageResults.monthlyWithExtra)}</p>
                 {enableExtraRepayments && extraRepayments > 0 &&
                 <p className="text-xs text-slate-400 mt-1">
                     Base: {fmt(mortgageResults.monthlyRepayment)} + {fmt(extraRepayments)} extra
@@ -643,18 +643,18 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                  <p className="text-[10px] text-slate-400 mb-1">Loan Amount</p>
-                  <p className="text-lg font-black text-white">{fmt(mortgageResults.loanAmount)}</p>
+                  <p className="text-slate-700 mb-1 text-xs">Loan Amount</p>
+                  <p className="text-emerald-700 text-lg font-black">{fmt(mortgageResults.loanAmount)}</p>
                 </div>
                 <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                  <p className="text-[10px] text-slate-400 mb-1">Total Interest</p>
+                  <p className="text-slate-700 mb-1 text-xs">Total Interest</p>
                   <p className="text-lg font-black text-rose-400">{fmt(mortgageResults.totalInterest)}</p>
                 </div>
               </div>
 
               <div className="bg-slate-700/30 rounded-2xl p-4 border border-white/5">
-                <p className="text-xs text-slate-400 mb-1">Loan Payoff Time</p>
-                <p className="text-2xl font-black text-white">{mortgageResults.payoffYears.toFixed(1)} years</p>
+                <p className="text-slate-700 mb-1 text-xs">Loan Payoff Time</p>
+                <p className="text-green-600 text-2xl font-black">{mortgageResults.payoffYears.toFixed(1)} years</p>
                 {enableExtraRepayments && extraRepayments > 0 && loanType === "principal" &&
                 <p className="text-xs text-emerald-400 mt-2 font-semibold">
                     ⚡ {(loanTerm - mortgageResults.payoffYears).toFixed(1)} years faster!
@@ -670,19 +670,19 @@ export default function PropertyAnalyzer({ currency }) {
               }
 
               <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                <p className="text-xs text-slate-400 mb-2">Total Amount Repaid</p>
+                <p className="text-slate-700 mb-2 text-xs">Total Amount Repaid</p>
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Principal</span>
+                  <div className="text-slate-700 flex justify-between">
+                    <span className="text-slate-700">Principal</span>
                     <span className="text-white font-semibold">{fmt(mortgageResults.loanAmount)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-300">Interest</span>
+                    <span className="text-slate-700">Interest</span>
                     <span className="text-rose-400 font-semibold">{fmt(mortgageResults.totalInterest)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-white/10">
                     <span className="text-white font-bold">Total</span>
-                    <span className="text-white font-bold">{fmt(mortgageResults.totalRepaid)}</span>
+                    <span className="text-slate-700 font-bold">{fmt(mortgageResults.totalRepaid)}</span>
                   </div>
                 </div>
               </div>
