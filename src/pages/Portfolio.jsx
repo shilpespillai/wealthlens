@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import AuthGuard from "@/components/AuthGuard";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { generatePortfolioPdf } from "@/components/portfolio/generatePortfolioPdf";
+import { toast } from "sonner";
 
 const ASSET_CLASSES = [
   { id: "stocks", label: "Stocks", color: "#6366f1" },
