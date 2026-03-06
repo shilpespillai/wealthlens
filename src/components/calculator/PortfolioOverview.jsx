@@ -60,7 +60,7 @@ export default function PortfolioOverview({ params, instrument, results, currenc
         </div>
         <div>
           <h3 className="text-xl font-bold text-white">Portfolio Overview</h3>
-          <p className="text-xs text-slate-400">Consolidated wealth projection & performance metrics</p>
+          <p className="text-xs text-slate-400">Asset wealth projection & performance metrics</p>
         </div>
       </div>
 
@@ -134,20 +134,20 @@ export default function PortfolioOverview({ params, instrument, results, currenc
                   fill="#8884d8"
                   dataKey="value">
                   {portfolioMetrics.diversificationData.map((entry, index) =>
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                   )}
                 </Pie>
                 <Tooltip formatter={(value) => `${value}%`} />
               </RechartPie>
             </ResponsiveContainer>
             <div className="flex flex-col gap-2">
-              {portfolioMetrics.diversificationData.map((entry, i) => (
-                <div key={i} className="flex items-center gap-2">
+              {portfolioMetrics.diversificationData.map((entry, i) =>
+              <div key={i} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
                   <span className="text-xs text-slate-300">{entry.name}</span>
                   <span className="text-xs font-bold text-white ml-1">{entry.value}%</span>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           <p className="text-xs text-slate-400 mt-3 text-center">
