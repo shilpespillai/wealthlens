@@ -719,39 +719,39 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="grid md:grid-cols-3 gap-3">
                 <div className="bg-slate-800/50 rounded-xl p-4">
-                  <p className="text-xs text-slate-400 mb-2">New Monthly Repayment</p>
+                  <p className="text-slate-700 mb-2 text-xs">New Monthly Repayment</p>
                   <p className="text-xl font-black text-white">{fmt(stressTestResults.stressRepayment)}</p>
-                  <p className="text-xs text-rose-400 mt-1 font-semibold">
+                  <p className="text-amber-100 mt-1 text-xs font-semibold">
                     +{fmt(stressTestResults.repaymentIncrease)} ({stressTestResults.increasePercent.toFixed(1)}%)
                   </p>
                 </div>
 
                 <div className="bg-slate-800/50 rounded-xl p-4">
-                  <p className="text-xs text-slate-400 mb-2">Cashflow Impact</p>
-                  <p className={`text-xl font-black ${stressTestResults.cashflowImpact < 0 ? 'text-rose-400' : 'text-slate-300'}`}>
+                  <p className="text-slate-700 mb-2 text-xs">Cashflow Impact</p>
+                  <p className="text-[#e31616] text-xl font-black">
                     {stressTestResults.cashflowImpact < 0 ? '' : '+'}{fmt(stressTestResults.cashflowImpact)}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-yellow-100 mt-1 text-xs">
                     Net: {fmt(stressTestResults.netCashflowAtStress)}/mo
                   </p>
                 </div>
 
                 <div className="bg-slate-800/50 rounded-xl p-4">
-                  <p className="text-xs text-slate-400 mb-2">Risk Level</p>
+                  <p className="text-slate-700 mb-2 text-xs">Risk Level</p>
                   <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-${stressTestResults.riskColor}-500/20 border border-${stressTestResults.riskColor}-400/30`}>
                     <div className={`w-2 h-2 rounded-full bg-${stressTestResults.riskColor}-400`} />
                     <span className={`text-sm font-bold text-${stressTestResults.riskColor}-300`}>
                       {stressTestResults.riskLevel}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">
+                  <p className="text-amber-100 mt-2 text-xs">
                     {stressTestResults.increasePercent.toFixed(0)}% increase
                   </p>
                 </div>
               </div>
 
               <div className="bg-slate-800/30 rounded-xl p-4 border border-white/5">
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-slate-700 text-xs leading-relaxed">
                   <strong className="text-white">Scenario:</strong> If rates increase from {interestRate}% to {stressTestRate}%, 
                   your monthly repayments would rise by {fmt(stressTestResults.repaymentIncrease)}. 
                   {stressTestResults.netCashflowAtStress < 0 ?
@@ -765,7 +765,7 @@ export default function PropertyAnalyzer({ currency }) {
 
           {/* Equity Growth & LVR Timeline */}
           <div className="space-y-4">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Equity Growth & LVR Timeline</h4>
+            <h4 className="text-slate-700 text-xs font-bold uppercase tracking-[0.15em]">EQUITY GROWTH & LVR TIMELINE</h4>
             
             <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5">
               <ResponsiveContainer width="100%" height={300}>
@@ -797,7 +797,7 @@ export default function PropertyAnalyzer({ currency }) {
             </div>
 
             <div className="bg-slate-700/30 rounded-2xl p-6 border border-white/5">
-              <h5 className="text-xs font-bold text-slate-300 mb-4">LVR (Loan-to-Value Ratio) Over Time</h5>
+              <h5 className="text-slate-700 mb-4 text-xs font-bold">LVR (Loan-to-Value Ratio) Over Time</h5>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={mortgageResults.equityTimeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
