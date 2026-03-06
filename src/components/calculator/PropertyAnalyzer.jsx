@@ -346,7 +346,7 @@ export default function PropertyAnalyzer({ currency }) {
             
             <div className="space-y-3 mb-4">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Alternative Growth Rate</Label>
+                <Label className="text-xs text-slate-700">Alternative Growth Rate</Label>
                 <span className="text-slate-600 text-sm font-bold">{whatIfGrowth}%</span>
               </div>
               <Slider
