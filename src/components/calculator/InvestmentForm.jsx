@@ -141,7 +141,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Capital Gains Tax</Label>
-          <span className="text-sm font-black text-slate-300">{params.taxRate}%</span>
+          <span className="text-slate-500 text-sm font-black">{params.taxRate}%</span>
         </div>
         <Slider
           value={[params.taxRate]}
@@ -157,7 +157,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Annual Fees / Expense Ratio</Label>
-          <span className="text-sm font-black text-slate-300">{params.fees}%</span>
+          <span className="text-slate-500 text-sm font-black">{params.fees}%</span>
         </div>
         <Slider
           value={[params.fees]}
