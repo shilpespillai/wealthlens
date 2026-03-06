@@ -267,7 +267,7 @@ export default function PropertyVsETF({ currency }) {
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Expected Return</Label>
+                <Label className="text-xs text-slate-900">Expected Return</Label>
                 <span className="text-xs font-bold text-indigo-400">{etfReturn}%</span>
               </div>
               <Slider value={[etfReturn]} onValueChange={([v]) => setEtfReturn(v)} min={0} max={20} step={0.5} />
