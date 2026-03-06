@@ -42,14 +42,19 @@ function LiveMarketTicker({ symbol, label, value, change, changePercent }) {
 
 function NewsCard({ item }) {
   const isBullish = item.sentiment === "bullish";
-  
+  const isBearish = item.sentiment === "bearish";
+  const image = CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["default"];
+
   return (
-    <motion.div
+    <motion.a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
       whileHover={{ y: -8 }}
-      className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 h-full flex flex-col"
+      className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 h-full flex flex-col cursor-pointer"
     >
       <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-        <img src={item.image} alt={item.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+        <img src={image} alt={item.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
       </div>
       
       <div className="p-5 flex flex-col flex-1">
@@ -58,6 +63,10 @@ function NewsCard({ item }) {
           {isBullish ? (
             <div className="flex items-center gap-1 text-emerald-600">
               <ArrowUpRight className="w-4 h-4" />
+            </div>
+          ) : isBearish ? (
+            <div className="flex items-center gap-1 text-red-500">
+              <ArrowDownRight className="w-4 h-4" />
             </div>
           ) : (
             <div className="flex items-center gap-1 text-gray-400">
@@ -69,9 +78,12 @@ function NewsCard({ item }) {
         <h3 className="text-base font-bold text-gray-900 mb-2 leading-tight line-clamp-2">{item.title}</h3>
         <p className="text-sm text-gray-600 mb-4 flex-1 line-clamp-2">{item.summary}</p>
         
-        <div className="text-xs text-gray-500 pt-3 border-t border-gray-100">{item.timestamp}</div>
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <span className="text-xs text-gray-500">{item.source}</span>
+          <span className="text-xs text-gray-400">{item.publishedAt}</span>
+        </div>
       </div>
-    </motion.div>
+    </motion.a>
   );
 }
 
