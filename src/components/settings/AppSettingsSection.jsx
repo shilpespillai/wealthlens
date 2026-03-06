@@ -54,8 +54,7 @@ export default function AppSettingsSection() {
         {/* Keyboard Shortcuts */}
         <Button
           onClick={() => setShortcutsOpen(true)}
-          variant="outline" className="bg-slate-400 text-slate-50 px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
-
+          className="w-full bg-slate-400 text-slate-50 hover:bg-slate-500 justify-start">
 
           <Keyboard className="w-4 h-4 mr-3" />
           View Keyboard Shortcuts
@@ -64,8 +63,7 @@ export default function AppSettingsSection() {
         {/* Reset App */}
         <Button
           onClick={() => setResetOpen(true)}
-          variant="outline" className="bg-slate-400 text-white px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
-
+          className="w-full bg-slate-400 text-slate-50 hover:bg-slate-500 justify-start">
 
           <RotateCcw className="w-4 h-4 mr-3" />
           Reset All Settings & Cache
