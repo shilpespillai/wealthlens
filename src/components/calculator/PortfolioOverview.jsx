@@ -141,7 +141,7 @@ export default function PortfolioOverview({ params, instrument, results, currenc
             <p className="text-xs text-amber-300 font-bold">Risk Level</p>
           </div>
           <p className="text-2xl font-black text-white">{portfolioMetrics.riskLevel}</p>
-          <p className="text-xs text-slate-400 mt-1">{instrument}</p>
+          <p className="text-xs text-slate-400 mt-1">{meta?.name || instrument}</p>
         </motion.div>
       </div>
 
