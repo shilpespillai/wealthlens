@@ -422,7 +422,7 @@ export default function PropertyVsETF({ currency }) {
           <h5 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">ETF Pros & Cons</h5>
           <div className="space-y-2 mb-3">
             {etfPros.map((pro, i) =>
-            <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+            <div key={i} className="text-slate-600 text-xs flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                 <span>{pro}</span>
               </div>
