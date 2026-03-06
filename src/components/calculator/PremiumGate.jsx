@@ -56,7 +56,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
       }
       
       const response = await base44.functions.invoke("stripeCheckout", {
-        priceId: "price_1T7UdNPrZtddngW3cWEyr5ay",
+        priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
         email: user.email,
         successUrl: window.location.href + "?upgraded=true",
         cancelUrl: window.location.href,
