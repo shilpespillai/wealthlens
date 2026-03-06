@@ -6,12 +6,12 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 
 const NEWS_IMAGES = [
-  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
-  "https://images.unsplash.com/photo-1553729784-e91953dec042?w=400&h=250&fit=crop",
-  "https://images.unsplash.com/photo-1518594934405-e27d1e575f57?w=400&h=250&fit=crop",
-  "https://images.unsplash.com/photo-1577720643272-265f434a89f6?w=400&h=250&fit=crop",
-  "https://images.unsplash.com/photo-1509391366360-2e938d440220?w=400&h=250&fit=crop",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop",
+  "https://picsum.photos/seed/finance1/400/250",
+  "https://picsum.photos/seed/economy2/400/250",
+  "https://picsum.photos/seed/crypto3/400/250",
+  "https://picsum.photos/seed/realestate4/400/250",
+  "https://picsum.photos/seed/energy5/400/250",
+  "https://picsum.photos/seed/earnings6/400/250",
 ];
 
 const FEATURES = [
