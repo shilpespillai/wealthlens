@@ -43,8 +43,8 @@ export default function InvestmentForm({ params, setParams }) {
             min={0}
             max={10000000}
             value={params.initialAmount}
-            onChange={(e) => update("initialAmount", parseFloat(e.target.value) || 0)}
-            className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
+            onChange={(e) => update("initialAmount", parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-semibold rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
+
             placeholder="Any amount from $1 to $10M" />
 
         </div>
@@ -60,8 +60,8 @@ export default function InvestmentForm({ params, setParams }) {
             min={0}
             max={1000000}
             value={params.monthlyContribution}
-            onChange={(e) => update("monthlyContribution", parseFloat(e.target.value) || 0)}
-            className="pl-10 h-14 rounded-xl border-white/10 bg-slate-700/30 text-white text-base font-semibold focus:border-indigo-400/50 focus:ring-indigo-400/20"
+            onChange={(e) => update("monthlyContribution", parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-semibold rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
+
             placeholder="Any amount from $0 to $1M" />
 
         </div>
@@ -126,7 +126,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-3">
         <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Contribution Frequency</Label>
         <Select value={params.frequency} onValueChange={(v) => update("frequency", v)}>
-          <SelectTrigger className="h-14 rounded-xl border-white/10 bg-slate-700/30 text-white font-semibold">
+          <SelectTrigger className="bg-slate-50 text-slate-600 px-3 py-2 text-sm font-semibold rounded-xl flex w-full items-center justify-between whitespace-nowrap border shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-14 border-white/10">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
