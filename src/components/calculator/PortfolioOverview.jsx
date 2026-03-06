@@ -50,9 +50,17 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     const netCashflow = projectedMonthlyIncome - monthlyContribution;
 
     // Risk assessment
-    const riskLevel = instrument === 'crypto' ? 'High' :
-    instrument === 'stocks' || instrument === 'etf' ? 'Medium-High' :
-    instrument === 'property' ? 'Medium' : 'Low';
+    const riskLevel =
+      instrument === 'crypto' ? 'High' :
+      instrument === 'forex' ? 'High' :
+      instrument === 'stocks' ? 'Medium-High' :
+      instrument === 'etf' ? 'Medium-High' :
+      instrument === 'mutual_funds' ? 'Medium' :
+      instrument === 'commodities' ? 'Medium' :
+      instrument === 'property' ? 'Medium' :
+      instrument === 'gold' ? 'Low-Medium' :
+      instrument === 'bonds' ? 'Low' :
+      instrument === 'fixed_deposit' ? 'Low' : 'Medium';
 
     return {
       totalInvested,
