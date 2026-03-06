@@ -312,19 +312,26 @@ export default function Home() {
             <p className="text-gray-600 text-lg">Stay informed with the latest investment news and market analysis</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {NEWS_ITEMS.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <NewsCard item={item} />
-              </motion.div>
-            ))}
-          </div>
+          {newsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader className="w-6 h-6 text-indigo-600 animate-spin" />
+              <span className="ml-3 text-gray-500 text-sm">Fetching today's news...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newsItems.map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                >
+                  <NewsCard item={item} />
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
