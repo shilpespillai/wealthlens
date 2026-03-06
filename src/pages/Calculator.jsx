@@ -142,12 +142,12 @@ function CalculatorContent() {
               <br />
               <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">Future Clearly</span>
             </h1>
-            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">Whether you're starting with $50 or managing millions, make informed investment decisions.
-Professional-grade tools for every investor.   How the Investment Growth Calculator Works
+            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">Whether you're starting with $50 or managing millions, make informed investment decisions. Professional-grade tools for every investor.
 
-The WealthLens investment growth calculator helps investors estimate how their ETF portfolio could grow over time. By entering monthly contributions, expected returns, and investment duration, users can visualize long-term portfolio growth through compound returns.
 
-This tool is ideal for long-term investors planning retirement, financial independence, or wealth accumulation strategies.</p>
+
+
+            </p>
             <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
