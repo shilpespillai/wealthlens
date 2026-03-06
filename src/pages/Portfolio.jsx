@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { PieChart as PieChartIcon, TrendingUp, DollarSign, Plus, Trash2, BarChart3 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
