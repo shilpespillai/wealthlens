@@ -47,78 +47,11 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
   });
 
   const exportToPDF = async () => {
-    const loadingToast = toast.loading("Generating visual PDF report...");
-
+    const loadingToast = toast.loading("Generating PDF report...");
     try {
-      // Render the visual template off-screen
-      const container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      container.style.zIndex = "-1";
-      document.body.appendChild(container);
-
-      await new Promise((resolve) => {
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <PdfReportTemplate params={params} results={results} instrument={instrument} ref={(el) => {
-            if (el) {
-              container._el = el;
-              resolve();
-            }
-          }} />
-        );
-        // fallback resolve after short delay
-        setTimeout(resolve, 1200);
-      });
-
-      // Wait a tick for recharts to paint
-      await new Promise(r => setTimeout(r, 800));
-
-      const el = container.querySelector("div");
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: "#0f172a",
-      });
-
-      document.body.removeChild(container);
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      const pdfBlob = pdf.output("blob");
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Investment-Report-${new Date().toISOString().split("T")[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
+      await generatePdfReport({ params, results, instrument });
       toast.dismiss(loadingToast);
-      toast.success("Visual PDF report downloaded!");
+      toast.success("PDF report downloaded!");
     } catch (error) {
       console.error("PDF export error:", error);
       toast.dismiss(loadingToast);
