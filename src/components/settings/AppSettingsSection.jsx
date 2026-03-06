@@ -6,13 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const SHORTCUTS = [
-  { keys: "Cmd/Ctrl + S", description: "Save current calculation" },
-  { keys: "Cmd/Ctrl + E", description: "Export as PDF" },
-  { keys: "Cmd/Ctrl + /", description: "Open settings" },
-  { keys: "Esc", description: "Close dialogs" },
-  { keys: "Enter", description: "Submit form" },
-  { keys: "Tab", description: "Navigate inputs" },
-];
+{ keys: "Cmd/Ctrl + S", description: "Save current calculation" },
+{ keys: "Cmd/Ctrl + E", description: "Export as PDF" },
+{ keys: "Cmd/Ctrl + /", description: "Open settings" },
+{ keys: "Esc", description: "Close dialogs" },
+{ keys: "Enter", description: "Submit form" },
+{ keys: "Tab", description: "Navigate inputs" }];
+
 
 export default function AppSettingsSection() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -25,7 +25,7 @@ export default function AppSettingsSection() {
       // Clear localStorage
       const keysToPreserve = ["wealthlens-theme"];
       const allKeys = Object.keys(localStorage);
-      allKeys.forEach(key => {
+      allKeys.forEach((key) => {
         if (!keysToPreserve.includes(key)) {
           localStorage.removeItem(key);
         }
@@ -49,14 +49,14 @@ export default function AppSettingsSection() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="space-y-4"
-      >
+        className="space-y-4">
+
         {/* Keyboard Shortcuts */}
         <Button
           onClick={() => setShortcutsOpen(true)}
-          variant="outline"
-          className="w-full border-white/20 text-white hover:bg-white/5 justify-start"
-        >
+          variant="outline" className="bg-slate-400 text-slate-50 px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
+
+
           <Keyboard className="w-4 h-4 mr-3" />
           View Keyboard Shortcuts
         </Button>
@@ -64,9 +64,9 @@ export default function AppSettingsSection() {
         {/* Reset App */}
         <Button
           onClick={() => setResetOpen(true)}
-          variant="outline"
-          className="w-full border-white/20 text-white hover:bg-white/5 justify-start"
-        >
+          variant="outline" className="bg-slate-400 text-white px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
+
+
           <RotateCcw className="w-4 h-4 mr-3" />
           Reset All Settings & Cache
         </Button>
@@ -88,17 +88,17 @@ export default function AppSettingsSection() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {SHORTCUTS.map((shortcut, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between bg-slate-800/30 rounded-lg p-3 border border-white/10"
-              >
+            {SHORTCUTS.map((shortcut, idx) =>
+            <div
+              key={idx}
+              className="flex items-center justify-between bg-slate-800/30 rounded-lg p-3 border border-white/10">
+
                 <span className="text-slate-300">{shortcut.description}</span>
                 <code className="bg-slate-700 text-indigo-300 px-3 py-1 rounded text-sm font-mono">
                   {shortcut.keys}
                 </code>
               </div>
-            ))}
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -119,13 +119,13 @@ export default function AppSettingsSection() {
             <AlertDialogAction
               onClick={handleReset}
               disabled={loading}
-              className="bg-violet-600 hover:bg-violet-700"
-            >
+              className="bg-violet-600 hover:bg-violet-700">
+
               {loading ? "Resetting..." : "Reset"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
