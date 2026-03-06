@@ -16,7 +16,7 @@ export default function DataPrivacySection() {
       const calculations = await base44.entities.SavedCalculation.list();
       const data = {
         export_date: new Date().toISOString(),
-        calculations: calculations,
+        calculations: calculations
       };
       const dataStr = JSON.stringify(data, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
@@ -61,14 +61,14 @@ export default function DataPrivacySection() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="space-y-4"
-      >
+        className="space-y-4">
+
         {/* Download Data */}
         <Button
           onClick={() => setExportOpen(true)}
-          variant="outline"
-          className="w-full border-white/20 text-white hover:bg-white/5 justify-start"
-        >
+          variant="outline" className="bg-slate-400 text-slate-50 px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
+
+
           <Download className="w-4 h-4 mr-3" />
           Download Your Data (JSON)
         </Button>
@@ -76,9 +76,9 @@ export default function DataPrivacySection() {
         {/* Clear Data */}
         <Button
           onClick={() => setClearOpen(true)}
-          variant="outline"
-          className="w-full border-white/20 text-white hover:bg-white/5 justify-start"
-        >
+          variant="outline" className="bg-slate-400 text-slate-50 px-4 py-2 text-sm font-medium rounded-md inline-flex items-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 w-full border-white/20 hover:bg-white/5 justify-start">
+
+
           <HardDrive className="w-4 h-4 mr-3" />
           Clear All Saved Calculations
         </Button>
@@ -108,8 +108,8 @@ export default function DataPrivacySection() {
             <AlertDialogAction
               onClick={handleDownloadData}
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
+              className="bg-indigo-600 hover:bg-indigo-700">
+
               {loading ? "Downloading..." : "Download"}
             </AlertDialogAction>
           </div>
@@ -132,13 +132,13 @@ export default function DataPrivacySection() {
             <AlertDialogAction
               onClick={handleClearData}
               disabled={loading}
-              className="bg-red-600 hover:bg-red-700"
-            >
+              className="bg-red-600 hover:bg-red-700">
+
               {loading ? "Clearing..." : "Clear"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>);
+
 }
