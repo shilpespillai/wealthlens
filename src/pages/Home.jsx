@@ -224,10 +224,10 @@ export default function Home() {
                 transition={{ delay: idx * 0.1 }}
                 className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 border border-gray-200 text-center"
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mx-auto mb-4 shadow-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mx-auto mb-3 shadow-lg`}>
+                <Icon className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900">{feature.label}</h3>
+                <h3 className="font-bold text-gray-900 text-sm">{feature.label}</h3>
               </motion.div>
             );
           })}
