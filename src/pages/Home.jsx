@@ -114,6 +114,22 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    async function fetchNews() {
+      try {
+        const response = await base44.functions.invoke("fetchMarketNews");
+        if (response.data?.articles) {
+          setNewsItems(response.data.articles);
+        }
+      } catch (error) {
+        console.error("Failed to fetch news:", error);
+      } finally {
+        setNewsLoading(false);
+      }
+    }
+    fetchNews();
+  }, []);
+
   const handleLogin = async () => {
     try {
       await base44.auth.redirectToLogin(createPageUrl("Calculator"));
