@@ -29,7 +29,7 @@ const PREMIUM_FEATURES = [
 ];
 
 export default function PricingSection({ onGetStarted }) {
-  const LIVE_PRICE_ID = "price_1T7UdNPrZtddngW3cWEyr5ay"; // Replace with your actual live price ID from Stripe
+  const LIVE_PRICE_ID = "price_1T7w6sJkmG8taKBQqIH4PxqD";
 
   const handleGetStarted = async () => {
     try {
