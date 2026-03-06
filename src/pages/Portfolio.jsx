@@ -142,16 +142,33 @@ function PortfolioContent() {
             <span className="text-slate-300">|</span>
             <h1 className="text-lg font-black text-slate-900">Portfolio Dashboard</h1>
           </div>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger className="w-28 h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 text-sm"
+              onClick={() => {
+                try {
+                  generatePortfolioPdf({ holdings, currency });
+                  toast.success("Portfolio PDF downloaded!");
+                } catch (e) {
+                  toast.error("Failed to generate PDF");
+                }
+              }}
+            >
+              <Download className="w-4 h-4" /> Export PDF
+            </Button>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="w-28 h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
