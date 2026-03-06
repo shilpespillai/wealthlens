@@ -183,11 +183,11 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center mb-8"
         >
           <div className="inline-block mb-6 px-4 py-2 bg-indigo-100 rounded-full">
             <span className="text-sm font-bold text-indigo-700">📊 Investment Intelligence Platform</span>
