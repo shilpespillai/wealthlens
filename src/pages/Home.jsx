@@ -344,16 +344,16 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-12 text-center text-white"
+          className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-8 text-center text-white"
         >
-          <Zap className="w-12 h-12 mx-auto mb-6 opacity-90" />
-          <h2 className="text-4xl font-black mb-6">Ready to Master Your Investments?</h2>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+          <Zap className="w-10 h-10 mx-auto mb-4 opacity-90" />
+          <h2 className="text-3xl font-black mb-4">Ready to Master Your Investments?</h2>
+          <p className="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
             Join thousands of investors using WealthLens to make smarter financial decisions with AI-powered insights.
           </p>
           <Button
