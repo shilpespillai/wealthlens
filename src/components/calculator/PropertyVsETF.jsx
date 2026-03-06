@@ -314,7 +314,7 @@ export default function PropertyVsETF({ currency }) {
           <p className="text-lg font-bold text-white">
             {fmt(comparison.winner === "property" ? comparison.finalProperty : comparison.finalETF)}
           </p>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-slate-800 mt-2 text-sm">
             {fmt(comparison.difference)} more than {comparison.winner === "property" ? "ETF" : "Property"}
           </p>
         </div>
