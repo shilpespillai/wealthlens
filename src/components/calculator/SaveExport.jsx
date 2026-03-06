@@ -17,7 +17,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
 
   const { data: savedCalculations = [] } = useQuery({
     queryKey: ['savedCalculations'],
-    queryFn: () => base44.entities.SavedCalculation.list('-created_date', 50),
+    queryFn: () => base44.entities.SavedCalculation.list('-created_date', 50)
   });
 
   const saveCalculation = useMutation({
@@ -27,7 +27,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
         instrument,
         ...params,
         finalValue: results.summary.finalPortfolioValue,
-        totalReturn: results.summary.totalReturns,
+        totalReturn: results.summary.totalReturns
       });
     },
     onSuccess: () => {
@@ -35,7 +35,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       toast.success("Calculation saved successfully");
       setSaveDialogOpen(false);
       setSaveName("");
-    },
+    }
   });
 
   const deleteCalculation = useMutation({
@@ -43,7 +43,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedCalculations'] });
       toast.success("Calculation deleted");
-    },
+    }
   });
 
   const exportToPDF = async () => {
@@ -64,7 +64,7 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
       {/* Save Calculation */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="bg-slate-800/40 border-white/10 text-white hover:bg-slate-800/60">
+          <Button variant="outline" size="sm" className="bg-orange-200 text-slate-700 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-8 border-white/10 hover:bg-slate-800/60">
             <Save className="w-4 h-4 mr-2" />
             Save Calculation
           </Button>
@@ -80,24 +80,24 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
                 placeholder="e.g., My Retirement Plan"
-                className="bg-slate-700/30 border-white/10 text-white mt-2"
-              />
+                className="bg-slate-700/30 border-white/10 text-white mt-2" />
+
             </div>
-            <Button 
+            <Button
               onClick={() => saveCalculation.mutate(saveName)}
               disabled={!saveName.trim()}
-              className="w-full bg-gradient-to-r from-indigo-500 to-violet-500"
-            >
+              className="w-full bg-gradient-to-r from-indigo-500 to-violet-500">
+
               Save
             </Button>
             
             {/* Saved Calculations List */}
-            {savedCalculations.length > 0 && (
-              <div className="border-t border-white/10 pt-4 mt-4">
+            {savedCalculations.length > 0 &&
+            <div className="border-t border-white/10 pt-4 mt-4">
                 <h4 className="text-sm font-semibold mb-3">Saved Calculations</h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {savedCalculations.map((calc) => (
-                    <div key={calc.id} className="flex items-center justify-between bg-slate-700/30 rounded-lg p-3 border border-white/5">
+                  {savedCalculations.map((calc) =>
+                <div key={calc.id} className="flex items-center justify-between bg-slate-700/30 rounded-lg p-3 border border-white/5">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{calc.name}</p>
                         <p className="text-xs text-slate-400">
@@ -105,32 +105,32 @@ export default function SaveExport({ params, instrument, results, chartRef }) {
                         </p>
                       </div>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteCalculation.mutate(calc.id)}
-                        className="text-slate-400 hover:text-red-400 ml-2"
-                      >
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteCalculation.mutate(calc.id)}
+                    className="text-slate-400 hover:text-red-400 ml-2">
+
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  ))}
+                )}
                 </div>
               </div>
-            )}
+            }
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Export PDF */}
-      <Button 
+      <Button
         onClick={exportToPDF}
-        variant="outline" 
-        size="sm"
-        className="bg-slate-800/40 border-white/10 text-white hover:bg-slate-800/60"
-      >
+        variant="outline"
+        size="sm" className="bg-orange-200 text-slate-700 px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-8 border-white/10 hover:bg-slate-800/60">
+
+
         <Download className="w-4 h-4 mr-2" />
         Export PDF
       </Button>
-    </div>
-  );
+    </div>);
+
 }
