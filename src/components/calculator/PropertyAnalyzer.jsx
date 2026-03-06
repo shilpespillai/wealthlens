@@ -389,7 +389,7 @@ export default function PropertyAnalyzer({ currency }) {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Inputs */}
             <div className="space-y-5">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Income & Expenses</h4>
+              <h4 className="text-slate-700 text-xs font-bold uppercase tracking-[0.15em]">INCOME & EXPENSES</h4>
               
               <div className="space-y-2">
                 <Label className="text-xs text-slate-700">Weekly Rent</Label>
@@ -398,8 +398,8 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={weeklyRent}
-                    onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                    onChange={(e) => setWeeklyRent(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
 
                 </div>
@@ -429,8 +429,8 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={maintenance}
-                    onChange={(e) => setMaintenance(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                    onChange={(e) => setMaintenance(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
 
                 </div>
@@ -443,8 +443,8 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={insurance}
-                    onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                    onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
 
                 </div>
@@ -457,7 +457,7 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={councilRates}
-                    onChange={(e) => setCouncilRates(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+                    onChange={(e) => setCouncilRates(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
 
 
                 </div>
@@ -469,7 +469,7 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={suburbYield}
-                    onChange={(e) => setSuburbYield(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-500 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+                    onChange={(e) => setSuburbYield(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
 
 
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
