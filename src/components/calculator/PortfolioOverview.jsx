@@ -11,7 +11,7 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     // Base investment metrics
     const totalInvested = params.initialAmount + params.monthlyContribution * 12 * params.years;
     const finalValue = results.summary.finalValue;
-    const totalReturn = results.summary.totalReturn;
+    const totalReturn = results.summary.totalReturns;
     const annualizedReturn = (Math.pow(finalValue / totalInvested, 1 / params.years) - 1) * 100;
 
     // Diversification breakdown (simulated based on best practices)
