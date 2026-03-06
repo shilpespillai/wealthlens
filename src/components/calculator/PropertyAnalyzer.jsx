@@ -394,7 +394,7 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Weekly Rent</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  
                   <Input
                     type="number"
                     value={weeklyRent}
@@ -424,7 +424,7 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Annual Maintenance</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  
                   <Input
                     type="number"
                     value={maintenance}
@@ -437,7 +437,7 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Annual Insurance</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  
                   <Input
                     type="number"
                     value={insurance}
@@ -450,7 +450,7 @@ export default function PropertyAnalyzer({ currency }) {
               <div className="space-y-2">
                 <Label className="text-xs text-slate-300">Council Rates (Annual)</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                  
                   <Input
                     type="number"
                     value={councilRates}
