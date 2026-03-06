@@ -56,6 +56,7 @@ function CalculatorContent() {
   const [instrument, setInstrument] = useState(local?.instrument || "stocks");
   const [params, setParams] = useState(local?.params || DEFAULT_PARAMS);
   const [userLoaded, setUserLoaded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
