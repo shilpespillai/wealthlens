@@ -137,7 +137,7 @@ export default function PricingSection({ onGetStarted }) {
             </ul>
 
             <Button
-              onClick={handleGetStarted}
+              onClick={handleUpgrade}
               className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold shadow-lg shadow-indigo-200"
             >
               <Zap className="w-4 h-4 mr-2" />
