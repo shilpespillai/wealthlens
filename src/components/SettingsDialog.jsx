@@ -7,6 +7,7 @@ import AccountSection from "./settings/AccountSection";
 import DataPrivacySection from "./settings/DataPrivacySection";
 import AppSettingsSection from "./settings/AppSettingsSection";
 import DocumentationSection from "./settings/DocumentationSection";
+import SupportSection from "./settings/SupportSection";
 
 const EXTERNAL_LINKS = [
   {
@@ -54,6 +55,9 @@ export default function SettingsDialog({ isOpen, onClose }) {
 
           {/* Account & Profile */}
           {user && <AccountSection user={user} />}
+
+          {/* Support */}
+          {user && <SupportSection userEmail={user.email} />}
 
           {/* Data & Privacy */}
           <DataPrivacySection />
