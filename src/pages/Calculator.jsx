@@ -107,11 +107,22 @@ function CalculatorContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">
+      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
       </div>
+
+      {/* Settings Button */}
+      <button
+        onClick={() => setSettingsOpen(true)}
+        className="fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-slate-100 transition-colors"
+        title="Settings"
+      >
+        <Settings className="w-5 h-5 text-slate-600" />
+      </button>
 
       {/* Hero */}
       <div className="relative overflow-hidden border-b border-slate-200">
