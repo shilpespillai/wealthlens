@@ -29,10 +29,28 @@ const PREMIUM_FEATURES = [
 ];
 
 export default function PricingSection({ onGetStarted }) {
+  const LIVE_PRICE_ID = "price_1T7UdNPrZtddngW3cWEyr5ay"; // Replace with your actual live price ID from Stripe
+
   const handleGetStarted = async () => {
     try {
       await base44.auth.redirectToLogin(createPageUrl("Calculator"));
     } catch {}
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      const response = await base44.functions.invoke('stripeCheckout', {
+        priceId: LIVE_PRICE_ID,
+        email: prompt("Enter your email:") || "",
+        successUrl: window.location.origin + createPageUrl("Calculator"),
+        cancelUrl: window.location.href
+      });
+      if (response.data?.sessionId) {
+        window.location.href = `https://checkout.stripe.com/pay/${response.data.sessionId}`;
+      }
+    } catch (err) {
+      alert("Checkout failed. Please try again.");
+    }
   };
 
   return (
