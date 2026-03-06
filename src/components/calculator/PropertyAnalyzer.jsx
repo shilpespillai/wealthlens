@@ -496,7 +496,7 @@ export default function PropertyAnalyzer({ currency }) {
                 </div>
               </div>
 
-              <div className={`rounded-2xl p-4 border ${yieldResults.monthlyCashflow >= 0 ? 'bg-emerald-500/10 border-emerald-400/20' : 'bg-rose-500/10 border-rose-400/20'}`}>
+              <div className="bg-emerald-500/10 text-orange-200 p-4 rounded-2xl border border-emerald-400/20">
                 <p className="text-green-700 mb-1 text-xs">Monthly Cashflow</p>
                 <p className={`text-2xl font-black ${yieldResults.monthlyCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {yieldResults.monthlyCashflow >= 0 ? '+' : ''}{fmt(yieldResults.monthlyCashflow)}
