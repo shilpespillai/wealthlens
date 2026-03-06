@@ -35,16 +35,16 @@ function CalculatorContent() {
     inflationRate: 3,
     frequency: "monthly",
     taxRate: 15,
-    fees: 0.5,
+    fees: 0.5
   });
-  
+
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
 
   const handleInstrumentChange = (id) => {
     setInstrument(id);
     const rate = getDefaultRate(id, "moderate");
-    setParams(prev => ({ ...prev, returnRate: rate }));
+    setParams((prev) => ({ ...prev, returnRate: rate }));
   };
 
   const results = useMemo(() => calculateInvestment(params), [params]);
@@ -65,8 +65,8 @@ function CalculatorContent() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
+            className="text-center">
+
             <div className="flex items-center justify-center gap-3 mb-8">
               <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/f6715e80c_generated_image.png" alt="WealthLens logo" className="w-12 h-12 rounded-2xl shadow-lg shadow-indigo-500/30" />
               <span className="text-2xl font-black text-white tracking-tight">WealthLens</span>
@@ -105,10 +105,10 @@ function CalculatorContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="mb-10"
-        >
+          className="mb-10">
+
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
-          <InvestmentProfiles onSelect={(defaults) => setParams(prev => ({ ...prev, ...defaults }))} />
+          <InvestmentProfiles onSelect={(defaults) => setParams((prev) => ({ ...prev, ...defaults }))} />
         </motion.div>
 
         {/* Instrument Selector */}
@@ -116,8 +116,8 @@ function CalculatorContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-10"
-        >
+          className="mb-10">
+
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
           <InstrumentSelector selected={instrument} onSelect={handleInstrumentChange} />
         </motion.div>
@@ -125,13 +125,13 @@ function CalculatorContent() {
         {/* Main Grid */}
         <div className={instrument === "property" ? "" : "grid grid-cols-1 lg:grid-cols-12 gap-8"}>
           {/* Form Sidebar - Hidden for Property */}
-          {instrument !== "property" && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:col-span-4"
-            >
+          {instrument !== "property" &&
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="lg:col-span-4">
+
               <div className="sticky top-6 bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                 <h3 className="text-sm font-bold text-slate-900 mb-8 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -142,49 +142,49 @@ function CalculatorContent() {
                 <InvestmentForm params={params} setParams={setParams} />
               </div>
             </motion.div>
-          )}
+          }
 
           {/* Results Area */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className={instrument === "property" ? "space-y-8" : "lg:col-span-8 space-y-8"}
-          >
+            className={instrument === "property" ? "space-y-8" : "lg:col-span-8 space-y-8"}>
+
             {/* Portfolio Overview Dashboard */}
-            {instrument !== "property" && (
-              <PortfolioOverview 
-                params={params} 
-                instrument={instrument} 
-                results={results} 
-                currency={params.currency} 
-              />
-            )}
+            {instrument !== "property" &&
+            <PortfolioOverview
+              params={params}
+              instrument={instrument}
+              results={results}
+              currency={params.currency} />
+
+            }
 
             {/* Summary Cards - Hidden for Property */}
-            {instrument !== "property" && (
-              <>
+            {instrument !== "property" &&
+            <>
                 <ResultsSummary summary={results.summary} currency={params.currency} />
                 
                 {/* Save & Export */}
                 <div className="flex justify-end">
-                  {isPremium ? (
-                    <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
-                  ) : (
-                    <button
-                      onClick={() => document.getElementById('premium-trigger')?.click()}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-500/30 rounded-xl text-amber-400 text-sm font-semibold hover:from-amber-400/30 hover:to-orange-500/30 transition-all"
-                    >
+                  {isPremium ?
+                <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} /> :
+
+                <button
+                  onClick={() => document.getElementById('premium-trigger')?.click()} className="bg-gradient-to-r text-slate-700 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 from-amber-400/20 to-orange-500/20 border border-amber-500/30 hover:from-amber-400/30 hover:to-orange-500/30 transition-all">
+
+
                       <span>👑</span> Save & Export PDF — Premium
                     </button>
-                  )}
+                }
                 </div>
               </>
-            )}
+            }
 
             {/* Property-Specific Analysis */}
-            {instrument === "property" && (
-              <>
+            {instrument === "property" &&
+            <>
                 <PropertyAnalyzer currency={params.currency} />
                 
                 {/* Property vs ETF Comparison */}
@@ -195,11 +195,11 @@ function CalculatorContent() {
                   <EquityUnlockPlanner currency={params.currency} />
                 </PremiumGate>
               </>
-            )}
+            }
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
-            {instrument !== "property" && (
-              <Tabs defaultValue="coach" className="w-full">
+            {instrument !== "property" &&
+            <Tabs defaultValue="coach" className="w-full">
               <TabsList className="bg-slate-100 border border-slate-300 p-1.5 rounded-2xl h-auto flex-wrap">
                 <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
@@ -287,7 +287,7 @@ function CalculatorContent() {
                 </div>
               </TabsContent>
             </Tabs>
-            )}
+            }
 
             {/* Disclaimer */}
             <div className="bg-amber-50/50 backdrop-blur-sm border border-amber-200 rounded-2xl p-5">
@@ -301,14 +301,14 @@ function CalculatorContent() {
           </motion.div>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default function CalculatorPage() {
   return (
     <AuthGuard>
       <CalculatorContent />
-    </AuthGuard>
-  );
+    </AuthGuard>);
+
 }
