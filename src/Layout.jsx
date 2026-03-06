@@ -1,22 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
-import { Settings } from "lucide-react";
-import SettingsDialog from "@/components/SettingsDialog";
+import React, { useEffect } from "react";
 
 export default function Layout({ children }) {
-  const [user, setUser] = useState(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
   useEffect(() => {
-    async function loadUser() {
-      try {
-        const me = await base44.auth.me();
-        setUser(me);
-      } catch {
-        setUser(null);
-      }
-    }
-    loadUser();
+    // Empty effect for consistency
   }, []);
 
   useEffect(() => {
