@@ -305,7 +305,7 @@ export default function Home() {
       </section>
 
       {/* News Section */}
-      <section className="bg-gray-50 py-16 sm:py-24">
+      <section className="bg-gray-50 py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0 }}
