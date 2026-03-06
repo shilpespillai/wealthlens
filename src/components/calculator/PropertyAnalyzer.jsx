@@ -429,7 +429,8 @@ export default function PropertyAnalyzer({ currency }) {
                   <Input
                     type="number"
                     value={maintenance}
-                    onChange={(e) => setMaintenance(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-600 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+                    onChange={(e) => setMaintenance(parseFloat(e.target.value) || 0)}
+                    className="pl-8 bg-slate-700/30 border-white/10 text-white" />
 
 
                 </div>
