@@ -220,6 +220,11 @@ export default function Home() {
           </Button>
         </motion.div>
 
+        {/* Hero Calculator */}
+        <div className="mb-10">
+          <HeroCalculator onGetStarted={handleLogin} />
+        </div>
+
         {/* Features Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {FEATURES.map((feature, idx) => {
