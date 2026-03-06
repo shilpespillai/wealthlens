@@ -94,7 +94,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Expected Annual Return</Label>
-          <span className="text-sm font-black text-emerald-400">{params.returnRate}%</span>
+          <span className="text-slate-500 text-sm font-black">{params.returnRate}%</span>
         </div>
         <Slider
           value={[params.returnRate]}
