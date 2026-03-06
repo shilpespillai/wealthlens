@@ -4,6 +4,19 @@ import { LayoutDashboard, TrendingUp, DollarSign, PieChart, Zap } from "lucide-r
 import { getCurrencySymbol } from "./CurrencySelector";
 import { PieChart as RechartPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
+const INSTRUMENT_META = {
+  stocks:        { name: 'Stocks',        color: '#6366f1' },
+  etf:           { name: 'ETF',           color: '#8b5cf6' },
+  property:      { name: 'Property',      color: '#10b981' },
+  crypto:        { name: 'Crypto',        color: '#f59e0b' },
+  bonds:         { name: 'Bonds',         color: '#3b82f6' },
+  fixed_deposit: { name: 'Fixed Deposit', color: '#06b6d4' },
+  mutual_funds:  { name: 'Mutual Funds',  color: '#ec4899' },
+  gold:          { name: 'Gold',          color: '#d97706' },
+  commodities:   { name: 'Commodities',  color: '#84cc16' },
+  forex:         { name: 'Forex',        color: '#f43f5e' },
+};
+
 export default function PortfolioOverview({ params, instrument, results, currency }) {
   const sym = getCurrencySymbol(currency);
 
