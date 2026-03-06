@@ -235,7 +235,7 @@ export default function Home() {
       </section>
 
       {/* Live Market Data */}
-      <section className="bg-white border-y border-gray-200 py-12 sm:py-16">
+      <section className="bg-white border-y border-gray-200 py-8 sm:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0 }}
