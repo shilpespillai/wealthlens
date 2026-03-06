@@ -330,9 +330,9 @@ export default function PropertyAnalyzer({ currency }) {
                 </div>
               </div>
 
-              <div className="bg-slate-700/30 rounded-xl p-3 border border-white/5">
-                <p className="text-[10px] text-slate-400 mb-1">Selling Costs</p>
-                <p className="text-sm font-bold text-slate-300">{fmt(growthResults.sellingCostsAmount)}</p>
+              <div className="bg-slate-50 text-slate-600 p-3 rounded-xl border border-white/5">
+                <p className="text-slate-600 mb-1">Selling Costs</p>
+                <p className="text-[#e40c0c] text-sm font-bold">{fmt(growthResults.sellingCostsAmount)}</p>
               </div>
             </div>
           </div>
