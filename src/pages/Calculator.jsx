@@ -225,16 +225,7 @@ function CalculatorContent() {
                 
                 {/* Save & Export */}
                 <div className="flex justify-end">
-                  {isPremium ?
-                <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} /> :
-
-                <button
-                  onClick={() => document.getElementById('premium-trigger')?.click()} className="bg-gradient-to-r text-slate-700 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 from-amber-400/20 to-orange-500/20 border border-amber-500/30 hover:from-amber-400/30 hover:to-orange-500/30 transition-all">
-
-
-                      <span>👑</span> Save & Export PDF — Premium
-                    </button>
-                }
+                  <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
                 </div>
               </>
             }
