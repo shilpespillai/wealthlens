@@ -551,7 +551,7 @@ export default function PropertyAnalyzer({ currency }) {
               
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Deposit</Label>
+                  <Label className="text-xs text-slate-700">Deposit</Label>
                   <span className="text-sm font-bold text-emerald-400">{depositPercent}%</span>
                 </div>
                 <Slider value={[depositPercent]} onValueChange={([v]) => setDepositPercent(v)} min={5} max={50} step={1} />
@@ -560,7 +560,7 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Interest Rate</Label>
+                  <Label className="text-xs text-slate-700">Interest Rate</Label>
                   <span className="text-sm font-bold text-white">{interestRate}%</span>
                 </div>
                 <Slider value={[interestRate]} onValueChange={([v]) => setInterestRate(v)} min={1} max={15} step={0.1} />
@@ -568,14 +568,14 @@ export default function PropertyAnalyzer({ currency }) {
 
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <Label className="text-xs text-slate-300">Loan Term</Label>
+                  <Label className="text-xs text-slate-700">Loan Term</Label>
                   <span className="text-sm font-bold text-white">{loanTerm} years</span>
                 </div>
                 <Slider value={[loanTerm]} onValueChange={([v]) => setLoanTerm(v)} min={5} max={40} step={1} />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Loan Type</Label>
+                <Label className="text-xs text-slate-700">Loan Type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setLoanType("principal")}
