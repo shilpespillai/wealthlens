@@ -54,6 +54,13 @@ function CalculatorContent() {
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
 
+  // Persist state to sessionStorage whenever it changes
+  React.useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ instrument, params }));
+    } catch {}
+  }, [instrument, params]);
+
   const handleInstrumentChange = (id) => {
     setInstrument(id);
     const rate = getDefaultRate(id, "moderate");
