@@ -249,7 +249,14 @@ export default function Home() {
                 <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Live Market Data</h2>
               </div>
             </div>
-            <p className="text-gray-600 text-sm">Real-time market information updated every 5 minutes</p>
+            <p className="text-gray-600 text-sm">
+              Real-time market information updated every 5 minutes
+              {marketLastUpdated && (
+                <span className="ml-2 text-emerald-600 font-medium">
+                  · Last updated: {marketLastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
           </motion.div>
 
           {marketLoading ? (
