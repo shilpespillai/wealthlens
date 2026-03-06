@@ -181,7 +181,7 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-400 flex items-center justify-center text-white text-xs font-bold shadow-lg">
                     {i + 1}
                   </div>
-                  <Badge className={`${priorityConfig[rec.priority].color} border text-[10px] font-bold uppercase tracking-wider`}>
+                  <Badge className={`${(priorityConfig[rec.priority] || priorityConfig.medium).color} border text-[10px] font-bold uppercase tracking-wider`}>
                     {rec.priority} priority
                   </Badge>
                 </div>
