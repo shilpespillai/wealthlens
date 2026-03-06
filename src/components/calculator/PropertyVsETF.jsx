@@ -184,7 +184,7 @@ export default function PropertyVsETF({ currency }) {
       {/* Side by Side Inputs */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Property Inputs */}
-        <div className="bg-emerald-500/10 rounded-2xl p-5 border border-emerald-400/20">
+        <div className="bg-slate-50 text-slate-600 p-5 rounded-2xl border border-emerald-400/20">
           <h4 className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Property Investment
