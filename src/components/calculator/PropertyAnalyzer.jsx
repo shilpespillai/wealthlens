@@ -601,7 +601,7 @@ export default function PropertyAnalyzer({ currency }) {
               </div>
 
               {/* Extra Repayments Toggle */}
-              <div className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-2xl p-4 border border-emerald-400/20">
+              <div className="bg-orange-100 p-4 rounded-2xl from-emerald-500/10 to-green-500/10 border border-emerald-400/20">
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-xs font-bold text-emerald-300">Extra Repayments</Label>
                   <Switch
