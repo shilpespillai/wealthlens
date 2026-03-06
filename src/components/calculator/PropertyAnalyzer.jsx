@@ -392,7 +392,7 @@ export default function PropertyAnalyzer({ currency }) {
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-[0.15em]">Income & Expenses</h4>
               
               <div className="space-y-2">
-                <Label className="text-xs text-slate-300">Weekly Rent</Label>
+                <Label className="text-xs text-slate-700">Weekly Rent</Label>
                 <div className="relative">
                   
                   <Input
