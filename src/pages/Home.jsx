@@ -193,13 +193,13 @@ export default function Home() {
             <span className="text-sm font-bold text-indigo-700">📊 Investment Intelligence Platform</span>
           </div>
           
-          <h1 className="text-5xl sm:text-6xl font-black text-gray-900 leading-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl font-black text-gray-900 leading-tight mb-4">
             See Your Financial
             <br />
             <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Future Clearly</span>
           </h1>
           
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6 leading-relaxed">
             Professional-grade investment analysis tools. Real-time market insights. AI-powered guidance. All in one platform.
           </p>
           
