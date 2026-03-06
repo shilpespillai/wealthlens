@@ -4,6 +4,9 @@ import { TrendingUp, ArrowUpRight, ArrowDownRight, Globe, Zap, Shield, BarChart3
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
+import HowItWorks from "@/components/home/HowItWorks";
+import Testimonials from "@/components/home/Testimonials";
+import PricingSection from "@/components/home/PricingSection";
 
 const NEWS_IMAGES = [
   "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=250&fit=crop", // stock market screen
