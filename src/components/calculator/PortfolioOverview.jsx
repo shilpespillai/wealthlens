@@ -9,28 +9,28 @@ export default function PortfolioOverview({ params, instrument, results, currenc
 
   const portfolioMetrics = useMemo(() => {
     // Base investment metrics
-    const totalInvested = params.initialAmount + (params.monthlyContribution * 12 * params.years);
+    const totalInvested = params.initialAmount + params.monthlyContribution * 12 * params.years;
     const finalValue = results.summary.finalValue;
     const totalReturn = results.summary.totalReturn;
-    const annualizedReturn = ((Math.pow(finalValue / totalInvested, 1 / params.years) - 1) * 100);
+    const annualizedReturn = (Math.pow(finalValue / totalInvested, 1 / params.years) - 1) * 100;
 
     // Diversification breakdown (simulated based on best practices)
     const diversificationData = [
-      { name: 'Stocks/ETFs', value: instrument === 'stocks' || instrument === 'etf' ? 60 : 40, color: '#6366f1' },
-      { name: 'Property', value: instrument === 'property' ? 30 : 25, color: '#10b981' },
-      { name: 'Bonds/Fixed', value: instrument === 'bonds' || instrument === 'fixed_deposit' ? 20 : 20, color: '#f59e0b' },
-      { name: 'Alternative', value: instrument === 'crypto' || instrument === 'gold' ? 15 : 15, color: '#8b5cf6' }
-    ];
+    { name: 'Stocks/ETFs', value: instrument === 'stocks' || instrument === 'etf' ? 60 : 40, color: '#6366f1' },
+    { name: 'Property', value: instrument === 'property' ? 30 : 25, color: '#10b981' },
+    { name: 'Bonds/Fixed', value: instrument === 'bonds' || instrument === 'fixed_deposit' ? 20 : 20, color: '#f59e0b' },
+    { name: 'Alternative', value: instrument === 'crypto' || instrument === 'gold' ? 15 : 15, color: '#8b5cf6' }];
+
 
     // Cash flow analysis
     const monthlyContribution = params.monthlyContribution;
-    const projectedMonthlyIncome = (finalValue * 0.04) / 12; // 4% withdrawal rate
+    const projectedMonthlyIncome = finalValue * 0.04 / 12; // 4% withdrawal rate
     const netCashflow = projectedMonthlyIncome - monthlyContribution;
 
     // Risk assessment
-    const riskLevel = instrument === 'crypto' ? 'High' : 
-                      instrument === 'stocks' || instrument === 'etf' ? 'Medium-High' :
-                      instrument === 'property' ? 'Medium' : 'Low';
+    const riskLevel = instrument === 'crypto' ? 'High' :
+    instrument === 'stocks' || instrument === 'etf' ? 'Medium-High' :
+    instrument === 'property' ? 'Medium' : 'Low';
 
     return {
       totalInvested,
@@ -45,15 +45,15 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     };
   }, [params, instrument, results, currency]);
 
-  const safe = (num) => (isFinite(num) && !isNaN(num) ? num : 0);
+  const safe = (num) => isFinite(num) && !isNaN(num) ? num : 0;
   const fmt = (num) => `${sym}${safe(num).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8"
-    >
+      animate={{ opacity: 1, y: 0 }} className="bg-slate-700 p-8 rounded-3xl from-slate-800/60 to-slate-900/60 backdrop-blur-xl border border-white/10 shadow-2xl">
+
+
       <div className="flex items-center gap-3 mb-8">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center shadow-lg">
           <LayoutDashboard className="w-6 h-6 text-white" />
@@ -68,8 +68,8 @@ export default function PortfolioOverview({ params, instrument, results, currenc
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-5 border border-emerald-400/30"
-        >
+          className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-2xl p-5 border border-emerald-400/30">
+
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-emerald-400" />
             <p className="text-xs text-emerald-300 font-bold">Projected Net Worth</p>
@@ -80,8 +80,8 @@ export default function PortfolioOverview({ params, instrument, results, currenc
 
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-indigo-500/20 to-blue-500/20 rounded-2xl p-5 border border-indigo-400/30"
-        >
+          className="bg-gradient-to-br from-indigo-500/20 to-blue-500/20 rounded-2xl p-5 border border-indigo-400/30">
+
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-indigo-400" />
             <p className="text-xs text-indigo-300 font-bold">Total Return</p>
@@ -92,8 +92,8 @@ export default function PortfolioOverview({ params, instrument, results, currenc
 
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-2xl p-5 border border-violet-400/30"
-        >
+          className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-2xl p-5 border border-violet-400/30">
+
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-violet-400" />
             <p className="text-xs text-violet-300 font-bold">Total Invested</p>
@@ -104,8 +104,8 @@ export default function PortfolioOverview({ params, instrument, results, currenc
 
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-5 border border-amber-400/30"
-        >
+          className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-5 border border-amber-400/30">
+
           <div className="flex items-center gap-2 mb-2">
             <PieChart className="w-4 h-4 text-amber-400" />
             <p className="text-xs text-amber-300 font-bold">Risk Level</p>
@@ -132,11 +132,11 @@ export default function PortfolioOverview({ params, instrument, results, currenc
                 label={({ name, value }) => `${name}: ${value}%`}
                 outerRadius={80}
                 fill="#8884d8"
-                dataKey="value"
-              >
-                {portfolioMetrics.diversificationData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
+                dataKey="value">
+
+                {portfolioMetrics.diversificationData.map((entry, index) =>
+                <Cell key={`cell-${index}`} fill={entry.color} />
+                )}
               </Pie>
               <Tooltip formatter={(value) => `${value}%`} />
             </RechartPie>
@@ -186,16 +186,16 @@ export default function PortfolioOverview({ params, instrument, results, currenc
         <h4 className="text-sm font-bold text-violet-300 mb-4">Wealth Milestones</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { year: Math.ceil(params.years * 0.25), value: results.summary.finalValue * 0.25 },
-            { year: Math.ceil(params.years * 0.5), value: results.summary.finalValue * 0.5 },
-            { year: Math.ceil(params.years * 0.75), value: results.summary.finalValue * 0.75 },
-            { year: params.years, value: results.summary.finalValue }
-          ].map((milestone, i) => (
-            <div key={i} className="bg-slate-800/50 rounded-xl p-4">
+          { year: Math.ceil(params.years * 0.25), value: results.summary.finalValue * 0.25 },
+          { year: Math.ceil(params.years * 0.5), value: results.summary.finalValue * 0.5 },
+          { year: Math.ceil(params.years * 0.75), value: results.summary.finalValue * 0.75 },
+          { year: params.years, value: results.summary.finalValue }].
+          map((milestone, i) =>
+          <div key={i} className="bg-slate-800/50 rounded-xl p-4">
               <p className="text-xs text-slate-400 mb-1">Year {milestone.year}</p>
               <p className="text-lg font-bold text-white">{fmt(milestone.value)}</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -217,6 +217,6 @@ export default function PortfolioOverview({ params, instrument, results, currenc
           </li>
         </ul>
       </div>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
