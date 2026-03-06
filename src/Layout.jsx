@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { LogOut, Settings } from "lucide-react";
+import { createPageUrl } from "@/utils";
 import SettingsDialog from "@/components/SettingsDialog";
 
 export default function Layout({ children }) {
