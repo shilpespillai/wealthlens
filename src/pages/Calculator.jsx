@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, BrainCircuit, PieChart as PieChartIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
