@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { LogOut, Settings } from "lucide-react";
-import { createPageUrl } from "@/utils";
+import { Settings } from "lucide-react";
 import SettingsDialog from "@/components/SettingsDialog";
 
 export default function Layout({ children }) {
@@ -32,10 +31,6 @@ export default function Layout({ children }) {
       }
     }
   }, []);
-
-  const handleLogout = async () => {
-    await base44.auth.logout(createPageUrl("Home"));
-  };
 
   return (
     <div className="min-h-screen bg-slate-50">
