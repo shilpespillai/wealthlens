@@ -62,13 +62,6 @@ export default function Layout({ children }) {
           >
             <Settings className="w-4 h-4 text-slate-600" />
           </button>
-          <button
-            onClick={handleLogout}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4 text-slate-600" />
-          </button>
         </div>
       )}
       
