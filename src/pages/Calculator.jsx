@@ -21,6 +21,8 @@ import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
 import PremiumGate from "@/components/calculator/PremiumGate";
 import AuthGuard from "@/components/AuthGuard";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
