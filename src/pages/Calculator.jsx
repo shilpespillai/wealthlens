@@ -97,6 +97,11 @@ function CalculatorContent() {
                 <span>20+ Currencies</span>
               </div>
             </div>
+            <div className="mt-6">
+              <Link to={createPageUrl("Portfolio")} className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/20">
+                <PieChartIcon className="w-4 h-4" /> View Portfolio Dashboard
+              </Link>
+            </div>
           </motion.div>
         </div>
       </div>
