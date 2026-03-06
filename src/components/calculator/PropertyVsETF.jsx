@@ -166,8 +166,8 @@ export default function PropertyVsETF({ currency }) {
             <Input
               type="number"
               value={initialCapital}
-              onChange={(e) => setInitialCapital(parseFloat(e.target.value) || 0)}
-              className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+              onChange={(e) => setInitialCapital(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <Label className="text-slate-900 text-xs font-medium">Property Price</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                
                 <Input
                   type="number"
                   value={propertyPrice}
@@ -216,7 +216,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <Label className="text-xs text-slate-300">Weekly Rent</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                
                 <Input
                   type="number"
                   value={weeklyRent}
@@ -229,7 +229,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <Label className="text-xs text-slate-300">Annual Expenses</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
+                
                 <Input
                   type="number"
                   value={propertyExpenses}
