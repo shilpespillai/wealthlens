@@ -26,9 +26,20 @@ import { createPageUrl } from "@/utils";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
+const STORAGE_KEY = "wealthlens-calc-state";
+
+function loadState() {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
 function CalculatorContent() {
-  const [instrument, setInstrument] = useState("stocks");
-  const [params, setParams] = useState({
+  const saved = loadState();
+  const [instrument, setInstrument] = useState(saved?.instrument || "stocks");
+  const [params, setParams] = useState(saved?.params || {
     currency: "USD",
     initialAmount: 10000,
     monthlyContribution: 500,
