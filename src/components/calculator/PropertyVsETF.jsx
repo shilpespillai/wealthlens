@@ -192,7 +192,7 @@ export default function PropertyVsETF({ currency }) {
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-slate-300 text-xs font-medium opacity-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Property Price</Label>
+              <Label className="text-slate-900 text-xs font-medium">Property Price</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                 <Input
