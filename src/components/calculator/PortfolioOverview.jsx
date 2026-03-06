@@ -28,18 +28,6 @@ export default function PortfolioOverview({ params, instrument, results, currenc
     const annualizedReturn = (Math.pow(finalValue / totalInvested, 1 / params.years) - 1) * 100;
 
     // Diversification breakdown — dynamically based on selected instrument
-    const INSTRUMENT_META = {
-      stocks:        { name: 'Stocks',        color: '#6366f1' },
-      etf:           { name: 'ETF',           color: '#8b5cf6' },
-      property:      { name: 'Property',      color: '#10b981' },
-      crypto:        { name: 'Crypto',        color: '#f59e0b' },
-      bonds:         { name: 'Bonds',         color: '#3b82f6' },
-      fixed_deposit: { name: 'Fixed Deposit', color: '#06b6d4' },
-      mutual_funds:  { name: 'Mutual Funds',  color: '#ec4899' },
-      gold:          { name: 'Gold',          color: '#d97706' },
-      commodities:   { name: 'Commodities',  color: '#84cc16' },
-      forex:         { name: 'Forex',        color: '#f43f5e' },
-    };
     const meta = INSTRUMENT_META[instrument] || { name: instrument, color: '#6366f1' };
     // Show selected instrument as 60%, then suggest a complementary split
     const complementary = Object.entries(INSTRUMENT_META)
