@@ -247,7 +247,9 @@ export default function Home() {
         </div>
       </section>
 
+      <StatsBar />
       <HowItWorks />
+      <AssetShowcase />
 
       {/* Live Market Data */}
       <section className="bg-white border-y border-gray-200 py-8 sm:py-10">
