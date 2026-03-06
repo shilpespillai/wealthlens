@@ -37,7 +37,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-3">
         <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Initial Investment</Label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">{sym}</span>
+          
           <Input
             type="number"
             min={0}
@@ -54,7 +54,7 @@ export default function InvestmentForm({ params, setParams }) {
       <div className="space-y-3">
         <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Monthly Contribution</Label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">{sym}</span>
+          
           <Input
             type="number"
             min={0}
