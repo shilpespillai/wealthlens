@@ -91,6 +91,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [marketData, setMarketData] = useState(null);
   const [marketLoading, setMarketLoading] = useState(true);
+  const [marketLastUpdated, setMarketLastUpdated] = useState(null);
   const [newsItems, setNewsItems] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
 
