@@ -207,7 +207,7 @@ export default function PropertyVsETF({ currency }) {
 
             <div className="space-y-2">
               <div className="text-slate-600 flex justify-between">
-                <Label className="text-xs text-slate-300">Annual Growth</Label>
+                <Label className="text-xs text-slate-900">Annual Growth</Label>
                 <span className="text-slate-700 text-xs font-bold">{propertyGrowth}%</span>
               </div>
               <Slider value={[propertyGrowth]} onValueChange={([v]) => setPropertyGrowth(v)} min={0} max={15} step={0.5} />
