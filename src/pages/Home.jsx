@@ -213,7 +213,7 @@ export default function Home() {
         </motion.div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {FEATURES.map((feature, idx) => {
             const Icon = feature.icon;
             return (
