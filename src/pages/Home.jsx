@@ -311,13 +311,13 @@ export default function Home() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="mb-12"
+            className="mb-8"
           >
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <Globe className="w-6 h-6 text-indigo-600" />
-              <h2 className="text-3xl sm:text-4xl font-black text-gray-900">Market Insights</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Market Insights</h2>
             </div>
-            <p className="text-gray-600 text-lg">Stay informed with the latest investment news and market analysis</p>
+            <p className="text-gray-600">Stay informed with the latest investment news and market analysis</p>
           </motion.div>
 
           {newsLoading ? (
