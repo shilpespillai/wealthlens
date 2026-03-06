@@ -700,7 +700,7 @@ export default function PropertyAnalyzer({ currency }) {
             <div className="space-y-4">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <Label className="text-xs text-slate-300">Stress Test Rate</Label>
+                  <Label className="text-xs text-slate-700">Stress Test Rate</Label>
                   <span className="text-lg font-black text-amber-300">{stressTestRate}%</span>
                 </div>
                 <Slider
