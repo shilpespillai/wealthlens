@@ -6,12 +6,12 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 
 const NEWS_IMAGES = [
-  "https://picsum.photos/seed/finance1/400/250",
-  "https://picsum.photos/seed/economy2/400/250",
-  "https://picsum.photos/seed/crypto3/400/250",
-  "https://picsum.photos/seed/realestate4/400/250",
-  "https://picsum.photos/seed/energy5/400/250",
-  "https://picsum.photos/seed/earnings6/400/250",
+  "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=250&fit=crop", // stock market screen
+  "https://images.unsplash.com/photo-1579532537598-459ecdaf39cc?w=400&h=250&fit=crop", // trading charts
+  "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?w=400&h=250&fit=crop", // crypto coins
+  "https://images.unsplash.com/photo-1560520653-9e0e4c89eb11?w=400&h=250&fit=crop", // real estate buildings
+  "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=400&h=250&fit=crop", // dollar bills/money
+  "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&h=250&fit=crop", // financial graphs
 ];
 
 const FEATURES = [
