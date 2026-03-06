@@ -5,62 +5,15 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 
-const NEWS_ITEMS = [
-  {
-    id: 1,
-    title: "S&P 500 Hits Record High on Tech Rally",
-    category: "Markets",
-    timestamp: "2 hours ago",
-    sentiment: "bullish",
-    summary: "Major tech stocks surge on AI enthusiasm and strong earnings reports, pushing the broader market to all-time highs.",
-    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop"
-  },
-  {
-    id: 2,
-    title: "Fed Signals Continued Rate Stability",
-    category: "Economy",
-    timestamp: "4 hours ago",
-    sentiment: "neutral",
-    summary: "Federal Reserve maintains interest rates, suggesting economic resilience and controlled inflation trajectory.",
-    image: "https://images.unsplash.com/photo-1553729784-e91953dec042?w=400&h=250&fit=crop"
-  },
-  {
-    id: 3,
-    title: "Bitcoin Breaks Above $95K Milestone",
-    category: "Crypto",
-    timestamp: "6 hours ago",
-    sentiment: "bullish",
-    summary: "Digital asset reaches new milestone amid institutional adoption and favorable macroeconomic conditions.",
-    image: "https://images.unsplash.com/photo-1518594934405-e27d1e575f57?w=400&h=250&fit=crop"
-  },
-  {
-    id: 4,
-    title: "Real Estate Markets Show Mixed Signals",
-    category: "Real Estate",
-    timestamp: "8 hours ago",
-    sentiment: "neutral",
-    summary: "Property markets vary by region with some areas showing strong demand while others face inventory challenges.",
-    image: "https://images.unsplash.com/photo-1577720643272-265f434a89f6?w=400&h=250&fit=crop"
-  },
-  {
-    id: 5,
-    title: "Green Energy Stocks Surge 12% This Week",
-    category: "Sectors",
-    timestamp: "10 hours ago",
-    sentiment: "bullish",
-    summary: "Renewable energy companies gain momentum on government incentives and accelerating climate commitments.",
-    image: "https://images.unsplash.com/photo-1509391366360-2e938d440220?w=400&h=250&fit=crop"
-  },
-  {
-    id: 6,
-    title: "Corporate Earnings Beat Expectations",
-    category: "Earnings",
-    timestamp: "12 hours ago",
-    sentiment: "bullish",
-    summary: "Q1 earnings season reveals strong corporate performance with majority of companies exceeding analyst forecasts.",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop"
-  },
-];
+const CATEGORY_IMAGES = {
+  "Markets": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
+  "Economy": "https://images.unsplash.com/photo-1553729784-e91953dec042?w=400&h=250&fit=crop",
+  "Crypto": "https://images.unsplash.com/photo-1518594934405-e27d1e575f57?w=400&h=250&fit=crop",
+  "Real Estate": "https://images.unsplash.com/photo-1577720643272-265f434a89f6?w=400&h=250&fit=crop",
+  "Sectors": "https://images.unsplash.com/photo-1509391366360-2e938d440220?w=400&h=250&fit=crop",
+  "Earnings": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop",
+  "default": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=250&fit=crop",
+};
 
 const FEATURES = [
   { icon: TrendingUp, label: "Real-Time Analysis", color: "from-blue-500 to-cyan-500" },
