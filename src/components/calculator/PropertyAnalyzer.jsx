@@ -606,7 +606,7 @@ export default function PropertyAnalyzer({ currency }) {
                   <Label className="text-xs font-bold text-slate-700">Extra Repayments</Label>
                   <Switch
                     checked={enableExtraRepayments}
-                    onCheckedChange={setEnableExtraRepayments} />
+                    onCheckedChange={setEnableExtraRepayments} className="text-slate-800 rounded-full peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input" />
 
                 </div>
                 
@@ -617,8 +617,8 @@ export default function PropertyAnalyzer({ currency }) {
                       <Input
                       type="number"
                       value={extraRepayments}
-                      onChange={(e) => setExtraRepayments(parseFloat(e.target.value) || 0)}
-                      className="pl-8 bg-slate-700/30 border-white/10 text-white"
+                      onChange={(e) => setExtraRepayments(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10"
+
                       placeholder="Monthly extra" />
 
                     </div>
@@ -695,7 +695,7 @@ export default function PropertyAnalyzer({ currency }) {
               <TrendingUp className="w-4 h-4" />
               Interest Rate Stress Test
             </h4>
-            <p className="text-xs text-slate-400 mb-4">What if interest rates rise?</p>
+            <p className="text-slate-800 mb-4 text-xs">What if interest rates rise?</p>
             
             <div className="space-y-4">
               <div className="space-y-3">
