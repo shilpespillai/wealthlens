@@ -55,7 +55,7 @@ function CalculatorContent() {
   const { isPremium, loading: subLoading } = useSubscription();
 
   // Persist state to sessionStorage whenever it changes
-  React.useEffect(() => {
+  useEffect(() => {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ instrument, params }));
     } catch {}
