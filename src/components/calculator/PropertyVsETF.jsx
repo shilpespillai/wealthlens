@@ -208,7 +208,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <div className="text-slate-600 flex justify-between">
                 <Label className="text-xs text-slate-300">Annual Growth</Label>
-                <span className="text-xs font-bold text-emerald-400">{propertyGrowth}%</span>
+                <span className="text-slate-700 text-xs font-bold">{propertyGrowth}%</span>
               </div>
               <Slider value={[propertyGrowth]} onValueChange={([v]) => setPropertyGrowth(v)} min={0} max={15} step={0.5} />
             </div>
@@ -242,7 +242,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label className="text-xs text-slate-300">Mortgage Rate</Label>
-                <span className="text-xs font-bold text-white">{mortgageRate}%</span>
+                <span className="text-slate-700 text-xs font-bold">{mortgageRate}%</span>
               </div>
               <Slider value={[mortgageRate]} onValueChange={([v]) => setMortgageRate(v)} min={2} max={12} step={0.1} />
             </div>
@@ -250,7 +250,7 @@ export default function PropertyVsETF({ currency }) {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label className="text-xs text-slate-900">Tax Benefit</Label>
-                <span className="text-xs font-bold text-white">{taxBenefit}%</span>
+                <span className="text-slate-700 text-xs font-bold">{taxBenefit}%</span>
               </div>
               <Slider value={[taxBenefit]} onValueChange={([v]) => setTaxBenefit(v)} min={0} max={30} step={1} />
             </div>
