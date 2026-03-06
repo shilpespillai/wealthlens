@@ -282,7 +282,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
           <div className="bg-orange-200 text-slate-500 mb-4 p-4 rounded-2xl border border-amber-500/30">
                 <h4 className="text-slate-800 mb-2 text-xs font-bold">⚠ Things to Watch</h4>
                 {result.warnings.map((w, i) =>
-            <p key={i} className="text-xs text-amber-200/80">{w}</p>
+            <p key={i} className="text-slate-600 text-xs">{w}</p>
             )}
               </div>
           }
