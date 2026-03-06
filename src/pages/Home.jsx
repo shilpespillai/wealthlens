@@ -114,6 +114,7 @@ export default function Home() {
       try {
         const response = await base44.functions.invoke("fetchLiveMarketData");
         setMarketData(response.data);
+        setMarketLastUpdated(new Date());
       } catch (error) {
         console.error("Failed to fetch market data:", error);
       } finally {
