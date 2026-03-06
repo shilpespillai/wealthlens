@@ -80,6 +80,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [marketData, setMarketData] = useState(null);
   const [marketLoading, setMarketLoading] = useState(true);
+  const [newsItems, setNewsItems] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   useEffect(() => {
     async function checkAuth() {
