@@ -348,6 +348,9 @@ export default function Home() {
         </div>
       </section>
 
+      <Testimonials />
+      <PricingSection />
+
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <motion.div
