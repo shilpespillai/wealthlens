@@ -214,7 +214,7 @@ export default function PropertyVsETF({ currency }) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Weekly Rent</Label>
+              <Label className="text-xs text-slate-900">Weekly Rent</Label>
               <div className="relative">
                 
                 <Input
@@ -227,7 +227,7 @@ export default function PropertyVsETF({ currency }) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Annual Expenses</Label>
+              <Label className="text-xs text-slate-900">Annual Expenses</Label>
               <div className="relative">
                 
                 <Input
@@ -241,7 +241,7 @@ export default function PropertyVsETF({ currency }) {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Mortgage Rate</Label>
+                <Label className="text-xs text-slate-900">Mortgage Rate</Label>
                 <span className="text-slate-700 text-xs font-bold">{mortgageRate}%</span>
               </div>
               <Slider value={[mortgageRate]} onValueChange={([v]) => setMortgageRate(v)} min={2} max={12} step={0.1} />
@@ -274,7 +274,7 @@ export default function PropertyVsETF({ currency }) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-300">Monthly Contribution</Label>
+              <Label className="text-xs text-slate-900">Monthly Contribution</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                 <Input
@@ -289,7 +289,7 @@ export default function PropertyVsETF({ currency }) {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label className="text-xs text-slate-300">Annual Fees</Label>
+                <Label className="text-xs text-slate-900">Annual Fees</Label>
                 <span className="text-xs font-bold text-white">{etfFees}%</span>
               </div>
               <Slider value={[etfFees]} onValueChange={([v]) => setEtfFees(v)} min={0} max={2} step={0.05} />
