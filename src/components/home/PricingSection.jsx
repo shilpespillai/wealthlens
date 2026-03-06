@@ -50,8 +50,8 @@ export default function PricingSection({ onGetStarted }) {
         successUrl: window.location.origin + createPageUrl("Calculator"),
         cancelUrl: window.location.origin + createPageUrl("Home")
       });
-      if (response.data?.sessionId) {
-        window.location.href = `https://checkout.stripe.com/pay/${response.data.sessionId}`;
+      if (response.data?.url) {
+        window.location.href = response.data.url;
       } else {
         alert("Checkout session creation failed. Please try again.");
       }
