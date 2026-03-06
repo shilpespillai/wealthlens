@@ -349,8 +349,8 @@ export default function PropertyVsETF({ currency }) {
 
       {/* Comparison Stats */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-emerald-500/10 rounded-2xl p-5 border border-emerald-400/20">
-          <h5 className="text-sm font-bold text-emerald-700 mb-4">Property Results</h5>
+        <div className="bg-slate-500 p-5 rounded-2xl border border-emerald-400/20">
+          <h5 className="text-slate-50 mb-4 text-sm font-bold">Property Results</h5>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-300">Final Equity</span>
@@ -373,8 +373,8 @@ export default function PropertyVsETF({ currency }) {
           </div>
         </div>
 
-        <div className="bg-indigo-500/10 rounded-2xl p-5 border border-indigo-400/20">
-          <h5 className="text-sm font-bold text-indigo-700 mb-4">ETF Results</h5>
+        <div className="bg-slate-500 p-5 rounded-2xl border border-indigo-400/20">
+          <h5 className="text-slate-50 mb-4 text-sm font-bold">ETF Results</h5>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-300">Final Value</span>
@@ -386,7 +386,7 @@ export default function PropertyVsETF({ currency }) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-300">ROI</span>
-              <span className="text-indigo-400 font-bold">{comparison.etfROI.toFixed(1)}%</span>
+              <span className="text-green-400 font-bold">{comparison.etfROI.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-300">Liquidity</span>
