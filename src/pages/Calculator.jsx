@@ -26,40 +26,71 @@ import { createPageUrl } from "@/utils";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
-const STORAGE_KEY = "wealthlens-calc-state";
+const LS_KEY = "wealthlens-calc-state";
 
-function loadState() {
+const DEFAULT_PARAMS = {
+  currency: "USD",
+  initialAmount: 10000,
+  monthlyContribution: 500,
+  years: 10,
+  returnRate: 10,
+  inflationRate: 3,
+  frequency: "monthly",
+  taxRate: 15,
+  fees: 0.5
+};
+
+function loadLocalState() {
   try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(LS_KEY);
     if (saved) return JSON.parse(saved);
   } catch {}
   return null;
 }
 
 function CalculatorContent() {
-  const saved = loadState();
-  const [instrument, setInstrument] = useState(saved?.instrument || "stocks");
-  const [params, setParams] = useState(saved?.params || {
-    currency: "USD",
-    initialAmount: 10000,
-    monthlyContribution: 500,
-    years: 10,
-    returnRate: 10,
-    inflationRate: 3,
-    frequency: "monthly",
-    taxRate: 15,
-    fees: 0.5
-  });
+  const local = loadLocalState();
+  const [instrument, setInstrument] = useState(local?.instrument || "stocks");
+  const [params, setParams] = useState(local?.params || DEFAULT_PARAMS);
+  const [userLoaded, setUserLoaded] = useState(false);
 
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
 
-  // Persist state to sessionStorage whenever it changes
+  // On mount: load persisted state from user profile (overrides localStorage if found)
   useEffect(() => {
+    async function loadFromProfile() {
+      try {
+        const user = await base44.auth.me();
+        if (user?.calc_params) {
+          const saved = JSON.parse(user.calc_params);
+          setParams(saved);
+        }
+        if (user?.calc_instrument) {
+          setInstrument(user.calc_instrument);
+        }
+      } catch {}
+      setUserLoaded(true);
+    }
+    loadFromProfile();
+  }, []);
+
+  // Save to localStorage immediately and debounce save to user profile
+  useEffect(() => {
+    if (!userLoaded) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ instrument, params }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ instrument, params }));
     } catch {}
-  }, [instrument, params]);
+    const timer = setTimeout(async () => {
+      try {
+        await base44.auth.updateMe({
+          calc_params: JSON.stringify(params),
+          calc_instrument: instrument
+        });
+      } catch {}
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [instrument, params, userLoaded]);
 
   const handleInstrumentChange = (id) => {
     setInstrument(id);
