@@ -7,6 +7,11 @@ import { createPageUrl } from "@/utils";
 import HowItWorks from "@/components/home/HowItWorks";
 import Testimonials from "@/components/home/Testimonials";
 import PricingSection from "@/components/home/PricingSection";
+import StatsBar from "@/components/home/StatsBar";
+import HeroCalculator from "@/components/home/HeroCalculator";
+import AssetShowcase from "@/components/home/AssetShowcase";
+import ComparisonTable from "@/components/home/ComparisonTable";
+import FAQ from "@/components/home/FAQ";
 
 const NEWS_IMAGES = [
   "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=250&fit=crop", // stock market screen
