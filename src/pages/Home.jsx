@@ -326,7 +326,7 @@ export default function Home() {
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
                 >
-                  <NewsCard item={item} />
+                  <NewsCard item={item} index={idx} />
                 </motion.div>
               ))}
             </div>
