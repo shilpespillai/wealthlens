@@ -34,9 +34,9 @@ Investment Details:
 - Annual Fees: ${params.fees || 0}%
 
 Projected Results:
-- Final Value: ${sym}${summary.finalPortfolioValue?.toLocaleString() || 0}
+- Final Value: ${sym}${summary.finalValue?.toLocaleString() || 0}
 - Real Value (inflation-adjusted): ${sym}${summary.realValue?.toLocaleString() || 0}
-- After-Tax Value: ${sym}${summary.afterTaxValue?.toLocaleString() || 0}
+- After-Tax Value: ${sym}${summary.afterTax?.toLocaleString() || 0}
 - Total Returns: ${sym}${summary.totalReturns?.toLocaleString() || 0}
 - Annualized Return: ${summary.annualizedReturn?.toFixed(1) || 0}%
 
