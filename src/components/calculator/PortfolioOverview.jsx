@@ -19,6 +19,7 @@ const INSTRUMENT_META = {
 
 export default function PortfolioOverview({ params, instrument, results, currency }) {
   const sym = getCurrencySymbol(currency);
+  const meta = INSTRUMENT_META[instrument] || { name: instrument, color: '#6366f1' };
 
   const portfolioMetrics = useMemo(() => {
     // Base investment metrics
