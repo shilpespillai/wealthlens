@@ -214,7 +214,7 @@ export default function PropertyVsETF({ currency }) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-900">Weekly Rent</Label>
+              <Label className="text-xs text-slate-300">Weekly Rent</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                 <Input
@@ -280,8 +280,8 @@ export default function PropertyVsETF({ currency }) {
                 <Input
                   type="number"
                   value={monthlyContribution}
-                  onChange={(e) => setMonthlyContribution(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-700/30 border-white/10 text-white" />
+                  onChange={(e) => setMonthlyContribution(parseFloat(e.target.value) || 0)} className="bg-slate-50 text-slate-700 pl-8 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-white/10" />
+
 
               </div>
               <p className="text-xs text-slate-500">Annual: {fmt(monthlyContribution * 12)}</p>
