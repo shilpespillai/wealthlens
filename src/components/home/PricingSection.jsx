@@ -52,9 +52,16 @@ export default function PricingSection({ onGetStarted }) {
         email = user?.email;
       } catch {}
 
-      // If not logged in, redirect to login first, then return to a checkout trigger page
+      // If not logged in, redirect to login first, then return to trigger checkout
       if (!email) {
         await base44.auth.redirectToLogin(window.location.origin + createPageUrl("Calculator") + "?checkout=1");
+        return;
+      }
+
+      // If already subscribed, just send them to Calculator
+      const subCheck = await base44.functions.invoke('checkSubscription', { email });
+      if (subCheck.data?.isActive) {
+        window.location.href = window.location.origin + createPageUrl("Calculator");
         return;
       }
 
