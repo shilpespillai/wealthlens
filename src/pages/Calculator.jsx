@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import SettingsDialog from "@/components/SettingsDialog";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
+import CurrencySelector from "@/components/calculator/CurrencySelector";
 import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
 import InvestmentForm, { getDefaultRate } from "@/components/calculator/InvestmentForm";
 import GrowthChart from "@/components/calculator/GrowthChart";
