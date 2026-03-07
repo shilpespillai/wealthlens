@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Bitcoin, Home, Landmark, Coins, Leaf, DollarSign } from "lucide-react";
+import { TrendingUp, BarChart3, Bitcoin, Home, Landmark, Coins, PieChart, Lock } from "lucide-react";
 
 const ASSETS = [
   { icon: TrendingUp, label: "Stocks", desc: "US & global equities", color: "from-blue-500 to-cyan-500" },
@@ -9,8 +9,8 @@ const ASSETS = [
   { icon: Home, label: "Property", desc: "Real estate analysis", color: "from-emerald-500 to-teal-500" },
   { icon: Landmark, label: "Bonds", desc: "Fixed income securities", color: "from-slate-500 to-gray-600" },
   { icon: Coins, label: "Gold", desc: "Precious metals", color: "from-yellow-400 to-amber-400" },
-  { icon: Leaf, label: "REITs", desc: "Real estate investment trusts", color: "from-green-500 to-emerald-600" },
-  { icon: DollarSign, label: "Cash", desc: "High-yield savings", color: "from-violet-500 to-purple-600" },
+  { icon: PieChart, label: "Mutual Funds", desc: "Diversified fund portfolios", color: "from-green-500 to-emerald-600" },
+  { icon: Lock, label: "Fixed Deposit", desc: "Guaranteed term returns", color: "from-violet-500 to-purple-600" },
 ];
 
 export default function AssetShowcase() {
