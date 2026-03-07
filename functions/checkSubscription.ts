@@ -9,12 +9,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Email required" }, { status: 400 });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const purchases = await base44.asServiceRole.entities.Subscription.filter({
-      email: email,
+      email: normalizedEmail,
       status: "completed",
     });
 
     const isActive = purchases.length > 0;
+    console.log(`Subscription check for ${normalizedEmail}: ${isActive} (${purchases.length} records)`);
 
     return Response.json({
       isActive,
