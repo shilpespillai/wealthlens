@@ -9,10 +9,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const response = await base44.integrations.Core.SendEmail({
-      to: "support@wealthlens.com",
-      subject: `Support Request: ${subject}`,
-      body: `From: ${userEmail}\n\nSubject: ${subject}\n\n${message}`,
+    // Send confirmation to the user who submitted the support request
+    await base44.integrations.Core.SendEmail({
+      to: userEmail,
+      subject: `We received your message: ${subject}`,
+      body: `Hi,\n\nThank you for reaching out! We have received your support request and will get back to you shortly.\n\n---\nYour message:\nSubject: ${subject}\n\n${message}\n\n---\nThe WealthLens Team`,
       from_name: "WealthLens Support"
     });
 
