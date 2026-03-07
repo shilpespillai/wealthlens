@@ -241,7 +241,7 @@ function CalculatorContent() {
                   </div>
                   Investment Parameters
                 </h3>
-                <InvestmentForm params={params} setParams={setParams} />
+                <InvestmentForm params={params} setParams={setParams} instrument={instrument} />
               </div>
             </motion.div>
           }
