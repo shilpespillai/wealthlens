@@ -67,11 +67,14 @@ function CalculatorContent() {
     if (urlParams.get("checkout") === "1") {
       // Remove param from URL cleanly
       window.history.replaceState({}, "", window.location.pathname);
-      // Trigger checkout with logged-in user's email
       (async () => {
         try {
           const user = await base44.auth.me();
           if (!user?.email) return;
+          // Check if already subscribed — if so, stay on Calculator
+          const subCheck = await base44.functions.invoke("checkSubscription", { email: user.email });
+          if (subCheck.data?.isActive) return;
+          // Not subscribed — proceed to Stripe checkout
           const response = await base44.functions.invoke("stripeCheckout", {
             priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
             email: user.email,
