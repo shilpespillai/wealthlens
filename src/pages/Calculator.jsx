@@ -125,7 +125,7 @@ function CalculatorContent() {
       } catch {}
     }, 1500);
     return () => clearTimeout(timer);
-  }, [instrument, params, userLoaded]);
+  }, [instrument, params, propertyCurrency, userLoaded]);
 
   const handleInstrumentChange = (id) => {
     setInstrument(id);
