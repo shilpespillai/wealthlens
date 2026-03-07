@@ -52,7 +52,7 @@ export default function InvestmentForm({ params, setParams }) {
 
       {/* Monthly Contribution */}
       <div className="space-y-3">
-        <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Monthly Contribution</Label>
+        <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Contribution</Label>
         <div className="relative">
           
           <Input
