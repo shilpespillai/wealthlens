@@ -61,6 +61,33 @@ function CalculatorContent() {
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
 
+  // Auto-trigger checkout if redirected here after login from pricing page
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("checkout") === "1") {
+      // Remove param from URL cleanly
+      window.history.replaceState({}, "", window.location.pathname);
+      // Trigger checkout with logged-in user's email
+      (async () => {
+        try {
+          const user = await base44.auth.me();
+          if (!user?.email) return;
+          const response = await base44.functions.invoke("stripeCheckout", {
+            priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
+            email: user.email,
+            successUrl: window.location.origin + window.location.pathname + "?upgraded=true",
+            cancelUrl: window.location.href,
+          });
+          if (response.data?.url) {
+            window.location.href = response.data.url;
+          }
+        } catch (err) {
+          console.error("Auto-checkout failed:", err);
+        }
+      })();
+    }
+  }, []);
+
   // On mount: load persisted state from user profile (overrides localStorage if found)
   useEffect(() => {
     async function loadFromProfile() {
