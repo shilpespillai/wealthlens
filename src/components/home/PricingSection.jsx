@@ -38,12 +38,26 @@ export default function PricingSection({ onGetStarted }) {
   };
 
   const handleUpgrade = async () => {
-    const email = prompt("Enter your email:");
-    if (!email) {
-      alert("Email is required to proceed with checkout.");
+    // Check if running in iframe (preview mode)
+    if (window.self !== window.top) {
+      alert("Checkout works only from the published app. Please open this app in a new tab to complete your purchase.");
       return;
     }
+
     try {
+      // Get logged-in user's email to ensure subscription is tied to their account
+      let email;
+      try {
+        const user = await base44.auth.me();
+        email = user?.email;
+      } catch {}
+
+      // If not logged in, redirect to login first then come back
+      if (!email) {
+        await base44.auth.redirectToLogin(window.location.href);
+        return;
+      }
+
       const response = await base44.functions.invoke('stripeCheckout', {
         priceId: LIVE_PRICE_ID,
         email: email.trim(),
