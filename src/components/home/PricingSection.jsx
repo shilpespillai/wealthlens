@@ -52,9 +52,9 @@ export default function PricingSection({ onGetStarted }) {
         email = user?.email;
       } catch {}
 
-      // If not logged in, redirect to login first then come back
+      // If not logged in, redirect to login first, then return to a checkout trigger page
       if (!email) {
-        await base44.auth.redirectToLogin(window.location.href);
+        await base44.auth.redirectToLogin(window.location.origin + createPageUrl("Calculator") + "?checkout=1");
         return;
       }
 
