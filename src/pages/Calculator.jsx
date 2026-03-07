@@ -114,7 +114,7 @@ function CalculatorContent() {
   useEffect(() => {
     if (!userLoaded) return;
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ instrument, params }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ instrument, params, propertyCurrency }));
     } catch {}
     const timer = setTimeout(async () => {
       try {
