@@ -279,14 +279,22 @@ function CalculatorContent() {
             {/* Property-Specific Analysis */}
             {instrument === "property" &&
             <>
-                <PropertyAnalyzer currency={params.currency} />
+                {/* Property Currency Selector */}
+                <div className="bg-white/60 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
+                  <label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em] whitespace-nowrap">Property Currency</label>
+                  <div className="flex-1 max-w-xs">
+                    <CurrencySelector value={propertyCurrency} onChange={setPropertyCurrency} />
+                  </div>
+                </div>
+
+                <PropertyAnalyzer currency={propertyCurrency} />
                 
                 {/* Property vs ETF Comparison */}
-                <PropertyVsETF currency={params.currency} />
+                <PropertyVsETF currency={propertyCurrency} />
 
                 {/* Equity Unlock Planner — Premium */}
                 <PremiumGate featureName="Equity Unlock Planner" isPremium={isPremium}>
-                  <EquityUnlockPlanner currency={params.currency} />
+                  <EquityUnlockPlanner currency={propertyCurrency} />
                 </PremiumGate>
               </>
             }
