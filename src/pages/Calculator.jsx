@@ -55,6 +55,7 @@ function CalculatorContent() {
   const local = loadLocalState();
   const [instrument, setInstrument] = useState(local?.instrument || "stocks");
   const [params, setParams] = useState(local?.params || DEFAULT_PARAMS);
+  const [propertyCurrency, setPropertyCurrency] = useState(local?.propertyCurrency || "USD");
   const [userLoaded, setUserLoaded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
