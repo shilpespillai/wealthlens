@@ -12,7 +12,12 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const getRedirectUrl = () => `${window.location.origin}/auth/callback`;
+  const getRedirectUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect_to');
+    const baseUrl = `${window.location.origin}/auth/callback`;
+    return redirectTo ? `${baseUrl}?redirect_to=${encodeURIComponent(redirectTo)}` : baseUrl;
+  };
 
   // ── Google OAuth ────────────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 const AuthContext = createContext();
 
@@ -10,87 +11,123 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   useEffect(() => {
+    // Initial state check
     checkAppState();
+
+    // Listen for Supabase auth changes
+    let authSubscription = null;
+    if (isSupabaseEnabled) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        if (session?.user) {
+          const mappedUser = {
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
+            provider: session.user.app_metadata?.provider || 'supabase',
+            avatar: session.user.user_metadata?.avatar_url,
+          };
+          setUser(mappedUser);
+          setIsAuthenticated(true);
+          setAuthError(null);
+          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem('mockUser');
+          if (event === 'SIGNED_OUT') {
+            setAuthError({ type: 'auth_required', message: 'Signed out successfully' });
+          }
+        }
+        setIsLoadingAuth(false);
+      });
+      authSubscription = subscription;
+    }
+
+    return () => {
+      if (authSubscription) authSubscription.unsubscribe();
+    };
   }, []);
 
   const checkAppState = async () => {
     try {
       setIsLoadingPublicSettings(true);
-      setAuthError(null);
-      
-      // Mock app public settings since the base44 backend is removed
-      setAppPublicSettings({
-        id: appParams.appId,
-        public_settings: {}
-      });
-      
-      // Directly check user auth with our mocked client
+      setAppPublicSettings({ id: appParams.appId, public_settings: {} });
       await checkUserAuth();
-      
       setIsLoadingPublicSettings(false);
     } catch (error) {
-      console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
+      console.error('AppState error:', error);
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
     }
   };
 
   const checkUserAuth = async () => {
+    setIsLoadingAuth(true);
     try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      if (currentUser) {
-        setUser(currentUser);
-        setIsAuthenticated(true);
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const mappedUser = {
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
+            provider: session.user.app_metadata?.provider || 'supabase',
+            avatar: session.user.user_metadata?.avatar_url,
+          };
+          setUser(mappedUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+        } else {
+          // Check local storage mock fallback
+          const localUser = await base44.auth.me();
+          if (localUser) {
+            setUser(localUser);
+            setIsAuthenticated(true);
+          } else {
+            setAuthError({ type: 'auth_required', message: 'Authentication required' });
+          }
+        }
       } else {
-        setUser(null);
-        setIsAuthenticated(false);
-        // Trigger auth required error to force redirect to login
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+        // purely mock fallback
+        const localUser = await base44.auth.me();
+        if (localUser) {
+          setUser(localUser);
+          setIsAuthenticated(true);
+        } else {
+          setAuthError({ type: 'auth_required', message: 'Authentication required' });
+        }
       }
-      setIsLoadingAuth(false);
     } catch (error) {
-      console.error('User auth check failed:', error);
+      console.error('Auth check error:', error);
+    } finally {
       setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
     }
   };
 
-  const logout = (shouldRedirect = true) => {
+  const logout = async (shouldRedirect = true) => {
+    if (isSupabaseEnabled) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setIsAuthenticated(false);
-    
+    localStorage.removeItem('mockUser');
     if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
-    } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
+      window.location.replace('/');
     }
   };
 
-  const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
+  const navigateToLogin = (returnUrl) => {
+    const url = new URL('/login', window.location.origin);
+    if (returnUrl) {
+      url.searchParams.set('redirect_to', returnUrl);
+    } else if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+      url.searchParams.set('redirect_to', window.location.pathname);
+    }
+    window.location.href = url.toString();
   };
 
   return (
@@ -112,8 +149,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
