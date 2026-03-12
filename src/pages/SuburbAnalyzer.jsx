@@ -184,38 +184,18 @@ export default function SuburbAnalyzer() {
     try {
       const { base44 } = await import("@/api/base44Client");
       
-      let demoData = null;
-      let perfData = null;
       let aiData = null;
 
-      if (suburbCountry === 'AU') {
-        const [demoResp, perfResp] = await Promise.all([
-          base44.functions.invoke('getDomainDemographics', { 
-            suburb: searchQuery, 
-            state: searchState, 
-            postcode: searchPostcode,
-            country: suburbCountry
-          }),
-          base44.functions.invoke('getDomainPerformance', { 
-            suburb: searchQuery, 
-            state: searchState, 
-            postcode: searchPostcode,
-            country: suburbCountry
-          })
-        ]);
-        demoData = demoResp.data;
-        perfData = perfResp.data;
-      } else {
-        const aiResp = await base44.functions.invoke('getGlobalAIInsights', { 
-          suburb: searchQuery, 
-          state: searchState, 
-          postcode: searchPostcode,
-          country: suburbCountry
-        });
-        aiData = aiResp.data;
-      }
+      // Use Gemini AI for all countries (AU + Global)
+      const aiResp = await base44.functions.invoke('getGlobalAIInsights', { 
+        suburb: searchQuery, 
+        state: searchState, 
+        postcode: searchPostcode,
+        country: suburbCountry
+      });
+      aiData = aiResp.data;
 
-      const newSuburb = processDomainData(demoData, perfData, searchQuery, searchState, searchPostcode, suburbCountry, aiData);
+      const newSuburb = processDomainData(null, null, searchQuery, searchState, searchPostcode, suburbCountry, aiData);
       // Inject country/currency info for global display if not already set by AI
       if (!newSuburb.currency) newSuburb.currency = currentActiveCountry.currency;
 

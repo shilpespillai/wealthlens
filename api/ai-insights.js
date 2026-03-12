@@ -20,25 +20,31 @@ export default async function handler(req, res) {
     });
   }
 
-  const prompt = `
-    Act as a professional global property investment analyst. 
-    Analyze the property market for: ${suburb}, ${state}, ${country} (${postcode || 'N/A'}).
-    
-    Return a strictly valid JSON response containing the following fields:
-    - medianPrice: estimated current median house price (number)
-    - currency: the local currency code (e.g., USD, AUD, GBP, INR)
-    - rentalYield: estimated annual rental yield percentage (number, e.g., 4.5)
-    - vacancyRate: estimated current vacancy rate percentage (number, e.g., 1.2)
-    - investmentScore: a score out of 100 representing investment potential (number)
-    - sentiment: a 2-word market sentiment (e.g., "Bullish / Strong", "Neutral / Monitor", "Bearish / Slow")
-    - insights: a 3-sentence summary of the local market conditions, growth drivers, and risks.
-    - demographics: an array of objects with { category: string, items: { label: string, value: number }[] }
-    - historicalSeries: an array of 5 objects representing the last 5 years with { year: number, value: number }
-    - projects: an array of 3 major infrastructure or development projects in the area.
+  const isAustralia = country === 'AU';
+  const countryContext = isAustralia 
+    ? `This is an Australian suburb. Use AUD pricing. Include auction clearance rates, proximity to CBD, public transport scores, and state-specific market dynamics (e.g. stamp duty impacts, population growth corridors). Reference CoreLogic-style data patterns.`
+    : `Use the local currency and regional market conventions for ${country}.`;
 
-    Ensure the data is as realistic as possible for the year 2024/2025.
-    If you do not have specific data, provide your best professional estimate based on regional trends.
-    Return ONLY JSON. No markdown formatting.
+  const prompt = `
+    Act as a professional global property investment analyst with deep expertise in ${country} real estate markets.
+    Analyze the property market for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
+
+    Context: ${countryContext}
+    
+    Return a strictly valid JSON response with these exact fields:
+    - medianPrice: current median house price as a number (e.g. 1250000 for AUD or 450000 for USD)
+    - currency: local currency code (e.g. "AUD", "USD", "GBP", "INR", "SGD")
+    - rentalYield: estimated annual gross rental yield as a percentage number (e.g. 4.5)
+    - vacancyRate: current vacancy rate as a percentage number (e.g. 1.2)
+    - investmentScore: a score out of 100 representing investment potential
+    - sentiment: a short market sentiment phrase (e.g. "Bullish / Strong", "Neutral / Monitor", "Bearish / Slow")
+    - insights: a 3-sentence professional summary of local market conditions, key growth drivers, and risks
+    - demographics: array of objects with { category: string, items: [{ label: string, value: number }] }
+    - historicalSeries: array of 5 objects representing last 5 years: [{ year: number, value: number }]
+    - projects: array of 3 strings describing major local infrastructure or development projects
+
+    Use 2024/2025 data. If you don't have exact figures, provide your best professional estimate based on regional trends.
+    Return ONLY valid JSON. No markdown, no explanation, no code blocks.
   `;
 
   try {

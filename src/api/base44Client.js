@@ -199,30 +199,46 @@ export const base44 = {
         }
         
         // Final fallback: High-quality local mock mirroring the AI structure
+        const isAU = country === 'AU';
+        const isUS = country === 'US';
+        const isUK = country === 'UK';
+        const fallbackPrice = isAU ? 950000 : isUS ? 480000 : isUK ? 380000 : 350000;
+        const fallbackCurrency = isAU ? 'AUD' : isUS ? 'USD' : isUK ? 'GBP' : 'USD';
+        const fallbackYield = isAU ? 3.8 : isUS ? 5.2 : isUK ? 4.1 : 5.0;
+        const growth = isAU ? 0.062 : 0.045;
+
         return {
           data: {
-            medianPrice: country === 'US' ? 450000 : country === 'UK' ? 320000 : 950000,
-            currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : 'AUD',
-            rentalYield: 5.2,
-            vacancyRate: 1.4,
-            investmentScore: 68,
-            sentiment: "Neutral / Monitor",
-            insights: `The property market in ${suburb} is showing resilience with steady demand from professional families. Low inventory is supporting current price levels despite high interest rates.`,
+            medianPrice: fallbackPrice,
+            currency: fallbackCurrency,
+            rentalYield: fallbackYield,
+            vacancyRate: isAU ? 1.1 : 1.8,
+            investmentScore: isAU ? 72 : 65,
+            sentiment: isAU ? "Bullish / Strong" : "Neutral / Monitor",
+            insights: isAU
+              ? `${suburb} is a well-established suburb with strong owner-occupier demand and historically low vacancy rates. Proximity to key employment corridors and quality school catchments continues to underpin capital growth. Interest rate pressures remain a headwind but the market is showing resilience.`
+              : `The property market in ${suburb} is showing resilience with steady demand from professional families. Low inventory is supporting current price levels despite high interest rates. Rental demand remains solid providing good yield support.`,
             demographics: [
               { category: "Age", items: [{ label: "0-14", value: 18 }, { label: "15-64", value: 70 }, { label: "65+", value: 12 }] },
-              { category: "Housing", items: [{ label: "Owned", value: 30 }, { label: "Mortgage", value: 35 }, { label: "Rented", value: 35 }] }
+              { category: "Housing", items: [{ label: "Owned", value: isAU ? 35 : 30 }, { label: "Mortgage", value: isAU ? 38 : 35 }, { label: "Rented", value: isAU ? 27 : 35 }] }
             ],
             categoryScores: {
-              affordability: 65,
-              lifestyle: 80,
-              transport: 75,
-              schools: 85,
-              safety: 90
+              affordability: isAU ? 55 : 65,
+              lifestyle: isAU ? 85 : 78,
+              transport: isAU ? 78 : 72,
+              schools: isAU ? 88 : 82,
+              safety: isAU ? 90 : 85
             },
             historicalSeries: [
-              { year: 2021, value: 380000 }, { year: 2022, value: 410000 }, { year: 2023, value: 435000 }, { year: 2024, value: 445000 }, { year: 2025, value: 450000 }
+              { year: 2021, value: Math.round(fallbackPrice / (1 + growth * 4)) },
+              { year: 2022, value: Math.round(fallbackPrice / (1 + growth * 3)) },
+              { year: 2023, value: Math.round(fallbackPrice / (1 + growth * 2)) },
+              { year: 2024, value: Math.round(fallbackPrice / (1 + growth)) },
+              { year: 2025, value: fallbackPrice }
             ],
-            projects: ["Local Transit Expansion", "New Commercial Hub", "State School Upgrade"]
+            projects: isAU 
+              ? ["State Infrastructure Investment Program", "Local Library and Community Centre Upgrade", "Transport Link Enhancement"]
+              : ["Local Transit Expansion", "New Commercial Hub", "State School Upgrade"]
           }
         };
       }
