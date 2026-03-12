@@ -77,9 +77,11 @@ function CalculatorContent() {
           const subCheck = await base44.functions.invoke("checkSubscription", { email: user.email });
           if (subCheck.data?.isActive) return;
           // Not subscribed — proceed to Stripe checkout
+          const price = await base44.app.getPrice();
           const response = await base44.functions.invoke("stripeCheckout", {
             priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
             email: user.email,
+            amount: price, // Pass dynamic price in dollars
             successUrl: window.location.origin + window.location.pathname + "?upgraded=true",
             cancelUrl: window.location.href,
           });

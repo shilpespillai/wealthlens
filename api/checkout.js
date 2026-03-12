@@ -26,6 +26,14 @@ export default async function handler(req, res) {
       customer: customer.id,
       payment_method_types: ['card'],
       mode: 'payment',
+      // Disable Stripe Link to prevent it from asking for a phone-based verification code
+      payment_method_options: {
+        card: {
+          link_settings: {
+            link_mode: 'disabled',
+          },
+        },
+      },
       line_items: [{
         price_data: {
           currency: 'usd',

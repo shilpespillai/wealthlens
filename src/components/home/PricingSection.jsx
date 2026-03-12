@@ -77,6 +77,7 @@ export default function PricingSection({ onGetStarted }) {
       const response = await base44.functions.invoke('stripeCheckout', {
         priceId: LIVE_PRICE_ID,
         email: email.trim(),
+        amount: price, // Pass dynamic price in dollars
         successUrl: window.location.origin + createPageUrl("Calculator"),
         cancelUrl: window.location.origin + createPageUrl("Home")
       });

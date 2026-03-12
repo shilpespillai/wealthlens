@@ -76,7 +76,10 @@ export default function Login() {
     if (isSupabaseEnabled) {
       const { error } = await supabase.auth.signUp({
         email, password,
-        options: { data: { full_name: name || email.split('@')[0] } }
+        options: { 
+          data: { full_name: name || email.split('@')[0] },
+          emailRedirectTo: getRedirectUrl()
+        }
       });
       if (error) { setError(error.message); setIsConnecting(null); return; }
       setSuccessMsg('Account created! Check your email to confirm, then sign in.');
