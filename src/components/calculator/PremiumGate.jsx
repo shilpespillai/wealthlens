@@ -83,14 +83,26 @@ export default function PremiumGate({ children, featureName, isPremium, compact 
         cancelUrl: window.location.href,
       });
 
-      const { sessionId } = response.data;
-      const { error } = await stripe.redirectToCheckout({ sessionId });
+      const { sessionId, url } = response.data;
       
-      if (error) {
-        console.error("Stripe error:", error);
-        alert("Checkout failed: " + error.message);
-        setLoading(false);
+      // If the backend returns a direct URL (Standard for modern Stripe Checkout), use it!
+      if (url) {
+        window.location.href = url;
+        return;
       }
+
+      // Fallback for older sessionId-based logic
+      if (sessionId) {
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) {
+          console.error("Stripe error:", error);
+          alert("Checkout failed: " + error.message);
+        }
+      } else {
+        throw new Error("No checkout URL or Session ID returned");
+      }
+      
+      setLoading(false);
     } catch (error) {
       console.error("Checkout error:", error);
       alert("Failed to start checkout: " + error.message);
