@@ -86,20 +86,18 @@ export const base44 = {
 
       if (name === 'stripeCheckout') {
         if (isProd) {
-          try {
-            const resp = await fetch('/api/checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(params),
-              cache: 'no-store'
-            });
-            if (resp.ok && resp.headers.get("content-type")?.includes("application/json")) {
-              const data = await resp.json();
-              return { data };
-            }
-          } catch (e) {
-            console.error("[Base44] Checkout failed:", e);
+          const resp = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+            cache: 'no-store'
+          });
+          const isJson = resp.headers.get("content-type")?.includes("application/json");
+          const data = isJson ? await resp.json() : null;
+          if (!resp.ok) {
+            throw new Error(data?.error || `Checkout API error: ${resp.status}`);
           }
+          return { data };
         }
         // Dev mock: simulate redirect
         return { data: { url: window.location.origin + '/calculator?checkout=success' } };
