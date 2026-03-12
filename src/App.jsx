@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import AuthCallback from '@/pages/AuthCallback';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -29,7 +30,7 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
-  const isPublicPage = ['/login', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(window.location.pathname.toLowerCase());
+  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(window.location.pathname.toLowerCase());
   const isHomePage = window.location.pathname === '/' || window.location.pathname === '';
 
   if (authError) {
@@ -47,6 +48,8 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      {/* OAuth callback — must be before dynamic page routes */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
           <MainPage />
