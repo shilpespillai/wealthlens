@@ -14,7 +14,13 @@ export default function Login() {
 
   const getRedirectUrl = () => {
     const params = new URLSearchParams(window.location.search);
-    const redirectTo = params.get('redirect_to');
+    let redirectTo = params.get('redirect_to');
+    
+    // Safety: Never redirect to localhost if we are currently on production
+    if (redirectTo && redirectTo.includes('localhost') && !window.location.origin.includes('localhost')) {
+      redirectTo = '/';
+    }
+
     const baseUrl = `${window.location.origin}/auth/callback`;
     return redirectTo ? `${baseUrl}?redirect_to=${encodeURIComponent(redirectTo)}` : baseUrl;
   };
