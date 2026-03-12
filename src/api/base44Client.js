@@ -1,6 +1,10 @@
 
 
 // Mocked base44 instance holding required methods completely local to the browser
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+
+const isProd = import.meta.env.PROD;
+
 export const base44 = {
   auth: {
     me: async () => {
@@ -10,6 +14,22 @@ export const base44 = {
       return null;
     },
     updateMe: async (data) => {
+      if (isSupabaseEnabled) {
+        const { data: user, error } = await supabase.auth.updateUser({
+          data: data
+        });
+        if (error) throw error;
+        const mappedUser = {
+          id: user.user.id,
+          email: user.user.email,
+          full_name: user.user.user_metadata?.full_name || user.user.user_metadata?.name || user.user.email?.split('@')[0],
+          provider: user.user.app_metadata?.provider || 'supabase',
+          avatar: user.user.user_metadata?.avatar_url,
+          ...user.user.user_metadata // Spread all metadata for easy access
+        };
+        localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+        return mappedUser;
+      }
       const user = JSON.parse(localStorage.getItem('mockUser')) || {};
       const updated = { ...user, ...data };
       localStorage.setItem('mockUser', JSON.stringify(updated));
@@ -63,7 +83,6 @@ export const base44 = {
       console.log(`[Base44] Function invoked: ${name}`, params);
       
       // In production, call real Vercel API endpoints
-      const isProd = import.meta.env.PROD;
 
       if (name === 'checkSubscription') {
         if (isProd) {
@@ -179,7 +198,7 @@ export const base44 = {
 
       if (name === 'getGlobalAIInsights') {
         const { suburb, state, postcode, country } = params;
-        if (isProd) {
+        if (isProd || window.location.hostname === 'localhost') {
           try {
             const resp = await fetch('/api/ai-insights', {
               method: 'POST',
@@ -275,7 +294,31 @@ export const base44 = {
   integrations: {
     Core: {
       InvokeLLM: async (params) => {
-         console.log('[Mock Base44] LLM Invoked', params);
+         console.log('[Base44] LLM Invoked', params);
+         
+         if (isProd || window.location.hostname === 'localhost') {
+           try {
+             // Identify the type based on the prompt content
+             let type = 'coach';
+             const pStr = String(params.prompt).toLowerCase();
+             if (pStr.includes('tax optimization')) type = 'tax';
+             if (pStr.includes('market sentiment') || pStr.includes('market conditions')) type = 'sentiment';
+
+             const resp = await fetch('/api/ai-chat', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ prompt: params.prompt, type }),
+               cache: 'no-store'
+             });
+             
+             if (resp.ok) {
+               return await resp.json();
+             }
+             console.warn("[Base44] AI Chat failed. Falling back to mock.");
+           } catch (e) {
+             console.error("[Base44] AI Chat error:", e);
+           }
+         }
 
          const promptStr = String(params.prompt).toLowerCase();
 
@@ -418,6 +461,29 @@ export const base44 = {
         }
       }
       return false;
+    }
+  },
+  user: {
+    saveData: async (key, data) => {
+      try {
+        await base44.auth.updateMe({ [key]: JSON.stringify(data) });
+        return true;
+      } catch (err) {
+        console.error(`[Base44] Failed to save ${key}:`, err);
+        return false;
+      }
+    },
+    loadData: async (key) => {
+      try {
+        const user = await base44.auth.me();
+        if (user && user[key]) {
+          return JSON.parse(user[key]);
+        }
+        return null;
+      } catch (err) {
+        console.error(`[Base44] Failed to load ${key}:`, err);
+        return null;
+      }
     }
   }
 };

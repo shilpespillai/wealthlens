@@ -107,6 +107,9 @@ function CalculatorContent() {
         if (user?.calc_instrument) {
           setInstrument(user.calc_instrument);
         }
+        if (user?.calc_currency) {
+          setPropertyCurrency(user.calc_currency);
+        }
       } catch {}
       setUserLoaded(true);
     }
@@ -123,7 +126,8 @@ function CalculatorContent() {
       try {
         await base44.auth.updateMe({
           calc_params: JSON.stringify(params),
-          calc_instrument: instrument
+          calc_instrument: instrument,
+          calc_currency: propertyCurrency
         });
       } catch {}
     }, 1500);
