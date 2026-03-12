@@ -19,25 +19,29 @@ export default async function handler(req, res) {
   }
 
   // System instructions based on the "type" of AI service requested
-  let systemContext = "Act as a professional financial advisor and investment coach.";
+  let systemContext = "Act as an elite, high-performance financial advisor.";
   if (type === 'tax') {
-    systemContext = "Act as a tax optimization expert and financial planner specialized in global taxation strategies.";
+    systemContext = "Act as a world-class tax optimization expert specialized in global taxation and wealth preservation.";
   } else if (type === 'sentiment') {
-    systemContext = "Act as a market sentiment analyst and technical property researcher.";
+    systemContext = "Act as a forensic market researcher and senior property analyst.";
   }
 
   const fullPrompt = `
     ${systemContext}
     
-    User Query: ${prompt}
+    CRITICAL INSTRUCTION: You must provide hyper-personalized advice. 
+    DO NOT use generic disclaimers or "resilient market" filler unless supported by the specific data in the prompt.
+    COMPUTE calculations the user can't easily do. Use the EXACT currency and amounts provided.
+    
+    User Detail & Task: ${prompt}
     
     Return a strictly valid JSON response. 
-    IF type is 'coach': { "assessment": "string", "tone": "string", "recommendations": [{ "action": "string", "impact": "string", "priority": "string" }], "key_insights": ["string"], "closing_motivation": "string" }
-    IF type is 'tax': { "summary": "string", "strategies": [{ "title": "string", "description": "string", "estimated_savings": "string", "timeframe": "string", "difficulty": "string" }], "account_recommendations": [{ "account_type": "string", "benefits": "string", "contribution_limits": "string" }], "withdrawal_strategy": "string", "key_tips": ["string"] }
-    IF type is 'sentiment': { "sentiment": "bullish|neutral|bearish", "summary": "string", "key_trends": ["string"], "outlook": "string", "risks": ["string"], "recommended_rates": { "conservative": number, "moderate": number, "aggressive": number } }
+    IF type is 'coach': { "assessment": "sharp 2-sentence mathematical evaluation", "tone": "encouraging|urgent|excellent", "recommendations": [{ "action": "specific task", "impact": "mathematical result of this task", "priority": "high|medium|low" }], "key_insights": ["data-driven insight from prompt"], "closing_motivation": "compelling closing" }
+    IF type is 'tax': { "summary": "impact-focused summary", "strategies": [{ "title": "strategy name", "description": "detailed how-to", "estimated_savings": "approx amount in user currency", "timeframe": "string", "difficulty": "Easy|Moderate|Complex" }], "account_recommendations": [{ "account_type": "string", "benefits": "tax savings focus", "contribution_limits": "current info" }], "withdrawal_strategy": "string", "key_tips": ["advanced tip"] }
+    IF type is 'sentiment': { "sentiment": "bullish|neutral|bearish", "summary": "1-sentence summary of the specific asset and currency", "key_trends": ["specific trigger/event"], "outlook": "growth projections", "risks": ["downside triggers"], "recommended_rates": { "conservative": number, "moderate": number, "aggressive": number } }
 
-    Ensure all numbers and advice are mathematically sound and personalized to the user's situation described in the prompt.
-    Return ONLY valid JSON. No markdown, no explanation, no code blocks.
+    Ensure all advice is mathematically sound and DIRECTLY references the numbers/scenarios provided.
+    Return ONLY valid JSON.
   `;
 
   try {

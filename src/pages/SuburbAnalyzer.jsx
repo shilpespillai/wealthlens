@@ -123,12 +123,29 @@ export default function SuburbAnalyzer() {
       const { base44 } = await import("@/api/base44Client");
       
       let aiData = null;
+      // Load calculator context for better AI personalization
+      let budgetContext = "";
+      try {
+        const calcParams = await base44.user.loadData('calc_params');
+        if (calcParams) {
+          const p = typeof calcParams === 'string' ? JSON.parse(calcParams) : calcParams;
+          budgetContext = `USER FINANCIAL CONTEXT:
+- Budget/Initial: ${p.currency} ${p.initialAmount?.toLocaleString()}
+- Monthly Contribution: ${p.currency} ${p.monthlyContribution?.toLocaleString()}
+- Time Horizon: ${p.years} years
+- Target Return: ${p.returnRate}%
+`;
+        }
+      } catch (e) {
+        console.warn("Failed to load calculator context for AI:", e);
+      }
 
       // Use Gemini AI for all countries (AU + Global)
       const aiResp = await base44.functions.invoke('getGlobalAIInsights', { 
         suburb: searchQuery, 
         state: searchState, 
-        country: suburbCountry
+        country: suburbCountry,
+        userContext: budgetContext // Pass the new context
       });
       aiData = aiResp.data;
 

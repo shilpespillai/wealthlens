@@ -40,6 +40,11 @@ PROJECTIONS:
 - Total Profit: ${sym}${summary.totalReturns?.toLocaleString() || 0}
 - Net Annualized Yield: ${summary.annualizedReturn?.toFixed(1) || 0}%
 
+MILESTONES (Growth Curve):
+- Year 5: ${sym}${results.yearlyData?.find(d => d.year === 5)?.value?.toLocaleString() || 'N/A'}
+- Year 10: ${sym}${results.yearlyData?.find(d => d.year === 10)?.value?.toLocaleString() || 'N/A'}
+- Year 20: ${sym}${results.yearlyData?.find(d => d.year === 20)?.value?.toLocaleString() || 'N/A'}
+
 YOUR TASK:
 1. Provide a sharp 1-2 sentence assessment of the sustainability and aggressiveness of this strategy.
 2. Give 3-4 highly specific recommendations that use EXACT numbers (e.g., "Increasing your monthly contribution by $250 will yield an extra $140,000" or "Your ${params.fees}% fee is dragging returns down by $X").

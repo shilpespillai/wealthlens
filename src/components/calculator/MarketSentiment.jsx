@@ -22,7 +22,7 @@ const instrumentNames = {
   gold: "Gold and Precious Metals"
 };
 
-export default function MarketSentiment({ instrument, currency }) {
+export default function MarketSentiment({ instrument, currency, params }) {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
@@ -33,10 +33,11 @@ export default function MarketSentiment({ instrument, currency }) {
     try {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Analyze the current market conditions for ${instrumentNames[instrument]} in ${currency} currency. 
+        The investor has a ${params?.years || 20}-year time horizon.
         Provide a concise analysis covering:
         1. Current market sentiment (bullish/neutral/bearish)
         2. Key market trends and factors
-        3. Short-term outlook (next 6-12 months)
+        3. Short-term outlook (next 6-12 months) vs long-term viability for their ${params?.years || 20}-year horizon.
         4. Risk factors to consider
         5. Recommended return rate range for conservative, moderate, and aggressive scenarios
         

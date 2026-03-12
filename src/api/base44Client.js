@@ -322,118 +322,15 @@ export const base44 = {
 
          const promptStr = String(params.prompt).toLowerCase();
 
-         // Detect currency to localize responses
-         const currencyMatch = promptStr.match(/in ([a-z]{3}) currency|currency: ([a-z]{3})/i);
-         const currency = currencyMatch ? (currencyMatch[1] || currencyMatch[2]).toUpperCase() : 'USD';
-         
-         let countryName = 'the US';
-         let taxAccounts = { primary: 'Roth IRA', secondary: 'HSA', taxFree: 'tax free' };
-         
-         if (currency === 'GBP') {
-             countryName = 'the UK';
-             taxAccounts = { primary: 'Stocks & Shares ISA', secondary: 'SIPP', taxFree: 'tax free' };
-         } else if (currency === 'EUR') {
-             countryName = 'Europe';
-             taxAccounts = { primary: 'tax-advantaged savings accounts', secondary: 'pension schemes', taxFree: 'tax-exempt' };
-         } else if (currency === 'AUD') {
-             countryName = 'Australia';
-             taxAccounts = { primary: 'Superannuation', secondary: 'Investment Bonds', taxFree: 'tax free' };
-         } else if (currency === 'CAD') {
-             countryName = 'Canada';
-             taxAccounts = { primary: 'TFSA', secondary: 'RRSP', taxFree: 'tax free' };
-         } else if (currency === 'INR') {
-             countryName = 'India';
-             taxAccounts = { primary: 'PPF / ELSS', secondary: 'NPS', taxFree: 'tax-exempt' };
-         }
-
-         // Detect instrument for Market Sentiment
-         const isStocks = promptStr.includes('stock') || promptStr.includes('etf');
-         const isCrypto = promptStr.includes('crypto');
-         const isProperty = promptStr.includes('property') || promptStr.includes('real estate');
-         
-         let instrumentName = 'the market';
-         if (isStocks) instrumentName = 'equities';
-         if (isCrypto) instrumentName = 'the crypto market';
-         if (isProperty) instrumentName = 'the property market';
-
-         // If it's the Market Sentiment prompt
-         if (promptStr.includes('market conditions for') || promptStr.includes('market sentiment')) {
-           return {
-             sentiment: Math.random() > 0.5 ? "bullish" : "neutral", 
-             summary: `The outlook for ${instrumentName} in ${countryName} is currently showing mixed signals but leans positive based on local economic indicators for ${currency}.`,
-             key_trends: [`Local inflation trends impacting ${currency}`, `${instrumentName} adjusting to central bank policies in ${countryName}`, "Retail participation stabilizing"],
-             outlook: `Cautiously optimistic for the next 6-12 months for ${currency} denominated assets.`,
-             risks: ["Geopolitical tensions", `Unexpected rate hikes by the central bank in ${countryName}`],
-             recommended_rates: { conservative: 4.5, moderate: 7.0, aggressive: 10.5 }
-           };
-         }
-
-         // If it's the Tax Optimization prompt
-         if (promptStr.includes('tax optimization expert')) {
-           return {
-             summary: `Given your projected returns in ${countryName}, focusing on ${currency} denominated tax sheltered accounts will dramatically improve your net take home.`,
-             strategies: [
-               { title: `Maximize ${taxAccounts.primary} Contributions`, description: `Contribute to ${taxAccounts.primary} before fully funding taxable brokerages in ${countryName}.`, estimated_savings: "Varies", timeframe: "Annually", difficulty: "Easy" },
-               { title: "Tax Loss Harvesting", description: "Offset capital gains by selling underperforming assets strategically before the local financial year end.", estimated_savings: "Varies", timeframe: "End of Year", difficulty: "Moderate" }
-             ],
-             account_recommendations: [
-               { account_type: taxAccounts.primary, benefits: `${taxAccounts.taxFree} growth and withdrawals`, contribution_limits: "Annual limit applies" },
-               { account_type: taxAccounts.secondary, benefits: "Tax deferred growth for retirement", contribution_limits: "Subject to income" }
-             ],
-             withdrawal_strategy: `Pull from taxable accounts first, then tax deferred, and finally ${taxAccounts.taxFree} accounts to allow maximum compounding under ${countryName} tax laws.`,
-             key_tips: [`Consult a local tax professional in ${countryName} before making major changes`, "Keep investments held longer than 1 year for long-term capital gains rates"]
-           };
-         }
-
-         // Default/Fallback: Investment Coach prompt
-         // Extract values from the prompt using regex to give realistic, hyper-personalized mock advice
-         const getNum = (regex) => {
-           const match = promptStr.match(regex);
-           if (!match) return 0;
-           return parseFloat(match[1].replace(/,/g, ''));
-         };
-         
-         const initial = getNum(/initial capital: [^\d]*([\d,]+)/i) || getNum(/initial investment: [^\d]*([\d,]+)/i);
-         const monthly = getNum(/monthly addition: [^\d]*([\d,]+)/i) || getNum(/monthly contribution: [^\d]*([\d,]+)/i);
-         const horizon = getNum(/horizon: (\d+)/i) || getNum(/time horizon: (\d+)/i) || 20;
-         const finalVal = getNum(/nominal final value: [^\d]*([\d,]+)/i) || getNum(/final value: [^\d]*([\d,]+)/i);
-         const fees = getNum(/annual fees: ([\d.]+)/i);
-         const expectedReturn = getNum(/assumed return: ([\d.]+)/i) || getNum(/expected return: ([\d.]+)/i);
-
-         // Calculate a realistic impact: increasing contributions by 20%
-         const extraMonthly = Math.round(monthly * 0.2) || 100;
-         const rate = expectedReturn / 100 / 12;
-         const months = horizon * 12;
-         const futureValueExtra = Math.round(extraMonthly * ((Math.pow(1 + rate, months) - 1) / rate));
-         
-         // Calculate fee impact roughly
-         const feeImpact = Math.round(finalVal * (fees / 100) * (horizon / 2));
-
+         // Default fallback if API fails
          return {
-           assessment: `Based on your ${horizon}-year horizon and ${expectedReturn}% target return in ${countryName}, your portfolio is well-positioned, but we can optimise it significantly.`,
-           tone: "excellent",
+           assessment: "AI analysis is currently unavailable locally. Please ensure your Vercel dev server is running with a valid Gemini API key.",
+           tone: "cautious",
            recommendations: [
-             { 
-               action: `Increase your monthly contribution by ${currency} ${extraMonthly.toLocaleString()}`, 
-               impact: `This small change compounds to an extra ${currency} ${futureValueExtra.toLocaleString()} at year ${horizon}.`, 
-               priority: "high" 
-             },
-             { 
-               action: fees > 0.5 ? `Lower your ${fees}% annual fee` : "Reinvest all dividend yields automatically", 
-               impact: fees > 0.5 ? `Current fees will drag your portfolio down by approximately ${currency} ${feeImpact.toLocaleString()} over ${horizon} years.` : "Accelerates compounding significantly in the final 5 years.", 
-               priority: fees > 0.5 ? "urgent" : "medium" 
-             },
-             {
-               action: `Utilize ${taxAccounts.primary} in ${countryName}`,
-               impact: `Shields your ${currency} ${(finalVal - (initial + monthly * 12 * horizon)).toLocaleString()} projected profit from massive tax drag.`,
-               priority: "high"
-             }
+             { action: "Check your local setup", impact: "Enables real-time AI insights", priority: "high" }
            ],
-           key_insights: [
-             `Your largest risk is the ${fees}% fee compounding negatively against your ${expectedReturn}% gross return.`,
-             `Your biggest opportunity is tax-advantaged compounding inside ${countryName}'s ${taxAccounts.taxFree} system.`
-           ],
-           closing_motivation: `You are on track to build serious wealth. Tweak these numbers today, and your future self will thank you!`
+           key_insights: ["Local API connectivity required for personalized metrics"],
+           closing_motivation: "Re-enable your local proxy to see mathematically sound advice!"
          };
 
       }

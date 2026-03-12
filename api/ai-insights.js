@@ -4,47 +4,44 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { suburb, state, country, postcode } = req.body;
+  const { suburb, state, country, postcode, userContext } = req.body;
   
   if (!suburb || !country) {
     return res.status(400).json({ error: 'Missing required parameters: suburb and country' });
   }
 
-  // Support both Gemini and OpenAI
-  const geminiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
-
-  if (!geminiKey && !openaiKey) {
-    return res.status(500).json({ 
-      error: 'AI API keys not configured. Please set GOOGLE_GENERATIVE_AI_API_KEY or OPENAI_API_KEY in environment variables.' 
-    });
-  }
-
+  // ... (rest of the setup)
   const isAustralia = country === 'AU';
   const countryContext = isAustralia 
     ? `This is an Australian suburb. Use AUD pricing. Include auction clearance rates, proximity to CBD, public transport scores, and state-specific market dynamics (e.g. stamp duty impacts, population growth corridors). Reference CoreLogic-style data patterns.`
     : `Use the local currency and regional market conventions for ${country}.`;
 
   const prompt = `
-    Act as a professional global property investment analyst with deep expertise in ${country} real estate markets.
-    Analyze the property market for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
+    Act as a senior real estate research director with 20 years experience in the ${country} market.
+    Perform a deep-dive analysis for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
+
+    ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this suburb is a good fit for their budget and goals.` : ""}
 
     Context: ${countryContext}
     
+    CRITICAL: 
+    - NEVER use generic filler like "well-established suburb" or "showing resilience" unless you can provide a specific local catalyst (e.g. a new rail link, rezoning, or industrial hub expansion).
+    - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
+    - Prices and yields MUST be realistic for 2024/2025.
+    
     Return a strictly valid JSON response with these exact fields:
-    - medianPrice: current median house price as a number (e.g. 1250000 for AUD or 450000 for USD)
-    - currency: local currency code (e.g. "AUD", "USD", "GBP", "INR", "SGD")
-    - rentalYield: estimated annual gross rental yield as a percentage number (e.g. 4.5)
-    - vacancyRate: current vacancy rate as a percentage number (e.g. 1.2)
-    - investmentScore: a score out of 100 representing investment potential
-    - sentiment: a short market sentiment phrase (e.g. "Bullish / Strong", "Neutral / Monitor", "Bearish / Slow")
-    - insights: a 3-sentence professional summary of local market conditions, key growth drivers, and risks
-    - demographics: array of objects with { category: string, items: [{ label: string, value: number }] }
-    - historicalSeries: array of 5 objects representing last 5 years: [{ year: number, value: number }]
-    - projects: array of 3 strings describing major local infrastructure or development projects
+    - medianPrice: number (current median house price in local units)
+    - currency: local currency code
+    - rentalYield: annual gross yield % (number)
+    - vacancyRate: vacancy rate % (number)
+    - investmentScore: score out of 100
+    - sentiment: "Bullish / Strong" | "Neutral / Monitor" | "Bearish / Slow"
+    - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS. No fluff.
+    - demographics: array of objects { category, items: [{ label, value }] }
+    - historicalSeries: array of 5 years { year, value }
+    - projects: array of 3 specific CURRENT local developments.
 
-    Use 2024/2025 data. If you don't have exact figures, provide your best professional estimate based on regional trends.
-    Return ONLY valid JSON. No markdown, no explanation, no code blocks.
+    Return ONLY valid JSON.
   `;
 
   try {

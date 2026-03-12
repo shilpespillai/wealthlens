@@ -388,7 +388,7 @@ function CalculatorContent() {
 
               <TabsContent value="market" className="mt-6">
                 <PremiumGate featureName="Market Sentiment Analysis" isPremium={isPremium}>
-                  <MarketSentiment instrument={instrument} currency={params.currency} />
+                  <MarketSentiment instrument={instrument} currency={params.currency} params={params} />
                 </PremiumGate>
               </TabsContent>
 
