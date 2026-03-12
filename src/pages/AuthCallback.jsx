@@ -47,9 +47,10 @@ export default function AuthCallback() {
       } else if (event === 'SIGNED_OUT' || (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION' && event !== 'TOKEN_REFRESHED')) {
         // Handle error states
         const urlParams = new URLSearchParams(window.location.search);
-        const error = urlParams.get('error_description') || urlParams.get('error');
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const error = urlParams.get('error_description') || urlParams.get('error') || hashParams.get('error_description') || hashParams.get('error');
         if (error) {
-          setErrorMsg(decodeURIComponent(error));
+          setErrorMsg(decodeURIComponent(error.replace(/\+/g, ' ')));
           setStatus('error');
         }
       }
