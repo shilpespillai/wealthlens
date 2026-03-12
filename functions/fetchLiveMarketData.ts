@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     
     // Fetch live market data from LLM with web search
     const now = new Date().toISOString();
-    const marketData = await base44.integrations.Core.InvokeLLM({
+    const marketData = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `It is currently ${now}. Search the web RIGHT NOW for the latest real-time prices of these financial instruments. 
       
 CRITICAL: Use accurate current prices. As of early 2026:
