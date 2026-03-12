@@ -29,13 +29,18 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
+  const isPublicPage = ['/login', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(window.location.pathname.toLowerCase());
+  const isHomePage = window.location.pathname === '/' || window.location.pathname === '';
+
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
+      // Only redirect if it's not a public page or home page
+      if (!isPublicPage && !isHomePage) {
+        navigateToLogin();
+        return null;
+      }
     }
   }
 
@@ -51,6 +56,18 @@ const AuthenticatedApp = () => {
         <Route
           key={path}
           path={`/${path}`}
+          element={
+            <LayoutWrapper currentPageName={path}>
+              <Page />
+            </LayoutWrapper>
+          }
+        />
+      ))}
+      {/* Ensure lower case matching works since user types /about but component is About */}
+      {Object.entries(Pages).map(([path, Page]) => (
+        <Route
+          key={`lower-${path}`}
+          path={`/${path.toLowerCase()}`}
           element={
             <LayoutWrapper currentPageName={path}>
               <Page />

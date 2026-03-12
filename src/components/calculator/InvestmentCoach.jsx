@@ -21,32 +21,32 @@ export default function InvestmentCoach({ params, instrument, results }) {
       const summary = results.summary;
       
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an experienced financial coach. Analyze this investment scenario and provide personalized, actionable advice in a friendly, mentor-like tone.
+        prompt: `Act as an elite financial advisor analyzing a client's portfolio. Provide hyper-personalized, mathematically sound advice in a direct, encouraging tone.
 
-Investment Details:
-- Asset: ${instrument}
-- Initial Investment: ${sym}${params.initialAmount?.toLocaleString() || 0}
-- Monthly Contribution: ${sym}${params.monthlyContribution?.toLocaleString() || 0}
-- Time Horizon: ${params.years || 0} years
-- Expected Return: ${params.returnRate || 0}%
-- Inflation Rate: ${params.inflationRate || 0}%
+CLIENT SCENARIO:
+- Asset Class: ${instrument}
+- Initial Capital: ${sym}${params.initialAmount?.toLocaleString() || 0}
+- Monthly Addition: ${sym}${params.monthlyContribution?.toLocaleString() || 0}
+- Horizon: ${params.years || 0} years
+- Assumed Return: ${params.returnRate || 0}% p.a.
+- Assumed Inflation: ${params.inflationRate || 0}% p.a.
 - Tax Rate: ${params.taxRate || 0}%
 - Annual Fees: ${params.fees || 0}%
 
-Projected Results:
-- Final Value: ${sym}${summary.finalValue?.toLocaleString() || 0}
-- Real Value (inflation-adjusted): ${sym}${summary.realValue?.toLocaleString() || 0}
-- After-Tax Value: ${sym}${summary.afterTax?.toLocaleString() || 0}
-- Total Returns: ${sym}${summary.totalReturns?.toLocaleString() || 0}
-- Annualized Return: ${summary.annualizedReturn?.toFixed(1) || 0}%
+PROJECTIONS:
+- Nominal Final Value: ${sym}${summary.finalValue?.toLocaleString() || 0}
+- Real Purchasing Power: ${sym}${summary.realValue?.toLocaleString() || 0}
+- Net After-Tax: ${sym}${summary.afterTax?.toLocaleString() || 0}
+- Total Profit: ${sym}${summary.totalReturns?.toLocaleString() || 0}
+- Net Annualized Yield: ${summary.annualizedReturn?.toFixed(1) || 0}%
 
-Provide:
-1. A personalized assessment of their strategy (1-2 sentences, direct and honest)
-2. 3-4 specific, actionable recommendations with exact numbers (e.g., "Increase monthly investment by $420" or "Extend timeline by 2 years")
-3. Key insights about their situation (risks, opportunities, trade-offs)
-4. A motivational closing statement
+YOUR TASK:
+1. Provide a sharp 1-2 sentence assessment of the sustainability and aggressiveness of this strategy.
+2. Give 3-4 highly specific recommendations that use EXACT numbers (e.g., "Increasing your monthly contribution by $250 will yield an extra $140,000" or "Your ${params.fees}% fee is dragging returns down by $X").
+3. List 2-3 key insights identifying the biggest hidden risk and largest opportunity in this specific setup.
+4. Provide a strong closing motivational thought.
 
-Be conversational, specific, and practical. Use "you" and "your". Focus on actionable advice with concrete numbers.`,
+CRITICAL: Do not use generic advice. Every recommendation MUST reference the specific numbers provided above. Calculate simple math if needed for impact statements.`,
         add_context_from_internet: false,
         response_json_schema: {
           type: "object",
@@ -82,7 +82,7 @@ Be conversational, specific, and practical. Use "you" and "your". Focus on actio
 
   useEffect(() => {
     fetchCoaching();
-  }, [params.initialAmount, params.monthlyContribution, params.years, params.returnRate, results.summary.finalPortfolioValue]);
+  }, [params.initialAmount, params.monthlyContribution, params.years, params.returnRate, results?.summary?.finalValue]);
 
   const toneConfig = {
     encouraging: { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: TrendingUp },

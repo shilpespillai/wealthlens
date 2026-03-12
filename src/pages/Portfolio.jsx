@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { PieChart as PieChartIcon, TrendingUp, DollarSign, Plus, Trash2, BarChart3, Download } from "lucide-react";
+import { PieChart as PieChartIcon, TrendingUp, DollarSign, Plus, Trash2, BarChart3, Download, Lock } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,8 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { generatePortfolioPdf } from "@/components/portfolio/generatePortfolioPdf";
 import { toast } from "sonner";
+import PremiumGate from "@/components/calculator/PremiumGate";
+import { useSubscription } from "@/components/calculator/useSubscription";
 
 const ASSET_CLASSES = [
   { id: "stocks", label: "Stocks", color: "#6366f1" },
@@ -37,6 +39,7 @@ function PortfolioContent() {
   const [holdings, setHoldings] = useState(DEFAULT_HOLDINGS);
   const [nextId, setNextId] = useState(4);
   const [userLoaded, setUserLoaded] = useState(false);
+  const { isPremium } = useSubscription();
 
   // Load from user profile on mount
   useEffect(() => {
@@ -142,7 +145,7 @@ function PortfolioContent() {
             <span className="text-slate-300">|</span>
             <h1 className="text-lg font-black text-slate-900">Portfolio Dashboard</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Select value={currency} onValueChange={setCurrency}>
               <SelectTrigger className="w-28 h-9 text-sm">
                 <SelectValue />
@@ -153,21 +156,27 @@ function PortfolioContent() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2 text-sm"
-              onClick={() => {
-                try {
-                  generatePortfolioPdf({ holdings, currency });
-                  toast.success("Portfolio PDF downloaded!");
-                } catch (e) {
-                  toast.error("Failed to generate PDF");
-                }
-              }}
-            >
-              <Download className="w-4 h-4" /> Export PDF
-            </Button>
+            <div className="relative flex items-center h-9">
+              <PremiumGate featureName="Export PDF" isPremium={isPremium} compact={true} noOverlay={true}>
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 px-4 rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2 border-0"
+                  onClick={() => {
+                    if (!isPremium) return; 
+                    try {
+                      generatePortfolioPdf({ holdings, currency });
+                      toast.success("Portfolio PDF downloaded!");
+                    } catch (e) {
+                      toast.error("Failed to generate PDF");
+                    }
+                  }}
+                >
+                  {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  Export PDF
+                  {!isPremium && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
+                </Button>
+              </PremiumGate>
+            </div>
           </div>
         </div>
       </div>

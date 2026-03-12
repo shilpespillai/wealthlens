@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, BrainCircuit, PieChart as PieChartIcon, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, BrainCircuit, PieChart as PieChartIcon, Settings, PiggyBank, Map as MapIcon, Lock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -25,8 +27,6 @@ import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
 import PremiumGate from "@/components/calculator/PremiumGate";
 import AuthGuard from "@/components/AuthGuard";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
 
@@ -194,10 +194,26 @@ function CalculatorContent() {
                 <span>20+ Currencies</span>
               </div>
             </div>
-            <div className="mt-6">
-              <Link to={createPageUrl("Portfolio")} className="bg-amber-300 text-slate-600 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link to={createPageUrl("Portfolio")} className="bg-amber-300 text-slate-600 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-indigo-700 hover:text-white transition-colors shadow-lg shadow-indigo-500/20">
                 <PieChartIcon className="w-4 h-4" /> View Portfolio Dashboard
               </Link>
+              <Link to={createPageUrl("FamilyBudget")} className="bg-emerald-100 text-emerald-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-colors shadow-lg shadow-emerald-500/20 border border-emerald-200">
+                <PiggyBank className="w-4 h-4" /> Family Budget Planner
+              </Link>
+              
+              {!isPremium ? (
+                <PremiumGate featureName="Suburb Analyzer" isPremium={isPremium} noOverlay={true}>
+                  <Button className="bg-blue-100 text-blue-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors shadow-lg shadow-blue-500/20 border border-blue-200">
+                    <Lock className="w-4 h-4" /> Suburb Analyzer
+                    <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1">PRO</span>
+                  </Button>
+                </PremiumGate>
+              ) : (
+                <Link to={createPageUrl("SuburbAnalyzer")} className="bg-blue-100 text-blue-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors shadow-lg shadow-blue-500/20 border border-blue-200">
+                  <MapIcon className="w-4 h-4" /> Suburb Analyzer
+                </Link>
+              )}
             </div>
           </motion.div>
         </div>
@@ -269,9 +285,11 @@ function CalculatorContent() {
             <>
                 <ResultsSummary summary={results.summary} currency={params.currency} />
                 
-                {/* Save & Export */}
+                {/* Save & Export - Premium Feature */}
                 <div className="flex justify-end">
-                  <SaveExport params={params} instrument={instrument} results={results} chartRef={chartRef} />
+                  <PremiumGate featureName="Export PDF" isPremium={isPremium} compact={true} noOverlay={true}>
+                    <SaveExport params={params} instrument={instrument} results={results} isPremium={isPremium} />
+                  </PremiumGate>
                 </div>
               </>
             }

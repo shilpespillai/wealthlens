@@ -50,13 +50,40 @@
 import Calculator from './pages/Calculator';
 import Home from './pages/Home';
 import Portfolio from './pages/Portfolio';
+import About from './pages/About';
+import Methodology from './pages/Methodology';
+import Assumptions from './pages/Assumptions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfUse from './pages/TermsOfUse';
+import Disclaimer from './pages/Disclaimer';
+import Contact from './pages/Contact';
+import CookiePolicy from './pages/CookiePolicy';
+import SecurityPolicy from './pages/SecurityPolicy';
+import HelpCenter from './pages/HelpCenter';
+import CommunityForum from './pages/CommunityForum';
+import Login from './pages/Login';
+import FamilyBudget from './pages/FamilyBudget';
+import SuburbAnalyzer from './pages/SuburbAnalyzer';
 import __Layout from './Layout.jsx';
-
 
 export const PAGES = {
     "Calculator": Calculator,
     "Home": Home,
     "Portfolio": Portfolio,
+    "About": About,
+    "Methodology": Methodology,
+    "Assumptions": Assumptions,
+    "PrivacyPolicy": PrivacyPolicy,
+    "TermsOfUse": TermsOfUse,
+    "Disclaimer": Disclaimer,
+    "Contact": Contact,
+    "CookiePolicy": CookiePolicy,
+    "SecurityPolicy": SecurityPolicy,
+    "HelpCenter": HelpCenter,
+    "CommunityForum": CommunityForum,
+    "Login": Login,
+    "FamilyBudget": FamilyBudget,
+    "SuburbAnalyzer": SuburbAnalyzer,
 }
 
 export const pagesConfig = {

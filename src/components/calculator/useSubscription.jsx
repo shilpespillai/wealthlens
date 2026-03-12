@@ -12,6 +12,15 @@ export function useSubscription() {
         const user = await base44.auth.me();
         
         if (user) {
+          // Explicit check for admin email
+          const isAdmin = user.email === 'admin@wealthlens.com';
+          
+          if (isAdmin) {
+            setIsPremium(true);
+            setLoading(false);
+            return;
+          }
+
           const response = await base44.functions.invoke("checkSubscription", {
             email: user.email,
           });

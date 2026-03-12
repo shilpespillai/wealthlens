@@ -26,7 +26,7 @@ export default function AccountSection({ user }) {
   };
 
   const handleLogout = async () => {
-    await base44.auth.logout(createPageUrl("Home"));
+    await base44.auth.logout("/");
   };
 
   const handleDeleteAccount = async () => {

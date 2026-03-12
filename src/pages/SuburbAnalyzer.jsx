@@ -1,0 +1,616 @@
+import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Building, MapPin, Search, Plus, Trash2, TrendingUp, AlertCircle, CheckCircle2,
+  PieChart as PieChartIcon, ArrowRight, FileText, Download, ShieldCheck, Map as MapIcon
+} from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { useSubscription } from "@/components/calculator/useSubscription";
+import { toast } from "sonner";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+
+export default function SuburbAnalyzer() {
+  const [currency] = useState('AUD'); // Defaulting to AUD for Australian suburbs but keeping dynamic ability
+  const sym = getCurrencySymbol(currency);
+  const { isPremium } = useSubscription();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCountry, setSearchCountry] = useState('AU');
+  const [searchState, setSearchState] = useState('NSW');
+  const [searchPostcode, setSearchPostcode] = useState('');
+  const [suburbs, setSuburbs] = useState([]); // Selected suburbs for comparison
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const countries = [
+    { code: 'AU', name: 'Australia', stateLabel: 'State', zipLabel: 'Postcode', states: ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'], currency: 'AUD' },
+    { code: 'US', name: 'USA', stateLabel: 'State', zipLabel: 'Zip Code', states: ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'], currency: 'USD' },
+    { code: 'UK', name: 'United Kingdom', stateLabel: 'Region', zipLabel: 'Postcode', states: ['London', 'South East', 'South West', 'Midlands', 'North', 'Wales', 'Scotland', 'NI'], currency: 'GBP' },
+    { code: 'CA', name: 'Canada', stateLabel: 'Province', zipLabel: 'Postal Code', states: ['ON', 'QC', 'BC', 'AB', 'MB', 'SK', 'NS', 'NB', 'NL', 'PE'], currency: 'CAD' },
+    { code: 'NZ', name: 'New Zealand', stateLabel: 'Region', zipLabel: 'Postcode', states: ['Auckland', 'Wellington', 'Canterbury', 'Waikato', 'Otago'], currency: 'NZD' },
+    { code: 'IN', name: 'India', stateLabel: 'State', zipLabel: 'PIN Code', states: ['MH', 'DL', 'KA', 'TN', 'GJ', 'WB', 'UP', 'HR', 'TG'], currency: 'INR' }
+  ];
+
+  const activeCountry = countries.find(c => c.code === searchCountry) || countries[0];
+
+  const processDomainData = (demographics, performance, name, state, postcode, suburbCountry, aiData = null) => {
+    const stats = performance?.statistics || {};
+    const series = performance?.series?.[0]?.data || [];
+    
+    // If we have AI Data (Global search), use it to populate the fields
+    if (aiData) {
+      return {
+        name: name,
+        state: state,
+        postcode: postcode,
+        country: suburbCountry,
+        currency: aiData.currency || (suburbCountry === 'US' ? 'USD' : suburbCountry === 'UK' ? 'GBP' : 'AUD'),
+        investmentScore: aiData.investmentScore || 65,
+        medianPrice: aiData.medianPrice || 0,
+        rentalYield: aiData.rentalYield || 0,
+        vacancyRate: aiData.vacancyRate || 0,
+        sentiment: aiData.sentiment || 'Stable',
+        aiText: aiData.insights || 'Market data for this region is currently being analyzed.',
+        demographics: aiData.demographics || [],
+        historicalData: aiData.historicalSeries || [],
+        infrastructure: (aiData.projects || []).map(p => typeof p === 'string' ? { title: p, desc: "Regional development project." } : p),
+        chartData: aiData.historicalSeries || [],
+        // Critical: Provide indicators and scores that UI expects
+        indicators: {
+          vacancyRate: aiData.vacancyRate || 1.5,
+          listingsTrend: 0,
+          monthsSupply: 3.5,
+          dom: 35,
+          growth3mo: 1.2,
+          growth12mo: 5.5,
+          volumeTrend: 0,
+          landConstraint: 5
+        },
+        categoryScores: aiData.categoryScores || {
+          affordability: 60,
+          lifestyle: 75,
+          transport: 70,
+          schools: 80,
+          safety: 85
+        },
+        score: aiData.investmentScore || 65,
+        strategy: (aiData.rentalYield || 0) > 4.5 ? 'High Cashflow' : 'Capital Growth',
+        recommendation: (aiData.investmentScore || 65) >= 70 ? 'Strong Buy' : (aiData.investmentScore || 65) >= 50 ? 'Monitor' : 'Avoid',
+        recClass: (aiData.investmentScore || 65) >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : (aiData.investmentScore || 65) >= 50 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200'
+      };
+    }
+    
+    // 1. Vacancy Rate (Strong < 1.5%) - Weight 20
+    const vacancyRate = stats.vacancyRate || 2.0;
+    const vScore = vacancyRate < 1.5 ? 20 : vacancyRate < 2.5 ? 10 : 0;
+    
+    // 2. Listings Trend YoY (%) - Weight 20 (Negative is good)
+    const listingsTrend = stats.listingsTrend || 0;
+    const lScore = listingsTrend < 0 ? 20 : listingsTrend < 10 ? 10 : 0;
+    
+    // 3. Months of Supply - Weight 15 (<3 strong, 3-5 balanced)
+    const monthsSupply = stats.monthsSupply || 4.5;
+    const mScore = monthsSupply < 3 ? 15 : monthsSupply <= 5 ? 8 : 0;
+    
+    // 4. Days on Market (DOM) - Weight 15
+    const dom = stats.dom || 45;
+    const dScore = dom < 30 ? 15 : dom < 60 ? 8 : 0;
+    
+    // 5. Growth Acceleration (Dummy calculation from series) - Weight 15
+    const lastVal = series[series.length - 1]?.value || 0;
+    const prevVal = series[series.length - 2]?.value || 0;
+    const growth3mo = prevVal ? ((lastVal - prevVal) / prevVal) * 100 : 0;
+    const growth12mo = series[0] ? ((lastVal - series[0].value) / series[0].value) * 100 : 0;
+    const gScore = growth3mo > (growth12mo / 4) ? 15 : growth3mo > 0 ? 8 : 0;
+
+    // 6. Sales Volume Trend YoY (%) - Weight 10
+    const volumeTrend = 0; // Not in mock API yet
+    const volScore = 5;
+
+    // 7. Land Supply Constraints (1-10 scale) - Weight 5
+    const landConstraint = 5;
+    const landScore = 3;
+
+    const totalScore = vScore + lScore + mScore + dScore + gScore + volScore + landScore;
+
+    // Map Demographics to Radar Chart
+    const demoData = demographics?.demographics || [];
+    const ageDemo = demoData.find(d => d.category === "Age")?.items || [];
+    const housingDemo = demoData.find(d => d.category === "Housing")?.items || [];
+    
+    const categoryScores = {
+      affordability: Math.min(100, (1500000 / (stats.medianPrice || 1000000)) * 50),
+      lifestyle: 70, // External data needed
+      transport: 65, // External data needed
+      schools: 75,   // External data needed
+      safety: 80     // External data needed
+    };
+
+    let recommendation = "";
+    let recClass = "";
+    if (totalScore >= 80) {
+      recommendation = "Strong Buy";
+      recClass = "text-emerald-600 bg-emerald-50 border-emerald-200";
+    } else if (totalScore >= 65) {
+      recommendation = "Good Buy";
+      recClass = "text-blue-600 bg-blue-50 border-blue-200";
+    } else if (totalScore >= 50) {
+      recommendation = "Neutral / Monitor";
+      recClass = "text-amber-600 bg-amber-50 border-amber-200";
+    } else {
+      recommendation = "Avoid";
+      recClass = "text-rose-600 bg-rose-50 border-rose-200";
+    }
+
+    const isAU = !suburbCountry || suburbCountry === 'AU';
+    const locType = isAU ? 'suburb' : 'area';
+    const aiText = `Real-time analysis for ${name} shows ${totalScore >= 65 ? 'strong demand pressure' : 'cooling demand'} with a tight vacancy rate of ${vacancyRate.toFixed(1)}% and ${listingsTrend > 0 ? 'rising' : 'falling'} inventory levels. The ${locType} market is moving ${dom < 35 ? 'quickly' : 'at a steady pace'} with ${dom} days on average to sell.`;
+
+    return {
+      id: Date.now(),
+      name: name.toUpperCase(),
+      state,
+      postcode,
+      country: suburbCountry,
+      medianPrice: stats.medianPrice || 0,
+      rentalYield: stats.rentalYield || 0,
+      score: totalScore,
+      strategy: (stats.rentalYield || 0) > 4.5 ? 'High Cashflow' : 'Capital Growth',
+      infrastructure: [
+        { title: "Local Infrastructure", desc: `Based on regional planning data for ${state}, ${suburbCountry}.` }
+      ],
+      indicators: { vacancyRate, listingsTrend, monthsSupply, dom, growth3mo, growth12mo, volumeTrend, landConstraint },
+      categoryScores,
+      recommendation,
+      recClass,
+      aiText,
+      chartData: series
+    };
+  };
+
+  const analyzeSuburb = async () => {
+    if (!searchQuery || !searchState || !searchPostcode) return;
+    setAnalyzing(true);
+    
+    const suburbCountry = searchCountry; // Capture current state
+    const currentActiveCountry = activeCountry; // Capture current state
+    
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      
+      let demoData = null;
+      let perfData = null;
+      let aiData = null;
+
+      if (suburbCountry === 'AU') {
+        const [demoResp, perfResp] = await Promise.all([
+          base44.functions.invoke('getDomainDemographics', { 
+            suburb: searchQuery, 
+            state: searchState, 
+            postcode: searchPostcode,
+            country: suburbCountry
+          }),
+          base44.functions.invoke('getDomainPerformance', { 
+            suburb: searchQuery, 
+            state: searchState, 
+            postcode: searchPostcode,
+            country: suburbCountry
+          })
+        ]);
+        demoData = demoResp.data;
+        perfData = perfResp.data;
+      } else {
+        const aiResp = await base44.functions.invoke('getGlobalAIInsights', { 
+          suburb: searchQuery, 
+          state: searchState, 
+          postcode: searchPostcode,
+          country: suburbCountry
+        });
+        aiData = aiResp.data;
+      }
+
+      const newSuburb = processDomainData(demoData, perfData, searchQuery, searchState, searchPostcode, suburbCountry, aiData);
+      // Inject country/currency info for global display if not already set by AI
+      if (!newSuburb.currency) newSuburb.currency = currentActiveCountry.currency;
+
+      if (suburbs.length < 3) {
+        setSuburbs([...suburbs, newSuburb]);
+      } else {
+        setSuburbs([...suburbs.slice(1), newSuburb]);
+      }
+      
+      setSearchQuery('');
+      setSearchPostcode('');
+    } catch (error) {
+      console.error(" suburb analysis error:", error);
+      toast.error("Failed to analyze market. Please check your inputs and try again.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const removeSuburb = (id) => {
+    setSuburbs(suburbs.filter(s => s.id !== id));
+  };
+  
+  const fmt = (num, subCurrency) => {
+    const cur = subCurrency || currency;
+    const symbol = getCurrencySymbol(cur);
+    return `${symbol}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+              <MapIcon className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Suburb Investment Analyzer</h1>
+              <p className="text-slate-500 font-medium">AI-powered property market insights & demand forecasting</p>
+            </div>
+          </div>
+          <Link to={createPageUrl("Calculator")} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors bg-white px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+            <ArrowRight className="w-4 h-4 rotate-180" /> Back to Tools
+          </Link>
+        </div>
+
+        <div className="space-y-8">
+          {/* Search Input */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8">
+            <div className="max-w-4xl">
+               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                 <Search className="w-4 h-4 text-indigo-500" />
+                 Analyze a Suburb
+               </h2>
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                 <div className="md:col-span-1">
+                   <select 
+                     value={searchCountry}
+                     onChange={(e) => {
+                       const c = countries.find(x => x.code === e.target.value);
+                       setSearchCountry(e.target.value);
+                       setSearchState(c.states[0]);
+                     }}
+                     className="w-full bg-slate-50 border border-slate-200 h-14 rounded-xl px-4 text-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                   >
+                     {countries.map(c => (
+                       <option key={c.code} value={c.code}>{c.name}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div className="md:col-span-1">
+                   <Input 
+                     placeholder={`${searchCountry === 'US' ? 'City' : 'Suburb'} Name`} 
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="bg-slate-50 border-slate-200 h-14 text-lg focus:ring-indigo-500"
+                     onKeyDown={(e) => e.key === 'Enter' && analyzeSuburb()}
+                   />
+                 </div>
+                 <div>
+                   <select 
+                     value={searchState}
+                     onChange={(e) => setSearchState(e.target.value)}
+                     className="w-full bg-slate-50 border border-slate-200 h-14 rounded-xl px-4 text-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                   >
+                     {activeCountry.states.map(s => (
+                       <option key={s} value={s}>{s}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <Input 
+                     placeholder={activeCountry.zipLabel} 
+                     value={searchPostcode}
+                     onChange={(e) => setSearchPostcode(e.target.value)}
+                     className="bg-slate-50 border-slate-200 h-14 text-lg focus:ring-indigo-500"
+                     onKeyDown={(e) => e.key === 'Enter' && analyzeSuburb()}
+                   />
+                 </div>
+               </div>
+               <div className="mt-4">
+                 <Button 
+                   onClick={analyzeSuburb}
+                   disabled={!searchQuery || !searchState || !searchPostcode || analyzing}
+                   className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 w-full sm:w-auto"
+                 >
+                   {analyzing ? 'Analyzing Market...' : 'Analyze Market'}
+                 </Button>
+               </div>
+               <p className="text-xs text-slate-500 mt-3 font-medium">Domain API integration active. Add up to 3 suburbs to compare.</p>
+            </div>
+          </div>
+
+          {/* Dashboards Area */}
+          {suburbs.length > 0 && (
+            <div className="space-y-6">
+               {/* Suburb Score Cards Grid */}
+               <div className="grid lg:grid-cols-2 lg:gap-8 gap-6">
+                 {suburbs.map(suburb => (
+                   <div key={suburb.id} className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden relative">
+                     {/* Remove Button */}
+                     <button onClick={() => removeSuburb(suburb.id)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 transition-colors z-10 bg-white/80 rounded-full backdrop-blur-sm">
+                       <Trash2 className="w-5 h-5" />
+                     </button>
+
+                     {/* Card Header & Score */}
+                     <div className={`p-6 sm:p-8 border-b ${suburb.recClass}`}>
+                       <div className="flex justify-between items-start mb-6">
+                         <div className="flex-1">
+                           <div className="flex items-center gap-3 mb-1">
+                             <h3 className="text-3xl font-black tracking-tight">{suburb.name}</h3>
+                             <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-black/10 flex items-center gap-1.5 ${suburb.strategy === 'Capital Growth' ? 'bg-indigo-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                               <TrendingUp className="w-3 h-3" />
+                               {suburb.strategy}
+                             </span>
+                           </div>
+                           <div className="flex items-center gap-2 mt-1">
+                             <MapPin className="w-5 h-5 opacity-70" />
+                             <span className="text-lg font-bold opacity-80">{suburb.state}</span>
+                           </div>
+                         </div>
+                         
+                         {/* Investment Score Gauge */}
+                         <div className="relative w-24 h-24 flex items-center justify-center bg-white/40 backdrop-blur-md rounded-3xl border border-black/5 shadow-inner">
+                           <svg className="w-20 h-20 -rotate-90">
+                             <circle
+                               cx="40" cy="40" r="34"
+                               fill="transparent"
+                               stroke="currentColor"
+                               strokeWidth="8"
+                               className="opacity-10"
+                             />
+                             <motion.circle
+                               cx="40" cy="40" r="34"
+                               fill="transparent"
+                               stroke="currentColor"
+                               strokeWidth="8"
+                               strokeDasharray={2 * Math.PI * 34}
+                               initial={{ strokeDashoffset: 2 * Math.PI * 34 }}
+                               animate={{ strokeDashoffset: 2 * Math.PI * 34 * (1 - suburb.score / 100) }}
+                               transition={{ duration: 1.5, ease: "easeOut" }}
+                               strokeLinecap="round"
+                             />
+                           </svg>
+                           <div className="absolute inset-0 flex flex-col items-center justify-center">
+                             <span className="text-2xl font-black">{suburb.score}</span>
+                             <span className="text-[10px] font-black uppercase tracking-tighter opacity-70">Points</span>
+                           </div>
+                         </div>
+                       </div>
+                       
+                       {/* Key Stats */}
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-black/5 shadow-sm">
+                           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">
+                             <Building className="w-3 h-3" />
+                             Median Price
+                           </div>
+                           <div className="text-xl font-black">{fmt(suburb.medianPrice, suburb.currency)}</div>
+                         </div>
+                         <div className="bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-black/5 shadow-sm">
+                           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">
+                             <TrendingUp className="w-3 h-3" />
+                             Rental Yield
+                           </div>
+                           <div className="text-xl font-black">{suburb.rentalYield.toFixed(2)}%</div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* AI Analysis */}
+                     <div className="p-6 sm:p-8 bg-slate-50 border-b border-slate-100">
+                       <div className="flex items-center gap-2 mb-3">
+                         <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                         <h4 className="font-bold text-slate-900">AI Recommendation</h4>
+                         <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border ${suburb.recClass}`}>
+                           {suburb.recommendation}
+                         </span>
+                       </div>
+                       <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                         {suburb.aiText}
+                       </p>
+                     </div>
+
+                     {/* New Infrastructure Section */}
+                     <div className="p-6 sm:p-8 border-b border-slate-100 bg-white">
+                        <div className="flex items-center gap-2 mb-4">
+                           <Building className="w-4 h-4 text-indigo-500" />
+                           <h4 className="font-bold text-slate-900">Infrastructure & Development</h4>
+                        </div>
+                        <div className="space-y-3">
+                           {suburb.infrastructure.map((project, idx) => (
+                             <div key={idx} className="flex gap-3 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
+                               <div className="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                               <div>
+                                 <p className="text-sm font-bold text-slate-900">{project.title}</p>
+                                 <p className="text-xs text-slate-500 mt-1">{project.desc}</p>
+                               </div>
+                             </div>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* Indicators & Trend Chart */}
+                     <div className="p-6 sm:p-8 border-b border-slate-100 grid md:grid-cols-2 gap-8">
+                       <div>
+                         <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
+                           <TrendingUp className="w-4 h-4 text-slate-400" />
+                           Historical Price Trend
+                         </h4>
+                         <div className="h-40 w-full bg-white rounded-xl border border-slate-100 p-2">
+                           <ResponsiveContainer width="100%" height="100%">
+                             <LineChart data={suburb.chartData || []}>
+                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                               <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
+                               <YAxis hide domain={['auto', 'auto']} />
+                               <RechartsTooltip 
+                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                 formatter={(v) => fmt(v, suburb.currency)}
+                               />
+                               <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                             </LineChart>
+                           </ResponsiveContainer>
+                         </div>
+                       </div>
+                       
+                       <div>
+                         <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
+                           <AlertCircle className="w-4 h-4 text-slate-400" />
+                           Demand & Supply
+                         </h4>
+                         <div className="space-y-4">
+                           <div className="space-y-2">
+                             <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                               <span>Demand Strength</span>
+                               <span className="text-indigo-600">{(100 - (suburb.indicators.vacancyRate * 25)).toFixed(0)}%</span>
+                             </div>
+                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                               <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${Math.min(100, 100 - (suburb.indicators.vacancyRate * 25))}%` }}
+                                 className="h-full bg-indigo-500 rounded-full"
+                               />
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                             <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                               <span>Growth Momentum</span>
+                               <span className="text-blue-600">{((suburb.indicators.volumeTrend + 10) * 2.5 + suburb.indicators.growth3mo * 5).toFixed(0)}%</span>
+                             </div>
+                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                               <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${Math.min(100, (suburb.indicators.volumeTrend + 10) * 2.5 + suburb.indicators.growth3mo * 5)}%` }}
+                                 className="h-full bg-blue-500 rounded-full"
+                               />
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                             <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                               <span>Infrastructure & Dev</span>
+                               <span className="text-amber-600">{(suburb.indicators.landConstraint * 10).toFixed(0)}%</span>
+                             </div>
+                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                               <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${suburb.indicators.landConstraint * 10}%` }}
+                                 className="h-full bg-amber-500 rounded-full"
+                               />
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Radar Chart for Categories */}
+                     <div className="p-6 sm:p-8">
+                       <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
+                         <PieChartIcon className="w-4 h-4 text-slate-400" />
+                         Livability Check
+                       </h4>
+                       <div className="h-64 w-full">
+                         <ResponsiveContainer width="100%" height="100%">
+                           <RadarChart cx="50%" cy="50%" outerRadius="70%" 
+                             data={[
+                               { subject: 'Affordability', A: suburb.categoryScores.affordability, fullMark: 100 },
+                               { subject: 'Lifestyle', A: suburb.categoryScores.lifestyle, fullMark: 100 },
+                               { subject: 'Transport', A: suburb.categoryScores.transport, fullMark: 100 },
+                               { subject: 'Schools', A: suburb.categoryScores.schools, fullMark: 100 },
+                               { subject: 'Safety', A: suburb.categoryScores.safety, fullMark: 100 },
+                             ]}
+                           >
+                             <PolarGrid stroke="#e2e8f0" />
+                             <PolarAngleAxis dataKey="subject" tick={{fill: '#64748b', fontSize: 12, fontWeight: 600}} />
+                             <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                             <Radar name={suburb.name} dataKey="A" stroke="#6366f1" fill="#818cf8" fillOpacity={0.5} />
+                             <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                           </RadarChart>
+                         </ResponsiveContainer>
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+
+               {/* Comparison Table */}
+               {suburbs.length > 1 && (
+                 <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-8">
+                   <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50">
+                     <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                       <TrendingUp className="w-6 h-6 text-indigo-500" />
+                       Head-to-Head Market Indicators
+                     </h3>
+                   </div>
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-left border-collapse">
+                       <thead>
+                         <tr>
+                           <th className="p-4 border-b border-r bg-slate-50 font-bold text-slate-500 text-sm w-1/4">Metric</th>
+                           {suburbs.map(s => (
+                             <th key={`th-${s.id}`} className="p-4 border-b bg-white font-black text-slate-900 text-lg">{s.name}</th>
+                           ))}
+                         </tr>
+                       </thead>
+                       <tbody className="text-sm font-medium">
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Investment Strategy</td>
+                           {suburbs.map(s => (
+                             <td key={`strat-${s.id}`} className="p-4 border-b font-black">
+                               <span className={`px-2 py-1 rounded-md text-[10px] ${s.strategy === 'Capital Growth' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                 {s.strategy}
+                               </span>
+                             </td>
+                           ))}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Investment Score</td>
+                           {suburbs.map(s => (
+                             <td key={`score-${s.id}`} className={`p-4 border-b font-black ${s.score >= 65 ? 'text-emerald-600' : s.score >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                               {s.score} / 100
+                             </td>
+                           ))}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Vacancy Rate</td>
+                           {suburbs.map(s => <td key={`vac-${s.id}`} className="p-4 border-b font-bold">{s.indicators.vacancyRate.toFixed(1)}%</td>)}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Listings Trend (YoY)</td>
+                           {suburbs.map(s => <td key={`list-${s.id}`} className={`p-4 border-b font-bold ${s.indicators.listingsTrend < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{s.indicators.listingsTrend > 0 ? '+' : ''}{s.indicators.listingsTrend}%</td>)}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Months of Supply</td>
+                           {suburbs.map(s => <td key={`sup-${s.id}`} className="p-4 border-b font-bold">{s.indicators.monthsSupply.toFixed(1)} mo</td>)}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Days on Market</td>
+                           {suburbs.map(s => <td key={`dom-${s.id}`} className="p-4 border-b font-bold">{s.indicators.dom} days</td>)}
+                         </tr>
+                         <tr className="hover:bg-slate-50">
+                           <td className="p-4 border-b border-r text-slate-500">Growth Momentum</td>
+                           {suburbs.map(s => <td key={`gro-${s.id}`} className="p-4 border-b font-bold">{s.indicators.growth3mo > (s.indicators.growth12mo / 4) ? 'Accelerating 🚀' : 'Cooling 📉'}</td>)}
+                         </tr>
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}

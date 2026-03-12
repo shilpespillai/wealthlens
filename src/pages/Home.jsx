@@ -391,9 +391,58 @@ export default function Home() {
       <SupportChat />
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8 border-t border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-sm">
-          <p>© 2026 WealthLens. Professional investment analysis for everyone. Sign in to get started.</p>
+      <footer className="bg-gray-900 text-gray-400 py-12 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div className="col-span-1 md:col-span-1">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-xl font-black bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">WealthLens</span>
+              </div>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Empowering investors with professional-grade analysis tools and AI-driven insights to build sustainable wealth.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-bold text-gray-300 mb-4 uppercase tracking-wider">Product</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="/Calculator" className="hover:text-indigo-400 transition-colors">Investment Calculator</a></li>
+                <li><a href="/Portfolio" className="hover:text-indigo-400 transition-colors">Portfolio Builder</a></li>
+                <li><a href="/methodology" className="hover:text-indigo-400 transition-colors">Methodology</a></li>
+                <li><a href="/assumptions" className="hover:text-indigo-400 transition-colors">Assumptions</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-bold text-gray-300 mb-4 uppercase tracking-wider">Resources</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="/about" className="hover:text-indigo-400 transition-colors">About Us</a></li>
+                <li><a href="/contact" className="hover:text-indigo-400 transition-colors">Contact</a></li>
+                <li><a href="/helpcenter" className="hover:text-indigo-400 transition-colors">Help Center</a></li>
+                <li><a href="/communityforum" className="hover:text-indigo-400 transition-colors">Community Forum</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-bold text-gray-300 mb-4 uppercase tracking-wider">Legal</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="/privacypolicy" className="hover:text-indigo-400 transition-colors">Privacy Policy</a></li>
+                <li><a href="/termsofuse" className="hover:text-indigo-400 transition-colors">Terms of Service</a></li>
+                <li><a href="/disclaimer" className="hover:text-indigo-400 transition-colors">Financial Disclaimer</a></li>
+                <li><a href="/cookiepolicy" className="hover:text-indigo-400 transition-colors">Cookie Policy</a></li>
+                <li><a href="/securitypolicy" className="hover:text-indigo-400 transition-colors">Security</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-500">
+              © 2026 WealthLens Inc. All rights reserved.
+            </p>
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+             <span>Made with <span className="text-indigo-500">♥</span> for investors</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>);

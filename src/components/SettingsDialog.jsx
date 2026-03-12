@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings } from "lucide-react";
+import { Settings, Shield, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
 import AccountSection from "./settings/AccountSection";
-import DataPrivacySection from "./settings/DataPrivacySection";
-import AppSettingsSection from "./settings/AppSettingsSection";
-import DocumentationSection from "./settings/DocumentationSection";
-import SupportSection from "./settings/SupportSection";
+import AdminSection from "./settings/AdminSection";
 
 const EXTERNAL_LINKS = [
   {
@@ -50,59 +47,13 @@ export default function SettingsDialog({ isOpen, onClose }) {
         </DialogHeader>
 
         <div className="space-y-10 pt-4">
-          {/* Documentation */}
-          <DocumentationSection />
-
           {/* Account & Profile */}
           {user && <AccountSection user={user} />}
 
-          {/* Support */}
-          {user && <SupportSection userEmail={user.email} />}
-
-          {/* Data & Privacy */}
-          <DataPrivacySection />
-
-          {/* App Settings */}
-          <AppSettingsSection />
-
-          {/* External Links */}
-          <div>
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-300">
-              Legal
-            </h3>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-            >
-              {EXTERNAL_LINKS.map((link) => (
-                <motion.a
-                  key={link.label}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ x: 4 }}
-                  className="flex items-center gap-3 p-4 rounded-xl bg-slate-800/50 border border-white/10 hover:border-white/20 hover:bg-slate-700/50 transition-all"
-                >
-                  <span className="text-xl">{link.icon}</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{link.label}</p>
-                  </div>
-                </motion.a>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* App Info */}
-          <div className="bg-slate-800/30 rounded-xl border border-white/10 p-4 border-t pt-8">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              <strong className="text-slate-300">WealthLens</strong> — Professional investment analysis and portfolio planning tools. 
-              All data is processed securely and in compliance with international data protection standards.
-            </p>
-            <p className="text-xs text-slate-500 mt-3">
-              Version 1.0.0 • © 2026 WealthLens
-            </p>
-          </div>
+          {/* Admin Operations */}
+          {user && user.email === "admin@wealthlens.com" && (
+            <AdminSection user={user} />
+          )}
         </div>
       </DialogContent>
     </Dialog>

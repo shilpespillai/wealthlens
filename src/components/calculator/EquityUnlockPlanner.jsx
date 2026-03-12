@@ -136,36 +136,36 @@ export default function EquityUnlockPlanner({ currency }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl border border-slate-100 shadow-lg p-8"
+      className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-xl p-5"
     >
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-          <Key className="w-6 h-6 text-white" />
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+          <Key className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Equity Unlock Planner</h3>
-          <p className="text-xs text-slate-600">Leverage existing property to build wealth faster</p>
+          <h3 className="text-xl font-bold font-heading text-slate-900 tracking-tight">Equity Unlock Planner</h3>
+          <p className="text-sm text-slate-500">Leverage existing property to build wealth faster</p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid lg:grid-cols-2 gap-5 mb-6">
         {/* Existing Property */}
-        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
-          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
+        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <Building2 className="w-4 h-4 text-indigo-500" />
             Your Existing Property
           </h4>
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs text-slate-700">Current Value</Label>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Current Value</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">{sym}</span>
                 <Input
                   type="number"
                   value={currentValue}
                   onChange={(e) => setCurrentValue(parseFloat(e.target.value) || 0)}
-                  className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
+                  className="pl-8 bg-white border-slate-200 text-slate-900 text-base font-medium h-10 focus:ring-indigo-500/50"
                 />
               </div>
             </div>
@@ -199,39 +199,39 @@ export default function EquityUnlockPlanner({ currency }) {
         </div>
 
         {/* Usable Equity */}
-        <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-5 border border-amber-400/20">
-          <h4 className="text-sm font-bold text-amber-900 mb-4 flex items-center gap-2">
-            <Zap className="w-4 h-4" />
+        <div className="bg-gradient-to-br from-indigo-50/50 to-violet-50/50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
+          <h4 className="text-sm font-bold text-indigo-800 mb-4 flex items-center gap-2 uppercase tracking-wider">
+            <Zap className="w-4 h-4 text-indigo-500" />
             Available Equity Power
           </h4>
           
-          <div className="space-y-4">
-            <div className="bg-slate-100 rounded-xl p-4">
-              <p className="text-xs text-slate-600 mb-1">Max Borrowing Capacity</p>
+          <div className="space-y-3">
+            <div className="bg-white rounded-xl p-4 border border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Max Borrowing Capacity</p>
               <p className="text-xl font-bold text-slate-900">{fmt(analysis.maxBorrowingCapacity)}</p>
-              <p className="text-xs text-slate-600 mt-1">({bankLVR}% of {fmt(currentValue)})</p>
+              <p className="text-xs text-slate-400 mt-1">({bankLVR}% of {fmt(currentValue)})</p>
             </div>
 
-            <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-200">
-              <p className="text-xs text-emerald-700 mb-2">💰 Usable Equity</p>
-              <p className="text-3xl font-black text-slate-900">{fmt(analysis.usableEquity)}</p>
-              <p className="text-xs text-slate-700 mt-3 leading-relaxed">
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 shadow-sm">
+              <p className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wider">💰 Usable Equity</p>
+              <p className="text-3xl font-black text-emerald-600 tracking-tight">{fmt(analysis.usableEquity)}</p>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
                 You can access <strong className="text-emerald-600">{fmt(analysis.usableEquity)}</strong> to invest in additional properties
               </p>
             </div>
 
             {analysis.propertyAnalyses.some(p => p.canBuy) ? (
-              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-                <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+              <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
+                <p className="text-sm font-bold text-emerald-300 flex items-center gap-2">
                   ✓ You can buy additional properties!
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-emerald-400/70 mt-1">
                   {analysis.propertyAnalyses.filter(p => p.canBuy).length} property(ies) are viable
                 </p>
               </div>
             ) : (
-              <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
-                <p className="text-sm font-bold text-rose-700">
+              <div className="bg-rose-500/10 rounded-xl p-4 border border-rose-500/20">
+                <p className="text-sm font-bold text-rose-300">
                   ✗ Insufficient equity
                 </p>
               </div>
@@ -241,12 +241,12 @@ export default function EquityUnlockPlanner({ currency }) {
       </div>
 
       {/* Multiple Properties Inputs */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-3 mb-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-slate-900">Investment Properties</h4>
+          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest pl-2">Investment Properties</h4>
           <Button 
             onClick={addProperty}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm rounded-xl transition-all"
             size="sm"
           >
             <Plus className="w-4 h-4" /> Add Property
@@ -254,17 +254,17 @@ export default function EquityUnlockPlanner({ currency }) {
         </div>
 
         {properties.map((prop, idx) => (
-          <div key={prop.id} className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+          <div key={prop.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 shadow-sm transition-all hover:border-indigo-300">
             <div className="flex items-center justify-between mb-4">
-              <h5 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
+              <h5 className="text-sm font-bold text-indigo-700 flex items-center gap-2 tracking-wide">
+                <Building2 className="w-4 h-4 text-indigo-500" />
                 Property #{idx + 1}
               </h5>
               {properties.length > 1 && (
                 <Button 
                   onClick={() => removeProperty(prop.id)}
                   variant="ghost"
-                  className="text-rose-600 hover:bg-rose-50 p-1"
+                  className="text-rose-600 hover:bg-rose-50 p-1 h-8 w-8"
                   size="sm"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -274,47 +274,47 @@ export default function EquityUnlockPlanner({ currency }) {
             
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-700">Purchase Price</Label>
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Purchase Price</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">{sym}</span>
                   <Input
                     type="number"
                     value={prop.price}
                     onChange={(e) => updateProperty(prop.id, 'price', parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
+                    className="pl-8 bg-white border-slate-200 text-slate-900 text-base h-10 focus:ring-indigo-500/50"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-700">Weekly Rent</Label>
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Weekly Rent</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">{sym}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">{sym}</span>
                   <Input
                     type="number"
                     value={prop.rent}
                     onChange={(e) => updateProperty(prop.id, 'rent', parseFloat(e.target.value) || 0)}
-                    className="pl-8 bg-slate-50 border-slate-200 text-slate-900"
+                    className="pl-8 bg-white border-slate-200 text-slate-900 text-base h-10 focus:ring-indigo-500/50"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Label className="text-xs text-slate-700">Growth Rate</Label>
-                  <span className="text-xs font-bold text-emerald-600">{prop.growth}%</span>
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Growth Rate</Label>
+                  <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{prop.growth}%</span>
                 </div>
-                <Slider value={[prop.growth]} onValueChange={([v]) => updateProperty(prop.id, 'growth', v)} min={0} max={15} step={0.5} />
+                <Slider value={[prop.growth]} onValueChange={([v]) => updateProperty(prop.id, 'growth', v)} min={0} max={15} step={0.5} className="py-2" />
               </div>
 
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Label className="text-xs text-slate-700">Mortgage Rate</Label>
-                  <span className="text-xs font-bold text-slate-900">{prop.mortgageRate}%</span>
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mortgage Rate</Label>
+                  <span className="text-sm font-bold text-white bg-slate-800 px-2 py-0.5 rounded-md">{prop.mortgageRate}%</span>
                 </div>
-                <Slider value={[prop.mortgageRate]} onValueChange={([v]) => updateProperty(prop.id, 'mortgageRate', v)} min={2} max={12} step={0.1} />
+                <Slider value={[prop.mortgageRate]} onValueChange={([v]) => updateProperty(prop.id, 'mortgageRate', v)} min={2} max={12} step={0.1} className="py-2" />
               </div>
             </div>
 
@@ -341,63 +341,66 @@ export default function EquityUnlockPlanner({ currency }) {
       </div>
 
       {/* Wealth Strategy Modeling */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-slate-900">Wealth Strategy Model</h4>
+          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest pl-2">Wealth Strategy Model</h4>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label className="text-xs text-slate-600">Timeline:</Label>
-              <span className="text-sm font-bold text-slate-900">{years} years</span>
+              <Label className="text-xs font-medium text-slate-500">Timeline:</Label>
+              <span className="text-sm font-bold text-indigo-600">{years} years</span>
             </div>
             <Slider value={[years]} onValueChange={([v]) => setYears(v)} min={5} max={30} step={1} className="w-32" />
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <p className="text-xs text-slate-600 mb-1">Without Additional Properties</p>
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
+            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">Without Additional Properties</p>
             <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWithout)}</p>
           </div>
-          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-            <p className="text-xs text-emerald-700 mb-1">With Additional Properties</p>
-            <p className="text-xl font-bold text-slate-900">{fmt(analysis.finalWith)}</p>
+          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 shadow-sm">
+            <p className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wider">With Additional Properties</p>
+            <p className="text-xl font-bold text-emerald-900">{fmt(analysis.finalWith)}</p>
           </div>
-          <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
-            <p className="text-xs text-violet-700 mb-1">Wealth Gain</p>
-            <p className="text-xl font-bold text-emerald-600">+{fmt(analysis.wealthGain)}</p>
+          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100 shadow-sm">
+            <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wider">Wealth Gain</p>
+            <p className="text-xl font-black text-indigo-600">+{fmt(analysis.wealthGain)}</p>
           </div>
         </div>
 
-        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-          <ResponsiveContainer width="100%" height={350}>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm">
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={analysis.yearlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis 
                 dataKey="year" 
-                stroke="#94a3b8"
-                label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#94a3b8' }}
+                stroke="#64748b"
+                label={{ value: 'Years', position: 'insideBottom', offset: -5, fill: '#64748b' }}
               />
               <YAxis 
-                stroke="#94a3b8"
+                stroke="#64748b"
                 tickFormatter={(val) => `${sym}${(val / 1000).toFixed(0)}k`}
               />
               <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                labelStyle={{ color: '#e2e8f0' }}
+                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                labelStyle={{ color: '#0f172a', fontWeight: 'bold' }}
+                itemStyle={{ color: '#475569' }}
                 formatter={(value) => fmt(value)}
               />
-              <Legend />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Line type="monotone" dataKey="property1Equity" stroke="#94a3b8" strokeWidth={2} name="Property #1 Equity" strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="totalEquity" stroke="#10b981" strokeWidth={3} name="Total Equity (All Properties)" />
+              <Line type="monotone" dataKey="totalEquity" stroke="#6366f1" strokeWidth={3} name="Total Equity (All Properties)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200">
-          <p className="text-xs text-amber-900 font-bold mb-2">💡 Strategy Insight</p>
-          <p className="text-sm text-slate-800 leading-relaxed">
-            By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years across {properties.length} investment propert{properties.length > 1 ? 'ies' : 'y'}. 
-            This is the power of property leverage - your equity works for you to create more wealth.
+        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-sm">
+          <p className="text-sm text-amber-600 font-bold mb-2 flex items-center gap-2 tracking-wide">
+            <Zap className="w-5 h-5" /> Strategy Insight
+          </p>
+          <p className="text-sm text-slate-700 leading-relaxed">
+            By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600 font-bold">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years across {properties.length} investment propert{properties.length > 1 ? 'ies' : 'y'}. 
+            This is the power of property leverage — your equity works harder to compound your total net worth.
           </p>
         </div>
       </div>

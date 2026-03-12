@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Lock, Sparkles, Crown, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,33 @@ const PREMIUM_FEATURES = [
   "All asset classes & currencies",
 ];
 
-export default function PremiumGate({ children, featureName, isPremium }) {
+export default function PremiumGate({ children, featureName, isPremium, compact = false, noOverlay = false }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [price, setPrice] = useState(10);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Dev mode: unlock all premium features
-  const isDev = process.env.NODE_ENV === "development";
-  if (isPremium || isDev) return children;
+  const isDev = import.meta.env.DEV;
+  
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Fetch price
+        const p = await base44.app.getPrice();
+        setPrice(p);
+
+        // Fetch user identity
+        const user = await base44.auth.me();
+        setIsAdmin(user?.email === "admin@wealthlens.com");
+      } catch (error) {
+        console.error("Error loading PremiumGate data:", error);
+      }
+    }
+    loadData();
+  }, []);
+
+  if (isPremium || isDev || isAdmin) return children;
 
   const handleUpgrade = async () => {
     // Check if running in iframe (preview mode)
@@ -58,6 +78,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
       const response = await base44.functions.invoke("stripeCheckout", {
         priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
         email: user.email,
+        amount: price * 100, // Pass dynamic price in cents
         successUrl: window.location.href + "?upgraded=true",
         cancelUrl: window.location.href,
       });
@@ -77,10 +98,36 @@ export default function PremiumGate({ children, featureName, isPremium }) {
     }
   };
 
-  return (
-    <>
-      {/* Blurred preview with lock overlay */}
-      <div className="relative rounded-3xl overflow-hidden">
+  const renderContent = () => {
+    if (noOverlay) {
+      return (
+        <div onClick={() => setOpen(true)} className="cursor-pointer">
+          {children}
+        </div>
+      );
+    }
+
+    if (compact) {
+      return (
+        <div className="relative inline-block">
+           <div className="pointer-events-none select-none blur-[2px] opacity-40">
+             {children}
+           </div>
+           <div className="absolute inset-0 flex items-center justify-center">
+             <Button
+                onClick={() => setOpen(true)}
+                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 px-4 py-2 text-sm z-10"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                {featureName}
+              </Button>
+           </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative rounded-3xl overflow-hidden mt-4">
         <div className="pointer-events-none select-none blur-sm opacity-50">
           {children}
         </div>
@@ -95,11 +142,11 @@ export default function PremiumGate({ children, featureName, isPremium }) {
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
             <p className="text-sm text-slate-300 mb-6 max-w-xs">
-              <strong className="text-amber-400">{featureName}</strong> is available in Premium for a one-time <strong className="text-white">$29</strong> purchase.
+              <strong className="text-amber-400">{featureName}</strong> is available in Premium for a one-time <strong className="text-white">${price} USD</strong> purchase.
             </p>
             <Button
               onClick={() => setOpen(true)}
-              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-amber-500/30"
+              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 px-8 py-3"
             >
               <Crown className="w-4 h-4 mr-2" />
               Upgrade to Premium
@@ -107,6 +154,12 @@ export default function PremiumGate({ children, featureName, isPremium }) {
           </motion.div>
         </div>
       </div>
+    );
+  };
+
+  return (
+    <>
+      {renderContent()}
 
       {/* Upgrade Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -116,7 +169,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
         <Crown className="w-5 h-5 text-white" />
       </div>
-      Premium — One-Time $29
+      Premium — One-Time ${price} USD
       </DialogTitle>
       </DialogHeader>
 
@@ -135,7 +188,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
             </div>
 
             <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
-              <div className="text-3xl font-black text-white">$29<span className="text-base font-normal text-slate-400"> one-time</span></div>
+              <div className="text-3xl font-black text-white">${price} USD<span className="text-base font-normal text-slate-400"> one-time</span></div>
               <div className="text-xs text-slate-400 mt-1">Lifetime access • All features</div>
             </div>
 
@@ -144,7 +197,7 @@ export default function PremiumGate({ children, featureName, isPremium }) {
               disabled={loading}
               className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold py-4 rounded-xl text-base"
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><Crown className="w-4 h-4 mr-2" /> Unlock Premium — $29</>}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : <><Crown className="w-4 h-4 mr-2" /> Unlock Premium — ${price} USD</>}
             </Button>
 
             <p className="text-center text-xs text-slate-500">Secured by Stripe. No subscriptions.</p>
