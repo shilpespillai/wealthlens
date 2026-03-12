@@ -8,22 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function AccountSection({ user }) {
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [fullName, setFullName] = useState(user?.full_name || "");
   const [loading, setLoading] = useState(false);
-
-  const handleUpdateProfile = async () => {
-    try {
-      setLoading(true);
-      await base44.auth.updateMe({ full_name: fullName });
-      setEditOpen(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     await base44.auth.logout("/");
@@ -64,23 +50,7 @@ export default function AccountSection({ user }) {
           <p className="text-white font-semibold">{user?.email}</p>
         </div>
 
-        {/* Full Name Display */}
-        <div className="bg-slate-800/30 rounded-xl p-4 border border-white/10">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Full Name</p>
-              <p className="text-white font-semibold">{fullName || "Not set"}</p>
-            </div>
-            <Button
-              onClick={() => setEditOpen(true)}
-              variant="ghost"
-              size="sm"
-              className="text-indigo-400 hover:text-indigo-300">
-
-              <Edit2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+        {/* Full Name removed — managed via Google profile */}
 
         {/* Logout Button */}
         <Button
@@ -101,43 +71,6 @@ export default function AccountSection({ user }) {
           Delete Account & All Data
         </Button>
       </motion.div>
-
-      {/* Edit Profile Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="bg-slate-900 border-white/10">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Profile</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block">Full Name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:border-indigo-500 outline-none"
-                placeholder="Enter your full name" />
-
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button
-                onClick={() => setEditOpen(false)}
-                variant="outline"
-                className="flex-1 text-white border-white/20 hover:bg-white/5">
-
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUpdateProfile}
-                disabled={loading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-
-                {loading ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
