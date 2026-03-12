@@ -31,7 +31,8 @@ export default async function handler(req, res) {
     ${systemContext}
     
     CRITICAL INSTRUCTION: You must provide hyper-personalized advice. 
-    DO NOT use generic disclaimers or "resilient market" filler unless supported by the specific data in the prompt.
+    SEARCH the internet for current 2024/2025 market trends, interest rates, and asset-specific news for the user's region before formulating your advice.
+    DO NOT use generic disclaimers or "resilient market" filler. CALCULATE impacts based on real-world current events.
     COMPUTE calculations the user can't easily do. Use the EXACT currency and amounts provided.
     
     User Detail & Task: ${prompt}
@@ -51,19 +52,33 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: fullPrompt }] }],
+        tools: [{ google_search_retrieval: {} }],
         generationConfig: { responseMimeType: "application/json" }
       })
     });
     
     const data = await response.json();
+    
     if (!response.ok) {
-        throw new Error(data.error?.message || 'Gemini API failure');
+      console.error("[AI Chat] Gemini API Error:", data.error);
+      return res.status(response.status).json({ 
+        error: data.error?.message || 'Gemini API connection failed.' 
+      });
     }
     
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const result = JSON.parse(text);
+    if (!text) {
+      console.warn("[AI Chat] No content returned from Gemini (Safety filter or empty response)");
+      throw new Error('AI engine returned no analysis. The query might have been filtered.');
+    }
 
-    return res.status(200).json(result);
+    try {
+      const result = JSON.parse(text);
+      return res.status(200).json(result);
+    } catch (parseError) {
+      console.error("[AI Chat] Failed to parse AI JSON:", text);
+      throw new Error('AI returned an invalid data format.');
+    }
   } catch (error) {
     console.error('[AI Chat Error]', error);
     return res.status(500).json({ error: 'Failed to generate AI response', details: error.message });

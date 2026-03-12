@@ -27,14 +27,16 @@ export default async function handler(req, res) {
 
   const prompt = `
     Act as a senior real estate research director with 20 years experience in the ${country} market.
-    Perform a deep-dive analysis for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
+    SEARCH the internet for the latest 2024/2025 median house prices, rental yields, and vacancy rates for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
+    REFERENCE currently active local infrastructure projects and developments.
 
     ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this suburb is a good fit for their budget and goals.` : ""}
 
     Context: ${countryContext}
     
-    CRITICAL: 
-    - NEVER use generic filler like "well-established suburb" or "showing resilience" unless you can provide a specific local catalyst (e.g. a new rail link, rezoning, or industrial hub expansion).
+    CRITICAL INSTRUCTION: You must provide hyper-personalized advice. 
+    SEARCH the internet for current 2024/2025 market trends, interest rates, and asset-specific news for the user's region before formulating your advice.
+    DO NOT use generic disclaimers or "resilient market" filler. CALCULATE impacts based on real-world current events.
     - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
     - Prices and yields MUST be realistic for 2024/2025.
     
@@ -62,12 +64,32 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
+          tools: [{ google_search_retrieval: {} }],
           generationConfig: { responseMimeType: "application/json" }
         })
       });
+      
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("[AI Insights] Gemini API Error:", data.error);
+        return res.status(response.status).json({ 
+          error: data.error?.message || 'Gemini API connection failed.' 
+        });
+      }
+
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      result = JSON.parse(text);
+      if (!text) {
+        console.warn("[AI Insights] No content returned from Gemini (Safety filter or empty response)");
+        throw new Error('AI engine returned no analysis. The query might have been filtered.');
+      }
+      
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error("[AI Insights] Failed to parse AI JSON:", text);
+        throw new Error('AI returned an invalid data format.');
+      }
     } else {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

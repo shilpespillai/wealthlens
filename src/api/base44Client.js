@@ -197,21 +197,23 @@ export const base44 = {
       }
 
       if (name === 'getGlobalAIInsights') {
-        const { suburb, state, postcode, country } = params;
+        const { suburb, state, postcode, country, userContext } = params;
         if (isProd || window.location.hostname === 'localhost' || true) {
           try {
             const resp = await fetch('/api/ai-insights', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ suburb, state, postcode, country }),
+              body: JSON.stringify({ suburb, state, postcode, country, userContext }),
               cache: 'no-store'
             });
             if (resp.ok && resp.headers.get("content-type")?.includes("application/json")) {
               const data = await resp.json();
               return { data };
             }
+            const errText = await resp.text();
+            console.warn(`[Base44] AI Insights API failed (${resp.status}):`, errText);
           } catch (e) {
-            console.error("[Base44] AI Insights fetch failed:", e);
+            console.error("[Base44] AI Insights connectivity error:", e);
           }
         }
         
