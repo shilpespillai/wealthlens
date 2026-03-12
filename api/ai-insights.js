@@ -10,7 +10,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required parameters: suburb and country' });
   }
 
-  // ... (rest of the setup)
+  // Support both Gemini and OpenAI
+  const geminiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiKey && !openaiKey) {
+    console.error("[AI Insights] API keys are missing in the environment variables.");
+    return res.status(500).json({ 
+      error: 'AI service configuration incomplete. Please verify API keys in the production environment.' 
+    });
+  }
   const isAustralia = country === 'AU';
   const countryContext = isAustralia 
     ? `This is an Australian suburb. Use AUD pricing. Include auction clearance rates, proximity to CBD, public transport scores, and state-specific market dynamics (e.g. stamp duty impacts, population growth corridors). Reference CoreLogic-style data patterns.`

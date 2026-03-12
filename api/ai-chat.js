@@ -13,8 +13,9 @@ export default async function handler(req, res) {
   const geminiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
   if (!geminiKey) {
+    console.error("[AI Chat] GOOGLE_GENERATIVE_AI_API_KEY is not set.");
     return res.status(500).json({ 
-      error: 'Gemini API key not configured. Please set GOOGLE_GENERATIVE_AI_API_KEY in environment variables.' 
+      error: 'AI service configuration incomplete. Please verify API keys in the production environment.' 
     });
   }
 
