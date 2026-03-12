@@ -64,6 +64,7 @@ import CommunityForum from './pages/CommunityForum';
 import Login from './pages/Login';
 import FamilyBudget from './pages/FamilyBudget';
 import SuburbAnalyzer from './pages/SuburbAnalyzer';
+import AuthCallback from './pages/AuthCallback';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -84,6 +85,7 @@ export const PAGES = {
     "Login": Login,
     "FamilyBudget": FamilyBudget,
     "SuburbAnalyzer": SuburbAnalyzer,
+    "AuthCallback": AuthCallback,
 }
 
 export const pagesConfig = {
