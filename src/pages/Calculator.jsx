@@ -58,6 +58,7 @@ function CalculatorContent() {
   const [params, setParams] = useState(local?.params || DEFAULT_PARAMS);
   const [propertyCurrency, setPropertyCurrency] = useState(local?.propertyCurrency || "USD");
   const [userLoaded, setUserLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const chartRef = useRef(null);
@@ -100,25 +101,35 @@ function CalculatorContent() {
     async function loadFromProfile() {
       try {
         const user = await base44.auth.me();
-        if (user?.calc_params) {
+        if (!user) {
+          setLoadError(true);
+          setUserLoaded(true);
+          return;
+        }
+
+        if (user.calc_params) {
           const saved = JSON.parse(user.calc_params);
           setParams(saved);
         }
-        if (user?.calc_instrument) {
+        if (user.calc_instrument) {
           setInstrument(user.calc_instrument);
         }
-        if (user?.calc_currency) {
+        if (user.calc_currency) {
           setPropertyCurrency(user.calc_currency);
         }
-      } catch {}
-      setUserLoaded(true);
+      } catch (err) {
+        console.error("Failed to load calculator state:", err);
+        setLoadError(true);
+      } finally {
+        setUserLoaded(true);
+      }
     }
     loadFromProfile();
   }, []);
 
   // Save to localStorage immediately and debounce save to user profile
   useEffect(() => {
-    if (!userLoaded) return;
+    if (!userLoaded || loadError) return;
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({ instrument, params, propertyCurrency }));
     } catch {}
@@ -142,6 +153,30 @@ function CalculatorContent() {
 
   const results = useMemo(() => calculateInvestment(params), [params]);
   const scenarios = useMemo(() => calculateScenarios(params), [params]);
+
+  if (!userLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
+        <p className="text-slate-500 font-medium">Syncing data...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-6">
+          <Calculator className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 mb-2">Calculator Sync Error</h2>
+        <p className="text-slate-500 text-center max-w-md mb-8">We encountered a secure loading error. To protect your saved calculation parameters, the interface has been locked. Please try refreshing.</p>
+        <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 h-12 rounded-xl">
+          Refresh Calculator
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">

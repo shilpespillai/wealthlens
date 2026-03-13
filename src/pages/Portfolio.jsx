@@ -39,6 +39,7 @@ function PortfolioContent() {
   const [holdings, setHoldings] = useState(DEFAULT_HOLDINGS);
   const [nextId, setNextId] = useState(4);
   const [userLoaded, setUserLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { isPremium } = useSubscription();
 
   // Load from user profile on mount
@@ -46,24 +47,37 @@ function PortfolioContent() {
     async function loadFromProfile() {
       try {
         const user = await base44.auth.me();
-        if (user?.portfolio_holdings) {
-          const saved = JSON.parse(user.portfolio_holdings);
-          setHoldings(saved);
-          const maxId = saved.reduce((m, h) => Math.max(m, h.id || 0), 0);
-          setNextId(maxId + 1);
+        if (!user) {
+          // If we can't even get the user object, treat as load error to be safe
+          setLoadError(true);
+          setUserLoaded(true);
+          return;
         }
-        if (user?.portfolio_currency) {
+
+        if (user.portfolio_holdings) {
+          const saved = JSON.parse(user.portfolio_holdings);
+          if (Array.isArray(saved)) {
+            setHoldings(saved);
+            const maxId = saved.reduce((m, h) => Math.max(m, h.id || 0), 0);
+            setNextId(maxId + 1);
+          }
+        }
+        if (user.portfolio_currency) {
           setCurrency(user.portfolio_currency);
         }
-      } catch {}
-      setUserLoaded(true);
+      } catch (err) {
+        console.error("Failed to load portfolio:", err);
+        setLoadError(true);
+      } finally {
+        setUserLoaded(true);
+      }
     }
     loadFromProfile();
   }, []);
 
   // Debounced save to user profile
   useEffect(() => {
-    if (!userLoaded) return;
+    if (!userLoaded || loadError) return;
     const timer = setTimeout(async () => {
       try {
         await base44.auth.updateMe({
@@ -134,6 +148,34 @@ function PortfolioContent() {
 
     return { totalValue, totalInvested, totalGain, totalReturnPct, pieData, barData, classSummary };
   }, [holdings]);
+
+  if (!userLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full mb-4"
+        />
+        <p className="text-slate-500 font-medium animate-pulse">Loading secure portfolio data...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-6">
+          <Trash2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 mb-2">Sync Error</h2>
+        <p className="text-slate-500 text-center max-w-md mb-8">We couldn't securely load your portfolio data. To prevent overwriting your existing holdings, access has been temporarily disabled.</p>
+        <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 h-12 rounded-xl">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">

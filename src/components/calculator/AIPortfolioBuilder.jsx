@@ -32,6 +32,7 @@ export default function AIPortfolioBuilder({ currency = "USD" }) {
   const [horizon, setHorizon] = useState(10);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [buildError, setBuildError] = useState(null);
 
   const toggleGoal = (id) => {
     setSelectedGoals((prev) =>
@@ -41,8 +42,15 @@ export default function AIPortfolioBuilder({ currency = "USD" }) {
 
   const buildPortfolio = async () => {
     setLoading(true);
+    setBuildError(null);
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Analysis timeout: The AI is taking longer than expected. Please try again.")), 30000);
+    });
+
     try {
-      const res = await base44.integrations.Core.InvokeLLM({
+      const buildPromise = base44.integrations.Core.InvokeLLM({
         prompt: `You are an expert financial advisor. Build a personalized investment portfolio for a user with these details:
 - Goals: ${selectedGoals.join(", ")}
 - Risk tolerance: ${risk}
@@ -76,10 +84,14 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
           }
         }
       });
+
+      // Race the actual build against the timeout
+      const res = await Promise.race([buildPromise, timeoutPromise]);
       setResult(res);
       setStep(3);
     } catch (e) {
-      console.error(e);
+      console.error("Portfolio Build Error:", e);
+      setBuildError(e.message || "Failed to generate portfolio. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -179,6 +191,16 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
                 <Slider value={[horizon]} onValueChange={([v]) => setHorizon(v)} min={1} max={40} step={1} className="w-full" />
               </div>
             </div>
+
+            {buildError && (
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="w-5 h-5 rounded-full bg-rose-500 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold mt-0.5">!</div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-rose-900 mb-1">Analysis Error</p>
+                  <p className="text-xs text-rose-700">{buildError}</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <Button onClick={() => setStep(1)} variant="outline" className="border-slate-200 text-slate-900 hover:bg-slate-100 flex-1">Back</Button>
