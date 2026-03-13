@@ -26,40 +26,47 @@ export default async function handler(req, res) {
     : `Use the local currency and regional market conventions for ${country}.`;
 
   const prompt = `
-    Act as a senior real estate research director with 20 years experience in the ${country} market.
+    Act as a senior property investment strategist with 20 years experience in the ${country} market.
     MANDATORY: Use the Google Search tool to find CURRENT 2025/2026 statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
-    Your response must be STRICTLY for ${propertyType}s. Do NOT mix house and unit data.
     
-    If the user asked for "house", DO NOT return data for "units/apartments".
-    If the user asked for "unit", DO NOT return data for "houses/villas".
-    
-    Your response must be based on ACTIVE market listings, recent auction results, and current vacancy rates for ${propertyType}s.
+    Your goal is to provide a professional-grade suburb profile grounded in these 6 Critical Parameters:
+    1. Days on Market (DOM) & Vendor Discounting: Compare ${suburb} ${propertyType} DOM to the city average.
+    2. Stock on Market (SOM%): Identify if scarcity exists (Goal: < 2%).
+    3. Ripple Effect Potential: Compare ${suburb} median to neighboring suburbs.
+    4. Infrastructure & Gentrification: Detail Tier 1 projects (2026-2030) and lifestyle catalysts.
+    5. Building Approvals (Supply Trap): Identify if high new supply is diluting growth.
+    6. Owner-Occupier vs Investor Ratio: Evaluate market stability.
 
-    ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this ${suburb} ${propertyType} is a good fit for their budget and goals.` : ""}
+    Your response must be STRICTLY for ${propertyType}s.
+    
+    ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nEvaluate if this ${suburb} ${propertyType} matches their unique goals.` : ""}
 
     Context: ${countryContext}
     
-    CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data for ${propertyType}s. 
-    MANDATORY: Use Google Search to retrieve the absolute latest 2025/2026 interest rates, inflation figures, and region-specific market news BEFORE responding.
-    DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
-    - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
-    - Prices and yields MUST be realistic for 2025/2026 ${propertyType}s in this specific suburb.
-    
-    Return a strictly valid JSON response with these exact fields:
-    - medianPrice: number (current median ${propertyType} price in local units)
-    - propertyType: string (strictly "${propertyType}")
+    MANDATORY: Return a strictly valid JSON response with these exact fields:
+    - medianPrice: number
+    - propertyType: string ("${propertyType}")
     - currency: local currency code
-    - rentalYield: annual gross yield % (number)
-    - investmentScore: score out of 100
+    - rentalYield: number (%)
+    - investmentScore: number (0-100)
     - sentiment: "Bullish / Strong" | "Neutral / Monitor" | "Bearish / Slow"
-    - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS specifically for ${propertyType}s. No fluff.
+    - strategistVerdict: "Capital Growth Play" | "Yield Play" | "Pass"
+    - insights: 3 sentences of PURE DATA on infrastructure and catalysts.
+    - strategistAnalysis: {
+        domVsCityAvg: string (e.g., "15 days vs 28 city avg"),
+        somPercentage: number (Stock on Market %),
+        ripplepotential: string (Comparison to neighboring suburbs),
+        supplyTrapRisk: "High" | "Medium" | "Low",
+        redFlags: array of 2 strings,
+        tenantFit: string (matching demographic to stock)
+      }
     - indicators: { vacancyRate: number, listingsTrend: number (%), monthsSupply: number, dom: number, growth3mo: number (%), growth12mo: number (%), volumeTrend: number, landConstraint: number (scale 1-10) }
-    - categoryScores: { affordability: number (1-100), lifestyle: number (1-100), transport: number (1-100), schools: number (1-100), safety: number (1-100) }
+    - categoryScores: { affordability: number, lifestyle: number, transport: number, schools: number, safety: number }
     - historicalSeries: array of 5 years { year, value }
-    - projects: array of 3 specific CURRENT local developments (MUST be objects: { title: string, desc: string }).
+    - projects: array of 3 objects { title: string, desc: string }
     - demographics: array of objects { category, items: [{ label, value }] }
 
-    MANDATORY: Return ONLY the JSON object. Do not include any markdown formatting, preamble, or conclusions.
+    MANDATORY: Return ONLY the JSON object. No preamble, no markdown.
   `;
 
   try {

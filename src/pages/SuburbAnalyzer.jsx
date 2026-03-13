@@ -78,6 +78,15 @@ export default function SuburbAnalyzer() {
       recClass: totalScore >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : totalScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200',
       aiText: aiData?.insights || 'Market analysis search in progress...',
       propertyType: aiData?.propertyType || propertyType,
+      strategistAnalysis: aiData?.strategistAnalysis || {
+        domVsCityAvg: "N/A",
+        somPercentage: 0,
+        ripplePotential: "Analysis pending",
+        supplyTrapRisk: "Low",
+        redFlags: ["No specific flags identified"],
+        tenantFit: "Stock matches standard demographic profile."
+      },
+      verdict: aiData?.strategistVerdict || "Analysis Pending",
       chartData: aiData?.historicalSeries || []
     };
   };
@@ -354,6 +363,79 @@ export default function SuburbAnalyzer() {
                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
                          {suburb.aiText}
                        </p>
+                     </div>
+
+                     {/* Strategist Verdict & Analysis */}
+                     <div className="p-6 sm:p-8 border-b border-slate-100 bg-white">
+                        <div className="flex items-center gap-3 mb-6">
+                           <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                           <h4 className="text-lg font-black text-slate-900">Strategist Report</h4>
+                           <span className={`ml-auto px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border shadow-sm ${
+                             suburb.verdict.includes('Pass') ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                             suburb.verdict.includes('Yield') ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                             'bg-indigo-50 text-indigo-700 border-indigo-200'
+                           }`}>
+                             Verdict: {suburb.verdict}
+                           </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           {/* Demand/Supply Metrics */}
+                           <div className="space-y-4">
+                              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                 <div className="flex justify-between items-center mb-1">
+                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">SOM % (Scarcity)</span>
+                                   <span className={`text-xs font-black ${suburb.strategistAnalysis.somPercentage < 2 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                     {suburb.strategistAnalysis.somPercentage}%
+                                   </span>
+                                 </div>
+                                 <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                   <div className={`h-full rounded-full ${suburb.strategistAnalysis.somPercentage < 2 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (suburb.strategistAnalysis.somPercentage / 5) * 100)}%` }} />
+                                 </div>
+                              </div>
+                              
+                              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Ripple Effect potential</span>
+                                 <p className="text-xs font-bold text-slate-900">{suburb.strategistAnalysis.ripplePotential || suburb.strategistAnalysis.ripplepotential}</p>
+                              </div>
+                           </div>
+                           
+                           {/* Risks & Tenant fit */}
+                           <div className="space-y-4">
+                              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Risk: Supply Trap</span>
+                                 <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                      suburb.strategistAnalysis.supplyTrapRisk === 'High' ? 'bg-rose-100 text-rose-700' : 
+                                      suburb.strategistAnalysis.supplyTrapRisk === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                                    }`}>
+                                      {suburb.strategistAnalysis.supplyTrapRisk} Risk
+                                    </span>
+                                    <span className="text-[10px] font-medium text-slate-500 italic">DOM vs City: {suburb.strategistAnalysis.domVsCityAvg}</span>
+                                 </div>
+                              </div>
+
+                              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Tenant Profile & Fit</span>
+                                 <p className="text-xs font-bold text-slate-900">{suburb.strategistAnalysis.tenantFit}</p>
+                              </div>
+                           </div>
+                        </div>
+                        
+                        {/* Red Flags */}
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                           <div className="flex items-center gap-2 mb-3">
+                              <AlertCircle className="w-4 h-4 text-rose-500" />
+                              <span className="text-xs font-black text-slate-900 uppercase">Strategic Red Flags</span>
+                           </div>
+                           <div className="flex flex-wrap gap-3">
+                              {(suburb.strategistAnalysis.redFlags || []).map((flag, idx) => (
+                                <div key={idx} className="px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-100 text-rose-700 text-[11px] font-bold">
+                                  • {flag}
+                                </div>
+                              ))}
+                           </div>
+                        </div>
                      </div>
 
                      {/* New Infrastructure Section */}
