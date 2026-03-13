@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -57,7 +57,21 @@ export default async function handler(req, res) {
       })
     });
     
-    const data = await response.json();
+    let data = await response.json();
+    
+    // Fallback if live search fails or is unsupported for the current user/region
+    if (!response.ok) {
+      console.warn("[AI Chat] Live Search failed, attempting standard generation...", data.error);
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+      data = await response.json();
+    }
     
     if (!response.ok) {
       console.error("[AI Chat] Gemini API Error:", data.error);

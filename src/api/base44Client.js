@@ -296,7 +296,8 @@ export const base44 = {
             if (resp.ok) {
               return await resp.json();
             }
-            console.warn("[Base44] AI Chat unavailable (Status: " + resp.status + ")");
+            const errText = await resp.text();
+            console.warn(`[Base44] AI Chat unavailable (Status: ${resp.status}): ${errText}`);
           } catch (e) {
             console.error("[Base44] AI Connectivity Error:", e);
           }
