@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       generationConfig: { responseMimeType: "application/json" }
     };
 
-    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyWithSearch)
@@ -67,9 +67,10 @@ export default async function handler(req, res) {
     let data;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.warn("[AI Chat] Grounded Search failed (Status: " + response.status + "). Retrying without tools...", err);
+      console.warn("[AI Chat] Grounded Search failed (Status: " + response.status + "). Retrying without tools on v1...", err);
       
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      // Use stable v1 for fallback
+      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyWithoutSearch)
