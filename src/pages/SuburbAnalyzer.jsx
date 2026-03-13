@@ -258,7 +258,7 @@ export default function SuburbAnalyzer() {
                    {analyzing ? 'Analyzing Market...' : 'Analyze Market'}
                  </Button>
                </div>
-                <p className="text-xs text-slate-500 mt-3 font-medium">Live AI Google Search active. Grounded 2024/2025 market analysis.</p>
+                <p className="text-xs text-slate-500 mt-3 font-medium">Live AI Google Search active. Grounded 2025/2026 market analysis.</p>
             </div>
           </div>
 

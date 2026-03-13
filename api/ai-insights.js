@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
   const prompt = `
     Act as a senior real estate research director with 20 years experience in the ${country} market.
-    MANDATORY: Use the Google Search tool to find CURRENT 2024/2025 statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
+    MANDATORY: Use the Google Search tool to find CURRENT 2025/2026 statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
     Your response must be STRICTLY for ${propertyType}s. Do NOT mix house and unit data.
     
     If the user asked for "house", DO NOT return data for "units/apartments".
@@ -40,10 +40,10 @@ export default async function handler(req, res) {
     Context: ${countryContext}
     
     CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data for ${propertyType}s. 
-    MANDATORY: Use Google Search to retrieve the absolute latest 2024/2025 interest rates, inflation figures, and region-specific market news BEFORE responding.
+    MANDATORY: Use Google Search to retrieve the absolute latest 2025/2026 interest rates, inflation figures, and region-specific market news BEFORE responding.
     DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
-    - Prices and yields MUST be realistic for 2024/2025 ${propertyType}s in this specific suburb.
+    - Prices and yields MUST be realistic for 2025/2026 ${propertyType}s in this specific suburb.
     
     Return a strictly valid JSON response with these exact fields:
     - medianPrice: number (current median ${propertyType} price in local units)
