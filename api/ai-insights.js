@@ -71,8 +71,8 @@ export default async function handler(req, res) {
     };
 
     if (geminiKey) {
-      // Use gemini-1.5-flash-002 on v1 (High stability specific version)
-      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent?key=${geminiKey}`, {
+      // Use gemini-1.5-pro on v1beta (Most robust model for 2026 searches)
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyWithSearch)
@@ -81,9 +81,10 @@ export default async function handler(req, res) {
       let data;
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        console.warn("[AI Insights] Gemini 1.5-002 request failed. Retrying without tools...", err);
+        console.warn("[AI Insights] Gemini Pro request failed. Status: " + response.status, JSON.stringify(err));
         
-        response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-002:generateContent?key=${geminiKey}`, {
+        // Secondary fallback without tools
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyWithoutSearch)
