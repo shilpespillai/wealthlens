@@ -56,26 +56,20 @@ export default async function handler(req, res) {
       contents: [{ parts: [{ text: fullPrompt }] }]
     };
 
-    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
+    let response;
+    
+    // Attempt standard v1 request (most stable)
+    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyWithSearch)
+      body: JSON.stringify(bodyWithoutSearch)
     });
     
-    let data;
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.warn("[AI Chat] Grounded Search failed (Status: " + response.status + "). Retrying without tools on v1...", err);
-      
-      // Use stable v1 for fallback
-      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyWithoutSearch)
-      });
-      data = await response.json();
-    } else {
-      data = await response.json();
+    let data = await response.json();
+    
+    // If we want search, try v1beta as a secondary feature
+    if (response.ok && bodyWithSearch.tools) {
+       // Optional: could re-try with tools if v1 succeeded, but standard is safer for 'Live AI' completion
     }
     
     if (!response.ok) {

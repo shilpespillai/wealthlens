@@ -8,7 +8,11 @@ export default async function handler(req, res) {
   const apiKey = process.env.DOMAIN_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Domain API key not configured' });
+    console.error("[Domain Proxy] DOMAIN_API_KEY is not set in environment variables.");
+    return res.status(500).json({ 
+      error: 'Domain API integration is not configured. Please add DOMAIN_API_KEY to your Vercel Environment Variables.',
+      setup_required: true 
+    });
   }
 
   try {
