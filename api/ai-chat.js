@@ -47,29 +47,35 @@ export default async function handler(req, res) {
   `;
 
   try {
+    const bodyWithSearch = {
+      contents: [{ parts: [{ text: fullPrompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { responseMimeType: "application/json" }
+    };
+
+    const bodyWithoutSearch = {
+      contents: [{ parts: [{ text: fullPrompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    };
+
     let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
+      body: JSON.stringify(bodyWithSearch)
     });
     
-    let data = await response.json();
-    
-    // Fallback if live search fails or is unsupported for the current user/region
+    let data;
     if (!response.ok) {
-      console.warn("[AI Chat] Live Search failed, attempting standard generation...", data.error);
+      const err = await response.json().catch(() => ({}));
+      console.warn("[AI Chat] Grounded Search failed (Status: " + response.status + "). Retrying without tools...", err);
+      
       response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: fullPrompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
+        body: JSON.stringify(bodyWithoutSearch)
       });
+      data = await response.json();
+    } else {
       data = await response.json();
     }
     
