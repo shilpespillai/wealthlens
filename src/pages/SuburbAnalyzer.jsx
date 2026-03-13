@@ -24,6 +24,7 @@ export default function SuburbAnalyzer() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCountry, setSearchCountry] = useState('AU');
   const [searchState, setSearchState] = useState('NSW');
+  const [propertyType, setPropertyType] = useState('house'); // 'house' | 'unit'
   const [suburbs, setSuburbs] = useState([]); // Selected suburbs for comparison
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -76,6 +77,7 @@ export default function SuburbAnalyzer() {
       recommendation: aiData ? (totalScore >= 70 ? 'Strong Buy' : totalScore >= 50 ? 'Monitor' : 'Avoid') : 'Analyze',
       recClass: totalScore >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : totalScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200',
       aiText: aiData?.insights || 'Market analysis search in progress...',
+      propertyType: aiData?.propertyType || propertyType,
       chartData: aiData?.historicalSeries || []
     };
   };
@@ -132,6 +134,7 @@ export default function SuburbAnalyzer() {
         suburb: searchQuery, 
         state: searchState, 
         country: suburbCountry,
+        propertyType: propertyType, // Pass property type
         userContext: budgetContext // Pass the new context
       });
       aiData = aiResp.data;
@@ -229,6 +232,23 @@ export default function SuburbAnalyzer() {
                    </select>
                  </div>
                </div>
+               
+               {/* Property Type Toggle */}
+               <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-full sm:w-fit mt-4">
+                 <button 
+                   onClick={() => setPropertyType('house')}
+                   className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all ${propertyType === 'house' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                 >
+                   Houses
+                 </button>
+                 <button 
+                   onClick={() => setPropertyType('unit')}
+                   className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all ${propertyType === 'unit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                 >
+                   Units / Apartments
+                 </button>
+               </div>
+
                <div className="mt-4">
                  <Button 
                    onClick={analyzeSuburb}
@@ -258,17 +278,20 @@ export default function SuburbAnalyzer() {
                      <div className={`p-6 sm:p-8 border-b ${suburb.recClass}`}>
                        <div className="flex justify-between items-start mb-6">
                          <div className="flex-1">
-                           <div className="flex items-center gap-3 mb-1">
-                             <h3 className="text-3xl font-black tracking-tight">{suburb.name}</h3>
-                             <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-black/10 flex items-center gap-1.5 ${suburb.strategy === 'Capital Growth' ? 'bg-indigo-500 text-white' : 'bg-emerald-500 text-white'}`}>
-                               <TrendingUp className="w-3 h-3" />
-                               {suburb.strategy}
-                             </span>
-                           </div>
-                           <div className="flex items-center gap-2 mt-1">
-                             <MapPin className="w-5 h-5 opacity-70" />
-                             <span className="text-lg font-bold opacity-80">{suburb.state}</span>
-                           </div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-3xl font-black tracking-tight">{suburb.name}</h3>
+                              <span className="px-2 py-0.5 rounded-md bg-white/20 text-[10px] font-black uppercase tracking-widest border border-white/20">
+                                {suburb.propertyType}
+                              </span>
+                              <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-black/10 flex items-center gap-1.5 ${suburb.strategy === 'Capital Growth' ? 'bg-indigo-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                                <TrendingUp className="w-3 h-3" />
+                                {suburb.strategy}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <MapPin className="w-5 h-5 opacity-70" />
+                              <span className="text-lg font-bold opacity-80">{suburb.state}</span>
+                            </div>
                          </div>
                          
                          {/* Investment Score Gauge */}

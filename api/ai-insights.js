@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { suburb, state, country, postcode, userContext } = req.body;
+  const { suburb, state, country, postcode, userContext, propertyType = 'house' } = req.body;
   
   if (!suburb || !country) {
     return res.status(400).json({ error: 'Missing required parameters: suburb and country' });
@@ -27,26 +27,32 @@ export default async function handler(req, res) {
 
   const prompt = `
     Act as a senior real estate research director with 20 years experience in the ${country} market.
-    MANDATORY: Use the Google Search tool to find CURRENT 2024/2025 statistics for: ${suburb}, ${state}, ${country}.
-    Your response must be based on ACTIVE market listings, recent auction results, and current vacancy rates.
+    MANDATORY: Use the Google Search tool to find CURRENT 2024/2025 statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
+    Your response must be STRICTLY for ${propertyType}s. Do NOT mix house and unit data.
+    
+    If the user asked for "house", DO NOT return data for "units/apartments".
+    If the user asked for "unit", DO NOT return data for "houses/villas".
+    
+    Your response must be based on ACTIVE market listings, recent auction results, and current vacancy rates for ${propertyType}s.
 
-    ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this suburb is a good fit for their budget and goals.` : ""}
+    ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this ${suburb} ${propertyType} is a good fit for their budget and goals.` : ""}
 
     Context: ${countryContext}
     
-    CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data. 
+    CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data for ${propertyType}s. 
     MANDATORY: Use Google Search to retrieve the absolute latest 2024/2025 interest rates, inflation figures, and region-specific market news BEFORE responding.
     DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
-    - Prices and yields MUST be realistic for 2024/2025.
+    - Prices and yields MUST be realistic for 2024/2025 ${propertyType}s in this specific suburb.
     
     Return a strictly valid JSON response with these exact fields:
-    - medianPrice: number (current median house price in local units)
+    - medianPrice: number (current median ${propertyType} price in local units)
+    - propertyType: string (strictly "${propertyType}")
     - currency: local currency code
     - rentalYield: annual gross yield % (number)
     - investmentScore: score out of 100
     - sentiment: "Bullish / Strong" | "Neutral / Monitor" | "Bearish / Slow"
-    - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS. No fluff.
+    - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS specifically for ${propertyType}s. No fluff.
     - indicators: { vacancyRate: number, listingsTrend: number, monthsSupply: number, dom: number, growth3mo: number, growth12mo: number, volumeTrend: number, landConstraint: number }
     - categoryScores: { affordability: number, lifestyle: number, transport: number, schools: number, safety: number }
     - historicalSeries: array of 5 years { year, value }
