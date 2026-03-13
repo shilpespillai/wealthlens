@@ -98,7 +98,9 @@ function FamilyBudgetContent() {
 
   const metrics = useMemo(() => {
     const totalIncome = incomes.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const totalExpenses = expenses.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const expensesOnly = expenses.filter(e => e.category !== "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const savingsOnly = expenses.filter(e => e.category === "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const totalExpenses = expensesOnly + savingsOnly; // Sum of expense and saving columns as requested
     const balance = totalIncome - totalExpenses;
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
@@ -230,7 +232,7 @@ function FamilyBudgetContent() {
                       <Input 
                         type="number"
                         placeholder="0" 
-                        value={inc.monthlyAmount ? rawFmt(inc.monthlyAmount) : ""} 
+                        value={inc.monthlyAmount ? (inc.monthlyAmount * multiplier).toString() : ""} 
                         onChange={(e) => updateIncome(inc.id, "monthlyAmount", parseNum(e.target.value, viewMode))}
                         className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
                       />
@@ -263,20 +265,18 @@ function FamilyBudgetContent() {
                       onChange={(e) => updateExpense(exp.id, "name", e.target.value)}
                       className="flex-1 bg-slate-50 border-slate-200"
                     />
-                    <Select value={exp.category} onValueChange={(val) => updateExpense(exp.id, "category", val)}>
-                      <SelectTrigger className="w-full sm:w-40 bg-slate-50 border-slate-200 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Input 
+                      placeholder="Category" 
+                      value={exp.category} 
+                      onChange={(e) => updateExpense(exp.id, "category", e.target.value.toLowerCase())}
+                      className="w-full sm:w-40 bg-slate-50 border-slate-200 text-sm"
+                    />
                     <div className="relative w-full sm:w-40">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                       <Input 
-                        type="number"
+                        type="number" 
                         placeholder="0" 
-                        value={exp.monthlyAmount ? rawFmt(exp.monthlyAmount) : ""} 
+                        value={exp.monthlyAmount ? (exp.monthlyAmount * multiplier).toString() : ""} 
                         onChange={(e) => updateExpense(exp.id, "monthlyAmount", parseNum(e.target.value, viewMode))}
                         className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-rose-500"
                       />
