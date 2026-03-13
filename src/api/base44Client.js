@@ -289,7 +289,7 @@ export const base44 = {
             const resp = await fetch('/api/ai-chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt: params.prompt, type, schema: params.response_json_schema }),
+              body: JSON.stringify({ prompt: params.prompt, type }),
               cache: 'no-store'
             });
              
