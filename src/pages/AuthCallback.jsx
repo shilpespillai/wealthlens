@@ -69,7 +69,14 @@ export default function AuthCallback() {
           avatar: user.user_metadata?.avatar_url,
         }));
         setStatus('success');
-        setTimeout(() => window.location.replace('/'), 800);
+        setTimeout(() => {
+          const params = new URLSearchParams(window.location.search);
+          let redirectTo = params.get('redirect_to') || '/';
+          if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
+            redirectTo = '/';
+          }
+          window.location.replace(redirectTo);
+        }, 800);
       } else if (error) {
         const urlParams = new URLSearchParams(window.location.search);
         const urlError = urlParams.get('error_description') || urlParams.get('error');

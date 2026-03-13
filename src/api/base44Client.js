@@ -39,16 +39,20 @@ export const base44 = {
       localStorage.removeItem('mockUser');
       window.location.replace(returnUrl);
     },
-    redirectToLogin: async (returnUrl = '/') => {
+    redirectToLogin: async (returnUrl) => {
       // Avoid infinite redirect loop if already on login page
-      if (window.location.pathname === '/login' || window.location.pathname === '/Login') {
+      const currentPath = window.location.pathname;
+      if (currentPath === '/login' || currentPath === '/Login' || currentPath === '/auth/callback') {
         return;
       }
       
       const loginUrl = new URL('/login', window.location.origin);
-      if (returnUrl && returnUrl !== '/') {
-        loginUrl.searchParams.set('redirect_to', returnUrl);
+      const finalReturnUrl = returnUrl || currentPath + window.location.search;
+      
+      if (finalReturnUrl && finalReturnUrl !== '/' && !finalReturnUrl.includes('/login') && !finalReturnUrl.includes('/auth/callback')) {
+        loginUrl.searchParams.set('redirect_to', finalReturnUrl);
       }
+      
       window.location.href = loginUrl.toString();
     }
   },

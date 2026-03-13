@@ -33,7 +33,7 @@ export default function AuthGuard({ children }) {
           <h1 className="text-4xl font-bold text-white mb-4">Welcome to WealthLens</h1>
           <p className="text-slate-300 mb-8">Sign in or create an account to get started with your investment calculations.</p>
           <Button
-            onClick={() => base44.auth.redirectToLogin()}
+            onClick={() => base44.auth.redirectToLogin(window.location.pathname + window.location.search)}
             className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white font-bold py-3 px-8 rounded-xl text-lg"
           >
             Sign In / Sign Up
