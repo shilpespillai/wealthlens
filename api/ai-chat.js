@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { prompt, type } = req.body;
+  const { prompt, type, schema } = req.body;
   
   if (!prompt) {
     return res.status(400).json({ error: 'Missing prompt' });
@@ -58,8 +58,8 @@ export default async function handler(req, res) {
 
     let response;
     
-    // Use stable v1 with Gemini 2.5 Flash (Confirmed 2026 Standard)
-    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+    // Use stable v1 with Gemini 1.5 Flash (Confirmed high-speed standard)
+    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyWithSearch)
@@ -68,9 +68,9 @@ export default async function handler(req, res) {
     let data;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.warn("[AI Chat] Gemini 2.5 request failed. Retrying without tools...", err);
+      console.warn("[AI Chat] Gemini 1.5 request failed. Retrying without tools...", err);
       
-      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyWithoutSearch)
@@ -107,3 +107,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to generate AI response', details: error.message });
   }
 }
+ 
+export const config = {
+  maxDuration: 60
+};
