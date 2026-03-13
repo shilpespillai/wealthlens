@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     - indicators: { vacancyRate: number, listingsTrend: number, monthsSupply: number, dom: number, growth3mo: number, growth12mo: number, volumeTrend: number, landConstraint: number }
     - categoryScores: { affordability: number, lifestyle: number, transport: number, schools: number, safety: number }
     - historicalSeries: array of 5 years { year, value }
-    - projects: array of 3 specific CURRENT local developments.
+    - projects: array of 3 specific CURRENT local developments (MUST be objects: { title: string, desc: string }).
     - demographics: array of objects { category, items: [{ label, value }] }
 
     Return ONLY valid JSON.

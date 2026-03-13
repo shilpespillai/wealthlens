@@ -363,15 +363,21 @@ export default function SuburbAnalyzer() {
                            <h4 className="font-bold text-slate-900">Infrastructure & Development</h4>
                         </div>
                         <div className="space-y-3">
-                           {suburb.infrastructure.map((project, idx) => (
-                             <div key={idx} className="flex gap-3 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
-                               <div className="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                               <div>
-                                 <p className="text-sm font-bold text-slate-900">{project.title}</p>
-                                 <p className="text-xs text-slate-500 mt-1">{project.desc}</p>
+                           {suburb.infrastructure && suburb.infrastructure.length > 0 ? (
+                             suburb.infrastructure.map((project, idx) => (
+                               <div key={idx} className="flex gap-3 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                 <div className="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                                 <div>
+                                   <p className="text-sm font-bold text-slate-900">{project.title}</p>
+                                   <p className="text-xs text-slate-500 mt-1">{project.desc}</p>
+                                 </div>
                                </div>
+                             ))
+                           ) : (
+                             <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center">
+                               <p className="text-sm text-slate-500 font-medium italic">No major local projects identified by AI market scan for this specific segment.</p>
                              </div>
-                           ))}
+                           )}
                         </div>
                      </div>
 
