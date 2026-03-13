@@ -62,13 +62,11 @@ export default async function handler(req, res) {
     
     const bodyWithSearch = {
       contents: [{ parts: [{ text: prompt }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: { responseMimeType: "application/json" }
+      tools: [{ google_search: {} }]
     };
 
     const bodyWithoutSearch = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" }
+      contents: [{ parts: [{ text: prompt }] }]
     };
 
     if (geminiKey) {

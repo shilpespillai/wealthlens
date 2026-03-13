@@ -49,13 +49,11 @@ export default async function handler(req, res) {
   try {
     const bodyWithSearch = {
       contents: [{ parts: [{ text: fullPrompt }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: { responseMimeType: "application/json" }
+      tools: [{ google_search: {} }]
     };
 
     const bodyWithoutSearch = {
-      contents: [{ parts: [{ text: fullPrompt }] }],
-      generationConfig: { responseMimeType: "application/json" }
+      contents: [{ parts: [{ text: fullPrompt }] }]
     };
 
     let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
