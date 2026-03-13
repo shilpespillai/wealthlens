@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, MapPin, TrendingUp, Info, ChevronRight, X, Heart, ShieldCheck, 
   Trash2, Plus, ArrowRight, Download, Save, Map as MapIcon, Layers, 
@@ -31,6 +31,29 @@ export default function SuburbAnalyzer() {
   const [analyzing, setAnalyzing] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [comparing, setComparing] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  const loadingMessages = [
+    "Scanning 2026 market data...",
+    "Analyzing infrastructure projects...",
+    "Predicting supply vs demand...",
+    "Evaluating demographic shifts...",
+    "Calculating investment score...",
+    "Finalizing strategist report..."
+  ];
+
+  useEffect(() => {
+    let interval;
+    if (analyzing) {
+      const stepTime = 2000;
+      interval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % loadingMessages.length);
+      }, stepTime);
+    } else {
+      setLoadingStep(0);
+    }
+    return () => clearInterval(interval);
+  }, [analyzing]);
 
   const countries = [
     { code: 'AU', name: 'Australia', stateLabel: 'State', zipLabel: 'Postcode', states: ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'], currency: 'AUD' },
@@ -169,6 +192,7 @@ export default function SuburbAnalyzer() {
       toast.error("Failed to analyze market. Please check your inputs and try again.");
     } finally {
       setAnalyzing(false);
+      setLoadingStep(0);
     }
   };
 
@@ -269,10 +293,64 @@ export default function SuburbAnalyzer() {
                    disabled={!searchQuery || !searchState || analyzing}
                    className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 w-full sm:w-auto"
                  >
-                   {analyzing ? 'Analyzing Market...' : 'Analyze Market'}
-                 </Button>
-               </div>
-                <p className="text-xs text-slate-500 mt-3 font-medium">Live AI Google Search active. Grounded 2025/2026 market analysis.</p>
+                    {analyzing ? loadingMessages[loadingStep] : 'Analyze Market'}
+                  </Button>
+                </div>
+                
+                <AnimatePresence mode="wait">
+                  {analyzing && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-6 flex flex-col items-center justify-center p-8 bg-indigo-50/50 rounded-2xl border border-dashed border-indigo-200 overflow-hidden"
+                    >
+                      <div className="relative w-16 h-16 mb-4">
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="absolute inset-0 border-4 border-indigo-100 border-t-indigo-600 rounded-full"
+                        />
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="absolute inset-0 flex items-center justify-center"
+                        >
+                          <Search className="w-6 h-6 text-indigo-600" />
+                        </motion.div>
+                      </div>
+                      <div className="text-center">
+                        <AnimatePresence mode="wait">
+                          <motion.p 
+                            key={loadingStep}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-lg font-black text-indigo-900 h-7"
+                          >
+                            {loadingMessages[loadingStep]}
+                          </motion.p>
+                        </AnimatePresence>
+                        <p className="text-xs text-indigo-500 font-medium mt-1 uppercase tracking-widest">Grounded AI Research active</p>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full max-w-xs h-1.5 bg-indigo-100 rounded-full mt-6 overflow-hidden">
+                        <motion.div 
+                          initial={{ width: "0%" }}
+                          animate={{ 
+                            width: ["0%", "20%", "45%", "65%", "85%", "95%"],
+                          }}
+                          transition={{ duration: 15, ease: "easeInOut" }}
+                          className="h-full bg-indigo-600"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                 <p className="text-xs text-slate-500 mt-3 font-medium">Live AI Google Search active. Grounded 2025/2026 market analysis.</p>
             </div>
           </div>
 
@@ -299,6 +377,7 @@ export default function SuburbAnalyzer() {
                      variant="outline"
                      onClick={() => {
                         setSuburbs([]);
+                        setComparing(false);
                         saveToProfile([]);
                      }}
                      className="flex items-center gap-2 text-rose-500 border-rose-100 hover:bg-rose-50 font-black rounded-xl h-12 px-6"
@@ -310,7 +389,7 @@ export default function SuburbAnalyzer() {
                </div>
              )}
 
-             {comparing ? (
+              {comparing && suburbs.length > 0 ? (
                <div className="bg-white rounded-3xl border-2 border-slate-100 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="p-8 border-b border-slate-100 bg-slate-50/50">
                     <h4 className="text-2xl font-black text-slate-900">Side-by-Side Comparison</h4>
