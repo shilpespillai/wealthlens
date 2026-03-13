@@ -38,58 +38,45 @@ export default function SuburbAnalyzer() {
 
   const activeCountry = countries.find(c => c.code === searchCountry) || countries[0];
 
-  const processDomainData = (demographics, performance, name, state, postcode, suburbCountry, aiData = null) => {
-    const stats = performance?.statistics || {};
-    const series = performance?.series?.[0]?.data || [];
-    
-    // Create base indicators from Domain Performance or defaults
-    const vacancyRate = stats.vacancyRate || 2.0;
-    const listingsTrend = stats.listingsTrend || 0;
-    const monthsSupply = stats.monthsSupply || 4.5;
-    const dom = stats.dom || 45;
-    const growth3mo = series.length >= 2 ? ((series[series.length - 1].value - series[series.length - 2].value) / series[series.length - 2].value) * 100 : 0;
-    const growth12mo = series.length >= 5 ? ((series[series.length - 1].value - series[series.length - 5].value) / series[series.length - 5].value) * 100 : 0;
-    
-    // Calculate a mock score if no AI data
-    const totalScore = Math.max(30, 100 - (vacancyRate * 20));
-
-    const categoryScores = {
-      affordability: Math.min(100, (1500000 / (stats.medianPrice || 1000000)) * 50),
-      lifestyle: 70,
-      transport: 65,
-      schools: 75,
-      safety: 80
-    };
+  const processAIResults = (aiData, name, state, suburbCountry) => {
+    // Calculate a base score if AI fails (unlikely with fallbacks)
+    const totalScore = aiData?.investmentScore || 50;
 
     return {
-      id: Date.now(), // Unique ID for deletion logic
+      id: Date.now(), 
       name: name.toUpperCase(),
       state: state,
-      postcode: postcode || '',
+      postcode: '',
       country: suburbCountry,
       currency: aiData?.currency || (suburbCountry === 'US' ? 'USD' : suburbCountry === 'UK' ? 'GBP' : 'AUD'),
-      medianPrice: aiData?.medianPrice || stats.medianPrice || 0,
-      rentalYield: aiData?.rentalYield || stats.rentalYield || 0,
-      score: aiData?.investmentScore || totalScore,
-      strategy: (aiData?.rentalYield || stats.rentalYield || 0) > 4.5 ? 'High Cashflow' : 'Capital Growth',
-      infrastructure: aiData 
-        ? (aiData.projects || []).map(p => typeof p === 'string' ? { title: p, desc: "Regional development project." } : p)
-        : [{ title: "Local Infrastructure", desc: `Based on regional planning data for ${state}, ${suburbCountry}.` }],
-      indicators: aiData ? {
-        vacancyRate: aiData.vacancyRate || 1.5,
-        listingsTrend: 0,
-        monthsSupply: 3.5,
-        dom: 35,
-        growth3mo: 1.2,
-        growth12mo: 5.5,
-        volumeTrend: 0,
-        landConstraint: 5
-      } : { vacancyRate, listingsTrend, monthsSupply, dom, growth3mo, growth12mo, volumeTrend: 0, landConstraint: 5 },
-      categoryScores: aiData?.categoryScores || categoryScores,
-      recommendation: aiData ? (aiData.investmentScore >= 70 ? 'Strong Buy' : aiData.investmentScore >= 50 ? 'Monitor' : 'Avoid') : 'Analyze',
-      recClass: aiData ? (aiData.investmentScore >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : aiData.investmentScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200') : 'bg-slate-100',
-      aiText: aiData?.insights || 'AI Market analysis pending...',
-      chartData: aiData?.historicalSeries || series
+      medianPrice: aiData?.medianPrice || 0,
+      rentalYield: aiData?.rentalYield || 0,
+      score: totalScore,
+      strategy: (aiData?.rentalYield || 0) > 4.5 ? 'High Cashflow' : 'Capital Growth',
+      infrastructure: (aiData?.projects || []).map(p => 
+        typeof p === 'string' ? { title: p, desc: "Identified via AI market scan." } : p
+      ),
+      indicators: aiData?.indicators || { 
+        vacancyRate: 1.5, 
+        listingsTrend: 0, 
+        monthsSupply: 3.5, 
+        dom: 35, 
+        growth3mo: 1.2, 
+        growth12mo: 5.5, 
+        volumeTrend: 0, 
+        landConstraint: 5 
+      },
+      categoryScores: aiData?.categoryScores || {
+        affordability: 50,
+        lifestyle: 70,
+        transport: 65,
+        schools: 75,
+        safety: 80
+      },
+      recommendation: aiData ? (totalScore >= 70 ? 'Strong Buy' : totalScore >= 50 ? 'Monitor' : 'Avoid') : 'Analyze',
+      recClass: totalScore >= 70 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : totalScore >= 50 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200',
+      aiText: aiData?.insights || 'Market analysis search in progress...',
+      chartData: aiData?.historicalSeries || []
     };
   };
 
@@ -149,7 +136,7 @@ export default function SuburbAnalyzer() {
       });
       aiData = aiResp.data;
 
-      const newSuburb = processDomainData(null, null, searchQuery, searchState, null, suburbCountry, aiData);
+      const newSuburb = processAIResults(aiData, searchQuery, searchState, suburbCountry);
       // Inject country/currency info for global display if not already set by AI
       if (!newSuburb.currency) newSuburb.currency = currentActiveCountry.currency;
 
@@ -251,7 +238,7 @@ export default function SuburbAnalyzer() {
                    {analyzing ? 'Analyzing Market...' : 'Analyze Market'}
                  </Button>
                </div>
-               <p className="text-xs text-slate-500 mt-3 font-medium">Domain API integration active. Add up to 3 suburbs to compare.</p>
+                <p className="text-xs text-slate-500 mt-3 font-medium">Live AI Google Search active. Grounded 2024/2025 market analysis.</p>
             </div>
           </div>
 

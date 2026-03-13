@@ -44,13 +44,14 @@ export default async function handler(req, res) {
     - medianPrice: number (current median house price in local units)
     - currency: local currency code
     - rentalYield: annual gross yield % (number)
-    - vacancyRate: vacancy rate % (number)
     - investmentScore: score out of 100
     - sentiment: "Bullish / Strong" | "Neutral / Monitor" | "Bearish / Slow"
     - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS. No fluff.
-    - demographics: array of objects { category, items: [{ label, value }] }
+    - indicators: { vacancyRate: number, listingsTrend: number, monthsSupply: number, dom: number, growth3mo: number, growth12mo: number, volumeTrend: number, landConstraint: number }
+    - categoryScores: { affordability: number, lifestyle: number, transport: number, schools: number, safety: number }
     - historicalSeries: array of 5 years { year, value }
     - projects: array of 3 specific CURRENT local developments.
+    - demographics: array of objects { category, items: [{ label, value }] }
 
     Return ONLY valid JSON.
   `;
