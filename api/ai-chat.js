@@ -58,8 +58,8 @@ export default async function handler(req, res) {
 
     let response;
     
-    // Use stable v1 with Gemini 2.0 Flash (latest standard as of 2026)
-    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+    // Use gemini-2.5-flash-latest on v1beta for advanced 2026 search grounding
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyWithSearch)
@@ -68,9 +68,9 @@ export default async function handler(req, res) {
     let data;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.warn("[AI Chat] Gemini 2.0 request failed. Retrying without tools...", err);
+      console.warn("[AI Chat] Gemini 2.5 request failed. Retrying without tools...", err);
       
-      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyWithoutSearch)
