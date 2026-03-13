@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     ${systemContext}
     
     CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data. 
-    MANDATORY: Use Google Search to retrieve the absolute latest 2024/2025 interest rates, inflation figures, and region-specific market news BEFORE responding.
+    MANDATORY: Use Google Search to retrieve the absolute latest 2025/2026 interest rates, inflation figures, and region-specific market news BEFORE responding.
     DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     COMPUTE calculations the user can't easily do. Use the EXACT currency and amounts provided.
     
@@ -58,8 +58,8 @@ export default async function handler(req, res) {
 
     let response;
     
-    // Use stable v1 with Gemini 2.5 Flash (Confirmed 2026 Standard)
-    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+    // Use stable v1 with Gemini 1.5 Flash (Confirmed high-speed standard)
+    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyWithSearch)
@@ -68,9 +68,9 @@ export default async function handler(req, res) {
     let data;
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.warn("[AI Chat] Gemini 2.5 request failed. Retrying without tools...", err);
+      console.warn("[AI Chat] Gemini 1.5 request failed. Retrying without tools...", err);
       
-      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyWithoutSearch)
