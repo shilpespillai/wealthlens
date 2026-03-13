@@ -41,8 +41,6 @@ export default async function handler(req, res) {
     IF type is 'coach': { "assessment": "sharp 2-sentence mathematical evaluation", "tone": "encouraging|urgent|excellent", "recommendations": [{ "action": "specific task", "impact": "mathematical result of this task", "priority": "high|medium|low" }], "key_insights": ["data-driven insight from prompt"], "closing_motivation": "compelling closing" }
     IF type is 'tax': { "summary": "impact-focused summary", "strategies": [{ "title": "strategy name", "description": "detailed how-to", "estimated_savings": "approx amount in user currency", "timeframe": "string", "difficulty": "Easy|Moderate|Complex" }], "account_recommendations": [{ "account_type": "string", "benefits": "tax savings focus", "contribution_limits": "current info" }], "withdrawal_strategy": "string", "key_tips": ["advanced tip"] }
     IF type is 'sentiment': { "sentiment": "bullish|neutral|bearish", "summary": "1-sentence summary of the specific asset and currency", "key_trends": ["specific trigger/event"], "outlook": "growth projections", "risks": ["downside triggers"], "recommended_rates": { "conservative": number, "moderate": number, "aggressive": number } }
-    
-    ${schema ? `SPECIALIST SCHEMA REQUIREMENT: Return exactly this JSON structure:\n${JSON.stringify(schema)}` : ""}
 
     Ensure all advice is mathematically sound and DIRECTLY references the numbers/scenarios provided.
     Return ONLY valid JSON.
@@ -109,7 +107,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to generate AI response', details: error.message });
   }
 }
-
+ 
 export const config = {
   maxDuration: 60
 };
