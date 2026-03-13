@@ -27,16 +27,16 @@ export default async function handler(req, res) {
 
   const prompt = `
     Act as a senior real estate research director with 20 years experience in the ${country} market.
-    SEARCH the internet for the latest 2024/2025 median house prices, rental yields, and vacancy rates for: ${suburb}, ${state}, ${country} (postcode: ${postcode || 'N/A'}).
-    REFERENCE currently active local infrastructure projects and developments.
+    MANDATORY: Use the Google Search tool to find CURRENT 2024/2025 statistics for: ${suburb}, ${state}, ${country}.
+    Your response must be based on ACTIVE market listings, recent auction results, and current vacancy rates.
 
     ${userContext ? `The user providing the query has the following financial profile: \n${userContext}\nDirectly evaluate if this suburb is a good fit for their budget and goals.` : ""}
 
     Context: ${countryContext}
     
-    CRITICAL INSTRUCTION: You must provide hyper-personalized advice. 
-    SEARCH the internet for current 2024/2025 market trends, interest rates, and asset-specific news for the user's region before formulating your advice.
-    DO NOT use generic disclaimers or "resilient market" filler. CALCULATE impacts based on real-world current events.
+    CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data. 
+    MANDATORY: Use Google Search to retrieve the absolute latest 2024/2025 interest rates, inflation figures, and region-specific market news BEFORE responding.
+    DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     - If you do not have current data for this specific locale, infer it from the nearest Tier 1 economic hub in ${state}, ${country}.
     - Prices and yields MUST be realistic for 2024/2025.
     
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ google_search_retrieval: {} }],
+          tools: [{ google_search: {} }],
           generationConfig: { responseMimeType: "application/json" }
         })
       });

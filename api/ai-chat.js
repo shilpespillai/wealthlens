@@ -30,9 +30,9 @@ export default async function handler(req, res) {
   const fullPrompt = `
     ${systemContext}
     
-    CRITICAL INSTRUCTION: You must provide hyper-personalized advice. 
-    SEARCH the internet for current 2024/2025 market trends, interest rates, and asset-specific news for the user's region before formulating your advice.
-    DO NOT use generic disclaimers or "resilient market" filler. CALCULATE impacts based on real-world current events.
+    CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data. 
+    MANDATORY: Use Google Search to retrieve the absolute latest 2024/2025 interest rates, inflation figures, and region-specific market news BEFORE responding.
+    DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     COMPUTE calculations the user can't easily do. Use the EXACT currency and amounts provided.
     
     User Detail & Task: ${prompt}
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: fullPrompt }] }],
-        tools: [{ google_search_retrieval: {} }],
+        tools: [{ google_search: {} }],
         generationConfig: { responseMimeType: "application/json" }
       })
     });
