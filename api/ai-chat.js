@@ -58,18 +58,27 @@ export default async function handler(req, res) {
 
     let response;
     
-    // Attempt standard v1 request (most stable)
-    response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+    // Attempt v1beta with latest model (supports search tools)
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyWithoutSearch)
+      body: JSON.stringify(bodyWithSearch)
     });
     
-    let data = await response.json();
-    
-    // If we want search, try v1beta as a secondary feature
-    if (response.ok && bodyWithSearch.tools) {
-       // Optional: could re-try with tools if v1 succeeded, but standard is safer for 'Live AI' completion
+    let data;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.warn("[AI Chat] v1beta request failed (Status: " + response.status + "). Retrying without tools...", err);
+      
+      // Secondary fallback on v1beta without tools
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyWithoutSearch)
+      });
+      data = await response.json();
+    } else {
+      data = await response.json();
     }
     
     if (!response.ok) {
