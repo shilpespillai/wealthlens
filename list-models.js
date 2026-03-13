@@ -13,17 +13,12 @@ async function listModels() {
     const data = await response.json();
     
     if (data.models) {
-      console.log("AVAILABLE MODELS:");
-      data.models.forEach(m => console.log(`- ${m.name} (v1)`));
+      console.log("AVAILABLE v1 MODELS:");
+      data.models.forEach(m => {
+        console.log(`- ${m.name}`);
+        console.log(`  Supported Methods: ${m.supportedGenerationMethods.join(', ')}`);
+      });
     }
-    
-    const responseBeta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-    const dataBeta = await responseBeta.json();
-    if (dataBeta.models) {
-      console.log("\nAVAILABLE MODELS (v1beta):");
-      dataBeta.models.forEach(m => console.log(`- ${m.name} (v1beta)`));
-    }
-    
   } catch (error) {
     console.error(error);
   }
