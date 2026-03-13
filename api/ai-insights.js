@@ -53,13 +53,13 @@ export default async function handler(req, res) {
     - investmentScore: score out of 100
     - sentiment: "Bullish / Strong" | "Neutral / Monitor" | "Bearish / Slow"
     - insights: 3 sentences of PURE DATA and LOCAL CATALYSTS specifically for ${propertyType}s. No fluff.
-    - indicators: { vacancyRate: number, listingsTrend: number, monthsSupply: number, dom: number, growth3mo: number, growth12mo: number, volumeTrend: number, landConstraint: number }
-    - categoryScores: { affordability: number, lifestyle: number, transport: number, schools: number, safety: number }
+    - indicators: { vacancyRate: number, listingsTrend: number (%), monthsSupply: number, dom: number, growth3mo: number (%), growth12mo: number (%), volumeTrend: number, landConstraint: number (scale 1-10) }
+    - categoryScores: { affordability: number (1-100), lifestyle: number (1-100), transport: number (1-100), schools: number (1-100), safety: number (1-100) }
     - historicalSeries: array of 5 years { year, value }
     - projects: array of 3 specific CURRENT local developments (MUST be objects: { title: string, desc: string }).
     - demographics: array of objects { category, items: [{ label, value }] }
 
-    Return ONLY valid JSON.
+    MANDATORY: Return ONLY the JSON object. Do not include any markdown formatting, preamble, or conclusions.
   `;
 
   try {
@@ -114,7 +114,13 @@ export default async function handler(req, res) {
       
       try {
         // Robust cleanup for Markdown code blocks or leading/trailing whitespace
-        const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+        let cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+        // Remove potential AI preamble or trailing text if JSON is embedded
+        const jsonStart = cleanedText.indexOf('{');
+        const jsonEnd = cleanedText.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1);
+        }
         result = JSON.parse(cleanedText);
       } catch (parseError) {
         console.error("[AI Insights] Failed to parse AI JSON. Raw text:", text);
