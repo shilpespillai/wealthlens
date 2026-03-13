@@ -94,10 +94,12 @@ export default async function handler(req, res) {
     }
 
     try {
-      const result = JSON.parse(text);
+      // Robust cleanup for Markdown code blocks or leading/trailing whitespace
+      const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+      const result = JSON.parse(cleanedText);
       return res.status(200).json(result);
     } catch (parseError) {
-      console.error("[AI Chat] Failed to parse AI JSON:", text);
+      console.error("[AI Chat] Failed to parse AI JSON. Raw text:", text);
       throw new Error('AI returned an invalid data format.');
     }
   } catch (error) {
