@@ -11,15 +11,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function EquityUnlockPlanner({ currency }) {
   const sym = getCurrencySymbol(currency);
 
-  // Existing property
-  const [currentValue, setCurrentValue] = useState(800000);
-  const [loanBalance, setLoanBalance] = useState(400000);
-  const [bankLVR, setBankLVR] = useState(80);
+  // LMI calculation based on industry standards
+  const calculateLMI = (loanAmount, lvr) => {
+    if (lvr <= 80) return 0;
+    if (lvr <= 85) return loanAmount * 0.012;
+    if (lvr <= 90) return loanAmount * 0.024;
+    return loanAmount * 0.04; // 90%+ LVR
+  };
 
   // Multiple properties
   const [properties, setProperties] = useState([
-    { id: 1, price: 600000, growth: 6, rent: 550, mortgageRate: 6 },
-    { id: 2, price: 500000, growth: 6, rent: 450, mortgageRate: 6 }
+    { id: 1, price: 600000, growth: 6, rent: 550, mortgageRate: 6, depositPct: 20 },
+    { id: 2, price: 500000, growth: 6, rent: 450, mortgageRate: 6, depositPct: 20 }
   ]);
   const [years, setYears] = useState(15);
 
@@ -30,7 +33,8 @@ export default function EquityUnlockPlanner({ currency }) {
       price: 500000, 
       growth: 6, 
       rent: 400, 
-      mortgageRate: 6 
+      mortgageRate: 6,
+      depositPct: 20
     }]);
   };
 
@@ -42,91 +46,118 @@ export default function EquityUnlockPlanner({ currency }) {
     setProperties(properties.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
-  // Calculations
+  // Year-by-year recursive simulation
   const analysis = useMemo(() => {
-    // Existing property equity
     const currentEquity = currentValue - loanBalance;
-    const maxBorrowingCapacity = currentValue * (bankLVR / 100);
-    const usableEquity = maxBorrowingCapacity - loanBalance;
-    
-    // Calculate each property's loan and cashflow
-    const propertyAnalyses = properties.map(prop => {
-      const requiredDeposit = prop.price * 0.2;
-      const canBuy = usableEquity >= requiredDeposit;
-      const propertyLoan = prop.price - Math.min(usableEquity, requiredDeposit);
-      const monthlyRate = prop.mortgageRate / 100 / 12;
-      const numPayments = 30 * 12;
-      const monthlyRepayment = propertyLoan * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-      const annualRent = prop.rent * 52;
-      const monthlyCashflow = (annualRent / 12) - monthlyRepayment;
+    const maxBorrowingAtStart = currentValue * (bankLVR / 100);
+    const usableEquityAtStart = maxBorrowingAtStart - loanBalance;
 
-      return {
-        ...prop,
-        requiredDeposit,
-        canBuy,
-        propertyLoan,
-        monthlyRepayment,
-        monthlyCashflow
-      };
-    });
-
-    // Wealth projection
+    let acquiredProperties = [];
+    let pendingProperties = [...properties];
     const yearlyData = [];
-    
+
+    // Track active property stats for cashflow and balance
+    let activeInvestments = [];
+
     for (let year = 0; year <= years; year++) {
-      const prop1Value = currentValue * Math.pow(1 + 0.06, year);
-      const prop1Equity = prop1Value - loanBalance;
-      
-      let totalOtherEquity = 0;
-      
-      propertyAnalyses.forEach(prop => {
-        if (prop.canBuy && year > 0) {
-          let propValue = prop.price * Math.pow(1 + prop.growth / 100, year);
-          let propBalance = prop.propertyLoan;
-          
+      // 1. Appreciate existing property
+      const p1Value = currentValue * Math.pow(1.06, year);
+      const p1Equity = p1Value - loanBalance;
+      const p1Usable = (p1Value * (bankLVR / 100)) - loanBalance;
+
+      // 2. Portfolio Health Check
+      let currentYearOtherEquity = 0;
+      let currentYearTotalValue = p1Value;
+      let currentYearUsableFromOthers = 0;
+
+      activeInvestments.forEach(inv => {
+        // Appreciate
+        const yearsOwned = year - inv.yearAcquired;
+        inv.currentValue = inv.originalPrice * Math.pow(1 + inv.growth / 100, yearsOwned);
+        
+        // Principal reduction (simplified annual if year > 0)
+        if (year > inv.yearAcquired) {
+          const monthlyRate = inv.mortgageRate / 100 / 12;
+          const monthlyRepayment = inv.monthlyRepayment;
           for (let m = 0; m < 12; m++) {
-            const monthlyRate = prop.mortgageRate / 100 / 12;
-            const interest = propBalance * monthlyRate;
-            const principal = prop.monthlyRepayment - interest;
-            propBalance = Math.max(0, propBalance - principal);
+            const interest = inv.currentLoanBalance * monthlyRate;
+            const principal = monthlyRepayment - interest;
+            inv.currentLoanBalance = Math.max(0, inv.currentLoanBalance - principal);
           }
-          
-          totalOtherEquity += propValue - propBalance;
-        } else if (prop.canBuy && year === 0) {
-          totalOtherEquity += prop.price - prop.propertyLoan;
         }
+
+        currentYearOtherEquity += (inv.currentValue - inv.currentLoanBalance);
+        currentYearTotalValue += inv.currentValue;
+        
+        // Usable equity from this investment (80% LVR standard for investments)
+        const usableFromInv = (inv.currentValue * 0.8) - inv.currentLoanBalance;
+        currentYearUsableFromOthers += Math.max(0, usableFromInv);
       });
-      
-      const totalEquity = prop1Equity + totalOtherEquity;
-      const totalValue = prop1Value + propertyAnalyses.reduce((sum, p) => {
-        if (p.canBuy) {
-          return sum + (p.price * Math.pow(1 + p.growth / 100, year));
+
+      // Total Cumulative Usable Equity available this year
+      const totalUsableEquityThisYear = p1Usable + currentYearUsableFromOthers;
+
+      // 3. Acquisition Logic: Can we buy next property?
+      while (pendingProperties.length > 0) {
+        const nextProp = pendingProperties[0];
+        const lvr = 100 - nextProp.depositPct;
+        const depositAmount = nextProp.price * (nextProp.depositPct / 100);
+        const baseLoan = nextProp.price - depositAmount;
+        const lmi = calculateLMI(baseLoan, lvr);
+        const totalFundsRequired = depositAmount + lmi;
+        
+        // Only buy if we have enough usable equity left AFTER prior buys
+        const equitySpentSoFar = activeInvestments.reduce((sum, inv) => sum + inv.equityUsed, 0);
+        const usableEquityRemaining = totalUsableEquityThisYear - equitySpentSoFar;
+
+        if (usableEquityRemaining >= totalFundsRequired) {
+          // BUY!
+          const monthlyRate = nextProp.mortgageRate / 100 / 12;
+          const numPayments = 30 * 12;
+          const totalLoan = baseLoan + lmi;
+          const monthlyRepayment = totalLoan * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+          
+          activeInvestments.push({
+            ...nextProp,
+            yearAcquired: year,
+            originalPrice: nextProp.price,
+            currentValue: nextProp.price,
+            currentLoanBalance: totalLoan,
+            totalLoan: totalLoan,
+            lmi,
+            equityUsed: totalFundsRequired,
+            monthlyRepayment,
+            monthlyCashflow: (nextProp.rent * 52 / 12) - monthlyRepayment
+          });
+          pendingProperties.shift();
+        } else {
+          break; // Stop acquisition for this year
         }
-        return sum;
-      }, 0);
-      
+      }
+
       yearlyData.push({
         year,
-        property1Equity: Math.round(prop1Equity),
-        totalOtherEquity: Math.round(totalOtherEquity),
-        totalEquity: Math.round(totalEquity),
-        totalValue: Math.round(totalValue)
+        property1Equity: Math.round(p1Equity),
+        totalOtherEquity: Math.round(currentYearOtherEquity),
+        totalEquity: Math.round(p1Equity + currentYearOtherEquity),
+        totalValue: Math.round(currentYearTotalValue)
       });
     }
-    
+
     const finalWithout = yearlyData[years].property1Equity;
     const finalWith = yearlyData[years].totalEquity;
     const wealthGain = finalWith - finalWithout;
-    
+
     return {
       currentEquity,
-      usableEquity,
-      maxBorrowingCapacity,
-      propertyAnalyses,
+      usableEquity: p1Usable + activeInvestments.reduce((sum, inv) => sum + Math.max(0, (inv.currentValue * 0.8) - inv.currentLoanBalance), 0),
+      maxBorrowingCapacity: maxBorrowingAtStart,
+      propertyAnalyses: activeInvestments,
       yearlyData,
       finalWithout,
       finalWith,
-      wealthGain
+      wealthGain,
+      pendingProperties
     };
   }, [currentValue, loanBalance, bankLVR, properties, years]);
 
@@ -213,26 +244,26 @@ export default function EquityUnlockPlanner({ currency }) {
             </div>
 
             <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 shadow-sm">
-              <p className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wider">💰 Usable Equity</p>
+              <p className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wider">💰 Current Portfolio Usable Equity</p>
               <p className="text-3xl font-black text-emerald-600 tracking-tight">{fmt(analysis.usableEquity)}</p>
               <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                You can access <strong className="text-emerald-600">{fmt(analysis.usableEquity)}</strong> to invest in additional properties
+                Total borrowing power available across your entire portfolio today.
               </p>
             </div>
 
-            {analysis.propertyAnalyses.some(p => p.canBuy) ? (
+            {analysis.propertyAnalyses.length > 0 ? (
               <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
-                <p className="text-sm font-bold text-emerald-300 flex items-center gap-2">
-                  ✓ You can buy additional properties!
+                <p className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+                  ✓ {analysis.propertyAnalyses.length} Properties Acquired
                 </p>
-                <p className="text-xs text-emerald-400/70 mt-1">
-                  {analysis.propertyAnalyses.filter(p => p.canBuy).length} property(ies) are viable
+                <p className="text-xs text-slate-500 mt-1">
+                  Using {fmt(analysis.propertyAnalyses.reduce((sum, p) => sum + p.equityUsed, 0))} of unlocked equity.
                 </p>
               </div>
             ) : (
               <div className="bg-rose-500/10 rounded-xl p-4 border border-rose-500/20">
-                <p className="text-sm font-bold text-rose-300">
-                  ✗ Insufficient equity
+                <p className="text-sm font-bold text-rose-600 text-center">
+                  Awaiting growth to fund first deposit
                 </p>
               </div>
             )}
@@ -300,40 +331,63 @@ export default function EquityUnlockPlanner({ currency }) {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-6 mb-4">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Growth Rate</Label>
-                  <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{prop.growth}%</span>
+                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Deposit (%)</Label>
+                  <span className={`text-sm font-bold px-2 py-0.5 rounded-md ${prop.depositPct < 20 ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                    {prop.depositPct}%
+                  </span>
                 </div>
-                <Slider value={[prop.growth]} onValueChange={([v]) => updateProperty(prop.id, 'growth', v)} min={0} max={15} step={0.5} className="py-2" />
+                <Slider value={[prop.depositPct]} onValueChange={([v]) => updateProperty(prop.id, 'depositPct', v)} min={5} max={40} step={1} className="py-2" />
+                {prop.depositPct < 20 && (
+                  <p className="text-[10px] text-amber-600 font-medium italic">* LMI will be applicable below 20%</p>
+                )}
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
+                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Annual Growth</Label>
+                  <span className="text-sm font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">{prop.growth}%</span>
+                </div>
+                <Slider value={[prop.growth]} onValueChange={([v]) => updateProperty(prop.id, 'growth', v)} min={0} max={15} step={0.5} className="py-2" />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
                   <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mortgage Rate</Label>
-                  <span className="text-sm font-bold text-white bg-slate-800 px-2 py-0.5 rounded-md">{prop.mortgageRate}%</span>
+                  <span className="text-sm font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded-md">{prop.mortgageRate}%</span>
                 </div>
                 <Slider value={[prop.mortgageRate]} onValueChange={([v]) => updateProperty(prop.id, 'mortgageRate', v)} min={2} max={12} step={0.1} className="py-2" />
               </div>
             </div>
 
-            {analysis.propertyAnalyses.find(p => p.id === prop.id) && (
-              <div className="grid md:grid-cols-3 gap-3 mt-4">
-                <div className="bg-slate-100 rounded-xl p-3">
-                  <p className="text-xs text-slate-600 mb-1">Loan Amount</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).propertyLoan)}</p>
+            {analysis.propertyAnalyses.find(p => p.id === prop.id) ? (
+              <div className="grid md:grid-cols-4 gap-3 mt-4">
+                <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100">
+                  <p className="text-xs text-indigo-600 font-bold mb-1 uppercase tracking-tight">Status</p>
+                  <p className="text-base font-black text-indigo-700">Year {analysis.propertyAnalyses.find(p => p.id === prop.id).yearAcquired}</p>
                 </div>
                 <div className="bg-slate-100 rounded-xl p-3">
-                  <p className="text-xs text-slate-600 mb-1">Monthly Repayment</p>
-                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyRepayment)}</p>
+                  <p className="text-xs text-slate-600 mb-1">Total Loan (incl LMI)</p>
+                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).totalLoan)}</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-xs text-amber-600 font-bold mb-1 uppercase tracking-tight">LMI Cost</p>
+                  <p className="text-lg font-bold text-amber-700">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).lmi)}</p>
                 </div>
                 <div className="bg-slate-100 rounded-xl p-3">
-                  <p className="text-xs text-slate-600 mb-1">Cashflow</p>
+                  <p className="text-xs text-slate-600 mb-1">Monthly Cashflow</p>
                   <p className={`text-lg font-bold ${analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow >= 0 ? '+' : ''}{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyCashflow)}
                   </p>
                 </div>
+              </div>
+            ) : (
+              <div className="mt-4 p-3 bg-slate-100/50 rounded-xl border border-dashed border-slate-300 text-center">
+                <p className="text-xs text-slate-500 font-medium italic">Awaiting further equity growth to acquire this property...</p>
               </div>
             )}
           </div>
@@ -395,13 +449,22 @@ export default function EquityUnlockPlanner({ currency }) {
         </div>
 
         <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-sm">
-          <p className="text-sm text-amber-600 font-bold mb-2 flex items-center gap-2 tracking-wide">
-            <Zap className="w-5 h-5" /> Strategy Insight
+          <p className="text-sm text-amber-600 font-bold mb-2 flex items-center gap-2 tracking-wide text-uppercase">
+            <Zap className="w-5 h-5" /> Acquisition Strategy Insight
           </p>
-          <p className="text-sm text-slate-700 leading-relaxed">
-            By leveraging your existing property equity, you can build an additional <strong className="text-emerald-600 font-bold">{fmt(analysis.wealthGain)}</strong> in wealth over {years} years across {properties.length} investment propert{properties.length > 1 ? 'ies' : 'y'}. 
-            This is the power of property leverage — your equity works harder to compound your total net worth.
-          </p>
+          <div className="text-sm text-slate-700 leading-relaxed space-y-2">
+            <p>
+              By leveraging your portfolio's growing equity, you can build an additional <strong className="text-emerald-600 font-bold">{fmt(analysis.wealthGain)}</strong> in net worth over {years} years.
+            </p>
+            {analysis.propertyAnalyses.length > 0 && (
+              <p className="p-2 bg-white/50 rounded-lg border border-amber-100">
+                🚀 Acquisition Roadmap: {analysis.propertyAnalyses.map((p, i) => `Property #${i+1} in Year ${p.yearAcquired}`).join(' → ')}.
+              </p>
+            )}
+            <p className="text-xs italic text-slate-500">
+              * This model assumes recursive leverage: as your first home and early investments grow, their combined equity is used to fund the deposits for subsequent properties in your queue.
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>
