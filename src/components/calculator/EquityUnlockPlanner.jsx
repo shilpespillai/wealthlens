@@ -372,7 +372,7 @@ export default function EquityUnlockPlanner({ currency }) {
             </div>
 
             {analysis.propertyAnalyses.find(p => p.id === prop.id) ? (
-              <div className="grid md:grid-cols-4 gap-3 mt-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-4">
                 <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100">
                   <p className="text-xs text-indigo-600 font-bold mb-1 uppercase tracking-tight">Status</p>
                   <p className="text-base font-black text-indigo-700">Year {analysis.propertyAnalyses.find(p => p.id === prop.id).yearAcquired}</p>
@@ -384,6 +384,10 @@ export default function EquityUnlockPlanner({ currency }) {
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
                   <p className="text-xs text-amber-600 font-bold mb-1 uppercase tracking-tight">LMI Cost</p>
                   <p className="text-lg font-bold text-amber-700">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).lmi)}</p>
+                </div>
+                <div className="bg-slate-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-600 mb-1">Monthly Mortgage</p>
+                  <p className="text-lg font-bold text-slate-900">{fmt(analysis.propertyAnalyses.find(p => p.id === prop.id).monthlyRepayment)}</p>
                 </div>
                 <div className="bg-slate-100 rounded-xl p-3">
                   <p className="text-xs text-slate-600 mb-1">Monthly Cashflow</p>
