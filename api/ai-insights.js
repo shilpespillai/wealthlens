@@ -156,3 +156,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to generate AI insights', details: error.message });
   }
 }
+
+export const config = {
+  maxDuration: 120,
+};

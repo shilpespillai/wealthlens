@@ -46,7 +46,7 @@ export default function AIPortfolioBuilder({ currency = "USD" }) {
     
     // Create a timeout promise
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Analysis timeout: The AI is taking longer than expected. Please try again.")), 60000);
+      setTimeout(() => reject(new Error("Analysis timeout: The AI is taking longer than expected. Please try again.")), 120000);
     });
 
     try {
