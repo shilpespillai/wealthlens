@@ -11,6 +11,11 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function EquityUnlockPlanner({ currency }) {
   const sym = getCurrencySymbol(currency);
 
+  // Existing property state
+  const [currentValue, setCurrentValue] = useState(800000);
+  const [loanBalance, setLoanBalance] = useState(400000);
+  const [bankLVR, setBankLVR] = useState(80);
+
   // LMI calculation based on industry standards
   const calculateLMI = (loanAmount, lvr) => {
     if (lvr <= 80) return 0;
@@ -52,18 +57,20 @@ export default function EquityUnlockPlanner({ currency }) {
     const maxBorrowingAtStart = currentValue * (bankLVR / 100);
     const usableEquityAtStart = maxBorrowingAtStart - loanBalance;
 
-    let acquiredProperties = [];
-    let pendingProperties = [...properties];
+    let pendingProperties = properties.map(p => ({ ...p }));
     const yearlyData = [];
-
-    // Track active property stats for cashflow and balance
     let activeInvestments = [];
+
+    // Track final values for the summary
+    let finalP1Usable = usableEquityAtStart;
 
     for (let year = 0; year <= years; year++) {
       // 1. Appreciate existing property
       const p1Value = currentValue * Math.pow(1.06, year);
       const p1Equity = p1Value - loanBalance;
       const p1Usable = (p1Value * (bankLVR / 100)) - loanBalance;
+      
+      if (year === 0) finalP1Usable = p1Usable; // Ensure we have a valid baseline
 
       // 2. Portfolio Health Check
       let currentYearOtherEquity = 0;
@@ -150,7 +157,7 @@ export default function EquityUnlockPlanner({ currency }) {
 
     return {
       currentEquity,
-      usableEquity: p1Usable + activeInvestments.reduce((sum, inv) => sum + Math.max(0, (inv.currentValue * 0.8) - inv.currentLoanBalance), 0),
+      usableEquity: usableEquityAtStart,
       maxBorrowingCapacity: maxBorrowingAtStart,
       propertyAnalyses: activeInvestments,
       yearlyData,
