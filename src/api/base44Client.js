@@ -338,15 +338,33 @@ export const base44 = {
       }
     }
   },
-  // Added for Admin Pricing Controls
+  // Centralized App Settings (Pricing, etc)
   app: {
     getPrice: async () => {
-      const price = localStorage.getItem('appPremiumPrice') || '10';
-      return parseInt(price, 10);
+      try {
+        const resp = await fetch('/api/pricing', { cache: 'no-store' });
+        if (resp.ok) {
+          const data = await resp.json();
+          return parseInt(data.price, 10);
+        }
+      } catch (e) {
+        console.error("[Base44] Failed to fetch price:", e);
+      }
+      return 10; // Fallback
     },
     updatePrice: async (newPrice) => {
-      localStorage.setItem('appPremiumPrice', newPrice.toString());
-      return true;
+      const user = JSON.parse(localStorage.getItem('mockUser') || '{}');
+      try {
+        const resp = await fetch('/api/pricing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ price: newPrice, adminEmail: user.email })
+        });
+        return resp.ok;
+      } catch (e) {
+        console.error("[Base44] Failed to update price:", e);
+        return false;
+      }
     },
     // Call this after a successful Stripe payment to grant premium to the user
     grantPremium: async (email) => {
