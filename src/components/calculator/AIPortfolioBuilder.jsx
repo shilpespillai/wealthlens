@@ -259,7 +259,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
                     outerRadius={90}
                     paddingAngle={3}>
 
-                      {result.allocations.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      {(result.allocations || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip
                     contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
@@ -269,7 +269,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
                 </ResponsiveContainer>
               </div>
               <div className="space-y-3">
-                {result.allocations.map((a, i) =>
+                {(result.allocations || []).map((a, i) =>
               <div key={i} className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
                     <div className="flex-1">
@@ -290,7 +290,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
           <div className="bg-slate-50 rounded-2xl p-5 mb-4">
                 <h4 className="text-sm font-bold text-slate-900 mb-3">Recommended Strategies</h4>
                 <ul className="space-y-2">
-                  {result.strategies.map((s, i) =>
+                  {(result.strategies || []).map((s, i) =>
               <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                       <span className="text-indigo-400 mt-0.5">✦</span> {s}
                     </li>
@@ -303,7 +303,7 @@ Return a detailed portfolio recommendation. Make the allocations sum to 100%.`,
             {result.warnings?.length > 0 &&
           <div className="bg-orange-200 text-slate-500 mb-4 p-4 rounded-2xl border border-amber-500/30">
                 <h4 className="text-slate-800 mb-2 text-xs font-bold">⚠ Things to Watch</h4>
-                {result.warnings.map((w, i) =>
+                {(result.warnings || []).map((w, i) =>
             <p key={i} className="text-slate-600 text-xs">{w}</p>
             )}
               </div>
