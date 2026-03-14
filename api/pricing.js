@@ -15,13 +15,13 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const { data, error } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'premium_price')
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('email', 'system_price@wealthlens.com')
         .single();
 
-      // Default to 10 if not set or table missing
-      const price = data?.value || "10";
+      // Default to 10 if not set
+      const price = data?.stripe_customer_id || "10";
       return res.status(200).json({ price });
     }
 
@@ -33,8 +33,12 @@ export default async function handler(req, res) {
       }
 
       const { error } = await supabase
-        .from('app_settings')
-        .upsert({ key: 'premium_price', value: price.toString() }, { onConflict: 'key' });
+        .from('users')
+        .upsert({ 
+          email: 'system_price@wealthlens.com', 
+          stripe_customer_id: price.toString(),
+          is_premium: false // ensure it's not counted as a real user
+        }, { onConflict: 'email' });
 
       if (error) throw error;
       return res.status(200).json({ success: true });
