@@ -22,7 +22,6 @@ import PropertyAnalyzer from "@/components/calculator/PropertyAnalyzer";
 import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import PortfolioOverview from "@/components/calculator/PortfolioOverview";
-import AIPortfolioBuilder from "@/components/calculator/AIPortfolioBuilder";
 import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import SaveExport from "@/components/calculator/SaveExport";
 import PremiumGate from "@/components/calculator/PremiumGate";
@@ -366,10 +365,6 @@ function CalculatorContent() {
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
                   AI Coach
                 </TabsTrigger>
-                <TabsTrigger value="portfolio_builder" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
-                  <BrainCircuit className="w-3.5 h-3.5 mr-2" />
-                  AI Portfolio
-                </TabsTrigger>
                 <TabsTrigger value="retirement" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Palmtree className="w-3.5 h-3.5 mr-2" />
                   Retirement
@@ -402,11 +397,6 @@ function CalculatorContent() {
                 </PremiumGate>
               </TabsContent>
 
-              <TabsContent value="portfolio_builder" className="mt-6">
-                <PremiumGate featureName="AI Portfolio Builder" isPremium={isPremium}>
-                  <AIPortfolioBuilder currency={params.currency} />
-                </PremiumGate>
-              </TabsContent>
 
               <TabsContent value="retirement" className="mt-6">
                 <PremiumGate featureName="Retirement Planner" isPremium={isPremium}>
