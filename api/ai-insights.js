@@ -21,19 +21,20 @@ export default async function handler(req, res) {
     });
   }
   const isAustralia = country === 'AU';
+  const currentYear = new Date().getFullYear();
   const countryContext = isAustralia 
     ? `This is an Australian suburb. Use AUD pricing. Include auction clearance rates, proximity to CBD, public transport scores, and state-specific market dynamics (e.g. stamp duty impacts, population growth corridors). Reference CoreLogic-style data patterns.`
     : `Use the local currency and regional market conventions for ${country}.`;
 
   const prompt = `
     Act as a senior property investment strategist with 20 years experience in the ${country} market.
-    MANDATORY: Use the Google Search tool to find CURRENT 2025/2026 statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
+    MANDATORY: Use the Google Search tool to find CURRENT ${currentYear}/${currentYear + 1} statistics for ${propertyType}s in ${suburb}, ${state}, ${country}.
     
     Your goal is to provide a professional-grade suburb profile grounded in these 6 Critical Parameters:
     1. Days on Market (DOM) & Vendor Discounting: Compare ${suburb} ${propertyType} DOM to the city average.
     2. Stock on Market (SOM%): Identify if scarcity exists (Goal: < 2%).
     3. Ripple Effect Potential: Compare ${suburb} median to neighboring suburbs.
-    4. Infrastructure & Gentrification: Detail Tier 1 projects (2026-2030) and lifestyle catalysts.
+    4. Infrastructure & Gentrification: Detail Tier 1 projects (${currentYear}-${currentYear + 4}) and lifestyle catalysts.
     5. Building Approvals (Supply Trap): Identify if high new supply is diluting growth.
     6. Owner-Occupier vs Investor Ratio: Evaluate market stability.
 

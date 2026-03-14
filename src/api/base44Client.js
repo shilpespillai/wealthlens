@@ -176,16 +176,17 @@ export const base44 = {
         const basePrice = country === 'US' ? 450000 : country === 'UK' ? 320000 : country === 'IN' ? 12000000 : 950000;
         const yieldRate = country === 'US' ? 5.5 : country === 'UK' ? 4.8 : country === 'IN' ? 2.5 : 3.8;
 
+        const currentYear = new Date().getFullYear();
         return {
           data: {
             header: { suburb, state, country },
             series: [{
                 data: [
-                  { year: 2021, value: basePrice * 0.85 },
-                  { year: 2022, value: basePrice * 0.92 },
-                  { year: 2023, value: basePrice * 0.98 },
-                  { year: 2024, value: basePrice * 1.05 },
-                  { year: 2025, value: basePrice * 1.12 }
+                  { year: currentYear - 4, value: basePrice * 0.85 },
+                  { year: currentYear - 3, value: basePrice * 0.92 },
+                  { year: currentYear - 2, value: basePrice * 0.98 },
+                  { year: currentYear - 1, value: basePrice * 1.05 },
+                  { year: currentYear, value: basePrice * 1.12 }
                 ]
             }],
             statistics: {

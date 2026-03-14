@@ -6,10 +6,11 @@ Deno.serve(async (req) => {
     
     // Fetch live market data from LLM with web search
     const now = new Date().toISOString();
+    const currentYear = new Date().getFullYear();
     const marketData = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `It is currently ${now}. Search the web RIGHT NOW for the latest real-time prices of these financial instruments. 
       
-CRITICAL: Use accurate current prices. As of early 2026:
+CRITICAL: Use accurate current prices. As of early ${currentYear}:
 - Bitcoin (BTC) trades around $80,000-$100,000 USD (NOT thousands in the hundreds, NOT sub-$10,000)
 - Ethereum (ETH) trades around $2,000-$4,000 USD
 - S&P 500 is around 5,500-6,000+

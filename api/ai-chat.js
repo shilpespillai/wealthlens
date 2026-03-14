@@ -27,11 +27,12 @@ export default async function handler(req, res) {
     systemContext = "Act as a forensic market researcher and senior property analyst.";
   }
 
+  const currentYear = new Date().getFullYear();
   const fullPrompt = `
     ${systemContext}
     
     CRITICAL INSTRUCTION: You must provide hyper-personalized advice utilizing REAL-TIME data. 
-    MANDATORY: Use Google Search to retrieve the absolute latest 2025/2026 interest rates, inflation figures, and region-specific market news BEFORE responding.
+    MANDATORY: Use Google Search to retrieve the absolute latest ${currentYear}/${currentYear + 1} interest rates, inflation figures, and region-specific market news BEFORE responding.
     DO NOT use generic disclaimers. Every insight must be grounded in a specific current event or data point from your search results.
     COMPUTE calculations the user can't easily do. Use the EXACT currency and amounts provided.
     
