@@ -84,7 +84,9 @@ function PortfolioContent() {
           portfolio_holdings: JSON.stringify(holdings),
           portfolio_currency: currency
         });
-      } catch {}
+      } catch (err) {
+        console.error("[Portfolio] Auto-save failed:", err);
+      }
     }, 1500);
     return () => clearTimeout(timer);
   }, [holdings, currency, userLoaded]);

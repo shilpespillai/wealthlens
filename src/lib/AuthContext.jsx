@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }) => {
             full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
             provider: session.user.app_metadata?.provider || 'supabase',
             avatar: session.user.user_metadata?.avatar_url,
+            ...session.user.user_metadata,
           };
           setUser(mappedUser);
           setIsAuthenticated(true);
@@ -83,6 +84,7 @@ export const AuthProvider = ({ children }) => {
             full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
             provider: session.user.app_metadata?.provider || 'supabase',
             avatar: session.user.user_metadata?.avatar_url,
+            ...session.user.user_metadata,
           };
           setUser(mappedUser);
           setIsAuthenticated(true);
