@@ -143,8 +143,12 @@ export const AuthProvider = ({ children }) => {
     
     keysToClear.forEach(key => localStorage.removeItem(key));
     
+    // Clear all session storage as well
+    sessionStorage.clear();
+    
     if (shouldRedirect) {
-      window.location.replace('/');
+      // Use location.href instead of replace to ensure a full fresh load of the route
+      window.location.href = '/?logged_out=true';
     }
   };
 

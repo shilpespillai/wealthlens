@@ -98,28 +98,12 @@ function NewsCard({ item, index }) {
 }
 
 export default function Home() {
-  const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated, isLoadingAuth } = useAuth();
   const [marketData, setMarketData] = useState(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketLastUpdated, setMarketLastUpdated] = useState(null);
   const [newsItems, setNewsItems] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
-
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const me = await base44.auth.me();
-        setUser(me);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    checkAuth();
-  }, []);
 
   useEffect(() => {
     async function fetchMarketData() {
@@ -163,7 +147,7 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
