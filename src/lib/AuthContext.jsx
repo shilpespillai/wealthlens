@@ -130,7 +130,19 @@ export const AuthProvider = ({ children }) => {
     }
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('mockUser');
+    
+    // Thoroughly clear all potential authentication and user keys
+    const keysToClear = [
+      'mockUser', 
+      'token', 
+      'base44_token', 
+      'base44_access_token', 
+      'base44_mock_user',
+      'sb-' + import.meta.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] + '-auth-token' // Supabase specific key pattern
+    ];
+    
+    keysToClear.forEach(key => localStorage.removeItem(key));
+    
     if (shouldRedirect) {
       window.location.replace('/');
     }
