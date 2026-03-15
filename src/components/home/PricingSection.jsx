@@ -158,7 +158,7 @@ export default function PricingSection({ onGetStarted }) {
             <div className="mb-6">
               <h3 className="text-lg font-black text-gray-900 mb-1">Premium</h3>
               <div className="flex items-end gap-1 mb-1">
-                <span className="text-4xl font-black text-gray-900">${price} USD</span>
+                <span className="text-4xl font-black text-gray-900">${price % 1 === 0 ? price : price.toFixed(2)} USD</span>
                 <span className="text-gray-400 text-sm mb-1">one-time</span>
               </div>
               <p className="text-xs text-emerald-600 font-semibold mb-3">✓ Lifetime access — pay once, own forever</p>

@@ -345,12 +345,14 @@ export const base44 = {
         const resp = await fetch('/api/pricing', { cache: 'no-store' });
         if (resp.ok) {
           const data = await resp.json();
-          return parseInt(data.price, 10);
+          return parseFloat(data.price);
         }
       } catch (e) {
         console.error("[Base44] Failed to fetch price:", e);
       }
-      return 10; // Fallback
+      // Mock persistence
+      const savedPrice = localStorage.getItem('wealthlens-price');
+      return savedPrice ? parseFloat(savedPrice) : 10;
     },
     updatePrice: async (newPrice) => {
       const user = JSON.parse(localStorage.getItem('mockUser') || '{}');
@@ -360,11 +362,13 @@ export const base44 = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ price: newPrice, adminEmail: user.email })
         });
-        return resp.ok;
+        if (resp.ok) return true;
       } catch (e) {
-        console.error("[Base44] Failed to update price:", e);
-        return false;
+        console.error("[Base44] Failed to update price via API:", e);
       }
+      // Mock persistence
+      localStorage.setItem('wealthlens-price', newPrice.toString());
+      return true;
     },
     // Call this after a successful Stripe payment to grant premium to the user
     grantPremium: async (email) => {

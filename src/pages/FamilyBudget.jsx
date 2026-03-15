@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
 import { createPageUrl } from "@/utils";
+import { base44 } from "@/api/base44Client";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
 const EXPENSE_CATEGORIES = [
@@ -49,24 +50,59 @@ function FamilyBudgetContent() {
   const [expenses, setExpenses] = useState(DEFAULT_EXPENSES);
   const [nextIncomeId, setNextIncomeId] = useState(2);
   const [nextExpenseId, setNextExpenseId] = useState(6);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage if present
+  // Load from server (preferred) or localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("wealthlens-family-budget");
-      if (saved) {
-        const { incomes: savedIncomes, expenses: savedExpenses, currency: savedCurrency } = JSON.parse(saved);
-        if (savedIncomes) { setIncomes(savedIncomes); setNextIncomeId(Math.max(...savedIncomes.map(i => i.id), 0) + 1); }
-        if (savedExpenses) { setExpenses(savedExpenses); setNextExpenseId(Math.max(...savedExpenses.map(e => e.id), 0) + 1); }
-        if (savedCurrency) setCurrency(savedCurrency);
+    async function initData() {
+      setIsLoading(true);
+      try {
+        // Try server first
+        const saved = await base44.user.loadData("wealthlens-family-budget");
+        if (saved) {
+          const { incomes: savedIncomes, expenses: savedExpenses, currency: savedCurrency } = saved;
+          if (savedIncomes && savedIncomes.length > 0) { 
+            setIncomes(savedIncomes); 
+            setNextIncomeId(Math.max(...savedIncomes.map(i => i.id), 0) + 1); 
+          }
+          if (savedExpenses && savedExpenses.length > 0) { 
+            setExpenses(savedExpenses); 
+            setNextExpenseId(Math.max(...savedExpenses.map(e => e.id), 0) + 1); 
+          }
+          if (savedCurrency) setCurrency(savedCurrency);
+        } else {
+          // Fallback to localStorage if no server data
+          const localSaved = localStorage.getItem("wealthlens-family-budget");
+          if (localSaved) {
+            const { incomes: localIncomes, expenses: localExpenses, currency: localCurrency } = JSON.parse(localSaved);
+            if (localIncomes) { setIncomes(localIncomes); setNextIncomeId(Math.max(...localIncomes.map(i => i.id), 0) + 1); }
+            if (localExpenses) { setExpenses(localExpenses); setNextExpenseId(Math.max(...localExpenses.map(e => e.id), 0) + 1); }
+            if (localCurrency) setCurrency(localCurrency);
+          }
+        }
+      } catch (e) { 
+        console.error("Could not load budget", e); 
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) { console.error("Could not load budget", e); }
+    }
+    initData();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
-      localStorage.setItem("wealthlens-family-budget", JSON.stringify({ incomes, expenses, currency }));
-      toast.success("Budget saved locally!");
+      const data = { incomes, expenses, currency };
+      // Save locally for immediate feedback/offline safety
+      localStorage.setItem("wealthlens-family-budget", JSON.stringify(data));
+      
+      // Save to server profile
+      const success = await base44.user.saveData("wealthlens-family-budget", data);
+      
+      if (success) {
+        toast.success("Budget saved and synced!");
+      } else {
+        toast.warning("Saved locally, but server sync failed.");
+      }
     } catch {
       toast.error("Failed to save budget");
     }
@@ -170,7 +206,13 @@ function FamilyBudgetContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-32">
+          <div className="w-10 h-10 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-4" />
+          <p className="text-slate-500 font-medium">Syncing budget data...</p>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
         {/* Top Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -387,6 +429,7 @@ function FamilyBudgetContent() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

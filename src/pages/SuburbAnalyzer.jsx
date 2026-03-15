@@ -197,7 +197,11 @@ export default function SuburbAnalyzer() {
   };
 
   const removeSuburb = (id) => {
-    setSuburbs(suburbs.filter(s => s.id !== id));
+    setSuburbs(prev => {
+      const next = prev.filter(s => s.id !== id);
+      saveToProfile(next);
+      return next;
+    });
   };
   
   const fmt = (num, subCurrency) => {
