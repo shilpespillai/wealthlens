@@ -4,6 +4,8 @@ import { TrendingUp, ArrowUpRight, ArrowDownRight, Globe, Zap, Shield, BarChart3
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 import HowItWorks from "@/components/home/HowItWorks";
 import Testimonials from "@/components/home/Testimonials";
 import PricingSection from "@/components/home/PricingSection";
@@ -96,6 +98,7 @@ function NewsCard({ item, index }) {
 }
 
 export default function Home() {
+  const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [marketData, setMarketData] = useState(null);
@@ -182,12 +185,19 @@ export default function Home() {
             <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">WealthLens</span>
           </div>
           
-          <Button
-            onClick={handleLogin}
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold px-6 py-2 rounded-lg shadow-lg">
-
-            Sign In
-          </Button>
+          {isAuthenticated ? (
+            <Link to={createPageUrl("Calculator")}>
+              <Button className="bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-bold px-6 py-2 rounded-lg shadow-xl">
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              onClick={handleLogin}
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold px-6 py-2 rounded-lg shadow-lg">
+              Sign In
+            </Button>
+          )}
         </div>
       </header>
 
