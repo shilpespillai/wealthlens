@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
 
     // Send support email to admin
     await base44.integrations.Core.SendEmail({
-      to: "shilpeshpillai81@gmail.com",
+      to: "aihealthtec@gmail.com",
       subject: `[WealthLens Support] ${subject}`,
       body: `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9fafb; padding: 24px; border-radius: 8px;">

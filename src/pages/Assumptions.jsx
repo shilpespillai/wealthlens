@@ -1,62 +1,108 @@
 import React from "react";
-import { ArrowLeft, AlignLeft } from "lucide-react";
+import { ArrowLeft, AlignLeft, Info, RefreshCw, Layers, ZapOff } from "lucide-react";
 
 export default function Assumptions() {
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <a href="/" className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 mb-8 transition-colors">
+    <div className="min-h-screen bg-slate-50 py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto">
+        <a href="/" className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 mb-10 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Calculator
+          Back to Home
         </a>
         
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 sm:p-12">
-          <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-8">
-            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
-              <AlignLeft className="w-6 h-6 text-indigo-600" />
+        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 sm:p-16 text-white text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+              <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20">
+                <AlignLeft className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Assumptions & Limitations</h1>
+                <p className="text-slate-400 mt-2 font-medium">The Framework Behind the Projections</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Assumptions & Limitations</h1>
-            </div>
+            <p className="text-slate-300 text-lg max-w-3xl leading-relaxed">
+              Every financial model is only as good as its underlying assumptions. We believe in total transparency regarding the linear nature and mathematical boundaries of our engine.
+            </p>
           </div>
 
-          <div className="prose prose-slate max-w-none">
-            
-            <p className="text-slate-600 leading-relaxed text-lg mb-8">
-              All financial projections require making assumptions about an unpredictable future. WealthLens relies on several critical baseline assumptions that you should understand before utilizing our modeling tools.
-            </p>
+          <div className="p-8 sm:p-16">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+              <div className="lg:col-span-2 prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed">
+                <section id="volatility">
+                  <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+                    <RefreshCw className="w-6 h-6 text-indigo-600" />
+                    1. Linear vs. Stochastic Returns
+                  </h2>
+                  <p>
+                    WealthLens assumes a <strong>constant annual rate of return</strong>. In real-world financial markets, returns are stochastic and volatile. A static 8% projection over 30 years will yield a significantly different result than real market performance, even if the geometric mean is 8%.
+                  </p>
+                  <p>
+                    This modeling does not account for <strong>Sequence of Returns Risk</strong>, which can drastically impact retirees or those nearing their goal if a market downturn occurs early in the withdrawal phase.
+                  </p>
+                </section>
 
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">1. Constant Rate of Return</h2>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              Our calculator assumes a linear, constant rate of return for the duration of the projection. In reality, financial markets (especially equities and crypto) are highly volatile. Returns will fluctuate yearly, monthly, and daily. A static 8% return assumption modeled over 20 years will yield a very different outcome than a real-world scenario of +20% one year and -10% the next, even if the average return over the 20 years is mathematically 8%. This phenomenon is known as sequence of returns risk.
-            </p>
+                <hr className="my-12 border-slate-100" />
 
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">2. Reinvestment of Dividends</h2>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              The calculations explicitly assume that any yield, interest, or dividends generated by the underlying assets are automatically and immediately reinvested back into the principal amount without incurring transaction fees or immediate tax liabilities, maximizing the compounding effect.
-            </p>
+                <section id="taxes">
+                  <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+                    <Layers className="w-6 h-6 text-indigo-600" />
+                    2. Tax Complexity & Realization
+                  </h2>
+                  <p>
+                    Our tax engine is a simplified heuristic model. It applies a flat capital gains tax realization at the end of the specified investment horizon. It does not account for:
+                  </p>
+                  <ul className="list-disc pl-5 mt-4 space-y-2">
+                    <li>Progressive tax brackets or changes in future tax legislation.</li>
+                    <li>Wash-sale rules or tax-loss harvesting strategies.</li>
+                    <li>Specific regional, state, or municipal tax variations.</li>
+                    <li>Foreign withholding taxes on international dividends.</li>
+                  </ul>
+                </section>
 
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">3. Linear Inflation</h2>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              Like returns, inflation is modeled as a constant, linear force dragging against the portfolio across the entire time horizon. Historically, inflation runs in short, unpredictable spikes and cycles.
-            </p>
+                <hr className="my-12 border-slate-100" />
 
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">4. Simplified Tax Models</h2>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              Our tax adjustment feature applies a flat, static rate against the total capital gains realized at the very end of the time horizon. It does not account for complex tax scenarios such as:
-            </p>
-            <ul className="list-disc pl-5 text-slate-600 mb-6 space-y-2">
-              <li>Changing tax brackets throughout the projection period</li>
-              <li>Differentiation between short-term vs long-term capital gains treatments</li>
-              <li>Tax drag from dividend/interest distributions along the way</li>
-              <li>State, local, or specialized wealth taxes depending on your absolute jurisdiction</li>
-            </ul>
+                <section id="reinvestment">
+                  <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+                    <Info className="w-6 h-6 text-indigo-600" />
+                    3. Dividend Reinvestment (DRIP)
+                  </h2>
+                  <p>
+                    All projections assume that 100% of dividends and interest distributions are immediately reinvested into the principal without any transaction costs or immediate tax drag. While this maximizes the compounding effect in the model, real-world slippage and cash drag may reduce actual results.
+                  </p>
+                </section>
+              </div>
 
-            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">5. Currency Stability</h2>
-            <p className="text-slate-600 leading-relaxed mb-6">
-              Our currency selection tool purely formats the numeric output. It does not adjust the underlying growth assumptions for currency risk or foreign exchange rate fluctuations over the projected timeframe.
-            </p>
+              <div className="lg:col-span-1">
+                <div className="sticky top-32 space-y-8">
+                  <div className="bg-amber-50 rounded-3xl p-8 border border-amber-200">
+                    <ZapOff className="w-8 h-8 text-amber-600 mb-4" />
+                    <h4 className="text-xl font-bold text-amber-900 mb-4">Critical Limitation</h4>
+                    <p className="text-sm text-amber-800 leading-relaxed mb-6">
+                      This tool is not a financial advisor. It cannot predict market crashes, geopolitical events, or individual asset failures. Projections should be used as a "best-guess" directional guide, not a factual promise.
+                    </p>
+                  </div>
 
+                  <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                    <h4 className="text-slate-900 font-bold mb-4 text-xs uppercase tracking-wider">Baseline Parameters</h4>
+                    <div className="space-y-4">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Inflation Logic</span>
+                        <span className="font-bold text-slate-900 text-right">Flat Annual Discount</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Fee Logic</span>
+                        <span className="font-bold text-slate-900 text-right">Daily Yield Drag</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Compounding</span>
+                        <span className="font-bold text-slate-900 text-right">Discrete Intervals</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -275,11 +275,11 @@ export default function Home() {
           </div>
           
           {isAuthenticated ? (
-            <Link to={createPageUrl("Calculator")}>
-              <Button className="bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-bold px-6 py-2 rounded-lg shadow-xl">
+            <Button asChild className="bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-bold px-6 py-2 rounded-lg shadow-xl">
+              <Link to={createPageUrl("Calculator")}>
                 Dashboard
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           ) : (
             <Button
               onClick={handleLogin}
@@ -507,8 +507,6 @@ export default function Home() {
             <div>
               <h4 className="text-sm font-bold text-gray-300 mb-4 uppercase tracking-wider">Product</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="/Calculator" className="hover:text-indigo-400 transition-colors">Investment Calculator</a></li>
-                <li><a href="/Portfolio" className="hover:text-indigo-400 transition-colors">Portfolio Builder</a></li>
                 <li><a href="/methodology" className="hover:text-indigo-400 transition-colors">Methodology</a></li>
                 <li><a href="/assumptions" className="hover:text-indigo-400 transition-colors">Assumptions</a></li>
               </ul>
