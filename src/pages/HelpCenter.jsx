@@ -76,6 +76,39 @@ export default function HelpCenter() {
                     ))}
                 </div>
               </div>
+
+              {/* Comprehensive FAQ Section */}
+              <div className="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm overflow-hidden mt-8">
+                <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
+                  <LifeBuoy className="w-6 h-6 text-indigo-600" />
+                  Professional Planning FAQ
+                </h2>
+                <div className="space-y-6">
+                  {[
+                    { 
+                      q: "Why is my projection different from my bank's forecast?", 
+                      a: "Bank tools often use 'Arithmetic Mean' and ignore management expense ratios (MER) or realistic inflation. WealthLens uses CAGR and adds 'Real' purchasing power adjustments, resulting in a more conservative but mathematically grounded outcome." 
+                    },
+                    { 
+                      q: "How should I estimate my expected return rate?", 
+                      a: "Conservative planners often use 4-5% (inflation-adjusted), while moderate-growth portfolios might target 7-8%. We recommend researching historical asset class returns and always accounting for your specific portfolio and volatility tolerance." 
+                    },
+                    { 
+                      q: "What is the 'Geometric Mean' and why does it matter?", 
+                      a: "Returns are non-linear. A 50% drop requires a 100% gain just to break even. Geometric compounding (CAGR) captures this volatility drag, whereas simple annual averages tend to overstate performance in volatile scenarios." 
+                    },
+                    { 
+                      q: "Does the model account for 100% dividend reinvestment?", 
+                      a: "Yes, our default logic assumes the DRIP (Dividend Reinvestment Plan) model where all distributions are automatically cycled back into principal. However, you should manually adjust your 'DRAG' settings if you plan to withdraw dividends for income." 
+                    }
+                  ].map((faq, i) => (
+                    <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                      <h4 className="font-bold text-slate-900 mb-3">{faq.q}</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed">{faq.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="lg:col-span-1 space-y-8">

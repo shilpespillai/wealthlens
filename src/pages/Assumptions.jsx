@@ -34,11 +34,14 @@ export default function Assumptions() {
                     <RefreshCw className="w-6 h-6 text-indigo-600" />
                     1. Linear vs. Stochastic Returns
                   </h2>
-                  <p>
+                  <p className="mb-4">
                     WealthLens assumes a <strong>constant annual rate of return</strong>. In real-world financial markets, returns are stochastic and volatile. A static 8% projection over 30 years will yield a significantly different result than real market performance, even if the geometric mean is 8%.
                   </p>
+                  <p className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-sm text-slate-600 mb-4">
+                    <strong>The "Average" Trap:</strong> If the market drops 20% in Year 1 and gains 20% in Year 2, your average return is technically 0%, but your actual capital is down 4%. Our engine models linear geometric growth, which does not capture these specific sequence-dependent path effects.
+                  </p>
                   <p>
-                    This modeling does not account for <strong>Sequence of Returns Risk</strong>, which can drastically impact retirees or those nearing their goal if a market downturn occurs early in the withdrawal phase.
+                    This modeling does not account for <strong>Sequence of Returns Risk</strong>, which can drastically impact retirees. A major downturn in the first 5 years of retirement can deplete a portfolio much faster than the same downturn occurring in the final 5 years, even if the "average" return over the whole period is identical.
                   </p>
                 </section>
 
@@ -47,16 +50,16 @@ export default function Assumptions() {
                 <section id="taxes">
                   <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
                     <Layers className="w-6 h-6 text-indigo-600" />
-                    2. Tax Complexity & Realization
+                    2. Tax Complexity & Policy Volatility
                   </h2>
                   <p>
-                    Our tax engine is a simplified heuristic model. It applies a flat capital gains tax realization at the end of the specified investment horizon. It does not account for:
+                    Our tax engine is a simplified heuristic model designed for "Broad-Stroke" planning. It applies a flat capital gains tax realization at the end of the specified investment horizon. In reality:
                   </p>
-                  <ul className="list-disc pl-5 mt-4 space-y-2">
-                    <li>Progressive tax brackets or changes in future tax legislation.</li>
-                    <li>Wash-sale rules or tax-loss harvesting strategies.</li>
-                    <li>Specific regional, state, or municipal tax variations.</li>
-                    <li>Foreign withholding taxes on international dividends.</li>
+                  <ul className="list-disc pl-5 mt-4 space-y-3 text-slate-600">
+                    <li><strong>Progressive Brackets:</strong> Current tax systems are progressive; our tool does not adjust for your specific total income bracket in the future.</li>
+                    <li><strong>Policy Shifts:</strong> Tax legislation is highly volatile. Projections over 20-30 years are based on current laws, which are guaranteed to change through various government administrations.</li>
+                    <li><strong>Structure Nuance:</strong> It does not distinguish between specific vehicle benefits (e.g., Roth vs. Traditional 401ks, or Superannuation tax-free thresholds) unless manually adjusted via the growth rate.</li>
+                    <li><strong>Global Variability:</strong> Specific regional, state (e.g., California vs. Texas), or municipal tax variations are not modeled.</li>
                   </ul>
                 </section>
 

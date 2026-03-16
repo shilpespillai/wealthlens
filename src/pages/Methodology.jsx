@@ -34,16 +34,28 @@ export default function Methodology() {
                     <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-black">01</span>
                     Core Compounding Principles
                   </h2>
-                  <p>
-                    WealthLens utilizes a sophisticated time-value of money (TVM) engine. Unlike basic calculators that assume annual compounding, our system handles <strong>continuous sequential compounding</strong> for various frequencies (Daily, Weekly, Monthly, Annually).
+                  <p className="mb-4">
+                    WealthLens utilizes a sophisticated time-value of money (TVM) engine. Most casual calculators use simple annual interest, but our system handles <strong>continuous sequential compounding</strong>. This means your growth is calculated at the end of every compounding interval (Daily, Weekly, Monthly, or Yearly), increasing the precision of long-term projections.
                   </p>
-                  <p className="bg-slate-50 p-6 rounded-2xl border border-slate-200 font-mono text-sm my-6">
-                    PV: Present Value of initial capital<br/>
-                    PMT: Payment (contribution) amount per period<br/>
-                    r: Annual nominal interest rate<br/>
-                    n: Compounding frequency per year<br/>
-                    t: Total number of years
-                  </p>
+                  
+                  <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 my-8">
+                    <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                       <Calculator className="w-4 h-4 text-indigo-600" />
+                       The Geometric Logic (CAGR)
+                    </h4>
+                    <p className="text-sm text-slate-600 leading-relaxed mb-6">
+                      We distinguish between <strong>Arithmetic Mean</strong> (simple average) and <strong>Geometric Mean (CAGR)</strong>. Financial markets do not grow in a straight line; they fluctuate. A 10% gain followed by a 10% loss results in a -1% total return, not 0%. WealthLens default return assumptions are modeled as CAGR to better reflect the mathematical reality of volatility-adjusted growth.
+                    </p>
+                    <div className="font-mono text-xs text-indigo-700 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                      FV = PV × (1 + r/n)^(n×t) + PMT × [((1 + r/n)^(n×t) - 1) / (r/n)]
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4 text-[10px] uppercase font-bold text-slate-400 tracking-widest">
+                      <div>PV: Present Value</div>
+                      <div>PMT: Periodic Payment</div>
+                      <div>r: Annual Rate</div>
+                      <div>n: Freq / Year</div>
+                    </div>
+                  </div>
                 </section>
 
                 <section id="inflation" className="mt-16">
