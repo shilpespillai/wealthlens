@@ -18,7 +18,8 @@ import {
   Send,
   Bot,
   Sparkles,
-  Crown
+  Crown,
+  Lock
 } from "lucide-react";
 import { 
   PieChart, 
@@ -440,13 +441,22 @@ function FamilyBudgetContent() {
               >
                 Editor
               </button>
-              <button 
-                onClick={() => setViewMode("reports")} 
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                <Crown className={`w-3 h-3 ${isPremium ? 'text-amber-500' : 'text-slate-400'}`} />
-                Reports
-              </button>
+              <PremiumGate isPremium={isPremium} featureName="Budget Trends & AI Reports" noOverlay>
+                <button 
+                  onClick={() => {
+                    if (isPremium) setViewMode("reports");
+                  }} 
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {isPremium ? (
+                    <Crown className="w-3 h-3 text-amber-500" />
+                  ) : (
+                    <Lock className="w-3 h-3 text-slate-400" />
+                  )}
+                  Reports
+                  {!isPremium && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1 tracking-tighter">PRO</span>}
+                </button>
+              </PremiumGate>
             </div>
             <div className="w-24">
               <CurrencySelector value={currency} onChange={setCurrency} />
