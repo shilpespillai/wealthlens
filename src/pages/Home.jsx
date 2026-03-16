@@ -101,19 +101,19 @@ const SHOWCASE_ITEMS = [
   {
     title: "Suburb Investment Analyzer",
     description: "AI-powered property market insights & demand forecasting.",
-    image: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/suburb_analyzer_preview.png",
+    image: "/suburb_preview.png",
     tag: "Premium"
   },
   {
     title: "Equity Unlock Planner",
     description: "Leverage existing property to build wealth faster.",
-    image: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/equity_planner_preview.png",
+    image: "/equity_preview.png",
     tag: "Advanced"
   },
   {
     title: "AI Investment Coach",
     description: "Get personalized, data-driven strategy guidance 24/7.",
-    image: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/investment_coach_preview.png",
+    image: "/coach_preview.png",
     tag: "AI Powered"
   }
 ];
