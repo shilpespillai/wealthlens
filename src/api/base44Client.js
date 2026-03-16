@@ -8,9 +8,25 @@ const isProd = import.meta.env.PROD;
 export const base44 = {
   auth: {
     me: async () => {
-      const stored = localStorage.getItem('mockUser');
-      if (stored) return JSON.parse(stored);
-      // Return null so AuthContext knows we are not logged in
+      if (isSupabaseEnabled) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          return {
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+            provider: user.app_metadata?.provider || 'supabase',
+            avatar: user.user_metadata?.avatar_url,
+            ...user.user_metadata
+          };
+        }
+      }
+      
+      // Only fallback to mockUser if NOT in production, otherwise return null
+      if (!isProd) {
+        const stored = localStorage.getItem('mockUser');
+        if (stored) return JSON.parse(stored);
+      }
       return null;
     },
     updateMe: async (data) => {
@@ -36,6 +52,9 @@ export const base44 = {
       return updated;
     },
     logout: async (returnUrl = '/') => {
+      if (isSupabaseEnabled) {
+        await supabase.auth.signOut();
+      }
       localStorage.removeItem('mockUser');
       window.location.replace(returnUrl);
     },

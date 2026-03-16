@@ -36,27 +36,8 @@ export default function Login() {
       });
       if (error) { setError(error.message); setIsConnecting(null); }
     } else {
-      // Dev fallback: ask user for their identity to simulate the "Choose an account" screen
-      let loginEmail = email;
-      if (!loginEmail) {
-        loginEmail = window.prompt("WealthLens Mock Login: Please enter your Google email to simulate account selection:", "yourname@example.com");
-      }
-      
-      if (!loginEmail) {
-        setIsConnecting(null);
-        return;
-      }
-
-      setTimeout(() => {
-        localStorage.setItem('mockUser', JSON.stringify({
-          id: 'usr-' + Math.random().toString(36).substr(2, 9), 
-          email: loginEmail, 
-          full_name: loginEmail.split('@')[0], 
-          provider: 'google'
-        }));
-        const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
-        window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
-      }, 800);
+      setError("Production Auth Required: Google Login is only available when Supabase is configured. Please check your Vercel/Netlify environment variables (VITE_SUPABASE_URL).");
+      setIsConnecting(null);
     }
   };
 
@@ -72,11 +53,8 @@ export default function Login() {
       const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
       window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
     } else {
-      setTimeout(() => {
-        localStorage.setItem('mockUser', JSON.stringify({ id: 'usr-email', email, full_name: email.split('@')[0], provider: 'email' }));
-        const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
-        window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
-      }, 1000);
+      setError("Production Auth Required: Sign In is only available when Supabase is configured.");
+      setIsConnecting(null);
     }
   };
 
@@ -99,10 +77,8 @@ export default function Login() {
       setIsConnecting(null);
       setMode('signin');
     } else {
-      setTimeout(() => {
-        localStorage.setItem('mockUser', JSON.stringify({ id: 'usr-new', email, full_name: name || email.split('@')[0], provider: 'email' }));
-        window.location.replace('/');
-      }, 1000);
+      setError("Production Auth Required: Sign Up is only available when Supabase is configured.");
+      setIsConnecting(null);
     }
   };
 
