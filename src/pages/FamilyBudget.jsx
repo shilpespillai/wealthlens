@@ -60,6 +60,8 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
+import PremiumGate from "@/components/calculator/PremiumGate";
+import { useSubscription } from "@/components/calculator/useSubscription";
 
 const EXPENSE_CATEGORIES = [
   { id: "fixed", label: "Fixed / Needs", color: "#3b82f6", targetPct: 50 },
@@ -89,6 +91,7 @@ function FamilyBudgetContent() {
   const [nextExpenseId, setNextExpenseId] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const { isPremium } = useSubscription();
   const [importText, setImportText] = useState("");
   const fileInputRef = React.useRef(null);
 
@@ -457,14 +460,18 @@ function FamilyBudgetContent() {
           <p className="text-slate-500 font-medium">Syncing budget data...</p>
         </div>
       ) : viewMode === "reports" ? (
-        <BudgetReports 
-          currency={currency} 
-          selectedDate={selectedDate} 
-          onOpenImport={() => {
-            setViewMode("monthly");
-            setIsImportModalOpen(true);
-          }} 
-        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
+          <PremiumGate isPremium={isPremium} featureName="Budget Trends & AI Reports">
+            <BudgetReports 
+              currency={currency} 
+              selectedDate={selectedDate} 
+              onOpenImport={() => {
+                setViewMode("monthly");
+                setIsImportModalOpen(true);
+              }} 
+            />
+          </PremiumGate>
+        </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
