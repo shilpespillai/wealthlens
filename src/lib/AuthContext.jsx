@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -124,16 +124,63 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async (shouldRedirect = true) => {
+  const logout = async () => {
+    console.log('--- NUKE LOGOUT INITIATED ---');
+    
     if (isSupabaseEnabled) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+        console.log('Supabase signOut() called');
+      } catch (e) {
+        console.error('Supabase signout error:', e);
+      }
     }
+
+    // 1. Clear LocalStorage
+    const keysToRemove = [
+      'mockUser', 
+      'token', 
+      'base44_token', 
+      'base44_access_token', 
+      'base44_mock_user'
+    ];
+    
+    // Also clear all Supabase specific keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('supabase.auth.token') || key.startsWith('sb-'))) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    keysToRemove.forEach(k => {
+      localStorage.removeItem(k);
+      console.log(`Cleared localStorage: ${k}`);
+    });
+
+    // 2. Clear SessionStorage
+    sessionStorage.clear();
+    console.log('sessionStorage cleared');
+
+    // 3. Set Context State
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('mockUser');
-    if (shouldRedirect) {
-      window.location.replace('/');
-    }
+
+    // 4. Force Cookie Clearing (Best Effort)
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    console.log('Cookies cleared');
+
+    // 5. Hard Refresh to absolute root to ensure all state is wiped
+    console.log('Redirecting to Home with hard refresh...');
+    
+    // Small delay to allow state to settle before the browser kills the process
+    setTimeout(() => {
+        window.location.href = '/';
+    }, 100);
   };
 
   const navigateToLogin = (returnUrl) => {

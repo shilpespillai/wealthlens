@@ -3,16 +3,18 @@ import { motion } from "framer-motion";
 import { User, Edit2, AlertCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function AccountSection({ user }) {
+  const { logout } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
-    await base44.auth.logout("/");
+    await logout();
   };
 
   const handleDeleteAccount = async () => {
@@ -24,7 +26,7 @@ export default function AccountSection({ user }) {
         await base44.entities.SavedCalculation.delete(calc.id);
       }
       // Logout after deletion
-      await base44.auth.logout();
+      await logout();
     } catch (error) {
       console.error("Error deleting account:", error);
     } finally {
