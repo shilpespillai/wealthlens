@@ -255,7 +255,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/698eb477e1773680473fe637/f6715e80c_generated_image.png"
+              src="/wealthlens_logo.png"
               alt="WealthLens"
               className="w-10 h-10 rounded-lg shadow-md" />
 
