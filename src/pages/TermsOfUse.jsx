@@ -114,10 +114,10 @@ export default function TermsOfUse() {
                       For specific questions regarding user data or partnership agreements, please reach out to our legal department.
                     </p>
                     <a 
-                      href="mailto:aihealthtec@gmail.com" 
+                      href="/contact" 
                       className="text-indigo-600 text-sm font-black hover:text-indigo-800 transition-colors"
                     >
-                      aihealthtec@gmail.com →
+                      Contact Legal Team →
                     </a>
                   </div>
                 </div>

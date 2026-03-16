@@ -97,10 +97,10 @@ export default function PrivacyPolicy() {
                       Our privacy team is here to help if you have concerns about your data.
                     </p>
                     <a 
-                      href="mailto:aihealthtec@gmail.com" 
+                      href="/contact" 
                       className="block w-full bg-indigo-600 text-white text-center py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
                     >
-                      Email Privacy Team
+                      Contact Support
                     </a>
                   </div>
 

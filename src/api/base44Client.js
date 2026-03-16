@@ -260,6 +260,19 @@ export const base44 = {
       }
 
       if (name === 'sendSupportEmail') {
+        if (isProd) {
+          try {
+            const resp = await fetch('/api/support-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(params),
+              cache: 'no-store'
+            });
+            if (resp.ok) return { data: { success: true } };
+          } catch (e) {
+            console.error("[Base44] Support email delivery failed:", e);
+          }
+        }
         return { data: { success: true } };
       }
       if (name === 'getStripeKey') {

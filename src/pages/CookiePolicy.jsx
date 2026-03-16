@@ -124,10 +124,10 @@ export default function CookiePolicy() {
                       If you're unsure about how we use web storage, our technical team is happy to explain further.
                     </p>
                     <a 
-                      href="mailto:aihealthtec@gmail.com" 
+                      href="/contact" 
                       className="text-indigo-600 text-sm font-black hover:text-indigo-800 transition-colors"
                     >
-                      Email Support →
+                      Contact Support →
                     </a>
                   </div>
                 </div>

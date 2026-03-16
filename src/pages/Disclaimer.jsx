@@ -98,11 +98,11 @@ export default function Disclaimer() {
                       For questions regarding our financial disclosures or regulatory status, please contact our compliance team.
                     </p>
                     <a 
-                      href="mailto:aihealthtec@gmail.com" 
-                      className="text-indigo-600 text-sm font-black hover:text-indigo-800 transition-colors"
-                    >
-                      Email Compliance →
-                    </a>
+                       href="/contact" 
+                       className="text-indigo-600 text-sm font-black hover:text-indigo-800 transition-colors"
+                     >
+                       Contact Compliance Team →
+                     </a>
                   </div>
                 </div>
               </div>

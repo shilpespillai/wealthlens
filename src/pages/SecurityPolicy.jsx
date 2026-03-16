@@ -78,10 +78,10 @@ export default function SecurityPolicy() {
                       We support responsible disclosure. If you believe you have found a vulnerability, please contact our security team.
                     </p>
                     <a 
-                      href="mailto:aihealthtec@gmail.com" 
+                      href="/contact" 
                       className="block w-full bg-slate-900 text-white text-center py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all font-mono text-sm"
                     >
-                      security-reports →
+                      report-vulnerability →
                     </a>
                   </div>
 
