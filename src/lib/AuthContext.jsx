@@ -21,8 +21,9 @@ export const AuthProvider = ({ children }) => {
     let authSubscription = null;
     if (isSupabaseEnabled) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
+        console.log('[AuthContext] onAuthStateChange:', event, session?.user?.id);
         if (session?.user) {
+          console.log('[AuthContext] Setting user from session:', session.user.email);
           const mappedUser = {
             id: session.user.id,
             email: session.user.email,
@@ -81,7 +82,9 @@ export const AuthProvider = ({ children }) => {
     try {
       if (isSupabaseEnabled) {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('[AuthContext] checkUserAuth getSession:', session?.user?.id || 'none');
         if (session?.user) {
+          console.log('[AuthContext] Authenticated via Supabase session');
           const mappedUser = {
             id: session.user.id,
             email: session.user.email,
@@ -96,7 +99,9 @@ export const AuthProvider = ({ children }) => {
         } else {
           // Check local storage mock fallback
           const localUser = await base44.auth.me();
+          console.log('[AuthContext] checkUserAuth localUser (me):', !!localUser);
           if (localUser) {
+            console.log('[AuthContext] Authenticated via mockUser fallback');
             setUser(localUser);
             setIsAuthenticated(true);
           } else {
