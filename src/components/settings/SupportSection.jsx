@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Send, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
+import { emailService } from "@/api/emailService";
 
 export default function SupportSection({ userEmail }) {
   const [message, setMessage] = useState("");
@@ -18,7 +18,7 @@ export default function SupportSection({ userEmail }) {
 
     try {
       setLoading(true);
-      const response = await base44.functions.invoke('sendSupportEmail', {
+      const response = await emailService.sendSupportEmail({
         subject,
         message,
         userEmail

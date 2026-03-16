@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ArrowLeft, Mail, MessageCircle, MapPin, Loader2, Send } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { emailService } from "@/api/emailService";
 import { toast } from "sonner";
 
 export default function Contact() {
@@ -17,7 +17,7 @@ export default function Contact() {
     const toastId = toast.loading("Sending your message...");
 
     try {
-      await base44.functions.invoke('sendSupportEmail', {
+      await emailService.sendSupportEmail({
         subject: formData.subject,
         message: formData.message,
         userEmail: formData.email
