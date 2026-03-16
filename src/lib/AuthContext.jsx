@@ -142,18 +142,34 @@ export const AuthProvider = ({ children }) => {
       'token', 
       'base44_token', 
       'base44_access_token', 
-      'base44_mock_user',
-      'sb-' + import.meta.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] + '-auth-token' // Supabase specific key pattern
+      'base44_mock_user'
     ];
     
     keysToClear.forEach(key => localStorage.removeItem(key));
     
-    // Clear all session storage as well
+    // Clear ALL Supabase related keys from localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Clear session storage as well
     sessionStorage.clear();
     
+    // Attempt to clear cookies by setting them to expire (common for auth providers)
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
     if (shouldRedirect) {
-      // Use location.href instead of replace to ensure a full fresh load of the route
-      window.location.href = '/?logged_out=true';
+      // Use location.href instead of replace to ensure a full fresh load
+      // Adding a longer delay to ensure Supabase internal state is cleared
+      setTimeout(() => {
+        window.location.href = '/?logged_out=true&t=' + Date.now();
+      }, 100);
     }
   };
 
