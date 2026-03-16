@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Send,
   Bot,
-  Sparkles
+  Sparkles,
+  Crown
 } from "lucide-react";
 import { 
   PieChart, 
@@ -441,8 +442,9 @@ function FamilyBudgetContent() {
               </button>
               <button 
                 onClick={() => setViewMode("reports")} 
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'reports' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
+                <Crown className={`w-3 h-3 ${isPremium ? 'text-amber-500' : 'text-slate-400'}`} />
                 Reports
               </button>
             </div>
