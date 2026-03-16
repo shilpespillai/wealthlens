@@ -36,10 +36,14 @@ export default function Login() {
       });
       if (error) { setError(error.message); setIsConnecting(null); }
     } else {
-      // Dev fallback
+      // Dev fallback: use entered email if present, else default
+      const loginEmail = email || 'user@wealthlens.local';
       setTimeout(() => {
         localStorage.setItem('mockUser', JSON.stringify({
-          id: 'usr-dev', email: 'dev@wealthlens.local', full_name: 'Dev User', provider: 'google'
+          id: 'usr-dev', 
+          email: loginEmail, 
+          full_name: loginEmail.split('@')[0], 
+          provider: 'google'
         }));
         const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
         window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
@@ -237,11 +241,6 @@ export default function Login() {
           <p className="text-center text-gray-400 text-xs mt-4">
             By continuing you agree to our <a href="/terms" className="text-indigo-500 hover:underline">Terms</a> & <a href="/privacy" className="text-indigo-500 hover:underline">Privacy Policy</a>
           </p>
-          {!isSupabaseEnabled && (
-            <p className="text-center text-amber-600 text-xs mt-2 bg-amber-50 rounded-lg p-2 border border-amber-100">
-              ⚠️ Dev mode — add VITE_SUPABASE_URL to Vercel for real Google login
-            </p>
-          )}
         </div>
       </div>
     </div>

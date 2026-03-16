@@ -265,7 +265,7 @@ export const base44 = {
         setTimeout(() => {
           resolve({
             role: 'assistant',
-            content: "Hello! I am running locally via the Antigravity mock agent. I can't answer financial questions right now, but your interface is fully working!"
+            content: "Hello! I'm your WealthLens financial assistant. I'm here to help you navigate your portfolio and optimize your investment strategy. How can I assist you today?"
           });
         }, 1000);
       });
