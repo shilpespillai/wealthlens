@@ -16,6 +16,7 @@ export default async function handler(req, res) {
 
   if (resendKey) {
     try {
+      console.log('[Support Email] Attempting to send using Resend...');
       const resendResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -23,7 +24,7 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${resendKey}`,
         },
         body: JSON.stringify({
-          from: 'WealthLens <onboarding@resend.dev>', // Resend default for unverified domains
+          from: 'WealthLens <onboarding@resend.dev>',
           to: ['aihealthtec@gmail.com'],
           reply_to: userEmail,
           subject: `[Support Request] ${subject}`,
@@ -46,16 +47,18 @@ export default async function handler(req, res) {
         }),
       });
 
+      const resText = await resendResponse.text();
+      console.log(`[Support Email] Resend Response (${resendResponse.status}):`, resText);
+
       if (!resendResponse.ok) {
-        const errorData = await resendResponse.json();
-        console.error('[Support Email] Resend API Error:', errorData);
-        // We still return 200 to the user to avoid blocking them, but log the error
+        // Log to Vercel logs but don't break the UI
+        console.error('[Support Email] Resend API Error Status:', resendResponse.status);
       }
     } catch (e) {
       console.error('[Support Email] Fetch error:', e);
     }
   } else {
-    console.warn('[Support Email] RESEND_API_KEY not found. Operating in log-only mode.');
+    console.error('[Support Email] CRITICAL: RESEND_API_KEY is missing from environment variables.');
   }
 
   return res.status(200).json({ 
