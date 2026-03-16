@@ -7,12 +7,15 @@ import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
+
 export default function AccountSection({ user }) {
+  const { logout } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
-    await base44.auth.logout("/");
+    await logout();
   };
 
   const handleDeleteAccount = async () => {
@@ -24,7 +27,7 @@ export default function AccountSection({ user }) {
         await base44.entities.SavedCalculation.delete(calc.id);
       }
       // Logout after deletion
-      await base44.auth.logout();
+      await logout();
     } catch (error) {
       console.error("Error deleting account:", error);
     } finally {
