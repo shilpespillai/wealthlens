@@ -23,7 +23,7 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${resendKey}`,
         },
         body: JSON.stringify({
-          from: 'WealthLens Support <support@wealthlens.com>',
+          from: 'WealthLens <onboarding@resend.dev>', // Resend default for unverified domains
           to: ['aihealthtec@gmail.com'],
           reply_to: userEmail,
           subject: `[Support Request] ${subject}`,
