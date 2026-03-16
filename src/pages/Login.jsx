@@ -36,18 +36,27 @@ export default function Login() {
       });
       if (error) { setError(error.message); setIsConnecting(null); }
     } else {
-      // Dev fallback: use entered email if present, else default
-      const loginEmail = email || 'user@wealthlens.local';
+      // Dev fallback: ask user for their identity to simulate the "Choose an account" screen
+      let loginEmail = email;
+      if (!loginEmail) {
+        loginEmail = window.prompt("WealthLens Mock Login: Please enter your Google email to simulate account selection:", "yourname@example.com");
+      }
+      
+      if (!loginEmail) {
+        setIsConnecting(null);
+        return;
+      }
+
       setTimeout(() => {
         localStorage.setItem('mockUser', JSON.stringify({
-          id: 'usr-dev', 
+          id: 'usr-' + Math.random().toString(36).substr(2, 9), 
           email: loginEmail, 
           full_name: loginEmail.split('@')[0], 
           provider: 'google'
         }));
         const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
         window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
-      }, 1000);
+      }, 800);
     }
   };
 
