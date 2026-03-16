@@ -10,6 +10,7 @@ const ROWS = [
   { feature: "Property vs ETF analysis", wealthlens: true, spreadsheet: false, others: false },
   { feature: "Tax optimisation strategies", wealthlens: true, spreadsheet: false, others: false },
   { feature: "Retirement planner", wealthlens: true, spreadsheet: false, others: "Basic" },
+  { feature: "Smart Budget Reports", wealthlens: true, spreadsheet: "Manual", others: false },
   { feature: "20+ currencies", wealthlens: true, spreadsheet: "Manual", others: "Partial" },
   { feature: "PDF export", wealthlens: true, spreadsheet: true, others: "Paid" },
   { feature: "One-time price", wealthlens: "$29", spreadsheet: "Free*", others: "$15/mo" },

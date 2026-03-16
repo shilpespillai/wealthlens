@@ -24,6 +24,7 @@ const PREMIUM_FEATURES = [
   "Tax Optimisation Strategies",
   "Property Analyser & Property vs ETF",
   "Equity Unlock Planner",
+  "Family Budget Reports & AI Insights",
   "Save calculations & export PDF",
   "Lifetime access — one-time payment",
 ];

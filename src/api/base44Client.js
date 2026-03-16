@@ -325,6 +325,77 @@ export const base44 = {
             };
           }
 
+          // Dynamic Budget Analysis / Chat Simulation
+          if (pStr.includes('financial data')) {
+             let history = [];
+             const hMatch = params.prompt.match(/Financial Data \(Last 6 Months\): (.*)/);
+             if (hMatch) {
+               try { history = JSON.parse(hMatch[1]); } catch(e) {}
+             }
+
+             const qMatch = params.prompt.match(/User Question: (.*)/);
+             const userQuery = qMatch ? qMatch[1].toLowerCase() : pStr;
+
+             // Dynamic Month Parsing
+             let nMonths = 6; // default
+             const mMatch = userQuery.match(/(\d+)\s*month/);
+             if (mMatch) nMonths = parseInt(mMatch[1]);
+             if (nMonths > 6) nMonths = 6; // capped by data availability
+             
+             const targetedHistory = history.slice(-nMonths);
+
+             // Handle specific query keywords based on User Question ONLY
+             if (userQuery.includes('income vs expense') || userQuery.includes('ratio')) {
+                const latest = history[history.length - 1] || { income: 0, expenses: 0 };
+                const chartData = [
+                   { name: 'Income', value: latest.income },
+                   { name: 'Expenses', value: latest.expenses }
+                ];
+                return `I've analyzed your current month's income vs expense ratio. Your income is $${latest.income.toLocaleString()} and your total expenses are $${latest.expenses.toLocaleString()}.\n\n{"chart": "pie", "data": ${JSON.stringify(chartData)}}`;
+             }
+
+             if (userQuery.includes('eating outside') || userQuery.includes('eating out') || userQuery.includes('spent on')) {
+                const categorySearch = userQuery.includes('spent on') ? userQuery.split('spent on')[1].trim().split(' ')[0] : 'eat';
+                
+                const chartData = targetedHistory.map(h => {
+                   const amt = h.details?.expenses?.filter(e => e.name.toLowerCase().includes(categorySearch))
+                                  .reduce((sum, e) => sum + e.amount, 0) || 0;
+                   return { name: h.name, value: amt };
+                });
+                
+                const total = chartData.reduce((s, d) => s + d.value, 0);
+                return `I've analyzed your spending over the last ${targetedHistory.length} months. You've spent a total of $${total.toLocaleString()} on ${categorySearch}. Here is the month-wise trajectory:\n\n{"chart": "line", "data": ${JSON.stringify(chartData)}}`;
+             }
+             
+             if (userQuery.includes('savings trajectory') || userQuery.includes('trend')) {
+                const chartData = targetedHistory.map(h => ({ name: h.name, value: h.balance }));
+                return `Your monthly savings trajectory shows a ${chartData[chartData.length-1].value >= chartData[0].value ? 'positive' : 'fluctuating'} trend over the last ${targetedHistory.length} months.\n\n{"chart": "area", "data": ${JSON.stringify(chartData)}}`;
+             }
+
+             if (userQuery.includes('categories') || userQuery.includes('biggest')) {
+                const categoryMap = {};
+                targetedHistory.forEach(m => {
+                   (m.details?.expenses || []).forEach(e => {
+                      categoryMap[e.name] = (categoryMap[e.name] || 0) + e.amount;
+                   });
+                });
+                
+                const chartData = Object.entries(categoryMap)
+                   .map(([name, value]) => ({ name, value }))
+                   .sort((a, b) => b.value - a.value)
+                   .slice(0, 5); // Top 5
+
+                return `I've aggregated your spending across the last ${targetedHistory.length} months. Here are your biggest spend categories:\n\n{"chart": "bar", "data": ${JSON.stringify(chartData)}}`;
+             }
+
+             return `I've reviewed your income and expenses for the last ${targetedHistory.length} months. Your average monthly savings are trending well.`;
+          }
+
+          // Transaction Extraction Simulation
+          if (pStr.includes('extract financial transactions')) {
+            return '[{"name": "Grocery Store", "category": "variable", "monthlyAmount": 120}, {"name": "Utility Bill", "category": "fixed", "monthlyAmount": 85}, {"name": "Subscription", "category": "variable", "monthlyAmount": 15}]';
+          }
+
           return {
             assessment: "The AI Insights engine is currently undergoing maintenance to provide you with the most accurate data. Please stand by.",
             tone: "cautious",

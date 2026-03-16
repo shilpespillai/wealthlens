@@ -115,6 +115,18 @@ const SHOWCASE_ITEMS = [
     description: "Get personalized, data-driven strategy guidance 24/7.",
     image: "/coach_preview.png",
     tag: "AI Powered"
+  },
+  {
+    title: "Smart Budget Reports",
+    description: "AI-driven expense analysis & visual spending trends.",
+    image: "/reports_ai.png",
+    tag: "New Premium"
+  },
+  {
+    title: "Financial Velocity Radar",
+    description: "Multi-layered area charts for forecasting wealth.",
+    image: "/reports_trends.png",
+    tag: "Premium"
   }
 ];
 
