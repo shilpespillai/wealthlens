@@ -135,15 +135,15 @@ function ShowcaseGallery() {
       {/* Infinite Marquee */}
       <div className="flex relative py-4">
         <motion.div
-          animate={{ x: [0, -100 * SHOWCASE_ITEMS.length + "%"] }}
+          animate={{ x: [0, "-50%"] }}
           transition={{
-            duration: 60, // Slowed down significantly
+            duration: 50, // Slowed down significantly
             repeat: Infinity,
             ease: "linear",
           }}
-          className="flex gap-10 whitespace-nowrap px-4"
+          className="flex gap-10 whitespace-nowrap px-4 w-max"
         >
-          {[...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS].map((item, idx) => (
+          {[...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS].map((item, idx) => (
             <div
               key={idx}
               className="inline-block w-[500px] sm:w-[800px] bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-xl transition-transform hover:scale-[1.01] duration-500"
