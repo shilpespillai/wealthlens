@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
+import { Link } from "react-router-dom";
 import { Loader2, Mail, ShieldCheck, TrendingUp, Zap, Lock } from "lucide-react";
 
 export default function Login() {
@@ -89,12 +90,12 @@ export default function Login() {
         <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-white/10 rounded-full blur-[80px]" />
         <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-indigo-400/20 rounded-full blur-[80px]" />
         <div className="relative z-10 text-white max-w-sm">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+          <Link to="/" className="flex items-center gap-3 mb-10 group cursor-pointer hover:opacity-90 transition-all">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center group-hover:bg-white/30 transition-all">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-black tracking-tight">WealthLens</span>
-          </div>
+          </Link>
           <h1 className="text-4xl font-black leading-tight mb-4">
             Build wealth with <span className="text-yellow-300">AI-powered</span> insights
           </h1>
