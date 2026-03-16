@@ -120,56 +120,56 @@ const SHOWCASE_ITEMS = [
 
 function ShowcaseGallery() {
   return (
-    <section className="py-20 bg-slate-900 overflow-hidden relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 relative z-10">
+    <section className="py-16 bg-white overflow-hidden relative border-y border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10 relative z-10">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-            Experience the <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Premium Edge</span>
+          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+            Experience the <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Premium Edge</span>
           </h2>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Take a look inside our most powerful tools designed for serious investors.
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            A seamless look inside our most powerful investment analysis tools.
           </p>
         </div>
       </div>
 
       {/* Infinite Marquee */}
-      <div className="flex relative">
+      <div className="flex relative py-4">
         <motion.div
           animate={{ x: [0, -100 * SHOWCASE_ITEMS.length + "%"] }}
           transition={{
-            duration: 30,
+            duration: 60, // Slowed down significantly
             repeat: Infinity,
             ease: "linear",
           }}
-          className="flex gap-8 whitespace-nowrap px-4"
+          className="flex gap-10 whitespace-nowrap px-4"
         >
-          {[...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS].map((item, idx) => (
+          {[...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS].map((item, idx) => (
             <div
               key={idx}
-              className="inline-block w-[400px] sm:w-[600px] bg-slate-800 rounded-3xl overflow-hidden border border-white/10 shadow-2xl transition-transform hover:scale-[1.02] duration-300"
+              className="inline-block w-[500px] sm:w-[800px] bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-xl transition-transform hover:scale-[1.01] duration-500"
             >
-              <div className="relative group">
+              <div className="relative aspect-[16/10]">
                 <img
                   src={item.image}
                   alt={item.title}
-                  className="w-full aspect-video object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                  className="w-full h-full object-cover"
                 />
-                <div className="absolute top-4 right-4 bg-indigo-500/90 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full shadow-lg">
+                <div className="absolute top-6 right-6 bg-indigo-600/90 backdrop-blur-md text-white text-xs font-black px-4 py-1.5 rounded-full shadow-xl uppercase tracking-wider">
                   {item.tag}
                 </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-slate-400 text-sm whitespace-normal">{item.description}</p>
+                {/* Overlay title for context but subtle */}
+                <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-black/60 to-transparent">
+                  <h3 className="text-2xl font-black text-white">{item.title}</h3>
+                </div>
               </div>
             </div>
           ))}
         </motion.div>
       </div>
 
-      {/* Side Fades */}
-      <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent z-10" />
-      <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent z-10" />
+      {/* Side Fades - White */}
+      <div className="absolute inset-y-0 left-0 w-48 bg-gradient-to-r from-white via-white/80 to-transparent z-10" />
+      <div className="absolute inset-y-0 right-0 w-48 bg-gradient-to-l from-white via-white/80 to-transparent z-10" />
     </section>
   );
 }
