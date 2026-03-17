@@ -1,107 +1,57 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { Mail, Send, AlertCircle, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { emailService } from "@/api/emailService";
+import { Mail, HelpCircle, Users } from "lucide-react";
 
-export default function SupportSection({ userEmail }) {
-  const [message, setMessage] = useState("");
-  const [subject, setSubject] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null);
-
-  const handleSendEmail = async () => {
-    if (!subject.trim() || !message.trim()) {
-      setStatus({ type: "error", text: "Please fill in both subject and message" });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await emailService.sendSupportEmail({
-        subject,
-        message,
-        userEmail
-      });
-      setStatus({ type: "success", text: "Message sent! We'll get back to you soon." });
-      setSubject("");
-      setMessage("");
-      setTimeout(() => setStatus(null), 5000);
-    } catch (error) {
-      console.error("Error:", error);
-      setStatus({ type: "error", text: "Failed to send message. Please try again." });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function SupportSection() {
   return (
-    <div>
-      <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-        <Mail className="w-5 h-5 text-indigo-400" />
-        Support
+    <div className="space-y-6">
+      <h3 className="text-lg font-bold flex items-center gap-2 text-slate-900">
+        <Mail className="w-5 h-5 text-indigo-500" />
+        Direct Support
       </h3>
 
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="space-y-4">
-
-        {/* Email Input */}
-        <div>
-          <label className="text-xs text-slate-400 mb-2 block">Subject</label>
-          <input
-            type="text"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="What's the issue?"
-            className="w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:border-indigo-500 outline-none transition-colors"
-          />
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+          <p className="text-slate-600 mb-6 leading-relaxed text-sm font-medium">
+            For technical issues, account inquiries, or feature requests, please contact our executive support team directly via email. We typically respond within 12-24 hours.
+          </p>
+          
+          <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm transition-all hover:bg-indigo-50 hover:border-indigo-200 group">
+            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors">
+              <Mail className="w-6 h-6 text-indigo-600 group-hover:text-white transition-colors" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Official Support Email</p>
+              <a href="mailto:aihealthtec@gmail.com" className="text-lg font-black text-slate-900 hover:text-indigo-600 transition-colors break-all">
+                aihealthtec@gmail.com
+              </a>
+            </div>
+          </div>
         </div>
 
-        {/* Message Input */}
-        <div>
-          <label className="text-xs text-slate-400 mb-2 block">Message</label>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Tell us what happened..."
-            rows="4"
-            className="w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:border-indigo-500 outline-none transition-colors resize-none"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <button 
+            className="flex items-center justify-center gap-2 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors text-xs uppercase tracking-wider"
+            onClick={() => window.location.href = '/helpcenter'}
+          >
+            <HelpCircle className="w-4 h-4" />
+            Help Center
+          </button>
+          <button 
+            className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold hover:bg-indigo-200 transition-colors text-xs uppercase tracking-wider"
+            onClick={() => window.location.href = '/communityforum'}
+          >
+            <Users className="w-4 h-4" />
+            Community
+          </button>
         </div>
 
-        {/* Status Messages */}
-        {status && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex items-center gap-2 p-3 rounded-lg ${
-              status.type === "success"
-                ? "bg-green-500/10 border border-green-500/20 text-green-400"
-                : "bg-red-500/10 border border-red-500/20 text-red-400"
-            }`}>
-            {status.type === "success" ? (
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span className="text-sm">{status.text}</span>
-          </motion.div>
-        )}
-
-        {/* Send Button */}
-        <Button
-          onClick={handleSendEmail}
-          disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-          <Send className="w-4 h-4 mr-2" />
-          {loading ? "Sending..." : "Send Message"}
-        </Button>
-
-        {/* Help Text */}
-        <p className="text-xs text-slate-400 text-center pt-2">
-          We typically respond within 24 hours
+        <p className="text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">
+          WealthLens · Professional Portfolio Intelligence
         </p>
       </motion.div>
     </div>
