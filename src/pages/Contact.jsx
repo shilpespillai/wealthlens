@@ -127,7 +127,7 @@ export default function Contact() {
             <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-2xl text-center">
               <h3 className="text-lg font-bold text-indigo-900 mb-2">Media & Partnerships</h3>
               <p className="text-sm text-indigo-700">
-                For inquiries or partnerships, please email <br/><a href="mailto:aihealthtec@gmail.com" className="font-bold underline text-indigo-600 hover:text-indigo-800">aihealthtec@gmail.com</a>
+                For inquiries or partnerships, please use our contact form above.
               </p>
             </div>
 

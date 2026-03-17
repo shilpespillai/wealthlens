@@ -118,7 +118,7 @@ export default function HelpCenter() {
                     Can't find what you're looking for? Our executive support team is available for premium inquiries.
                   </p>
                   <a 
-                    href="mailto:aihealthtec@gmail.com" 
+                    href="/contact" 
                     className="block w-full bg-indigo-600 text-white text-center py-4 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/50"
                   >
                     Contact Support

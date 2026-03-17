@@ -16,7 +16,6 @@ export default async function handler(req, res) {
 
   if (resendKey) {
     try {
-      console.log('[Support Email] Attempting to send using Resend...');
       const resendResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -47,18 +46,15 @@ export default async function handler(req, res) {
         }),
       });
 
-      const resText = await resendResponse.text();
-      console.log(`[Support Email] Resend Response (${resendResponse.status}):`, resText);
-
       if (!resendResponse.ok) {
-        // Log to Vercel logs but don't break the UI
-        console.error('[Support Email] Resend API Error Status:', resendResponse.status);
+        const errorData = await resendResponse.json();
+        console.error('[Support Email] Resend API Error:', errorData);
       }
     } catch (e) {
       console.error('[Support Email] Fetch error:', e);
     }
   } else {
-    console.error('[Support Email] CRITICAL: RESEND_API_KEY is missing from environment variables.');
+    console.error('[Support Email] RESEND_API_KEY is missing.');
   }
 
   return res.status(200).json({ 
