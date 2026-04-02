@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Palmtree, TrendingUp, DollarSign, Clock, Target, AlertCircle } from "lucide-react";
+import { Palmtree, AlertCircle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from
 "recharts";

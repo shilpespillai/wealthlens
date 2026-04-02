@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 import { Link } from "react-router-dom";
-import { Loader2, Mail, ShieldCheck, TrendingUp, Zap, Lock } from "lucide-react";
+import { Loader2, ShieldCheck, TrendingUp, Zap, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Login() {
   const [isConnecting, setIsConnecting] = useState(null);
@@ -222,6 +223,30 @@ export default function Login() {
               </p>
             )}
           </div>
+
+          {/* Dev Mock Login Bypass */}
+          {!import.meta.env.PROD && (
+            <div className="mt-8 pt-8 border-t border-slate-200">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const mockUser = {
+                    id: 'mock-123',
+                    email: 'tester@wealthlens.info',
+                    full_name: 'WealthLens Tester',
+                    isPremium: true // Enable premium features for testing
+                  };
+                  localStorage.setItem('mockUser', JSON.stringify(mockUser));
+                  const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
+                  window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
+                }}
+                className="w-full border-dashed border-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold"
+              >
+                Dev: Skip Login (Mock)
+              </Button>
+              <p className="text-[10px] text-slate-400 text-center mt-2 uppercase tracking-widest font-bold">Local Development Mode Only</p>
+            </div>
+          )}
 
           {/* Footer */}
           <p className="text-center text-gray-400 text-xs mt-4">

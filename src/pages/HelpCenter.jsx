@@ -60,8 +60,8 @@ export default function HelpCenter() {
                 <div className="divide-y divide-slate-100">
                     {[
                       { q: "Interpreting Real vs. Nominal Purchasing Power", a: "Learn how the inflation discount applies to your future wealth goals." },
-                      { q: "Connecting External Financial Data", a: "A guide on using our CSV and PDF smart import features safely." },
-                      { q: "Account Security & Private Mode", a: "Everything you need to know about how WealthLens keeps your data local." },
+                      { q: "Connecting External Financial Data", a: "A guide on using our Bank Sync (Plaid), CSV, and PDF smart import features safely." },
+                      { q: "Account Security & Private Mode", a: "Everything you need to know about how WealthLens keeps your data local and secure." },
                       { q: "Customizing Tax & Fee Drags", a: "How to configure specific management ratios for more accurate projections." }
                     ].map((item, i) => (
                       <a href="#" key={i} className="group py-6 block hover:pl-2 transition-all">
@@ -100,6 +100,10 @@ export default function HelpCenter() {
                     { 
                       q: "Does the model account for 100% dividend reinvestment?", 
                       a: "Yes, our default logic assumes the DRIP (Dividend Reinvestment Plan) model where all distributions are automatically cycled back into principal. However, you should manually adjust your 'DRAG' settings if you plan to withdraw dividends for income." 
+                    },
+                    { 
+                      q: "Is connecting my bank account secure?", 
+                      a: "Yes. WealthLens uses Plaid, a world-class financial link, to securely connect to your bank. We never see or store your login credentials, and the integration is strictly read-only for transaction syncing." 
                     }
                   ].map((faq, i) => (
                     <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">

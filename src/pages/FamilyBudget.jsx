@@ -14,7 +14,6 @@ import {
   Calendar,
   Save,
   Download,
-  MessageSquare,
   Send,
   Bot,
   Sparkles,
@@ -38,7 +37,6 @@ import {
   LineChart,
   Line
 } from "recharts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,6 +62,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import PremiumGate from "@/components/calculator/PremiumGate";
 import { useSubscription } from "@/components/calculator/useSubscription";
+import BankConnect from "@/components/calculator/BankConnect";
 
 const EXPENSE_CATEGORIES = [
   { id: "fixed", label: "Fixed / Needs", color: "#3b82f6", targetPct: 50 },
@@ -199,6 +198,26 @@ function FamilyBudgetContent() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBankSync = (transactions) => {
+    const formatted = transactions.map(item => ({
+      id: Date.now() + Math.random(),
+      name: item.name,
+      category: item.category,
+      monthlyAmount: item.amount
+    }));
+
+    // Check for duplicates
+    const existing = new Set(expenses.map(e => `${e.name}-${e.monthlyAmount}`));
+    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.monthlyAmount}`));
+
+    if (uniqueNew.length > 0) {
+      setExpenses(prev => [...prev, ...uniqueNew]);
+      toast.success(`Synced ${uniqueNew.length} new transactions from your bank!`);
+    } else {
+      toast.info("No new transactions found since last sync.");
     }
   };
 
@@ -581,6 +600,7 @@ function FamilyBudgetContent() {
                   <p className="text-sm text-slate-500">Categorize for 50/30/20 breakdown</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <BankConnect onSyncSuccess={handleBankSync} />
                   <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                     <DialogTrigger asChild>
                       <Button 

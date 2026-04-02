@@ -1,22 +1,19 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Search, MapPin, TrendingUp, Info, ChevronRight, X, Heart, ShieldCheck, 
-  Trash2, Plus, ArrowRight, Download, Save, Map as MapIcon, Layers, 
-  BarChart3, Layout, Clock, ExternalLink, AlertCircle, Maximize2, Minimize2, 
-  ArrowLeftRight, CheckCircle2, ChevronDown, ChevronUp
+  Search, MapPin, TrendingUp, Info, ShieldCheck, 
+  Trash2, ArrowRight, Map as MapIcon, Layers, 
+  BarChart3, Layout, AlertCircle, 
+  ArrowLeftRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { toast } from "sonner";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 
 export default function SuburbAnalyzer() {
   const [currency] = useState('AUD'); // Defaulting to AUD for Australian suburbs but keeping dynamic ability

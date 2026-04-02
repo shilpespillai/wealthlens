@@ -2,27 +2,27 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 
-const ROWS = [
-  { feature: "Investment growth calculator", wealthlens: true, spreadsheet: "Manual", others: "Basic" },
-  { feature: "AI investment coaching", wealthlens: true, spreadsheet: false, others: false },
-  { feature: "AI portfolio builder", wealthlens: true, spreadsheet: false, others: false },
-  { feature: "Real-time market data", wealthlens: true, spreadsheet: false, others: "Partial" },
-  { feature: "Property vs ETF analysis", wealthlens: true, spreadsheet: false, others: false },
-  { feature: "Tax optimisation strategies", wealthlens: true, spreadsheet: false, others: false },
-  { feature: "Retirement planner", wealthlens: true, spreadsheet: false, others: "Basic" },
-  { feature: "Smart Budget Reports", wealthlens: true, spreadsheet: "Manual", others: false },
-  { feature: "20+ currencies", wealthlens: true, spreadsheet: "Manual", others: "Partial" },
-  { feature: "PDF export", wealthlens: true, spreadsheet: true, others: "Paid" },
-  { feature: "One-time price", wealthlens: "$29", spreadsheet: "Free*", others: "$15/mo" },
-];
-
 function Cell({ val }) {
   if (val === true) return <Check className="w-5 h-5 text-emerald-500 mx-auto" />;
   if (val === false) return <X className="w-5 h-5 text-red-400 mx-auto" />;
   return <span className="text-xs text-gray-500 font-medium">{val}</span>;
 }
 
-export default function ComparisonTable() {
+export default function ComparisonTable({ price = 29 }) {
+  const ROWS = [
+    { feature: "Investment growth calculator", wealthlens: true, spreadsheet: "Manual", others: "Basic" },
+    { feature: "AI investment coaching", wealthlens: true, spreadsheet: false, others: false },
+    { feature: "AI portfolio builder", wealthlens: true, spreadsheet: false, others: false },
+    { feature: "Real-time market data", wealthlens: true, spreadsheet: false, others: "Partial" },
+    { feature: "Property vs ETF analysis", wealthlens: true, spreadsheet: false, others: false },
+    { feature: "Tax optimisation strategies", wealthlens: true, spreadsheet: false, others: false },
+    { feature: "Retirement planner", wealthlens: true, spreadsheet: false, others: "Basic" },
+    { feature: "Smart Budget Reports", wealthlens: true, spreadsheet: "Manual", others: false },
+    { feature: "20+ currencies", wealthlens: true, spreadsheet: "Manual", others: "Partial" },
+    { feature: "PDF export", wealthlens: true, spreadsheet: true, others: "Paid" },
+    { feature: "One-time price", wealthlens: `$${price}`, spreadsheet: "Free*", others: "$15/mo" },
+  ];
+
   return (
     <section className="bg-white py-10 sm:py-14 border-t border-gray-100">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">

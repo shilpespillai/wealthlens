@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, BarChart3, Calculator, LineChart, Percent, Magnet, Zap } from "lucide-react";
+import { ArrowLeft, BarChart3, Calculator, Percent, Magnet, Zap } from "lucide-react";
 
 export default function Methodology() {
   return (

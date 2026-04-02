@@ -9,16 +9,24 @@ export const base44 = {
   auth: {
     me: async () => {
       if (isSupabaseEnabled) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          return {
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-            provider: user.app_metadata?.provider || 'supabase',
-            avatar: user.user_metadata?.avatar_url,
-            ...user.user_metadata
-          };
+        try {
+          const { data, error } = await supabase.auth.getUser();
+          if (data?.user) {
+            const user = data.user;
+            return {
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+              provider: user.app_metadata?.provider || 'supabase',
+              avatar: user.user_metadata?.avatar_url,
+              ...user.user_metadata
+            };
+          }
+          if (error) {
+             console.warn("[Base44] Supabase auth error:", error.message);
+          }
+        } catch (e) {
+          console.warn("[Base44] Supabase auth check failed. Falling back to mock session if in dev.");
         }
       }
       
@@ -264,6 +272,33 @@ export const base44 = {
       }
       if (name === 'getStripeKey') {
          return { data: { publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_demo' } };
+      }
+
+      // --- Plaid Mock Integrations ---
+      if (name === 'createPlaidLinkToken') {
+        console.log("[Plaid Mock] Generating link token...");
+        return { data: { link_token: "link-sandbox-123456789" } };
+      }
+
+      if (name === 'exchangePlaidPublicToken') {
+        console.log("[Plaid Mock] Exchanging public token:", params.publicToken);
+        return { data: { success: true, item_id: "item_sandbox_abc123" } };
+      }
+
+      if (name === 'getPlaidTransactions') {
+        console.log("[Plaid Mock] Fetching transactions for item:", params.itemId);
+        const day = new Date().toISOString().split('T')[0];
+        return {
+          data: {
+            transactions: [
+              { id: 'tx_1', name: 'Golden Groceries', category: 'variable', amount: 82.50, date: day },
+              { id: 'tx_2', name: 'Rent Payment', category: 'fixed', amount: 1500.00, date: day },
+              { id: 'tx_3', name: 'Coffee Shop', category: 'variable', amount: 4.50, date: day },
+              { id: 'tx_4', name: 'Savings Transfer', category: 'savings', amount: 200.00, date: day },
+              { id: 'tx_5', name: 'Salary Deposit', category: 'income', amount: 3500.00, date: day }
+            ]
+          }
+        };
       }
       return { data: { success: true } };
     }

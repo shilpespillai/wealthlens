@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { LayoutDashboard, TrendingUp, DollarSign, PieChart, Zap } from "lucide-react";
 import { getCurrencySymbol } from "./CurrencySelector";
-import { PieChart as RechartPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart as RechartPie, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const INSTRUMENT_META = {
   stocks:        { name: 'Stocks',        color: '#6366f1' },

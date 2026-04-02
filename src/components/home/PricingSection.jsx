@@ -29,17 +29,8 @@ const PREMIUM_FEATURES = [
   "Lifetime access — one-time payment",
 ];
 
-export default function PricingSection({ onGetStarted }) {
-  const [price, setPrice] = useState(10);
+export default function PricingSection({ onGetStarted, price = 10 }) {
   const LIVE_PRICE_ID = "price_1T7w6sJkmG8taKBQqIH4PxqD";
-
-  useEffect(() => {
-    async function loadPrice() {
-      const p = await base44.app.getPrice();
-      setPrice(p);
-    }
-    loadPrice();
-  }, []);
 
   const handleGetStarted = async () => {
     try {

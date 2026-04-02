@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Key, TrendingUp, Building2, Zap, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { Key, Building2, Zap, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";

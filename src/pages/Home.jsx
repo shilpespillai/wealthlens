@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Globe, Zap, Shield, BarChart3, DollarSign, Brain, Loader } from "lucide-react";
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Globe, Zap, Shield, DollarSign, Brain, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
@@ -99,6 +99,18 @@ function NewsCard({ item, index }) {
 
 const SHOWCASE_ITEMS = [
   {
+    title: "8-Pillar Stock Analyzer",
+    description: "Deep dive into 10 years of financial history with a single click.",
+    image: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&h=500&fit=crop",
+    tag: "NEW"
+  },
+  {
+    title: "Fair Value Calculator",
+    description: "Determine the intrinsic value and find your margin of safety.",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=500&fit=crop",
+    tag: "NEW"
+  },
+  {
     title: "Suburb Investment Analyzer",
     description: "AI-powered property market insights & demand forecasting.",
     image: "/suburb_preview.png",
@@ -188,6 +200,8 @@ function ShowcaseGallery() {
 
 export default function Home() {
   const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
+  const [price, setPrice] = useState(10);
+  const [priceLoading, setPriceLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [marketData, setMarketData] = useState(null);
@@ -195,6 +209,20 @@ export default function Home() {
   const [marketLastUpdated, setMarketLastUpdated] = useState(null);
   const [newsItems, setNewsItems] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPrice() {
+      try {
+        const p = await base44.app.getPrice();
+        setPrice(p);
+      } catch (error) {
+        console.error("Failed to fetch price:", error);
+      } finally {
+        setPriceLoading(false);
+      }
+    }
+    loadPrice();
+  }, []);
 
   useEffect(() => {
     async function checkAuth() {
@@ -463,8 +491,8 @@ export default function Home() {
       </section>
 
       <Testimonials />
-      <ComparisonTable />
-      <PricingSection />
+      <ComparisonTable price={price} />
+      <PricingSection price={price} />
       <FAQ />
 
       {/* CTA Section */}

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CurrencySelector, { getCurrencySymbol } from "./CurrencySelector";
+import CurrencySelector from "./CurrencySelector";
 
 const defaultRates = {
   stocks: { conservative: 6, moderate: 10, aggressive: 15 },

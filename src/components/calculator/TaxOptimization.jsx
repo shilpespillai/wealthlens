@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, TrendingDown, DollarSign, CalendarClock, Loader2, RefreshCw } from "lucide-react";
+import { Lightbulb, DollarSign, CalendarClock, Loader2, RefreshCw } from "lucide-react";
 import { getCurrencySymbol } from "./CurrencySelector";
 
 export default function TaxOptimization({ params, instrument, results }) {

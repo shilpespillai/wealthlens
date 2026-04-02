@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Building2, TrendingUp, DollarSign, Zap, Shield, CheckCircle, XCircle } from "lucide-react";
+import { Building2, TrendingUp, Zap, CheckCircle, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";

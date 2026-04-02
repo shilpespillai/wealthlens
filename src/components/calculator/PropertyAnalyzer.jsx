@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Building2, TrendingUp, DollarSign, Percent, Home, Calculator, PiggyBank } from "lucide-react";
+import { Building2, TrendingUp, DollarSign, PiggyBank } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

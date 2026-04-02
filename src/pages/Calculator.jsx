@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, BrainCircuit, PieChart as PieChartIcon, Settings, PiggyBank, Map as MapIcon, Lock } from "lucide-react";
+import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, PieChart as PieChartIcon, Settings, PiggyBank, Map as MapIcon, Lock, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -23,6 +23,8 @@ import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import PortfolioOverview from "@/components/calculator/PortfolioOverview";
 import RetirementPlanner from "@/components/calculator/RetirementPlanner";
+import StockPillarAnalyzer from "@/components/calculator/StockPillarAnalyzer";
+import FairValueCalculator from "@/components/calculator/FairValueCalculator";
 import SaveExport from "@/components/calculator/SaveExport";
 import PremiumGate from "@/components/calculator/PremiumGate";
 import AuthGuard from "@/components/AuthGuard";
@@ -59,6 +61,7 @@ function CalculatorContent() {
   const [userLoaded, setUserLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("coach");
 
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
@@ -359,11 +362,19 @@ function CalculatorContent() {
 
             {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
             {instrument !== "property" &&
-            <Tabs defaultValue="coach" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="bg-slate-100 border border-slate-300 p-1.5 rounded-2xl h-auto flex-wrap">
                 <TabsTrigger value="coach" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Sparkles className="w-3.5 h-3.5 mr-2" />
                   AI Coach
+                </TabsTrigger>
+                <TabsTrigger value="pillars" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
+                  <BarChart3 className="w-3.5 h-3.5 mr-2" />
+                  8-Pillars
+                </TabsTrigger>
+                <TabsTrigger value="fairvalue" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
+                  <Target className="w-3.5 h-3.5 mr-2" />
+                  Fair Value
                 </TabsTrigger>
                 <TabsTrigger value="retirement" className="rounded-xl px-5 py-3 text-xs font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-700 transition-all">
                   <Palmtree className="w-3.5 h-3.5 mr-2" />
@@ -394,6 +405,18 @@ function CalculatorContent() {
               <TabsContent value="coach" className="mt-6">
                 <PremiumGate featureName="AI Investment Coach" isPremium={isPremium}>
                   <InvestmentCoach params={params} instrument={instrument} results={results} />
+                </PremiumGate>
+              </TabsContent>
+
+              <TabsContent value="pillars" className="mt-6">
+                <PremiumGate featureName="8-Pillar Stock Analysis" isPremium={isPremium}>
+                  <StockPillarAnalyzer onOpenFairValue={() => setActiveTab("fairvalue")} />
+                </PremiumGate>
+              </TabsContent>
+
+              <TabsContent value="fairvalue" className="mt-6">
+                <PremiumGate featureName="Fair Value Calculator" isPremium={isPremium}>
+                  <FairValueCalculator />
                 </PremiumGate>
               </TabsContent>
 
