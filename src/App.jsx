@@ -30,8 +30,9 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
-  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(window.location.pathname.toLowerCase());
-  const isHomePage = window.location.pathname === '/' || window.location.pathname === '';
+  const path = window.location.pathname.toLowerCase();
+  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(path);
+  const isHomePage = path === '/' || path === '';
 
   if (authError) {
     if (authError.type === 'user_not_registered') {
@@ -48,29 +49,18 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* OAuth callback — must be before dynamic page routes */}
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
           <MainPage />
         </LayoutWrapper>
       } />
+      
+
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}
           path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
-      {/* Ensure lower case matching works since user types /about but component is About */}
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={`lower-${path}`}
-          path={`/${path.toLowerCase()}`}
           element={
             <LayoutWrapper currentPageName={path}>
               <Page />

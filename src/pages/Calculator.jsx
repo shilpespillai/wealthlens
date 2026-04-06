@@ -26,10 +26,9 @@ import RetirementPlanner from "@/components/calculator/RetirementPlanner";
 import StockPillarAnalyzer from "@/components/calculator/StockPillarAnalyzer";
 import FairValueCalculator from "@/components/calculator/FairValueCalculator";
 import SaveExport from "@/components/calculator/SaveExport";
-import PremiumGate from "@/components/calculator/PremiumGate";
-import AuthGuard from "@/components/AuthGuard";
-import { useSubscription } from "@/components/calculator/useSubscription";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
+import Navbar from "@/components/layout/Navbar";
+import AdvisorLogic from "@/components/calculator/AdvisorLogic";
 
 const LS_KEY = "wealthlens-calc-state";
 
@@ -62,6 +61,7 @@ function CalculatorContent() {
   const [loadError, setLoadError] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("coach");
+  const [showAdvisorLogic, setShowAdvisorLogic] = useState(false);
 
   const chartRef = useRef(null);
   const { isPremium, loading: subLoading } = useSubscription();
@@ -158,9 +158,13 @@ function CalculatorContent() {
 
   if (!userLoaded) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">Syncing data...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <Navbar onSettingsClick={() => setSettingsOpen(true)} />
+
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
+          <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
+          <p className="text-slate-500 font-medium">Syncing data...</p>
+        </main>
       </div>
     );
   }
@@ -184,22 +188,18 @@ function CalculatorContent() {
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       
-      {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Settings Button */}
       <button
         onClick={() => setSettingsOpen(true)}
         className="fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-slate-100 transition-colors"
         title="Settings">
-
         <Settings className="w-5 h-5 text-slate-600" />
       </button>
 
-      {/* Hero */}
       <div className="relative overflow-hidden border-b border-slate-200">
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/3 via-transparent to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 relative">
@@ -207,7 +207,6 @@ function CalculatorContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center">
-
             <div className="flex items-center justify-center gap-3 mb-8">
               <img src="/wealthlens_logo.png" alt="WealthLens logo" className="w-12 h-12 rounded-2xl shadow-lg shadow-indigo-500/30" />
               <span className="text-2xl font-black text-slate-900 tracking-tight">WealthLens</span>
@@ -217,83 +216,36 @@ function CalculatorContent() {
               <br />
               <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">Future Clearly</span>
             </h1>
-            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">Whether you're starting with $50 or managing millions, make informed investment decisions. Professional-grade tools for every investor.
-
-
-
-
-            </p>
-            <div className="flex items-center justify-center gap-8 mt-8 text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span>Accessible to All</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-400" />
-                <span>Real-Time Analysis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-violet-400" />
-                <span>20+ Currencies</span>
-              </div>
-            </div>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link to={createPageUrl("Portfolio")} className="bg-amber-300 text-slate-600 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-indigo-700 hover:text-white transition-colors shadow-lg shadow-indigo-500/20">
-                <PieChartIcon className="w-4 h-4" /> View Portfolio Dashboard
-              </Link>
-              <Link to={createPageUrl("FamilyBudget")} className="bg-emerald-100 text-emerald-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-colors shadow-lg shadow-emerald-500/20 border border-emerald-200">
-                <PiggyBank className="w-4 h-4" /> Family Budget Planner
-              </Link>
-              
-              {!isPremium ? (
-                <PremiumGate featureName="Suburb Analyzer" isPremium={isPremium} noOverlay={true}>
-                  <Button className="bg-blue-100 text-blue-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors shadow-lg shadow-blue-500/20 border border-blue-200">
-                    <Lock className="w-4 h-4" /> Suburb Analyzer
-                    <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1">PRO</span>
-                  </Button>
-                </PremiumGate>
-              ) : (
-                <Link to={createPageUrl("SuburbAnalyzer")} className="bg-blue-100 text-blue-700 px-5 py-2.5 text-sm font-semibold rounded-xl inline-flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors shadow-lg shadow-blue-500/20 border border-blue-200">
-                  <MapIcon className="w-4 h-4" /> Suburb Analyzer
-                </Link>
-              )}
-            </div>
+            <p className="mt-6 text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-light">Whether you're starting with $50 or managing millions, make informed investment decisions. Professional-grade tools for every investor.</p>
           </motion.div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16 relative z-10">
-        {/* Investment Profiles */}
         <motion.div initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
         className="mb-10">
-
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Quick Start Profiles</h2>
           <InvestmentProfiles onSelect={(defaults) => setParams((prev) => ({ ...prev, ...defaults }))} />
         </motion.div>
 
-        {/* Instrument Selector */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="mb-10">
-
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-6">Select Asset Class</h2>
           <InstrumentSelector selected={instrument} onSelect={handleInstrumentChange} />
         </motion.div>
 
-        {/* Main Grid */}
         <div className={instrument === "property" ? "" : "grid grid-cols-1 lg:grid-cols-12 gap-8"}>
-          {/* Form Sidebar - Hidden for Property */}
           {instrument !== "property" &&
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
             className="lg:col-span-4">
-
               <div className="sticky top-6 bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                 <h3 className="text-sm font-bold text-slate-900 mb-8 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -306,29 +258,23 @@ function CalculatorContent() {
             </motion.div>
           }
 
-          {/* Results Area */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
             className={instrument === "property" ? "space-y-8" : "lg:col-span-8 space-y-8"}>
 
-            {/* Portfolio Overview Dashboard */}
             {instrument !== "property" &&
             <PortfolioOverview
               params={params}
               instrument={instrument}
               results={results}
               currency={params.currency} />
-
             }
 
-            {/* Summary Cards - Hidden for Property */}
             {instrument !== "property" &&
             <>
                 <ResultsSummary summary={results.summary} currency={params.currency} />
-                
-                {/* Save & Export - Premium Feature */}
                 <div className="flex justify-end">
                   <PremiumGate featureName="Export PDF" isPremium={isPremium} compact={true} noOverlay={true}>
                     <SaveExport params={params} instrument={instrument} results={results} isPremium={isPremium} />
@@ -337,30 +283,22 @@ function CalculatorContent() {
               </>
             }
 
-            {/* Property-Specific Analysis */}
             {instrument === "property" &&
             <>
-                {/* Property Currency Selector */}
                 <div className="bg-white/60 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
                   <label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em] whitespace-nowrap">Property Currency</label>
                   <div className="flex-1 max-w-xs">
                     <CurrencySelector value={propertyCurrency} onChange={setPropertyCurrency} />
                   </div>
                 </div>
-
                 <PropertyAnalyzer currency={propertyCurrency} />
-                
-                {/* Property vs ETF Comparison */}
                 <PropertyVsETF currency={propertyCurrency} />
-
-                {/* Equity Unlock Planner — Premium */}
                 <PremiumGate featureName="Equity Unlock Planner" isPremium={isPremium}>
                   <EquityUnlockPlanner currency={propertyCurrency} />
                 </PremiumGate>
               </>
             }
 
-            {/* Tabs for Chart / Scenarios / Table / Market Analysis - Hidden for Property */}
             {instrument !== "property" &&
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="bg-slate-100 border border-slate-300 p-1.5 rounded-2xl h-auto flex-wrap">
@@ -420,7 +358,6 @@ function CalculatorContent() {
                 </PremiumGate>
               </TabsContent>
 
-
               <TabsContent value="retirement" className="mt-6">
                 <PremiumGate featureName="Retirement Planner" isPremium={isPremium}>
                   <RetirementPlanner currency={params.currency} />
@@ -457,13 +394,44 @@ function CalculatorContent() {
               <TabsContent value="table" className="mt-6">
                 <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                   <h3 className="text-sm font-bold text-slate-900 mb-6">Year-by-Year Breakdown</h3>
+                  <GrowthChart data={results.chartData} />
+            
+                  <div className="mt-8">
+                    {!showAdvisorLogic ? (
+                      <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+                         <div className="flex-1 relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Sparkles className="w-5 h-5 text-indigo-300" />
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200">New Beta Feature</span>
+                            </div>
+                            <h3 className="text-2xl font-black mb-2">AdvisorLogic™ Orchestration</h3>
+                            <p className="text-indigo-100 font-medium max-w-md">Collaborate with a panel of specialized AI agents for a rigorous, multi-point audit of your strategy.</p>
+                         </div>
+                         <Button 
+                           onClick={() => setShowAdvisorLogic(true)}
+                           className="bg-white text-indigo-600 hover:bg-gray-100 font-black px-8 py-6 rounded-2xl shadow-2xl relative z-10 uppercase tracking-widest"
+                         >
+                           Start AdvisorLogic Review
+                         </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-bold text-gray-900">AdvisorLogic Committee</h3>
+                          <Button variant="ghost" size="sm" onClick={() => setShowAdvisorLogic(false)} className="text-gray-400 hover:text-gray-900 font-bold uppercase tracking-widest text-[10px]">Reset Session</Button>
+                        </div>
+                        <AdvisorLogic symbol={instrument.toUpperCase()} />
+                      </div>
+                    )}
+                  </div>
+
                   <YearlyBreakdown data={results.yearlyData} currency={params.currency} />
                 </div>
               </TabsContent>
             </Tabs>
             }
 
-            {/* Disclaimer */}
             <div className="bg-amber-50/50 backdrop-blur-sm border border-amber-200 rounded-2xl p-5">
               <p className="text-xs text-amber-900 leading-relaxed">
                 <strong className="text-amber-900">Disclaimer:</strong> This calculator provides estimates for educational purposes only. 
