@@ -79,20 +79,23 @@ export default function SettingsDialog({ isOpen, onClose }) {
                 <Settings className="w-8 h-8 text-red-400" />
               </div>
               <div>
-                <h3 className="text-xl font-bold mb-2">Session Sync Error</h3>
-                <p className="text-slate-400 leading-relaxed">
-                  We couldn't synchronize your secure profile data. This can happen if your session has expired or shifted to a guest state.
+                <h3 className="text-xl font-bold mb-2 text-white font-serif">Session Sync Mismatch</h3>
+                <p className="text-slate-400 leading-relaxed font-sans text-sm px-4">
+                  The app is authenticated, but we couldn't resolve your profile intelligence. Refreshing your session will fix this.
                 </p>
               </div>
-              <Button 
-                onClick={handleManualReset}
-                className="w-full bg-white text-slate-900 hover:bg-slate-100 font-bold py-6 rounded-xl flex items-center justify-center gap-2"
-              >
-                Reset Session & Re-authenticate
-              </Button>
-              <p className="text-xs text-slate-500 uppercase tracking-widest">
-                Force logout & clear local cache
-              </p>
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleManualReset}
+                  className="w-full bg-deepPurple text-white hover:opacity-90 font-bold py-6 rounded-xl flex items-center justify-center gap-2 shadow-xl"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out & Refresh Session
+                </Button>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-black">
+                  This will clear local cache and restore full access
+                </p>
+              </div>
             </div>
           )}
         </div>
