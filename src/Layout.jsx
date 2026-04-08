@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
-import SettingsDialog from "@/components/SettingsDialog";
 
 export default function Layout({ children }) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     // Apply saved theme on mount
@@ -31,8 +29,7 @@ export default function Layout({ children }) {
         }
       `}</style>
       
-      <Navbar onSettingsClick={() => setSettingsOpen(true)} />
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Navbar />
       
       <main className="flex-1 overflow-x-hidden">
         {children}

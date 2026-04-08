@@ -1,12 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import GlobalSearch from "./GlobalSearch";
 
-export default function Navbar({ onSettingsClick }) {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+export default function Navbar() {
+  const { isAuthenticated, loading: authLoading, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-softPeach/80 backdrop-blur-xl border-b border-gray-100">
@@ -29,14 +29,15 @@ export default function Navbar({ onSettingsClick }) {
         </div>
 
         <div className="flex items-center gap-4">
-          {isAuthenticated && !authLoading && onSettingsClick && (
+          {isAuthenticated && !authLoading && (
             <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={onSettingsClick}
-                className="text-gray-400 hover:text-deepPurple transition-colors"
+                onClick={() => logout()}
+                className="text-gray-400 hover:text-deepPurple transition-all hover:scale-110"
+                title="Sign Out"
               >
-              <Settings className="w-5 h-5" />
+              <LogOut className="w-5 h-5" />
             </Button>
           )}
 
