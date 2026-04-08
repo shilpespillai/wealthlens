@@ -105,10 +105,34 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
         } else {
-          // Check local storage mock fallback
-          const localUser = await base44.auth.me();
+          // In PROD, we ONLY allow real Supabase sessions. 
+          // Mock fallbacks are strictly DEV-only to prevent production state leaks.
+          const isDev = !import.meta.env.PROD;
           const manualLogout = localStorage.getItem('_manual_logout');
-          if (localUser && !manualLogout) {
+
+          if (isDev) {
+            const localUser = await base44.auth.me();
+            if (localUser && !manualLogout) {
+              setUser(localUser);
+              setIsAuthenticated(true);
+              setAuthError(null);
+            } else {
+              setUser(null);
+              setIsAuthenticated(false);
+              setAuthError({ type: 'auth_required', message: 'Authentication required' });
+            }
+          } else {
+            // PROD: No session means NOT authenticated
+            setUser(null);
+            setIsAuthenticated(false);
+            setAuthError({ type: 'auth_required', message: 'Authentication required' });
+          }
+        }
+      } else {
+        // Purely mock fallback — ONLY in DEV
+        if (!import.meta.env.PROD) {
+          const localUser = await base44.auth.me();
+          if (localUser) {
             setUser(localUser);
             setIsAuthenticated(true);
             setAuthError(null);
@@ -117,15 +141,8 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(false);
             setAuthError({ type: 'auth_required', message: 'Authentication required' });
           }
-        }
-      } else {
-        // purely mock fallback
-        const localUser = await base44.auth.me();
-        if (localUser) {
-          setUser(localUser);
-          setIsAuthenticated(true);
-          setAuthError(null); // CRITICAL: Clear error so App.jsx doesn't redirect
         } else {
+          // PROD: If Supabase is disabled, we cannot be authenticated
           setUser(null);
           setIsAuthenticated(false);
           setAuthError({ type: 'auth_required', message: 'Authentication required' });
