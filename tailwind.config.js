@@ -3,14 +3,23 @@ module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
-  	extend: {
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		},
-  		colors: {
-  			background: 'hsl(var(--background))',
+    extend: {
+      fontFamily: {
+        serif: ['Fraunces', 'serif'],
+        sans: ['Inter', 'sans-serif'],
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)'
+      },
+      colors: {
+        softPeach: '#fffcfb',
+        deepPurple: '#521c7a',
+        dataCyan: '#22d3ee',
+        dataIndigo: '#6366f1',
+        dataRose: '#f43f5e',
+        background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',

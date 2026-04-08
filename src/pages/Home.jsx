@@ -6,11 +6,15 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, 
+  AreaChart, Area, XAxis, YAxis, Tooltip, 
+  LineChart, Line, Sankey
+} from "recharts";
 import HowItWorks from "@/components/home/HowItWorks";
 import Testimonials from "@/components/home/Testimonials";
 import PricingSection from "@/components/home/PricingSection";
 import StatsBar from "@/components/home/StatsBar";
-import HeroCalculator from "@/components/home/HeroCalculator";
 import AssetShowcase from "@/components/home/AssetShowcase";
 import ComparisonTable from "@/components/home/ComparisonTable";
 import FAQ from "@/components/home/FAQ";
@@ -24,101 +28,118 @@ const FEATURES = [
   { icon: Shield, label: "Secure & Reliable", color: "from-orange-500 to-red-500" }
 ];
 
-const SHOWCASE_ITEMS = [
-  {
-    title: "8-Pillar Stock Analyzer",
-    description: "Deep dive into 10 years of financial history with a single click.",
-    image: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&h=500&fit=crop",
-    tag: "NEW"
-  },
-  {
-    title: "Fair Value Calculator",
-    description: "Determine the intrinsic value and find your margin of safety.",
-    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=500&fit=crop",
-    tag: "NEW"
-  },
-  {
-    title: "Suburb Investment Analyzer",
-    description: "AI-powered property market insights & demand forecasting.",
-    image: "/suburb_preview.png",
-    tag: "Premium"
-  },
-  {
-    title: "Equity Unlock Planner",
-    description: "Leverage existing property to build wealth faster.",
-    image: "/equity_preview.png",
-    tag: "Advanced"
-  },
-  {
-    title: "AI Investment Coach",
-    description: "Get personalized, data-driven strategy guidance 24/7.",
-    image: "/coach_preview.png",
-    tag: "AI Powered"
-  },
-  {
-    title: "Smart Budget Reports",
-    description: "AI-driven expense analysis & visual spending trends.",
-    image: "/reports_ai.png",
-    tag: "New Premium"
-  },
-  {
-    title: "Financial Velocity Radar",
-    description: "Multi-layered area charts for forecasting wealth.",
-    image: "/reports_trends.png",
-    tag: "Premium"
-  }
-];
+const HERO_SANKEY_DATA = {
+  nodes: [
+    // Tier 1: Income Sources
+    { name: "Salary A", color: "#22d3ee" },
+    { name: "Salary B", color: "#22d3ee" },
+    { name: "Side Income", color: "#22d3ee" },
+    { name: "Dividends", color: "#22d3ee" },
+    // Tier 2: Aggregated
+    { name: "Gross Income", color: "#8b5cf6" },
+    // Tier 3: Strategy Buckets
+    { name: "Monthly Surplus", color: "#a78bfa" },
+    { name: "Fixed Needs", color: "#fbbf24" },
+    { name: "Variable Wants", color: "#f43f5e" },
+    { name: "Wealth Growth", color: "#10b981" },
+    // Tier 4: Details
+    { name: "Rent/Mortgage", color: "#fbbf24" },
+    { name: "Utilities", color: "#f59e0b" },
+    { name: "Groceries", color: "#f43f5e" },
+    { name: "Entertainment", color: "#f43f5e" },
+    { name: "Index Funds", color: "#10b981" },
+    { name: "Emergency Fund", color: "#10b981" },
+    { name: "Internet", color: "#f43f5e" },
+  ],
+  links: [
+    { source: 0, target: 4, value: 5000 },
+    { source: 1, target: 4, value: 2000 },
+    { source: 2, target: 4, value: 2240 },
+    { source: 3, target: 4, value: 2340 },
+    { source: 4, target: 5, value: 8374 },
+    { source: 4, target: 6, value: 1700 },
+    { source: 4, target: 7, value: 1005 },
+    { source: 4, target: 8, value: 500 },
+    { source: 6, target: 9, value: 1500 },
+    { source: 6, target: 10, value: 200 },
+    { source: 7, target: 11, value: 600 },
+    { source: 7, target: 12, value: 300 },
+    { source: 7, target: 15, value: 105 },
+    { source: 8, target: 13, value: 200 },
+    { source: 8, target: 14, value: 300 },
+  ],
+};
 
-function ShowcaseGallery() {
+const CustomHeroNode = (props) => {
+  const { x, y, width, height, index, payload, containerWidth } = props;
+  const isOut = x + width > containerWidth / 2;
   return (
-    <section className="py-16 bg-white overflow-hidden relative border-y border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10 relative z-10">
-        <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
-            Experience the <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Premium Edge</span>
-          </h2>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            A seamless look inside our most powerful investment analysis tools.
-          </p>
-        </div>
-      </div>
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={payload.color}
+        rx={2}
+      />
+      <text
+        x={isOut ? x - 10 : x + width + 10}
+        y={y + height / 2}
+        textAnchor={isOut ? "end" : "start"}
+        verticalAnchor="middle"
+        fontSize="10"
+        fontWeight="800"
+        fill="#1e293b"
+        className="font-sans uppercase tracking-tight"
+      >
+        {payload.name}
+      </text>
+    </g>
+  );
+};
 
-      <div className="flex relative py-4">
-        <motion.div
-          animate={{ x: [0, "-33.3333%"] }}
-          transition={{
-            duration: 40,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="flex gap-10 whitespace-nowrap px-4 w-max pr-10"
+const CustomHeroLink = (props) => {
+  const { sourceX, sourceY, targetX, targetY, linkWidth, payload } = props;
+  const color = payload?.source?.color || "#cbd5e1";
+  
+  if (isNaN(sourceX) || isNaN(targetX) || isNaN(sourceY) || isNaN(targetY)) return null;
+
+  const cpX = (sourceX + targetX) / 2;
+  const d = `M${sourceX},${sourceY} 
+             C${cpX},${sourceY} 
+             ${cpX},${targetY} 
+             ${targetX},${targetY}`;
+
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke={color}
+      strokeWidth={Math.max(1, linkWidth)}
+      strokeOpacity={0.4}
+      className="transition-all duration-500 hover:stroke-opacity-70"
+    />
+  );
+};
+
+function HeroSankey() {
+  return (
+    <div className="w-full h-[650px] relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 via-transparent to-emerald-50/20 rounded-full blur-3xl -z-10" />
+      <ResponsiveContainer width="100%" height="100%">
+        <Sankey
+          data={HERO_SANKEY_DATA}
+          node={<CustomHeroNode />}
+          link={<CustomHeroLink />}
+          nodeWidth={8}
+          nodePadding={40}
+          margin={{ top: 20, bottom: 20, left: 10, right: 120 }}
         >
-          {[...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS, ...SHOWCASE_ITEMS].map((item, idx) => (
-            <div
-              key={idx}
-              className="inline-block w-[500px] sm:w-[800px] bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-xl transition-transform hover:scale-[1.01] duration-500"
-            >
-              <div className="relative aspect-[16/10]">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-6 right-6 bg-indigo-600/90 backdrop-blur-md text-white text-xs font-black px-4 py-1.5 rounded-full shadow-xl uppercase tracking-wider">
-                  {item.tag}
-                </div>
-                <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-black/60 to-transparent">
-                  <h3 className="text-2xl font-black text-white">{item.title}</h3>
-                </div>
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </div>
-
-      <div className="absolute inset-y-0 left-0 w-48 bg-gradient-to-r from-white via-white/80 to-transparent z-10" />
-      <div className="absolute inset-y-0 right-0 w-48 bg-gradient-to-l from-white via-white/80 to-transparent z-10" />
-    </section>
+          <Tooltip />
+        </Sankey>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -169,41 +190,45 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-softPeach">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-left space-y-10"
+          >
+            <h1 className="text-6xl sm:text-8xl font-serif font-black text-gray-900 leading-[1.1] mb-8">
+              Master your
+              <br />
+              financial
+              <br />
+              <span className="text-deepPurple italic">future</span>
+            </h1>
+            
+            <p className="text-2xl text-gray-600 max-w-xl leading-relaxed font-sans font-medium">
+              WealthLens provides the clarity and intelligence you need to build lasting wealth. From detailed cashflow analysis to AI-driven investment strategies.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
+              <Button
+                onClick={handleLogin}
+                className="w-full sm:w-auto bg-deepPurple hover:opacity-90 text-white font-black px-12 py-5 rounded-full text-xl shadow-2xl hover:scale-105 transition-all">
+                See Plans & Pricing
+              </Button>
+              <span className="text-gray-400 font-bold uppercase tracking-widest text-sm">Secure & Private</span>
+            </div>
+          </motion.div>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8">
-
-          <div className="inline-block mb-6 px-4 py-2 bg-indigo-100 rounded-full">
-            <span className="text-sm font-bold text-indigo-700">📊 Investment Intelligence Platform</span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-5xl font-black text-gray-900 leading-tight mb-4">
-            See Your Financial
-            <br />
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Future Clearly</span>
-          </h1>
-          
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6 leading-relaxed">WealthLens provides advanced investment analysis tools, real-time financial insights, and AI-driven portfolio guidance. Our free investment growth calculator helps investors estimate ETF portfolio performance and visualize long-term wealth growth.
-          </p>
-          
-          <Button
-            onClick={handleLogin}
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold px-8 py-4 rounded-xl text-lg shadow-xl hover:shadow-2xl transition-all">
-
-            <TrendingUp className="w-5 h-5 mr-2" />
-            Get Started Now
-          </Button>
-        </motion.div>
-
-        <div className="mb-10">
-          <HeroCalculator onGetStarted={handleLogin} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative"
+          >
+            <HeroSankey />
+          </motion.div>
         </div>
 
-        <ShowcaseGallery />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {FEATURES.map((feature, idx) => {

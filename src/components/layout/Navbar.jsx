@@ -9,40 +9,42 @@ export default function Navbar({ onSettingsClick }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-100">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-softPeach/80 backdrop-blur-xl border-b border-gray-100">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-blue-800 rounded flex items-center justify-center text-white font-semibold text-lg transition-transform hover:scale-105">W</div>
-            <span className="text-lg font-semibold text-slate-900 tracking-tight">Wealth<span className="text-blue-800">Lens</span></span>
+            <div className="w-9 h-9 bg-deepPurple rounded-xl flex items-center justify-center text-white font-black text-xl transition-transform hover:rotate-12">W</div>
+            <span className="text-xl font-serif font-black text-gray-900 tracking-tight italic">Wealth<span className="text-deepPurple">Lens</span></span>
           </Link>
           
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
-            {isAuthenticated && (
+          <nav className="hidden lg:flex items-center gap-8 text-sm font-bold uppercase tracking-widest">
+            {isAuthenticated && !authLoading && (
               <>
-                <Link to="/Calculator" className="text-slate-500 hover:text-blue-800 transition-colors">Calculator</Link>
-                <Link to="/Portfolio" className="text-slate-500 hover:text-blue-800 transition-colors">Portfolio</Link>
-                <Link to="/FamilyBudget" className="text-slate-500 hover:text-blue-800 transition-colors font-semibold text-emerald-600">Family Budget</Link>
+                <Link to="/Calculator" className="text-gray-500 hover:text-deepPurple transition-all">Calculator</Link>
+                <Link to="/Portfolio" className="text-gray-500 hover:text-deepPurple transition-all">Portfolio</Link>
+                <Link to="/FamilyBudget" className="text-deepPurple font-black">Family Budget</Link>
               </>
             )}
           </nav>
         </div>
 
         <div className="flex items-center gap-4">
-          {isAuthenticated && onSettingsClick && (
+          {isAuthenticated && !authLoading && onSettingsClick && (
             <Button 
                 variant="ghost" 
                 size="icon"
                 onClick={onSettingsClick}
-                className="text-slate-400 hover:text-slate-900"
+                className="text-gray-400 hover:text-deepPurple transition-colors"
               >
               <Settings className="w-5 h-5" />
             </Button>
           )}
 
-          {!isAuthenticated && (
+          {!authLoading && !isAuthenticated && (
             <Link to="/Login">
-              <Button className="bg-blue-800 hover:bg-blue-900 text-white rounded-md px-6 text-sm font-semibold shadow-sm transition-all hover:translate-y-[-1px]">Get Started</Button>
+              <Button className="bg-deepPurple hover:opacity-90 text-white rounded-full px-8 text-sm font-bold shadow-md transition-all hover:scale-105">
+                Get Started
+              </Button>
             </Link>
           )}
         </div>
