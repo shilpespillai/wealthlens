@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import AccountSection from "./settings/AccountSection";
 import AdminSection from "./settings/AdminSection";
 
