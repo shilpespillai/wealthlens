@@ -15,7 +15,7 @@ import AssetShowcase from "@/components/home/AssetShowcase";
 import ComparisonTable from "@/components/home/ComparisonTable";
 import FAQ from "@/components/home/FAQ";
 import SupportChat from "@/components/home/SupportChat";
-import Navbar from "@/components/layout/Navbar";
+
 
 const FEATURES = [
   { icon: TrendingUp, label: "Real-Time Analysis", color: "from-blue-500 to-cyan-500" },
@@ -129,6 +129,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     async function loadPrice() {
       try {
@@ -143,29 +144,24 @@ export default function Home() {
     loadPrice();
   }, []);
 
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const me = await base44.auth.me();
-        setUser(me);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    checkAuth();
-  }, []);
-
   const handleLogin = async () => {
+    if (isAuthenticated) {
+      window.location.href = createPageUrl("Calculator");
+      return;
+    }
+    
     try {
-      await base44.auth.redirectToLogin(createPageUrl("Calculator"));
+      if (base44.auth.redirectToLogin) {
+        await base44.auth.redirectToLogin(createPageUrl("Calculator"));
+      } else {
+        window.location.href = `/Login?redirect_to=${encodeURIComponent(createPageUrl("Calculator"))}`;
+      }
     } catch (error) {
       console.error("Login error:", error);
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -174,7 +170,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <motion.div

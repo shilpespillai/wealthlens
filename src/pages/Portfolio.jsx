@@ -185,8 +185,6 @@ function PortfolioContent() {
       <div className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to={createPageUrl("Calculator")} className="text-slate-500 hover:text-slate-700 text-sm">← Calculator</Link>
-            <span className="text-slate-300">|</span>
             <h1 className="text-lg font-black text-slate-900">Portfolio Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">

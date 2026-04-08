@@ -46,54 +46,11 @@ export default function StockPillarAnalyzer({ onOpenFairValue }) {
     setAnalysis(null);
 
     try {
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Perform a comprehensive "8-Pillar" fundamental analysis for the stock ticker: ${ticker.toUpperCase()}.
-        
-        You must evaluate these 8 pillars over a 10-year period (specifically looking at 5-year averages and trends):
-        1. P/E Ratio: Is current P/E < 5yr average?
-        2. ROIC: Is 10yr/5yr average ROIC > 9%?
-        3. Revenue Growth: Increased over 5 years?
-        4. Net Income Growth: Increased over 5 years?
-        5. Shares Outstanding: Decreased over 5 years?
-        6. Free Cash Flow (FCF) Growth: Increased over 5 years?
-        7. Liabilities/FCF: Can 5 years of FCF pay off all long-term liabilities?
-        8. Price/FCF: Is current P/FCF < 5yr average?
-        
-        Return the result as a JSON object with:
-        - stockName: string
-        - currentPrice: number
-        - pillars: array of { id, passed (boolean), current (string), target (string), rationale (string) }
-        - summary: string (2 sentences)
-        - overallScore: number (out of 8)
-        - recommendation: string (e.g., "Wait for better price", "Strong fundamentals", etc.)
-        
-        Search real-time data from Yahoo Finance and Macrotrends.`,
-        add_context_from_internet: true,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            stockName: { type: "string" },
-            currentPrice: { type: "number" },
-            overallScore: { type: "number" },
-            summary: { type: "string" },
-            recommendation: { type: "string" },
-            pillars: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  id: { type: "string" },
-                  passed: { type: "boolean" },
-                  current: { type: "string" },
-                  target: { type: "string" },
-                  rationale: { type: "string" }
-                }
-              }
-            }
-          }
-        }
+      const { data: result } = await base44.functions.invoke('getStockPillarAnalysis', {
+        symbol: ticker.toUpperCase()
       });
-
+      
+      console.log("Stock Analysis response:", result);
       setAnalysis(result);
     } catch (err) {
       console.error("Stock Analysis Error:", err);

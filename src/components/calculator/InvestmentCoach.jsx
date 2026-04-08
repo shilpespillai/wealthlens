@@ -17,62 +17,16 @@ export default function InvestmentCoach({ params, instrument, results }) {
     setLoading(true);
     setError(null);
     try {
-      const sym = getCurrencySymbol(params.currency);
-      const summary = results.summary;
-      
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Act as an elite financial advisor analyzing a client's portfolio. Provide hyper-personalized, mathematically sound advice in a direct, encouraging tone.
-
-CLIENT SCENARIO:
-- Asset Class: ${instrument}
-- Initial Capital: ${sym}${params.initialAmount?.toLocaleString() || 0}
-- Monthly Addition: ${sym}${params.monthlyContribution?.toLocaleString() || 0}
-- Horizon: ${params.years || 0} years
-- Assumed Return: ${params.returnRate || 0}% p.a.
-- Assumed Inflation: ${params.inflationRate || 0}% p.a.
-- Tax Rate: ${params.taxRate || 0}%
-- Annual Fees: ${params.fees || 0}%
-
-PROJECTIONS:
-- Nominal Final Value: ${sym}${summary.finalValue?.toLocaleString() || 0}
-- Real Purchasing Power: ${sym}${summary.realValue?.toLocaleString() || 0}
-- Net After-Tax: ${sym}${summary.afterTax?.toLocaleString() || 0}
-- Total Profit: ${sym}${summary.totalReturns?.toLocaleString() || 0}
-- Net Annualized Yield: ${summary.annualizedReturn?.toFixed(1) || 0}%
-
-MILESTONES (Growth Curve):
-- Year 5: ${sym}${results.yearlyData?.find(d => d.year === 5)?.value?.toLocaleString() || 'N/A'}
-- Year 10: ${sym}${results.yearlyData?.find(d => d.year === 10)?.value?.toLocaleString() || 'N/A'}
-- Year 20: ${sym}${results.yearlyData?.find(d => d.year === 20)?.value?.toLocaleString() || 'N/A'}
-
-YOUR TASK:
-1. Provide a sharp 1-2 sentence assessment of the sustainability and aggressiveness of this strategy.
-2. Give 3-4 highly specific recommendations that use EXACT numbers (e.g., "Increasing your monthly contribution by $250 will yield an extra $140,000" or "Your ${params.fees}% fee is dragging returns down by $X").
-3. List 2-3 key insights identifying the biggest hidden risk and largest opportunity in this specific setup.
-4. Provide a strong closing motivational thought.
-
-CRITICAL: Do not use generic advice. Every recommendation MUST reference the specific numbers provided above. Calculate simple math if needed for impact statements.`,
-        add_context_from_internet: false,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            assessment: { type: "string" },
-            tone: { type: "string", enum: ["encouraging", "cautious", "urgent", "excellent"] },
-            recommendations: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  action: { type: "string" },
-                  impact: { type: "string" },
-                  priority: { type: "string", enum: ["high", "medium", "low"] }
-                }
-              }
-            },
-            key_insights: { type: "array", items: { type: "string" } },
-            closing_motivation: { type: "string" }
-          }
-        }
+      const { data: result } = await base44.functions.invoke('getInvestmentCoachAdvice', {
+        initialAmount: params.initialAmount,
+        monthlyContribution: params.monthlyContribution,
+        years: params.years,
+        returnRate: params.returnRate,
+        instrument: params.instrument,
+        inflationRate: params.inflationRate,
+        taxRate: params.taxRate,
+        fees: params.fees,
+        currency: params.currency
       });
       
       console.log("AI Coach response:", result);

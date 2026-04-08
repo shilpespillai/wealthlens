@@ -236,6 +236,7 @@ export default function Login() {
                     full_name: 'WealthLens Tester',
                     isPremium: true // Enable premium features for testing
                   };
+                  localStorage.removeItem('_manual_logout');
                   localStorage.setItem('mockUser', JSON.stringify(mockUser));
                   const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
                   window.location.replace(r.toLowerCase().includes('login') ? '/' : r);

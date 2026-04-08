@@ -221,9 +221,6 @@ export default function SuburbAnalyzer() {
               <p className="text-slate-500 font-medium">AI-powered property market insights & demand forecasting</p>
             </div>
           </div>
-          <Link to={createPageUrl("Calculator")} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors bg-white px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm">
-            <ArrowRight className="w-4 h-4 rotate-180" /> Back to Tools
-          </Link>
         </div>
 
         <div className="space-y-8">

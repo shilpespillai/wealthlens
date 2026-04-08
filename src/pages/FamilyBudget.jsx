@@ -35,7 +35,10 @@ import {
   AreaChart,
   Area,
   LineChart,
-  Line
+  Line,
+  Sankey,
+  Treemap,
+  ResponsiveContainer as ChartContainer
 } from "recharts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -75,11 +78,18 @@ const DEFAULT_INCOMES = [
 ];
 
 const DEFAULT_EXPENSES = [
-  { id: 1, name: "Rent / Mortgage", category: "fixed", monthlyAmount: 1500 },
-  { id: 2, name: "Utilities", category: "fixed", monthlyAmount: 200 },
-  { id: 3, name: "Groceries", category: "variable", monthlyAmount: 600 },
-  { id: 4, name: "Entertainment", category: "variable", monthlyAmount: 300 },
-  { id: 5, name: "Emergency Fund", category: "savings", monthlyAmount: 500 },
+  { id: 1, name: "Rent / Mortgage", category: "fixed", monthlyAmount: 1800 },
+  { id: 2, name: "Electricity / Gas / Water", category: "fixed", monthlyAmount: 250 },
+  { id: 3, name: "Internet & Phone Plans", category: "fixed", monthlyAmount: 120 },
+  { id: 4, name: "Groceries & Household", category: "variable", monthlyAmount: 800 },
+  { id: 5, name: "Health & Insurance", category: "fixed", monthlyAmount: 200 },
+];
+
+const DEFAULT_GOALS = [
+  { id: 1, name: "Emergency Fund", target: 10000, current: 2400 },
+  { id: 2, name: "Family Travel", target: 5000, current: 750 },
+  { id: 3, name: "Education Fund", target: 20000, current: 0 },
+  { id: 4, name: "Medical Fund", target: 5000, current: 0 }
 ];
 
 function FamilyBudgetContent() {
@@ -88,6 +98,10 @@ function FamilyBudgetContent() {
   const [currency, setCurrency] = useState("USD");
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [goals, setGoals] = useState(DEFAULT_GOALS);
+  const [selectedVaultGoal, setSelectedVaultGoal] = useState("");
+  const [vaultWithdrawAmount, setVaultWithdrawAmount] = useState("");
+  const [isVaultAllocating, setIsVaultAllocating] = useState(false);
   const [nextIncomeId, setNextIncomeId] = useState(2);
   const [nextExpenseId, setNextExpenseId] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
@@ -359,7 +373,7 @@ function FamilyBudgetContent() {
     const totalIncome = incomes.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
     const expensesOnly = expenses.filter(e => e.category !== "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
     const savingsOnly = expenses.filter(e => e.category === "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const totalExpenses = expensesOnly + savingsOnly; // Sum of expense and saving columns as requested
+    const totalExpenses = expensesOnly + savingsOnly;
     const balance = totalIncome - totalExpenses;
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
@@ -388,17 +402,248 @@ function FamilyBudgetContent() {
       color: b.color
     }));
 
-    return { totalIncome, totalExpenses, balance, breakdown, pieData };
+    const fixedExpenses = expenses.filter(e => e.category === "fixed").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const variableWants = expenses.filter(e => e.category === "variable").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const savings = expenses.filter(e => e.category === "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+
+    return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
   }, [incomes, expenses]);
 
+  const sankeyData = useMemo(() => {
+    if ((incomes.length === 0 && expenses.length === 0) || metrics.totalIncome === 0) return null;
+
+    const nodes = [];
+    const links = [];
+
+    const colors = {
+      income: "#06b6d4",    // Cyan
+      fixed: "#f59e0b",     // Amber
+      variable: "#f43f5e",  // Rose
+      savings: "#10b981",   // Emerald
+      tax: "#f97316",       // Orange
+      surplus: "#6366f1",   // Indigo
+      gross: "#8b5cf6"      // Violet
+    };
+
+    const getSectionColor = (name, category = "") => {
+      const n = (name || "").toLowerCase();
+      const c = (category || "").toLowerCase();
+      if (n.includes("tax") || c.includes("tax")) return colors.tax;
+      if (n.includes("rent") || n.includes("mortgage") || c === "fixed") return colors.fixed;
+      if (c === "variable" || n.includes("food") || n.includes("grocery") || n.includes("living")) return colors.variable;
+      if (c === "savings" || n.includes("savings") || n.includes("surplus") || n.includes("invest")) return colors.savings;
+      return "#94a3b8"; // Slate for unknown
+    };
+
+    const safeVal = (v) => Math.max(0.01, Number(v) || 0);
+
+    // 1. Individual Incomes
+    incomes.forEach((inc, i) => {
+      nodes.push({ name: inc.name || "Source", color: colors.income, value: Number(inc.monthlyAmount) || 0 });
+    });
+
+    const grossIncomeIndex = nodes.length;
+    const totalInc = Number(metrics.totalIncome) || 0;
+    nodes.push({ name: "Gross Income", color: colors.gross, value: totalInc });
+
+    // Link Incomes to Gross
+    incomes.forEach((inc, i) => {
+      links.push({ source: i, target: grossIncomeIndex, value: safeVal(inc.monthlyAmount) });
+    });
+
+    // 2. Gross Income to Categories
+    const fixedIndex = nodes.length;
+    nodes.push({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
+    if (metrics.fixedExpenses > 0) {
+      links.push({ source: grossIncomeIndex, target: fixedIndex, value: safeVal(metrics.fixedExpenses) });
+    }
+
+    const variableIndex = nodes.length;
+    nodes.push({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
+    if (metrics.variableWants > 0) {
+      links.push({ source: grossIncomeIndex, target: variableIndex, value: safeVal(metrics.variableWants) });
+    }
+
+    const savingsIndex = nodes.length;
+    nodes.push({ name: "Savings", color: colors.savings, value: metrics.savings });
+    if (metrics.savings > 0) {
+      links.push({ source: grossIncomeIndex, target: savingsIndex, value: safeVal(metrics.savings) });
+    }
+
+    const surplusIndex = nodes.length;
+    const bal = metrics.balance > 0 ? metrics.balance : 0;
+    nodes.push({ name: "Monthly Surplus", color: colors.surplus, value: bal });
+    if (bal > 0) {
+      links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
+    }
+
+    // 3. Category to Items
+    expenses.forEach((exp) => {
+      const cat = exp.category || "variable";
+      const color = getSectionColor(exp.name || "", cat);
+      const itemIndex = nodes.length;
+      nodes.push({ name: exp.name || "Item", color, value: Number(exp.monthlyAmount) || 0 });
+      
+      let targetCatIndex = variableIndex;
+      if (cat === "fixed" || color === colors.fixed) targetCatIndex = fixedIndex;
+      if (cat === "savings" || color === colors.savings) targetCatIndex = savingsIndex;
+      
+      links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.monthlyAmount) });
+    });
+
+    return { nodes, links };
+  }, [incomes, expenses, metrics]);
+
+  const CustomSankeyNode = (props) => {
+    const { x, y, width, height, payload, containerWidth } = props;
+    if (isNaN(x) || isNaN(y) || isNaN(height) || !payload) return null;
+
+    const isOut = x > (containerWidth || 1000) / 2;
+    const nodeHeight = Math.max(2, height);
+
+    return (
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={6}
+          height={nodeHeight}
+          fill={payload.color || "#10b981"}
+          rx={1}
+          className="transition-all duration-300"
+        />
+        <text
+          x={x + (isOut ? -10 : 15)}
+          y={y + nodeHeight / 2 - 4}
+          textAnchor={isOut ? "end" : "start"}
+          fill="#334155"
+          fontSize="10"
+          fontWeight="700"
+          className="tracking-tight"
+        >
+          {payload.name}
+        </text>
+        <text
+          x={x + (isOut ? -10 : 15)}
+          y={y + nodeHeight / 2 + 8}
+          textAnchor={isOut ? "end" : "start"}
+          fill="#94a3b8"
+          fontSize="9"
+          fontWeight="600"
+        >
+          {sym}{(payload.value || 0).toLocaleString()}
+        </text>
+      </g>
+    );
+  };
+
+  const CustomSankeyLink = (props) => {
+    const { sourceX, sourceY, targetX, targetY, linkWidth, payload } = props;
+    
+    // Explicitly pull color from the source node metadata provided by Recharts
+    const color = payload?.source?.color || "#cbd5e1";
+    
+    const finalWidth = linkWidth || (payload && payload.value ? Math.max(2, payload.value / 400) : 4);
+    if (isNaN(sourceX) || isNaN(targetX) || isNaN(sourceY) || isNaN(targetY)) return null;
+
+    const cpX = (sourceX + targetX) / 2;
+    const d = `M${sourceX},${sourceY} 
+               C${cpX},${sourceY} 
+               ${cpX},${targetY} 
+               ${targetX},${targetY}`;
+
+    return (
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={Math.max(2, finalWidth)}
+        strokeOpacity={0.45}
+        className="transition-all duration-300 hover:stroke-opacity-80"
+        style={{ cursor: 'pointer' }}
+      />
+    );
+  };
+
+  const vaultData = useMemo(() => {
+    let totalSurplus = 0;
+    Object.keys(localStorage).filter(k => k.startsWith('wealthlens-budget-')).forEach(k => {
+      try {
+        const data = JSON.parse(localStorage.getItem(k));
+        const inc = (data.incomes || []).reduce((s, i) => s + (Number(i.monthlyAmount) || 0), 0);
+        const exp = (data.expenses || []).reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0);
+        totalSurplus += (inc - exp);
+      } catch {}
+    });
+    const allocated = Number(localStorage.getItem('wealthlens-vault-allocated')) || 0;
+    return { remaining: Math.max(0, totalSurplus - allocated), allocated };
+  }, [incomes, expenses]);
+
+  const handleVaultWithdraw = (goalId, amount) => {
+    const withdrawal = Number(amount);
+    if (!goalId) return toast.error("Please select a goal first");
+    if (isNaN(withdrawal) || withdrawal <= 0) return toast.error("Enter a valid amount");
+    if (withdrawal > vaultData.remaining) return toast.error("Insufficient funds in the vault");
+    
+    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, current: g.current + withdrawal } : g));
+    const newAllocated = vaultData.allocated + withdrawal;
+    localStorage.setItem('wealthlens-vault-allocated', newAllocated.toString());
+    
+    toast.success(`Allocated ${getCurrencySymbol(currency)}${withdrawal.toLocaleString()} from vault to ${goals.find(g => g.id === goalId)?.name}`);
+    setVaultWithdrawAmount("");
+  };
+
+  const historyData = useMemo(() => {
+    const data = [];
+    const now = new Date();
+    // Scan last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = (d.getMonth() + 1).toString().padStart(2, '0');
+      const key = `wealthlens-budget-${y}-${m}`;
+      
+      // For current month being edited, use live state
+      let incTotal = 0;
+      let expTotal = 0;
+      let categoriesMap = {};
+
+      if (key === monthKey) {
+        incTotal = incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
+        expTotal = expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
+        expenses.forEach(e => {
+          const cat = e.category || "other";
+          categoriesMap[cat] = (categoriesMap[cat] || 0) + (Number(e.monthlyAmount) || 0);
+        });
+      } else {
+        try {
+          const saved = JSON.parse(localStorage.getItem(key) || "{}");
+          incTotal = (saved.incomes || []).reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
+          expTotal = (saved.expenses || []).reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
+          (saved.expenses || []).forEach(e => {
+            const cat = e.category || "other";
+            categoriesMap[cat] = (categoriesMap[cat] || 0) + (Number(e.monthlyAmount) || 0);
+          });
+        } catch {}
+      }
+      
+      data.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        income: incTotal,
+        expenses: expTotal,
+        savings: Math.max(0, incTotal - expTotal),
+        categories: categoriesMap
+      });
+    }
+    return data;
+  }, [incomes, expenses, monthKey]);
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans pb-10">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link to={createPageUrl("Calculator")} className="text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors">← Back to Tools</Link>
-            <span className="text-slate-300">|</span>
             <div className="flex items-center gap-4">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                 <PiggyBank className="w-4 h-4 text-emerald-600" />
@@ -504,48 +749,124 @@ function FamilyBudgetContent() {
           </PremiumGate>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 space-y-4">
         
         {/* Top Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Income</p>
-              <h2 className="text-3xl font-black text-slate-800">{fmt(metrics.totalIncome)}</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Income</p>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">{fmt(metrics.totalIncome)}</h2>
             </div>
-            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-emerald-500" />
+            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-500" />
             </div>
           </motion.div>
-          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.1}} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
+          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.1}} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
-              <h2 className="text-3xl font-black text-slate-800">{fmt(metrics.totalExpenses)}</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">{fmt(metrics.totalExpenses)}</h2>
             </div>
-            <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
-              <Receipt className="w-6 h-6 text-rose-500" />
+            <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-rose-500" />
             </div>
           </motion.div>
-          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.2}} className={`rounded-2xl p-6 border shadow-sm flex items-center justify-between ${metrics.balance >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+          <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.2}} className={`rounded-xl p-4 border shadow-sm flex items-center justify-between ${metrics.balance >= 0 ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}>
             <div>
-              <p className={`text-sm font-medium mb-1 ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Remaining Balance</p>
-              <h2 className={`text-3xl font-black ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Remaining Balance</p>
+              <h2 className={`text-2xl font-black tracking-tight ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {metrics.balance >= 0 ? '+' : '-'}{fmt(Math.abs(metrics.balance))}
               </h2>
             </div>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${metrics.balance >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
-              <TrendingUp className={`w-6 h-6 ${metrics.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${metrics.balance >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+              <TrendingUp className={`w-5 h-5 ${metrics.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`} />
             </div>
           </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Household Vault & Global Savings Engine - Sleek Edition */}
+        <motion.div 
+          initial={{opacity:0, y:10}} 
+          animate={{opacity:1, y:0}}
+          className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md"
+        >
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
+                <Lock className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-slate-800 tracking-tight leading-none text-lg">Household Vault</h3>
+                  <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Locked</span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-slate-900">{getCurrencySymbol(currency)}{vaultData.remaining.toLocaleString()}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter italic">Total Surplus</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full md:w-auto min-w-[320px]">
+              {!isVaultAllocating ? (
+                <div className="flex items-center justify-end gap-3">
+                  <p className="text-[11px] text-slate-400 font-bold uppercase hidden lg:block tracking-widest">Ready to deploy capital?</p>
+                  <Button 
+                    onClick={() => setIsVaultAllocating(true)}
+                    disabled={vaultData.remaining <= 0}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs h-11 px-8 shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                  >
+                    Fund Goals
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 animate-in slide-in-from-right-2 duration-300">
+                  <select 
+                    value={selectedVaultGoal}
+                    onChange={(e) => setSelectedVaultGoal(Number(e.target.value))}
+                    className="bg-transparent border-none text-xs font-black text-slate-700 outline-none w-32 px-2 cursor-pointer"
+                  >
+                    <option value="">Select Goal</option>
+                    {goals.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                  <div className="w-px h-6 bg-slate-200 mx-1" />
+                  <div className="relative flex-1 min-w-[80px]">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{getCurrencySymbol(currency)}</span>
+                    <input 
+                      type="number"
+                      placeholder="0"
+                      value={vaultWithdrawAmount}
+                      onChange={(e) => setVaultWithdrawAmount(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg h-8 pl-5 pr-2 text-xs font-black outline-none focus:border-indigo-400"
+                    />
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => setIsVaultAllocating(false)} className="p-2 text-slate-400 hover:text-slate-600"><Plus className="w-4 h-4 rotate-45" /></button>
+                    <button 
+                      onClick={() => handleVaultWithdraw(selectedVaultGoal, vaultWithdrawAmount)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      Allocate
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-16 -mt-16" />
+        </motion.div>
+
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Left Column: Editor */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-4">
             
             {/* Income Section */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Income Sources</h3>
@@ -593,7 +914,7 @@ function FamilyBudgetContent() {
             </div>
 
             {/* Expenses Section */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Expenses & Savings</h3>
@@ -710,48 +1031,58 @@ function FamilyBudgetContent() {
           </div>
 
           {/* Right Column: Analytics */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-4">
             
             {/* The 50/30/20 Rule Analysis */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <PieChartIcon className="w-5 h-5 text-indigo-500" />
                 The 50/30/20 Breakdown
               </h3>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {metrics.breakdown.map((b) => (
-                  <div key={b.id} className="space-y-2">
+                  <div key={b.id} className="space-y-3">
                     <div className="flex justify-between items-end">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-800">{b.label}</span>
-                          <span className="text-xs font-bold text-white px-1.5 py-0.5 rounded-md" style={{backgroundColor: b.color}}>
-                            {b.targetPct}%
+                          <span className="font-bold text-slate-800 text-sm">{b.label}</span>
+                          <span className="text-[10px] font-black text-white px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
+                            Target {b.targetPct}%
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-sm font-bold" style={{color: b.color}}>{b.actualPct.toFixed(1)}% Actual</span>
-                          <span className="text-xs text-slate-400">({fmt(b.amount)})</span>
+                          <span className="text-xl font-black" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
+                          <span className="text-[10px] font-bold text-slate-400 capitalize">Actual Outgoings</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs text-slate-500 block mb-0.5">Target: {fmt(b.targetAmount)}</span>
+                        <span className="text-xs text-slate-500 font-bold block mb-0.5">{fmt(b.targetAmount)} Target</span>
                         {b.isOver ? (
-                          <span className="text-xs font-medium text-rose-500 flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3" /> {fmt(Math.abs(b.diff))} over
+                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 justify-end">
+                            <AlertCircle className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Over
                           </span>
                         ) : (
-                          <span className="text-xs font-medium text-emerald-500 flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3 h-3" /> {fmt(Math.abs(b.diff))} under
+                          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 justify-end">
+                            <CheckCircle2 className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Saved
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    {/* Bullet Chart for 50/30/20 */}
+                    <div className="relative h-4 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200/50 shadow-inner">
+                      {/* 50% Milestone Marker */}
+                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/30 z-10" />
+                      {/* Target Indicator */}
                       <div 
-                        className="h-full rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${b.progress}%`, backgroundColor: b.color }}
+                        className="absolute top-0 bottom-0 w-1 bg-black/20 z-20"
+                        style={{ left: `${b.targetPct}%` }}
+                      />
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${b.actualPct}%` }}
+                        className="h-full rounded-r-md shadow-lg transition-all duration-500 opacity-90"
+                        style={{ backgroundColor: b.color }}
                       />
                     </div>
                   </div>
@@ -759,8 +1090,8 @@ function FamilyBudgetContent() {
               </div>
 
               {/* Summary Pie Chart */}
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-600 mb-4 text-center">Your Actual Expense Distribution</h4>
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Actual Distribution</h4>
                 {metrics.pieData.length > 0 ? (
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -770,10 +1101,12 @@ function FamilyBudgetContent() {
                           cx="50%"
                           cy="50%"
                           innerRadius={50}
-                          outerRadius={80}
+                          outerRadius={70}
                           paddingAngle={5}
                           dataKey="value"
                           stroke="none"
+                          labelLine={true}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                         >
                           {metrics.pieData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -792,6 +1125,44 @@ function FamilyBudgetContent() {
                   <p className="text-center text-slate-400 text-sm py-8">Add expenses to see chart</p>
                 )}
               </div>
+              {/* Family Savings Pillars */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Savings Pillars</h4>
+                  <TrendingUp className="w-4 h-4 text-indigo-500" />
+                </div>
+                <div className="space-y-4">
+                  {goals.map((g) => {
+                    const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
+                    return (
+                      <div key={g.id} className="space-y-2">
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-[11px] font-black text-slate-700 uppercase">{g.name}</p>
+                            <p className="text-[10px] font-bold text-slate-400">
+                              {sym}{g.current.toLocaleString()} of {sym}{g.target.toLocaleString()}
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-indigo-600">{pct.toFixed(0)}%</span>
+                        </div>
+                        {/* High-Precision Bullet Chart */}
+                        <div className="relative h-4 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200/50 shadow-inner group-hover:bg-slate-200 transition-colors">
+                          {/* Qualitative Range: 50% Stability Marker */}
+                          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300 z-10" />
+                          {/* Qualitative Range: 80% Velocity Marker */}
+                          <div className="absolute left-[80%] top-0 bottom-0 w-px bg-slate-300 z-10" />
+                          
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            className="h-full bg-indigo-500 rounded-r-md shadow-lg shadow-indigo-200/50"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Guides & Tips */}
@@ -802,6 +1173,74 @@ function FamilyBudgetContent() {
               </p>
             </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === "monthly" && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 pb-10">
+          <div className="bg-white border border-slate-200 rounded-[32px] p-6 shadow-sm relative overflow-hidden group">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">Financial Flow Intelligence</h3>
+                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Live Granular Flow Analysis • Interactive Visualization</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden md:block">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total Managed</p>
+                  <p className="text-md font-black text-emerald-600 leading-none">{fmt(metrics.totalIncome)}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-[600px] w-full mt-2">
+              {sankeyData && sankeyData.nodes.length > 1 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <Sankey
+                    data={sankeyData}
+                    node={<CustomSankeyNode />}
+                    link={<CustomSankeyLink />}
+                    nodePadding={20}
+                    margin={{ left: 100, right: 180, top: 40, bottom: 40 }}
+                    sort={false}
+                  >
+                    <RechartsTooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          // In Sankey, payload[0].payload can be a link or a node
+                          const isLink = data.source && data.target;
+                          const name = isLink 
+                            ? `${data.source.name} → ${data.target.name}` 
+                            : (data.name || 'Financial Flow');
+                          const value = data.value || 0;
+                          const color = isLink ? data.source.color : (data.color || "#6366f1");
+
+                          return (
+                            <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
+                                <p className="text-xl font-black text-slate-800">{sym}{Number(value).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </Sankey>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-50 rounded-2xl bg-slate-50/10">
+                  <PieChartIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Add inputs to view flow</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1017,8 +1456,8 @@ function BudgetReports({ currency, selectedDate, onOpenImport }) {
     setIsLoading(true);
     const data = [];
     const now = new Date(selectedDate);
-    // Fetch 3 months back and 2 months ahead for a 6-month window centered around selected
-    for (let i = 3; i >= -2; i--) {
+    // Fetch 6 months history
+    for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const y = d.getFullYear();
       const m = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -1030,22 +1469,24 @@ function BudgetReports({ currency, selectedDate, onOpenImport }) {
         if (local) saved = JSON.parse(local);
       }
 
-      if (saved) {
-        const totalIncome = (saved.incomes || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-        const totalExpenses = (saved.expenses || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-        data.push({
-          name: d.toLocaleString('default', { month: 'short' }),
-          income: totalIncome,
-          expenses: totalExpenses,
-          balance: totalIncome - totalExpenses,
-          details: { 
-            incomes: (saved.incomes || []).map(i => ({ name: i.name, amount: i.monthlyAmount })), 
-            expenses: (saved.expenses || []).map(e => ({ name: e.name, cat: e.category, amount: e.monthlyAmount })) 
-          }
-        });
-      } else {
-        data.push({ name: d.toLocaleString('default', { month: 'short' }), income: 0, expenses: 0, balance: 0, details: { incomes: [], expenses: [] } });
-      }
+      const totalIncome = (saved?.incomes || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+      const totalExpenses = (saved?.expenses || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+      
+      const categoryData = (saved?.expenses || []).reduce((acc, e) => {
+        const cat = e.category || "other";
+        acc[cat] = (acc[cat] || 0) + (Number(e.monthlyAmount) || 0);
+        return acc;
+      }, {});
+
+      data.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        income: totalIncome,
+        expenses: totalExpenses,
+        balance: Math.max(0, totalIncome - totalExpenses),
+        deficit: totalExpenses > totalIncome ? totalExpenses - totalIncome : 0,
+        categories: Object.entries(categoryData).map(([name, value]) => ({ name, value })),
+        rawCategories: categoryData
+      });
     }
     setHistory(data);
     setIsLoading(false);
@@ -1133,51 +1574,80 @@ function BudgetReports({ currency, selectedDate, onOpenImport }) {
         </TabsContent>
 
         <TabsContent value="trends">
-          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-                <div>
-                   <h3 className="text-xl font-black text-slate-800 tracking-tight">Financial Velocity Analysis</h3>
-                   <p className="text-sm text-slate-400 mt-1">Multi-layered trajectory of your net worth growth</p>
+          <div className="space-y-8">
+            {/* Row 1: The Sankey & Treemap */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Cash Flow Sankey Removal - Moved to Editor */}
+              <div className="lg:col-span-8 bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden bg-slate-50/30">
+                <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                  <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
+                    <TrendingUp className="w-8 h-8 text-indigo-400" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Sankey moved to Editor</h3>
+                  <p className="text-sm text-slate-500 max-w-sm">We've integrated the live cash flow chart directly into the budget editor for real-time analysis while you work.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setViewMode("monthly")}
+                    className="mt-6 rounded-xl border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold"
+                  >
+                    Go to Editor
+                  </Button>
                 </div>
-                <div className="flex items-center gap-6 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100">
-                   <div className="text-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Avg. Savings</p>
-                      <p className="text-lg font-black text-indigo-600">{sym}{(history.reduce((a, b) => a + b.balance, 0) / (history.length || 1)).toLocaleString()}</p>
-                   </div>
-                   <div className="w-px h-8 bg-slate-200" />
-                   <div className="text-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Growth Rate</p>
-                      <p className="text-lg font-black text-emerald-600">+12.4%</p>
-                   </div>
+              </div>
+
+              {/* Expense Treemap */}
+              <div className="lg:col-span-4 bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-black text-slate-800 tracking-widest uppercase mb-6">Spending Hierarchy</h3>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Treemap
+                      data={history[history.length - 1]?.categories || []}
+                      dataKey="value"
+                      ratio={4/3}
+                      stroke="#fff"
+                      fill="#6366f1"
+                    >
+                      <RechartsTooltip />
+                    </Treemap>
+                  </ResponsiveContainer>
                 </div>
-             </div>
-             
-             <div className="h-[450px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={history}>
-                    <defs>
-                      <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13}} dy={15} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 13}} tickFormatter={(v) => sym + v} />
-                    <RechartsTooltip 
-                      formatter={(v) => sym + v.toLocaleString()}
-                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '20px'}}
-                    />
-                    <Legend verticalAlign="top" height={50} align="right" iconType="circle" wrapperStyle={{paddingBottom: '30px', fontSize: '13px', fontWeight: 'bold'}} />
-                    <Area type="monotone" dataKey="income" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorInc)" name="Total Income Stream" />
-                    <Area type="monotone" dataKey="expenses" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorExp)" name="Total Outgoings" />
-                  </AreaChart>
-                </ResponsiveContainer>
-             </div>
+              </div>
+            </div>
+
+            {/* Row 2: Monthly Intensity Heatmap */}
+            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+               <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Spending Intensity Matrix</h3>
+                    <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest tracking-tighter">Color-coded temporal heatmap</p>
+                  </div>
+               </div>
+               
+               <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                 {history.map((h, i) => {
+                   const intensity = Math.min((h.expenses / (h.income || 1)) * 100, 100);
+                   let color = "bg-emerald-500";
+                   if (intensity > 90) color = "bg-rose-500";
+                   else if (intensity > 70) color = "bg-amber-500";
+                   else if (intensity > 50) color = "bg-indigo-500";
+                   
+                   return (
+                     <div key={i} className="flex flex-col gap-2">
+                        <div 
+                          className={`h-24 rounded-2xl ${color} flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer shadow-lg shadow-black/5`}
+                          style={{ opacity: 0.1 + (intensity / 100) }}
+                        >
+                           <span className="text-lg font-black">{intensity.toFixed(0)}%</span>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] font-black uppercase text-slate-400">{h.name}</p>
+                          <p className="text-[10px] font-bold text-slate-700">{sym}{h.expenses.toLocaleString()}</p>
+                        </div>
+                     </div>
+                   );
+                 })}
+               </div>
+            </div>
           </div>
         </TabsContent>
 

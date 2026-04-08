@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Shield, TrendingUp, MessageSquare, CheckCircle, Loader, Terminal, Users, Sparkles, ChevronRight } from "lucide-react";
+import { Brain, Shield, TrendingUp, MessageSquare, CheckCircle, Loader, Terminal, Users, Sparkles, ChevronRight, Check, X } from "lucide-react";
+// Note: Changed Lucide check for clarity if needed, but CheckCircle is fine. Using Check for the success state.
+import { Check as CheckIcon } from "lucide-react";
 
 const AGENTS = [
   { id: "analyst", name: "Market Analyst", icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-50" },
@@ -18,11 +20,25 @@ const MESSAGES = [
   { agent: "lead", text: "AdvisorLogic Recommendation: Maintain 60/40 Equity split with a hedge in gold. Review complete." }
 ];
 
-export default function AdvisorLogic({ symbol = "Global" }) {
+export default function AdvisorLogic({ symbol = "Global", onApply }) {
   const [activeTab, setActiveTab] = useState("chat");
   const [step, setStep] = useState(0);
   const [isDone, setIsDone] = useState(false);
+  const [isApplied, setIsApplied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const logEndRef = useRef(null);
+
+  const handleApply = () => {
+    if (isApplied) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setIsApplied(true);
+    setConfirming(false);
+    if (onApply) onApply();
+    console.log(`[AdvisorLogic] Strategy applied for ${symbol}`);
+  };
 
   useEffect(() => {
     if (step < MESSAGES.length) {
@@ -57,7 +73,7 @@ export default function AdvisorLogic({ symbol = "Global" }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Left Sidebar: Agents */}
         <div className="w-full md:w-64 bg-slate-50 border-r border-gray-100 p-4 space-y-4">
            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-4">Active Committee</p>
@@ -82,8 +98,8 @@ export default function AdvisorLogic({ symbol = "Global" }) {
         </div>
 
         {/* Dynamic Log Area */}
-        <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-           <div className="flex-1 overflow-y-auto p-6 space-y-4 font-mono text-sm">
+        <div className="flex-1 flex flex-col bg-white overflow-y-auto">
+           <div className="p-6 space-y-4 font-mono text-sm">
               <AnimatePresence initial={false}>
                 {MESSAGES.slice(0, step).map((msg, i) => {
                   const agent = AGENTS.find(a => a.id === msg.agent);
@@ -98,7 +114,7 @@ export default function AdvisorLogic({ symbol = "Global" }) {
                         <agent.icon className="w-4 h-4" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">{agent.name} {i === step - 1 && "(typing...)"}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">{agent.name} {i === step - 1 && !isDone && "(typing...)"}</p>
                         <p className="text-gray-900 leading-relaxed font-sans">{msg.text}</p>
                       </div>
                     </motion.div>
@@ -108,15 +124,15 @@ export default function AdvisorLogic({ symbol = "Global" }) {
               <div ref={logEndRef} />
            </div>
 
-           {/* Final Summary Verdict Overlay */}
+           {/* Final Summary Verdict Block (Now non-absolute flows at end) */}
            <AnimatePresence>
              {isDone && (
                <motion.div 
-                 initial={{ opacity: 0, y: 100 }}
+                 initial={{ opacity: 0, y: 50 }}
                  animate={{ opacity: 1, y: 0 }}
-                 className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-white via-white to-transparent pt-20"
+                 className="p-6 pt-0"
                >
-                 <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-2xl shadow-indigo-100">
+                 <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100">
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
                         <CheckCircle className="w-5 h-5 text-indigo-100" />
@@ -126,9 +142,38 @@ export default function AdvisorLogic({ symbol = "Global" }) {
                     <p className="text-sm font-medium text-indigo-50 leading-relaxed mb-6">
                        The AdvisorLogic committee has reached a consensus. Given the mixed technicals and macro volatility, we recommend a **Defensive Multi-Asset Strategy**. Maintain benchmark exposure but increase cash reserves to 15% for upcoming opportunities.
                     </p>
-                    <div className="flex items-center gap-4">
-                       <button className="px-6 py-2.5 bg-white text-indigo-600 font-bold rounded-xl text-xs hover:bg-white/90 transition-all uppercase tracking-widest">Applying strategy...</button>
-                       <button className="text-xs font-bold text-indigo-200 hover:text-white transition-colors flex items-center gap-2">View Detailed Logic Logs <ChevronRight className="w-4 h-4" /></button>
+                    
+                    <div className="flex items-center gap-3">
+                       {confirming ? (
+                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/10 p-4 rounded-2xl border border-white/20 w-full animate-in fade-in zoom-in-95">
+                           <p className="text-xs font-bold text-indigo-100 mb-2 sm:mb-0">Apply defensive strategy parameters?</p>
+                           <div className="flex gap-2 w-full sm:w-auto">
+                              <button 
+                                onClick={handleApply}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-white text-indigo-600 font-bold rounded-lg text-[10px] uppercase tracking-widest hover:bg-white/90 transition-all"
+                              >
+                                Yes, Apply
+                              </button>
+                              <button 
+                                onClick={() => setConfirming(false)}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500/50 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all border border-white/20"
+                              >
+                                Cancel
+                              </button>
+                           </div>
+                         </div>
+                       ) : (
+                         <button 
+                           onClick={handleApply}
+                           className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 ${isApplied ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-white text-indigo-600 hover:bg-white/90 shadow-white/20"}`}
+                         >
+                           {isApplied ? (
+                             <><CheckIcon className="w-4 h-4" /> Strategy Applied</>
+                           ) : (
+                             "Apply Portfolio Strategy"
+                           )}
+                         </button>
+                       )}
                     </div>
                  </div>
                </motion.div>

@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import Navbar from "@/components/layout/Navbar";
+import SettingsDialog from "@/components/SettingsDialog";
 
 export default function Layout({ children }) {
-  useEffect(() => {
-    // Empty effect for consistency
-  }, []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     // Apply saved theme on mount
@@ -19,7 +19,7 @@ export default function Layout({ children }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <style>{`
         :root {
           --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -31,7 +31,12 @@ export default function Layout({ children }) {
         }
       `}</style>
       
-      {children}
+      <Navbar onSettingsClick={() => setSettingsOpen(true)} />
+      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      
+      <main className="flex-1 overflow-x-hidden">
+        {children}
+      </main>
     </div>
   );
 }

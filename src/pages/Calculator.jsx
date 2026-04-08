@@ -6,7 +6,6 @@ import { createPageUrl } from "@/utils";
 import { Calculator, BarChart3, Table2, Layers, TrendingUp, Shield, Sparkles, Palmtree, PieChart as PieChartIcon, Settings, PiggyBank, Map as MapIcon, Lock, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import SettingsDialog from "@/components/SettingsDialog";
 import InstrumentSelector from "@/components/calculator/InstrumentSelector";
 import CurrencySelector from "@/components/calculator/CurrencySelector";
 import InvestmentProfiles from "@/components/calculator/InvestmentProfiles";
@@ -27,8 +26,10 @@ import StockPillarAnalyzer from "@/components/calculator/StockPillarAnalyzer";
 import FairValueCalculator from "@/components/calculator/FairValueCalculator";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
-import Navbar from "@/components/layout/Navbar";
 import AdvisorLogic from "@/components/calculator/AdvisorLogic";
+import { useSubscription } from "@/components/calculator/useSubscription";
+import AuthGuard from "@/components/AuthGuard";
+import PremiumGate from "@/components/calculator/PremiumGate";
 
 const LS_KEY = "wealthlens-calc-state";
 
@@ -59,7 +60,6 @@ function CalculatorContent() {
   const [propertyCurrency, setPropertyCurrency] = useState(local?.propertyCurrency || "USD");
   const [userLoaded, setUserLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("coach");
   const [showAdvisorLogic, setShowAdvisorLogic] = useState(false);
 
@@ -120,7 +120,7 @@ function CalculatorContent() {
           setPropertyCurrency(user.calc_currency);
         }
       } catch (err) {
-        console.error("Failed to load calculator state:", err);
+        console.error("Failed to load calculator state. Full error:", err);
         setLoadError(true);
       } finally {
         setUserLoaded(true);
@@ -159,8 +159,6 @@ function CalculatorContent() {
   if (!userLoaded) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-        <Navbar onSettingsClick={() => setSettingsOpen(true)} />
-
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
           <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4" />
           <p className="text-slate-500 font-medium">Syncing data...</p>
@@ -186,19 +184,11 @@ function CalculatorContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
       </div>
-
-      <button
-        onClick={() => setSettingsOpen(true)}
-        className="fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-slate-100 transition-colors"
-        title="Settings">
-        <Settings className="w-5 h-5 text-slate-600" />
-      </button>
 
       <div className="relative overflow-hidden border-b border-slate-200">
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/3 via-transparent to-transparent" />
@@ -207,10 +197,10 @@ function CalculatorContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <img src="/wealthlens_logo.png" alt="WealthLens logo" className="w-12 h-12 rounded-2xl shadow-lg shadow-indigo-500/30" />
+            <Link to="/" className="flex items-center justify-center gap-3 mb-8 group hover:opacity-80 transition-all">
+              <img src="/wealthlens_logo.png" alt="WealthLens logo" className="w-12 h-12 rounded-2xl shadow-lg shadow-indigo-500/30 transition-transform group-hover:scale-105" />
               <span className="text-2xl font-black text-slate-900 tracking-tight">WealthLens</span>
-            </div>
+            </Link>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 tracking-tight leading-tight mb-6">
               See Your Financial
               <br />
@@ -394,7 +384,7 @@ function CalculatorContent() {
               <TabsContent value="table" className="mt-6">
                 <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                   <h3 className="text-sm font-bold text-slate-900 mb-6">Year-by-Year Breakdown</h3>
-                  <GrowthChart data={results.chartData} />
+                  <GrowthChart data={results.yearlyData} currency={params.currency} />
             
                   <div className="mt-8">
                     {!showAdvisorLogic ? (
@@ -421,7 +411,16 @@ function CalculatorContent() {
                           <h3 className="text-xl font-bold text-gray-900">AdvisorLogic Committee</h3>
                           <Button variant="ghost" size="sm" onClick={() => setShowAdvisorLogic(false)} className="text-gray-400 hover:text-gray-900 font-bold uppercase tracking-widest text-[10px]">Reset Session</Button>
                         </div>
-                        <AdvisorLogic symbol={instrument.toUpperCase()} />
+                        <AdvisorLogic 
+                          symbol={instrument.toUpperCase()} 
+                          onApply={() => {
+                            setParams(prev => ({
+                              ...prev,
+                              returnRate: Math.max(0, prev.returnRate - 2),
+                              fees: prev.fees + 0.2
+                            }));
+                          }}
+                        />
                       </div>
                     )}
                   </div>

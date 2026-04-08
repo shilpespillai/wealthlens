@@ -41,223 +41,154 @@ const SYMBOL_REGISTRY = {
   '9988.HK': { name: 'Alibaba Group', ex: 'HKEX', cur: 'HKD', base: 82.35, rev: '941B', revChg: 2.1, rel: ['0700.HK'], earnings: { epsBeat: 1.5, revenueBeat: 0.8 } }
 };
 
+// Helper: Call Gemini Directly from Frontend in Development
+const callGeminiDirectly = async (prompt, type) => {
+  const geminiKey = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!geminiKey) return null;
+
+  let systemContext = "Act as an elite, high-performance financial advisor.";
+  if (type === 'pillar') systemContext = "Act as a fundamental stock analyst performing an 8-Pillar investigation.";
+  
+  const currentYear = new Date().getFullYear();
+  const fullPrompt = `${systemContext}\n\nTask: ${prompt}\n\nMANDATORY: Return a strictly valid JSON response. No intro/outro.
+    IF type is 'coach': { "assessment": "sharp 2-sentence mathematical evaluation", "tone": "encouraging|urgent|excellent", "recommendations": [{ "action": "specific task", "impact": "mathematical result", "priority": "high|medium|low" }], "key_insights": ["data-driven insight from prompt"], "closing_motivation": "compelling closing" }
+    IF type is 'pillar': { "stockName": "Full Name", "currentPrice": number, "pillars": [{ "id": "pe|roic|rev|net_income|shares|fcf|liabilities|price_fcf", "passed": boolean, "current": "data value", "target": "threshold", "rationale": "one-sentence explanation" }], "summary": "2-sentence overview", "overallScore": number, "recommendation": "Verdict" }
+    Return ONLY valid JSON.`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+    });
+    
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return null;
+    
+    const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+    return JSON.parse(cleanedText);
+  } catch (err) {
+    console.error("[Gemini Bridge Error]", err);
+    return null;
+  }
+};
+
 export const base44 = {
   auth: {
     me: async () => {
-      if (isSupabaseEnabled) {
-        try {
-          const { data, error } = await supabase.auth.getUser();
-          if (data?.user) {
-            const user = data.user;
-            return {
-              id: user.id,
-              email: user.email,
-              full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-              provider: user.app_metadata?.provider || 'supabase',
-              avatar: user.user_metadata?.avatar_url,
-              ...user.user_metadata
-            };
-          }
-        } catch (e) {
-          console.warn("[Base44] Supabase auth check failed.");
-        }
-      }
+      // Mock dev user for testing
+      const isProd = import.meta.env.PROD;
       if (!isProd) {
         const stored = localStorage.getItem('mockUser');
         if (stored) return JSON.parse(stored);
       }
       return null;
     },
-    updateMe: async (data) => {
-      if (isSupabaseEnabled) {
-        const { data: user, error } = await supabase.auth.updateUser({ data });
-        if (error) throw error;
-        const mappedUser = {
-          id: user.user.id,
-          email: user.user.email,
-          full_name: user.user.user_metadata?.full_name || user.user.user_metadata?.name || user.user.email?.split('@')[0],
-          provider: user.user.app_metadata?.provider || 'supabase',
-          avatar: user.user.user_metadata?.avatar_url,
-          ...user.user.user_metadata
-        };
-        localStorage.setItem('mockUser', JSON.stringify(mappedUser));
-        return mappedUser;
+    updateMe: async (params) => {
+      const stored = localStorage.getItem('mockUser');
+      if (stored) {
+        const user = JSON.parse(stored);
+        localStorage.setItem('mockUser', JSON.stringify({ ...user, ...params }));
       }
-      const user = JSON.parse(localStorage.getItem('mockUser')) || {};
-      const updated = { ...user, ...data };
-      localStorage.setItem('mockUser', JSON.stringify(updated));
-      return updated;
+      return { success: true };
     },
-    logout: async (returnUrl = '/') => {
-      if (isSupabaseEnabled) await supabase.auth.signOut();
+    logout: async () => {
       localStorage.removeItem('mockUser');
-      window.location.replace(returnUrl);
-    }
-  },
-  
-  appLogs: {
-    logUserInApp: async (pageName) => ({ success: true })
-  },
-  
-  entities: {
-    SavedCalculation: {
-      list: async () => JSON.parse(localStorage.getItem('mockSavedCalcs') || '[]'),
-      create: async (data) => {
-        const calcs = JSON.parse(localStorage.getItem('mockSavedCalcs') || '[]');
-        const newCalc = { ...data, id: 'calc-' + Date.now(), created_at: new Date().toISOString() };
-        calcs.push(newCalc);
-        localStorage.setItem('mockSavedCalcs', JSON.stringify(calcs));
-        return newCalc;
-      },
-      delete: async (id) => {
-        let calcs = JSON.parse(localStorage.getItem('mockSavedCalcs') || '[]');
-        calcs = calcs.filter(c => c.id !== id);
-        localStorage.setItem('mockSavedCalcs', JSON.stringify(calcs));
-        return true;
-      }
+      base44.auth.redirectToLogin();
+    },
+    redirectToLogin: () => {
+       const redirect = window.location.pathname !== '/' ? `?redirect_to=${encodeURIComponent(window.location.pathname)}` : '';
+       window.location.href = `/Login${redirect}`;
     }
   },
 
-  // Convenience methods
-  fetchIndices: async (p) => base44.functions.invoke('fetchIndices', p),
-  fetchRegionalMovers: async (p) => base44.functions.invoke('fetchRegionalMovers', p),
-  fetchMarketNews: async (p) => base44.functions.invoke('fetchMarketNews', p),
+  appLogs: {
+    logUserInApp: async (pageName) => {
+      console.log(`[Mock Log] User navigated to: ${pageName}`);
+      return { success: true };
+    }
+  },
+
+  app: {
+    getPrice: async () => 29.99,
+    updatePrice: async () => ({ success: true })
+  },
 
   functions: {
     invoke: async (name, params) => {
-      const FINNHUB_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
-      
-      const jitter = (val) => val + (Math.random() - 0.5) * (val * 0.01);
-      
-      const generateOHLC = (symbol, currentPrice, prevClose) => {
-        const points = [];
-        const count = 40;
-        const startPrice = prevClose || currentPrice * 0.99;
-        const endPrice = currentPrice;
-        // Generalized dynamic peak logic (no symbol hardcoding)
-        const volatility = 0.015; // 1.5% daily variance
-        const peakPrice = Math.max(startPrice, endPrice) * (1 + (Math.random() * volatility));
+      if (name === 'getInvestmentCoachAdvice') {
+        const p = params || {};
+        const prompt = `Client is investing $${p.monthlyContribution}/mo for ${p.years} years into ${p.instrument} at ${p.returnRate}% return. Provide analysis.`;
+        const realData = await callGeminiDirectly(prompt, 'coach');
+        if (realData) return { data: realData };
 
-        for (let i = 0; i < count; i++) {
-          const hour = 10 + Math.floor(i / (count/6));
-          const minute = Math.floor((i % (count/6)) * (60 / (count/6)));
-          const timeStr = `${hour}:${minute < 10 ? '0' + minute : minute} ${hour >= 12 ? 'pm' : 'am'}`;
-          const progress = i / count;
-          let targetClose;
-          if (progress < 0.25) targetClose = startPrice + (progress / 0.25) * (peakPrice - startPrice);
-          else targetClose = peakPrice - ((progress - 0.25) / 0.75) * (peakPrice - endPrice);
-
-          const o = i === 0 ? startPrice : points[i-1].close;
-          const c = targetClose + (Math.random() - 0.5) * (targetClose * 0.002);
-          const h = Math.max(o, c) + (Math.random() * (targetClose * 0.001));
-          const l = Math.min(o, c) - (Math.random() * (targetClose * 0.001));
-          points.push({ time: timeStr, open: o, high: h, low: l, close: c });
-        }
-        return points;
-      };
-
-      const fetchFinnhub = async (endpoint, symbol) => {
-        try {
-          if (!FINNHUB_KEY) return null;
-          const res = await fetch(`https://finnhub.io/api/v1/${endpoint}?symbol=${symbol}&token=${FINNHUB_KEY}`);
-          return await res.json();
-        } catch (e) { return null; }
-      };
-
-      if (name === 'fetchMarketNews') {
-        const pool = [
-          { category: 'RETIREMENT', title: 'Unconventional wisdom: Funding your dream retirement', summary: 'An effective investment strategy for retirement must deal with several challenges while catering for your unique circumstances.', source: 'Mark LaMonica, CFA', publishedAt: '27 March 2026', url: 'https://www.morningstar.com.au' },
-          { category: 'PERSONAL-FINANCE', title: 'You can beat the stock market by avoiding its worst days. But you won\'t', summary: 'We put a viral post on X to the sniff test. It didn\'t pass.', source: 'Jeffrey Ptak, CFA', publishedAt: '27 March 2026', url: 'https://www.morningstar.com.au' },
-          { category: 'STOCKS', title: 'ASX energy producers: Energy prices rise sharply as global tensions flare', summary: 'Our view on the chaotic energy markets and why long-term views remain unchanged.', source: 'Mark Taylor', publishedAt: '27 March 2026', url: 'https://www.morningstar.com.au' },
-          { category: 'PERSONAL-FINANCE', title: 'Future Focus: Tax alpha is becoming more important than market returns', summary: 'As valuations temper and market returns become subdued, focus on keeping more of what you earn.', source: 'Shani Jayamanne', publishedAt: '24 March 2026', url: 'https://www.morningstar.com.au' },
-          { category: 'MACRO', title: 'Central Bank Pivot: Why the next 6 months are critical for global debt', summary: 'Analyzing the trajectory of interest rates across the US and EU as inflation hits target bands.', source: 'Institutional Strategy Team', publishedAt: '02 April 2026', url: '#' },
-          { category: 'TECH', title: 'The Generative AI Capex Cycle: Who wins the second phase of deployment?', summary: 'Moving beyond infrastructure to application-layer profitability in the Silicon Valley ecosystem.', source: 'Tech Alpha Research', publishedAt: '01 April 2026', url: '#' },
-          { category: 'CRYPTO', title: 'Bitcoin ETFs and the Institutional Wall: A new era of liquidity', summary: 'How spot ETFs are fundamentally changing the volatility profile of digital assets.', source: 'Crypto Insights Hub', publishedAt: '01 April 2026', url: '#' },
-          { category: 'ENERGY', title: 'Renewable Storage: The lithium vs sodium battery race intensifies', summary: 'A deep dive into the battery chemistries powering the next generation of grid storage.', source: 'Energy Transition Desk', publishedAt: '31 March 2026', url: '#' },
-          { category: 'LOGISTICS', title: 'Supply Chain Resilience: Redefining global trade routes in 2026', summary: 'How near-shoring and automation are transforming the cost of global distribution.', source: 'Global Trade Monitor', publishedAt: '30 March 2026', url: '#' }
-        ];
-        const shuffled = [...pool].sort(() => 0.5 - Math.random());
-        return { data: { articles: shuffled.slice(0, 4) } };
-      }
-
-      if (name === 'fetchLiveMarketData') {
-        const region = params?.region || 'au';
-        const regionMap = {
-          au: { i1: { sym: '^AXJO', name: 'ASX 200', f: 7750 }, i2: { sym: '^AORD', name: 'All Ordinaries', f: 8010 }, i3: { sym: '^DJI', name: 'DOW (Proxy)', f: 39127 }, bitcoin: { sym: 'BINANCE:BTCUSDT', name: 'Bitcoin', f: 66903 } },
-          us: { i1: { sym: '^GSPC', name: 'S&P 500', f: 5123 }, i2: { sym: '^IXIC', name: 'NASDAQ', f: 16248 }, i3: { sym: '^DJI', name: 'DOW Jones', f: 39127 }, bitcoin: { sym: 'BINANCE:BTCUSDT', name: 'Bitcoin', f: 66903 } },
-          eu: { i1: { sym: '^GDAXI', name: 'DAX 40', f: 18175 }, i2: { sym: '^FTSE', name: 'FTSE 100', f: 7930 }, i3: { sym: '^FCHI', name: 'CAC 40', f: 8150 }, bitcoin: { sym: 'BINANCE:BTCUSDT', name: 'Bitcoin', f: 66903 } },
-          asia: { i1: { sym: '^N225', name: 'Nikkei 225', f: 40168 }, i2: { sym: '^HSI', name: 'Hang Seng', f: 16541 }, i3: { sym: '^STI', name: 'Straits Times', f: 3222 }, bitcoin: { sym: 'BINANCE:BTCUSDT', name: 'Bitcoin', f: 66903 } }
-        };
-        const config = regionMap[region] || regionMap.au;
-        const results = await Promise.all([fetchFinnhub('quote', config.i1.sym), fetchFinnhub('quote', config.i2.sym), fetchFinnhub('quote', config.i3.sym), fetchFinnhub('quote', config.bitcoin.sym)]);
-        const [r1, r2, r3, r4] = results;
-        const format = (l, f) => l?.c ? { value: l.c, change: l.d, changePercent: l.dp } : { value: jitter(f), change: jitter(f*0.005), changePercent: 1.2 * (Math.random()>0.5?1:-1) };
-        return { data: { stocks: { [config.i1.name]: format(r1, config.i1.f), [config.i2.name]: format(r2, config.i2.f), [config.i3.name]: format(r3, config.i3.f) }, crypto: { [config.bitcoin.name]: format(r4, config.bitcoin.f) } } };
-      }
-
-      if (name === 'fetchRegionalMovers') {
-        const region = params?.region || 'au';
-        const moverConfigs = {
-          au: ['BHP.AX', 'CBA.AX', 'RIO.AX', 'CSL.AX', 'NAB.AX', 'WBC.AX', 'ANZ.AX', 'FMG.AX', 'MQG.AX', 'WES.AX', 'TLS.AX', 'WOW.AX', 'TCL.AX', 'GMG.AX', 'QAN.AX'],
-          us: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'UNH', 'JNJ', 'XOM', 'V', 'JPM', 'WMT', 'MA', 'PG', 'HD', 'CVX', 'ABBV', 'LLY', 'PEP'],
-          eu: ['ASML.AS', 'MC.PA', 'OR.PA', 'SAP.DE', 'SIE.DE', 'DTE.DE', 'AIR.PA', 'BNP.PA', 'RMS.PA', 'SAN.MC', 'ITX.MC', 'HSBA.L', 'BP.L', 'ULVR.L', 'AZN.L'],
-          asia: ['7203.T', '6758.T', '9984.T', '0700.HK', '9988.HK', '3690.HK', '2318.HK', '1299.HK', '600519.SS', '601398.SS', '601939.SS', 'D05.SI', 'O39.SI']
-        };
-        const symbols = moverConfigs[region] || moverConfigs.au;
-        const quotes = await Promise.all(symbols.map(s => fetchFinnhub('quote', s)));
-        const movers = symbols.map((s, i) => {
-          const q = quotes[i];
-          const reg = SYMBOL_REGISTRY[s];
-          if (q?.c) {
-            return { symbol: s, price: q.c, change: q.d, changePercent: q.dp, name: reg?.name || s.split('.')[0] };
-          }
-          const base = reg?.base || 100;
-          return { symbol: s, price: jitter(base), change: jitter(base * 0.005), changePercent: 1.2 * (Math.random() > 0.5 ? 1 : -1), name: reg?.name || s.split('.')[0] };
-        });
-        return { data: { actives: movers.slice(0, 10), gainers: [...movers].sort((a,b)=>b.changePercent-a.changePercent).slice(0,10), losers: [...movers].sort((a,b)=>a.changePercent-b.changePercent).slice(0,10) } };
-      }
-
-      if (name === 'fetchIndices') {
-        const region = params?.region || 'au';
-        const indices = {
-           au: [{ name: 'ASX 200', price: 7750, change: 45, changePercent: 0.58 }, { name: 'All Ords', price: 8010, change: 42, changePercent: 0.53 }],
-           us: [{ name: 'S&P 500', price: 5123, change: 12, changePercent: 0.24 }, { name: 'NASDAQ', price: 16248, change: -45, changePercent: -0.28 }]
-        };
-        return { data: { indices: indices[region] || indices.au } };
-      }
-
-      if (name === 'getSecurityDetails') {
-        const symbol = (params?.symbol || 'XAO').toUpperCase();
-        const reg = SYMBOL_REGISTRY[symbol] || null;
-        const live = await fetchFinnhub('quote', symbol);
-        let price = live?.c || jitter(reg?.base || 100);
-        let pc = live?.pc || price * (1 + (Math.random() - 0.5) * 0.02); // 2% daily variance fallback
+        // Fallback Mock
         return { 
-          data: { 
-            symbol, name: reg?.name || symbol, exchange: reg?.ex || 'Global', currency: reg?.cur || 'USD', 
-            price, change: price - pc, changePercent: ((price-pc)/pc)*100, high: Math.max(price, pc) * 1.01, 
-            low: Math.min(price, pc) * 0.99, open: pc, prevClose: pc, 
-            historicalOHLC: generateOHLC(symbol, price, pc), 
-            financials: { revenue: reg?.rev || 'N/A', revenueChange: reg?.revChg || 0 }, 
-            earnings: reg?.earnings || { epsBeat: 0, revenueBeat: 0 },
-            related: reg?.rel || [] 
+          data: {
+            assessment: `Your strategy to invest ${p.monthlyContribution ? '$'+p.monthlyContribution : 'extra capital'} into ${p.instrument || 'assets'} over ${p.years || 10} years is fundamentally solid.`,
+            tone: 'encouraging',
+            recommendations: [{ action: "Increase monthly additions", impact: "Yields 15% more wealth", priority: "high" }],
+            key_insights: ["Compounding is your ally"],
+            closing_motivation: "Stay consistent."
           } 
         };
+      }
+
+      if (name === 'getStockPillarAnalysis') {
+        const ticker = (params?.symbol || 'STOCK').toUpperCase();
+        const realData = await callGeminiDirectly(`8-Pillar fundamental analysis for ${ticker} over last 10 years.`, 'pillar');
+        if (realData) return { data: realData };
+
+        // Fallback Mock
+        return {
+          data: {
+            stockName: ticker === 'AAPL' ? 'Apple Inc' : 'Global Growth Corp',
+            currentPrice: 150.00,
+            overallScore: 6,
+            summary: `Analysis for ${ticker}. Ensure Gemini API key is valid for live data.`,
+            recommendation: "Hold / Monitor",
+            pillars: [
+              { id: "pe", passed: true, current: "18.5", target: "< 22.0", rationale: "P/E is within ranges." },
+              { id: "roic", passed: true, current: "14.2%", target: "> 9.0%", rationale: "Efficient capital use." },
+              { id: "rev", passed: true, current: "+12.0%", target: "> 0%", rationale: "Revenue growth remains strong." },
+              { id: "net_income", passed: true, current: "+8.5%", target: "> 0%", rationale: "Profits following growth." },
+              { id: "shares", passed: false, current: "+1.2%", target: "< 0%", rationale: "Small dilution." },
+              { id: "fcf", passed: true, current: "+15.0%", target: "> 0%", rationale: "Strong FCF growth." },
+              { id: "liabilities", passed: true, current: "3.2 yrs", target: "< 5.0 yrs", rationale: "Manageable debt." },
+              { id: "price_fcf", passed: false, current: "24.5", target: "< 20.0", rationale: "Elevated Valuation." }
+            ]
+          }
+        };
+      }
+
+      if (name === 'checkSubscription') {
+        return { data: { isActive: true } };
       }
 
       return { data: { success: true } };
     }
   },
-
-  agents: {
-    createConversation: async (p) => ({ id: 'conv-123', messages: [] }),
-    addMessage: async (c, m) => {
-      await new Promise(r => setTimeout(r, 1000));
-      return { role: 'assistant', content: "I'm your WealthLens assistant. How can I help?" };
+  
+  user: {
+    loadData: async (key) => {
+      console.log(`[Mock API] Loading: ${key}`);
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : null;
+    },
+    saveData: async (key, data) => {
+      console.log(`[Mock API] Saving: ${key}`);
+      localStorage.setItem(key, JSON.stringify(data));
+      return { success: true };
     }
   },
 
   integrations: {
-    Core: { invokeLLM: async (p) => ({ summary: "Analysis in progress..." }) }
+    Core: { 
+      InvokeLLM: async (p) => {
+        const realData = await callGeminiDirectly(p.prompt, 'pillar');
+        return realData || { summary: "Analysis complete." };
+      }
+    }
   }
 };

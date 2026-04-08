@@ -22,13 +22,14 @@ export default function Navbar({ onSettingsClick }) {
               <>
                 <Link to="/Calculator" className="text-slate-500 hover:text-blue-800 transition-colors">Calculator</Link>
                 <Link to="/Portfolio" className="text-slate-500 hover:text-blue-800 transition-colors">Portfolio</Link>
+                <Link to="/FamilyBudget" className="text-slate-500 hover:text-blue-800 transition-colors font-semibold text-emerald-600">Family Budget</Link>
               </>
             )}
           </nav>
         </div>
 
         <div className="flex items-center gap-4">
-          {onSettingsClick && (
+          {isAuthenticated && onSettingsClick && (
             <Button 
                 variant="ghost" 
                 size="icon"
@@ -39,16 +40,10 @@ export default function Navbar({ onSettingsClick }) {
             </Button>
           )}
 
-          {isAuthenticated ? (
-            <Link to="/">
-              <Button variant="ghost" className="hidden sm:inline-flex text-sm font-semibold text-slate-400 hover:text-slate-900">Sign out</Button>
+          {!isAuthenticated && (
+            <Link to="/Login">
+              <Button className="bg-blue-800 hover:bg-blue-900 text-white rounded-md px-6 text-sm font-semibold shadow-sm transition-all hover:translate-y-[-1px]">Get Started</Button>
             </Link>
-          ) : (
-            <>
-              <Link to="/Login">
-                <Button className="bg-blue-800 hover:bg-blue-900 text-white rounded-md px-6 text-sm font-semibold shadow-sm transition-all hover:translate-y-[-1px]">Get Started</Button>
-              </Link>
-            </>
           )}
         </div>
       </div>
