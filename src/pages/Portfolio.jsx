@@ -16,14 +16,14 @@ import PremiumGate from "@/components/calculator/PremiumGate";
 import { useSubscription } from "@/components/calculator/useSubscription";
 
 const ASSET_CLASSES = [
-  { id: "stocks", label: "Stocks", color: "#6366f1" },
-  { id: "etf", label: "ETF", color: "#8b5cf6" },
-  { id: "property", label: "Property", color: "#10b981" },
-  { id: "crypto", label: "Crypto", color: "#f59e0b" },
-  { id: "bonds", label: "Bonds", color: "#3b82f6" },
-  { id: "fixed_deposit", label: "Fixed Deposit", color: "#06b6d4" },
-  { id: "mutual_funds", label: "Mutual Funds", color: "#ec4899" },
-  { id: "gold", label: "Gold", color: "#d97706" },
+  { id: "stocks", label: "Stocks", color: "#E5C48B" },    // Muted Peach
+  { id: "property", label: "Property", color: "#E5989B" },  // Rose Dust
+  { id: "etf", label: "ETF", color: "#B8D8BA" },       // Sage
+  { id: "crypto", label: "Crypto", color: "#FFB5A7" },    // Apricot
+  { id: "bonds", label: "Bonds", color: "#95D5B2" },      // Mint
+  { id: "fixed_deposit", label: "Fixed Deposit", color: "#A8DADC" }, // Powder Blue
+  { id: "mutual_funds", label: "Mutual Funds", color: "#DDBDF1" },  // Lavender
+  { id: "gold", label: "Gold", color: "#FEEAFA" },       // Champagne
 ];
 
 const CURRENCIES = ["USD", "AUD", "EUR", "GBP", "JPY", "CAD", "SGD", "INR", "NZD"];
@@ -93,8 +93,14 @@ function PortfolioContent() {
 
   const sym = getCurrencySymbol(currency);
 
-  const fmt = (n) => `${sym}${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  const pct = (n) => `${Number(n || 0).toFixed(1)}%`;
+  const fmt = (n) => {
+    const val = Number(n);
+    return `${sym}${(isNaN(val) ? 0 : val).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  };
+  const pct = (n) => {
+    const val = Number(n);
+    return (isNaN(val) ? 0 : val).toFixed(1) + "%";
+  };
 
   const addHolding = () => {
     setHoldings([...holdings, { id: nextId, asset: "stocks", currentValue: 0, invested: 0, label: "" }]);
@@ -180,90 +186,110 @@ function PortfolioContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-white">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-black text-slate-900">Portfolio Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger className="w-28 h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative flex items-center h-9">
-              <PremiumGate featureName="Export PDF" isPremium={isPremium} compact={true} noOverlay={true}>
-                <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 px-4 rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2 border-0"
-                  onClick={() => {
-                    if (!isPremium) return; 
-                    try {
-                      generatePortfolioPdf({ holdings, currency });
-                      toast.success("Portfolio PDF downloaded!");
-                    } catch (e) {
-                      toast.error("Failed to generate PDF");
-                    }
-                  }}
-                >
-                  {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  Export PDF
-                  {!isPremium && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
-                </Button>
-              </PremiumGate>
+    <div className="min-h-screen bg-white">
+      {/* Rounded Navbar Panel - Full Length */}
+      <div className="flex flex-col">
+        <div className="w-full px-6 pt-4 pb-2">
+          <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+          {/* Header Area */}
+          <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Portfolio Dashboard</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger className="w-28 h-9 text-sm bg-[#2D3748] border-[#C5A059]/20 text-[#C5A059]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                size="sm"
+                className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
+                onClick={() => {
+                  if (!isPremium) {
+                    toast.error("Premium subscription required for PDF export");
+                    return;
+                  }; 
+                  try {
+                    generatePortfolioPdf({ holdings, currency });
+                    toast.success("Portfolio PDF downloaded!");
+                  } catch (e) {
+                    toast.error("Failed to generate PDF");
+                  }
+                }}
+              >
+                {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4 text-[#1A202C]/60" />}
+                <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
+                {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
+              </Button>
             </div>
           </div>
+
+          {/* Metric Banner Header - Institutional Dark Mode */}
+          <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
+            <div className="max-w-5xl mx-auto flex items-center justify-between">
+              <div className="text-center w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalValue)}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL PORTFOLIO VALUE</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalInvested)}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INVESTED</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalGain)}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL GAIN / LOSS</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{pct(metrics.totalReturnPct)}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">OVERALL RETURN</p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-10">
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Portfolio Value", value: fmt(metrics.totalValue), color: "from-indigo-500/10 to-violet-500/10", border: "border-indigo-300/30", text: "text-indigo-700" },
-            { label: "Total Invested", value: fmt(metrics.totalInvested), color: "from-slate-100 to-slate-200/60", border: "border-slate-300/30", text: "text-slate-700" },
-            { label: "Total Gain / Loss", value: fmt(metrics.totalGain), color: metrics.totalGain >= 0 ? "from-emerald-500/10 to-green-500/10" : "from-rose-500/10 to-red-500/10", border: metrics.totalGain >= 0 ? "border-emerald-300/30" : "border-rose-300/30", text: metrics.totalGain >= 0 ? "text-emerald-700" : "text-rose-700" },
-            { label: "Overall Return", value: pct(metrics.totalReturnPct), color: "from-amber-500/10 to-orange-500/10", border: "border-amber-300/30", text: "text-amber-700" },
-          ].map((card, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className={`bg-gradient-to-br ${card.color} rounded-2xl p-5 border ${card.border}`}>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">{card.label}</p>
-              <p className={`text-2xl font-black ${card.text}`}>{card.value}</p>
-            </motion.div>
-          ))}
-        </div>
+      {/* Main Panel starts below Navbar */}
+      <div className="bg-slate-50 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
 
-        {/* Charts Row */}
+
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Allocation Pie */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <PieChartIcon className="w-4 h-4 text-indigo-500" /> Asset Allocation
+          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-[#E5C48B]" /> Asset Allocation
             </h3>
             {metrics.pieData.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="55%" height={200}>
-                  <PieChart>
-                    <Pie data={metrics.pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" labelLine={false}>
-                      {metrics.pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(v) => fmt(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-6">
+                <div className="w-[55%] h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={metrics.pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} dataKey="value" stroke="none" paddingAngle={4}>
+                        {metrics.pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(v) => fmt(v)}
+                        contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col gap-3">
                   {metrics.pieData.map((entry, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                      <span className="text-xs text-slate-600">{entry.name}</span>
-                      <span className="text-xs font-bold text-slate-900 ml-1">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{entry.name}</span>
+                      <span className="text-[11px] font-medium text-white/90 ml-1">
                         {metrics.totalValue > 0 ? pct((entry.value / metrics.totalValue) * 100) : "0%"}
                       </span>
                     </div>
@@ -271,29 +297,35 @@ function PortfolioContent() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-400 text-center py-8">Add holdings to see allocation</p>
+              <p className="text-xs text-slate-500 text-center py-12 font-medium">Add holdings to generate allocation analysis</p>
             )}
           </div>
 
           {/* Bar Chart */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-emerald-500" /> Invested vs Current Value
+          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#B8D8BA]" /> Performance Blueprint
             </h3>
             {metrics.barData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={metrics.barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} />
-                  <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => fmt(v)} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="invested" name="Invested" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="value" name="Current Value" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={metrics.barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      formatter={(v) => fmt(v)}
+                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: '20px', color: '#94a3b8' }} />
+                    <Bar dataKey="invested" name="Invested Capital" fill="rgba(255,255,255,0.1)" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="value" name="Current Value" fill="#B8D8BA" radius={[4, 4, 0, 0]} barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             ) : (
-              <p className="text-sm text-slate-400 text-center py-8">Add holdings to see chart</p>
+              <p className="text-xs text-slate-500 text-center py-12 font-medium">Add holdings to generate growth mapping</p>
             )}
           </div>
         </div>
@@ -307,13 +339,13 @@ function PortfolioContent() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                    <th className="text-left pb-3 font-bold">Asset Class</th>
-                    <th className="text-right pb-3 font-bold">Invested</th>
-                    <th className="text-right pb-3 font-bold">Current Value</th>
-                    <th className="text-right pb-3 font-bold">Gain / Loss</th>
-                    <th className="text-right pb-3 font-bold">Return</th>
-                    <th className="text-right pb-3 font-bold">Allocation</th>
+                  <tr className="text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                    <th className="text-left pb-4 font-medium">Asset Class</th>
+                    <th className="text-right pb-4 font-medium">Invested</th>
+                    <th className="text-right pb-4 font-medium">Current Value</th>
+                    <th className="text-right pb-4 font-medium">Gain / Loss</th>
+                    <th className="text-right pb-4 font-medium">Return</th>
+                    <th className="text-right pb-4 font-medium">Allocation</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -321,17 +353,17 @@ function PortfolioContent() {
                     <tr key={cls.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cls.color }} />
-                          <span className="font-semibold text-slate-800">{cls.label}</span>
-                          <span className="text-xs text-slate-400">({cls.count})</span>
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cls.color }} />
+                          <span className="font-medium text-slate-800">{cls.label}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">({cls.count})</span>
                         </div>
                       </td>
-                      <td className="py-3 text-right text-slate-600">{fmt(cls.invested)}</td>
-                      <td className="py-3 text-right font-bold text-slate-900">{fmt(cls.value)}</td>
-                      <td className={`py-3 text-right font-bold ${cls.gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      <td className="py-3 text-right text-slate-500 font-medium">{fmt(cls.invested)}</td>
+                      <td className="py-3 text-right font-medium text-slate-900">{fmt(cls.value)}</td>
+                      <td className={`py-3 text-right font-medium ${cls.gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {cls.gain >= 0 ? "+" : ""}{fmt(cls.gain)}
                       </td>
-                      <td className={`py-3 text-right font-bold ${cls.returnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      <td className={`py-3 text-right font-medium ${cls.returnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {cls.returnPct >= 0 ? "+" : ""}{pct(cls.returnPct)}
                       </td>
                       <td className="py-3 text-right">
@@ -351,10 +383,10 @@ function PortfolioContent() {
         )}
 
         {/* Holdings Editor */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-slate-500" /> My Holdings
+        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-sm font-medium text-slate-900 flex items-center gap-2 uppercase tracking-widest">
+              <DollarSign className="w-4 h-4 text-slate-400" /> My Holdings
             </h3>
             <Button onClick={addHolding} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
               <Plus className="w-4 h-4" /> Add Holding
@@ -406,7 +438,7 @@ function PortfolioContent() {
                     />
                   </div>
                   <div className="col-span-5 sm:col-span-2 text-right">
-                    <span className={`text-sm font-bold ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    <span className={`text-sm font-medium ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {gain >= 0 ? "+" : ""}{pct(returnPct)}
                     </span>
                     <p className={`text-xs ${gain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
@@ -426,6 +458,8 @@ function PortfolioContent() {
             )}
           </div>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );

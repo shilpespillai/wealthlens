@@ -36,10 +36,9 @@ export const AuthProvider = ({ children }) => {
           setAuthError(null);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
-          // If we just landed with tokens in the hash on the home page, redirect to the calculator
           if (window.location.hash.includes('access_token=') && (window.location.pathname === '/' || window.location.pathname === '')) {
             setTimeout(() => {
-               window.location.href = '/Calculator';
+               window.location.href = '/Dashboard';
             }, 500);
           }
         } else {

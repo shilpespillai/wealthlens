@@ -14,12 +14,15 @@ import {
   Calendar,
   Save,
   Download,
-  Send,
   Bot,
   Sparkles,
   Crown,
   Lock
 } from "lucide-react";
+
+
+
+
 import { 
   PieChart, 
   Pie, 
@@ -27,19 +30,10 @@ import {
   ResponsiveContainer, 
   Tooltip as RechartsTooltip, 
   Legend, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid,
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
   Sankey,
-  Treemap,
   ResponsiveContainer as ChartContainer
 } from "recharts";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,16 +55,14 @@ import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
-import PremiumGate from "@/components/calculator/PremiumGate";
-import { useSubscription } from "@/components/calculator/useSubscription";
 import BankConnect from "@/components/calculator/BankConnect";
 
+
 const EXPENSE_CATEGORIES = [
-  { id: "fixed", label: "Fixed / Needs", color: "#3b82f6", targetPct: 50 },
-  { id: "variable", label: "Variable / Wants", color: "#f59e0b", targetPct: 30 },
-  { id: "savings", label: "Savings & Debt", color: "#10b981", targetPct: 20 },
+  { id: "fixed", label: "Fixed / Needs", color: "#B8D8BA", targetPct: 50 },
+  { id: "variable", label: "Variable / Wants", color: "#E5C48B", targetPct: 30 },
+  { id: "savings", label: "Savings & Debt", color: "#E5989B", targetPct: 20 },
 ];
 
 const DEFAULT_INCOMES = [
@@ -93,8 +85,8 @@ const DEFAULT_GOALS = [
 ];
 
 function FamilyBudgetContent() {
-  const [viewMode, setViewMode] = useState("monthly"); // 'monthly' | 'annual'
   const [selectedDate, setSelectedDate] = useState(new Date());
+
   const [currency, setCurrency] = useState("USD");
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -106,8 +98,8 @@ function FamilyBudgetContent() {
   const [nextExpenseId, setNextExpenseId] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const { isPremium } = useSubscription();
   const [importText, setImportText] = useState("");
+
   const fileInputRef = React.useRef(null);
 
   const handleFileUpload = (e) => {
@@ -346,7 +338,7 @@ function FamilyBudgetContent() {
   };
 
   const sym = getCurrencySymbol(currency);
-  const multiplier = viewMode === "annual" ? 12 : 1;
+  const multiplier = 1;
   const fmt = (val) => `${sym}${(val * multiplier).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   const rawFmt = (val) => (val * multiplier).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
@@ -364,10 +356,10 @@ function FamilyBudgetContent() {
   const removeExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
   const updateExpense = (id, field, val) => setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: val } : e));
 
-  const parseNum = (val, currentView) => {
-    const num = parseFloat(val) || 0;
-    return currentView === "annual" ? num / 12 : num;
+  const parseNum = (val) => {
+    return parseFloat(val) || 0;
   };
+
 
   const metrics = useMemo(() => {
     const totalIncome = incomes.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
@@ -593,170 +585,199 @@ function FamilyBudgetContent() {
     setVaultWithdrawAmount("");
   };
 
-  const historyData = useMemo(() => {
-    const data = [];
-    const now = new Date();
-    // Scan last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const y = d.getFullYear();
-      const m = (d.getMonth() + 1).toString().padStart(2, '0');
-      const key = `wealthlens-budget-${y}-${m}`;
-      
-      // For current month being edited, use live state
-      let incTotal = 0;
-      let expTotal = 0;
-      let categoriesMap = {};
 
-      if (key === monthKey) {
-        incTotal = incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
-        expTotal = expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
-        expenses.forEach(e => {
-          const cat = e.category || "other";
-          categoriesMap[cat] = (categoriesMap[cat] || 0) + (Number(e.monthlyAmount) || 0);
-        });
-      } else {
-        try {
-          const saved = JSON.parse(localStorage.getItem(key) || "{}");
-          incTotal = (saved.incomes || []).reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
-          expTotal = (saved.expenses || []).reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0);
-          (saved.expenses || []).forEach(e => {
-            const cat = e.category || "other";
-            categoriesMap[cat] = (categoriesMap[cat] || 0) + (Number(e.monthlyAmount) || 0);
-          });
-        } catch {}
-      }
-      
-      data.push({
-        name: d.toLocaleString('default', { month: 'short' }),
-        income: incTotal,
-        expenses: expTotal,
-        savings: Math.max(0, incTotal - expTotal),
-        categories: categoriesMap
-      });
-    }
-    return data;
-  }, [incomes, expenses, monthKey]);
+
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-10">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <PiggyBank className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-none mb-1">Budget Planner</h1>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600">
-                    <TrendingUp className="w-3 h-3 rotate-[270deg]" />
-                  </button>
-                  
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider hover:bg-emerald-100 transition-colors flex items-center gap-1.5">
-                        {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
-                        <Calendar className="w-3 h-3" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-slate-200">
-                      <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
-                        <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() - 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
-                          <TrendingUp className="w-3 h-3 rotate-[270deg]" />
+    <div className="min-h-screen bg-white font-sans pb-10 flex flex-col">
+      {/* Container for Navbar Area — purely white background */}
+      <div className="w-full px-6 pt-4 pb-2">
+        <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+          {/* Header Area */}
+          <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-lg bg-[#2D3748] flex items-center justify-center border border-[#C5A059]/30">
+                  <PiggyBank className="w-4 h-4 text-[#C5A059]" />
+                </div>
+                <div className="flex flex-col">
+                  <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Budget Planner</h1>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-[#2D3748] rounded text-[#C5A059]/60 hover:text-[#C5A059]">
+                      <TrendingUp className="w-3 h-3 rotate-[270deg]" />
+                    </button>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="text-sm font-medium text-[#C5A059] bg-[#2D3748] px-3 py-1 rounded-md uppercase tracking-wider hover:bg-[#1A202C] border border-[#C5A059]/20 transition-colors flex items-center gap-2">
+                          {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                          <Calendar className="w-3 h-3" />
                         </button>
-                        <span className="font-bold text-slate-700">{selectedDate.getFullYear()}</span>
-                        <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
-                          <TrendingUp className="w-3 h-3 rotate-90" />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {Array.from({ length: 12 }).map((_, i) => {
-                          const monthName = new Date(0, i).toLocaleString('default', { month: 'short' });
-                          const isSelected = selectedDate.getMonth() === i;
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => selectMonthYear(i)}
-                              className={`py-2 text-xs font-bold rounded-lg transition-all ${isSelected ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
-                            >
-                              {monthName}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-slate-200">
+                        <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
+                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() - 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
+                            <TrendingUp className="w-3 h-3 rotate-[270deg]" />
+                          </button>
+                          <span className="font-bold text-slate-700">{selectedDate.getFullYear()}</span>
+                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
+                            <TrendingUp className="w-3 h-3 rotate-90" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {Array.from({ length: 12 }).map((_, i) => {
+                            const monthName = new Date(0, i).toLocaleString('default', { month: 'short' });
+                            const isSelected = selectedDate.getMonth() === i;
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => selectMonthYear(i)}
+                                className={`py-2 text-xs font-bold rounded-lg transition-all ${isSelected ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                {monthName}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
 
-                  <button onClick={() => changeMonth(1)} className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600">
-                    <TrendingUp className="w-3 h-3 rotate-90" />
-                  </button>
+                    <button onClick={() => changeMonth(1)} className="p-1 hover:bg-[#2D3748] rounded text-[#C5A059]/60 hover:text-[#C5A059]">
+                      <TrendingUp className="w-3 h-3 rotate-90" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="w-24">
+                <CurrencySelector value={currency} onChange={setCurrency} />
+              </div>
+              <Button onClick={handleSave} size="sm" className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-semibold gap-2 h-10 px-6 rounded-xl shadow-lg shadow-[#C5A059]/20 border-0">
+                <Save className="w-4 h-4" /> Save
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
-              <button 
-                onClick={() => setViewMode("monthly")} 
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'monthly' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Editor
-              </button>
-              <PremiumGate isPremium={isPremium} featureName="Budget Trends & AI Reports" noOverlay>
-                <button 
-                  onClick={() => {
-                    if (isPremium) setViewMode("reports");
-                  }} 
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+
+          {/* Metric Banner Area */}
+          <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
+            <div className="flex items-center justify-between max-w-7xl mx-auto">
+              <div className="text-center w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INCOME</p>
+              </div>
+              <div className="text-center w-full px-2 border-l border-white/5">
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SPENT</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category === 'debt').reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
+              </div>
+              <div className="text-center border-l border-white/5 w-full px-2">
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">LEFT TO SPEND</p>
+              </div>
+            </div>
+          </div>
+
+      </div>
+
+
+      {/* Main Panel starts below Navbar */}
+      <div className="bg-slate-50 min-h-screen pt-4">
+
+
+
+
+      {/* Sankey Chart Re-Positioned to the top under metrics */}
+      <div className="bg-white border-b border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">Financial Flow Intelligence</h3>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Live Granular Flow Analysis • Interactive Visualization</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden md:block">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total Managed</p>
+                <p className="text-md font-black text-[#C5A059] leading-none">{fmt(metrics.totalIncome)}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#2D3748] flex items-center justify-center border border-[#C5A059]/20">
+                <TrendingUp className="w-5 h-5 text-[#C5A059]" />
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[400px] w-full mt-2">
+            {sankeyData && sankeyData.nodes.length > 1 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <Sankey
+                  data={sankeyData}
+                  node={<CustomSankeyNode />}
+                  link={<CustomSankeyLink />}
+                  nodePadding={20}
+                  margin={{ left: 100, right: 180, top: 20, bottom: 20 }}
+                  sort={false}
                 >
-                  {isPremium ? (
-                    <Crown className="w-3 h-3 text-amber-500" />
-                  ) : (
-                    <Lock className="w-3 h-3 text-slate-400" />
-                  )}
-                  Reports
-                  {!isPremium && <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded ml-1 tracking-tighter">PRO</span>}
-                </button>
-              </PremiumGate>
-            </div>
-            <div className="w-24">
-              <CurrencySelector value={currency} onChange={setCurrency} />
-            </div>
-            <Button onClick={handleSave} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-10 px-6 rounded-xl shadow-lg shadow-emerald-200/50">
-              <Save className="w-4 h-4" /> Save
-            </Button>
+                  <RechartsTooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        const isLink = data.source && data.target;
+                        const name = isLink 
+                          ? `${data.source.name} → ${data.target.name}` 
+                          : (data.name || 'Financial Flow');
+                        const value = data.value || 0;
+                        const color = isLink ? data.source.color : (data.color || "#6366f1");
+
+                        return (
+                          <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
+                              <p className="text-xl font-black text-slate-800">{sym}{Number(value).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </Sankey>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                <PieChartIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Add inputs below to generate flow</p>
+              </div>
+            )}
           </div>
         </div>
-      </div>      {isLoading ? (
+      </div>
+
+      {isLoading ? (
+
+
         <div className="flex flex-col items-center justify-center py-32">
           <div className="w-10 h-10 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-4" />
           <p className="text-slate-500 font-medium">Syncing budget data...</p>
         </div>
-      ) : viewMode === "reports" ? (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
-          <PremiumGate isPremium={isPremium} featureName="Budget Trends & AI Reports">
-            <BudgetReports 
-              currency={currency} 
-              selectedDate={selectedDate} 
-              onOpenImport={() => {
-                setViewMode("monthly");
-                setIsImportModalOpen(true);
-              }} 
-            />
-          </PremiumGate>
-        </div>
       ) : (
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 space-y-4">
         
         {/* Top Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Income</p>
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight">{fmt(metrics.totalIncome)}</h2>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1">Total Monthly Income</p>
+
+              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{fmt(metrics.totalIncome)}</h2>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
               <Wallet className="w-5 h-5 text-emerald-500" />
@@ -764,8 +785,9 @@ function FamilyBudgetContent() {
           </motion.div>
           <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.1}} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total {viewMode === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight">{fmt(metrics.totalExpenses)}</h2>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1">Total Monthly Expenses</p>
+
+              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{fmt(metrics.totalExpenses)}</h2>
             </div>
             <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
               <Receipt className="w-5 h-5 text-rose-500" />
@@ -773,8 +795,8 @@ function FamilyBudgetContent() {
           </motion.div>
           <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay:0.2}} className={`rounded-xl p-4 border shadow-sm flex items-center justify-between ${metrics.balance >= 0 ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}>
             <div>
-              <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Remaining Balance</p>
-              <h2 className={`text-2xl font-black tracking-tight ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <p className={`text-[10px] font-medium uppercase tracking-widest mb-1 ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Remaining Balance</p>
+              <h2 className={`text-2xl font-medium tracking-tight ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {metrics.balance >= 0 ? '+' : '-'}{fmt(Math.abs(metrics.balance))}
               </h2>
             </div>
@@ -784,105 +806,102 @@ function FamilyBudgetContent() {
           </motion.div>
         </div>
 
-        {/* Household Vault & Global Savings Engine - Sleek Edition */}
-        <motion.div 
-          initial={{opacity:0, y:10}} 
-          animate={{opacity:1, y:0}}
-          className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md"
-        >
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-                <Lock className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-black text-slate-800 tracking-tight leading-none text-lg">Household Vault</h3>
-                  <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Locked</span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl font-black text-slate-900">{getCurrencySymbol(currency)}{vaultData.remaining.toLocaleString()}</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter italic">Total Surplus</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="w-full md:w-auto min-w-[320px]">
-              {!isVaultAllocating ? (
-                <div className="flex items-center justify-end gap-3">
-                  <p className="text-[11px] text-slate-400 font-bold uppercase hidden lg:block tracking-widest">Ready to deploy capital?</p>
-                  <Button 
-                    onClick={() => setIsVaultAllocating(true)}
-                    disabled={vaultData.remaining <= 0}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs h-11 px-8 shadow-lg shadow-indigo-100 transition-all active:scale-95"
-                  >
-                    Fund Goals
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 animate-in slide-in-from-right-2 duration-300">
-                  <select 
-                    value={selectedVaultGoal}
-                    onChange={(e) => setSelectedVaultGoal(Number(e.target.value))}
-                    className="bg-transparent border-none text-xs font-black text-slate-700 outline-none w-32 px-2 cursor-pointer"
-                  >
-                    <option value="">Select Goal</option>
-                    {goals.map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </select>
-                  <div className="w-px h-6 bg-slate-200 mx-1" />
-                  <div className="relative flex-1 min-w-[80px]">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{getCurrencySymbol(currency)}</span>
-                    <input 
-                      type="number"
-                      placeholder="0"
-                      value={vaultWithdrawAmount}
-                      onChange={(e) => setVaultWithdrawAmount(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg h-8 pl-5 pr-2 text-xs font-black outline-none focus:border-indigo-400"
-                    />
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => setIsVaultAllocating(false)} className="p-2 text-slate-400 hover:text-slate-600"><Plus className="w-4 h-4 rotate-45" /></button>
-                    <button 
-                      onClick={() => handleVaultWithdraw(selectedVaultGoal, vaultWithdrawAmount)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-                    >
-                      Allocate
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-16 -mt-16" />
-        </motion.div>
+
 
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Left Column: Editor */}
           <div className="lg:col-span-7 space-y-4">
+
+            {/* Household Vault & Global Savings Engine - Relocated to reduce width */}
+            <motion.div 
+              initial={{opacity:0, y:10}} 
+              animate={{opacity:1, y:0}}
+              className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md"
+            >
+              <div className="relative z-10 flex flex-col xl:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
+                    <Lock className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-slate-700 tracking-tight leading-none text-md">Vault</h3>
+                      <span className="text-[8px] font-medium bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full uppercase tracking-widest">Locked</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-xl font-medium text-slate-700">{getCurrencySymbol(currency)}{vaultData.remaining.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full xl:w-auto">
+                  {!isVaultAllocating ? (
+                    <Button 
+                      onClick={() => setIsVaultAllocating(true)}
+                      disabled={vaultData.remaining <= 0}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-[10px] h-9 px-4 shadow-lg shadow-indigo-100 transition-all active:scale-95 w-full xl:w-auto"
+                    >
+                      Fund Goals
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100 animate-in slide-in-from-right-2 duration-300">
+                      <select 
+                        value={selectedVaultGoal}
+                        onChange={(e) => setSelectedVaultGoal(Number(e.target.value))}
+                        className="bg-transparent border-none text-[10px] font-black text-slate-700 outline-none w-24 px-1 cursor-pointer"
+                      >
+                        <option value="">Select Goal</option>
+                        {goals.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                      <div className="w-px h-4 bg-slate-200" />
+                      <div className="relative min-w-[60px]">
+                        <input 
+                          type="number"
+                          placeholder="0"
+                          value={vaultWithdrawAmount}
+                          onChange={(e) => setVaultWithdrawAmount(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg h-7 pl-2 pr-1 text-[10px] font-black outline-none focus:border-indigo-400"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => handleVaultWithdraw(selectedVaultGoal, vaultWithdrawAmount)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+                      >
+                        Ok
+                      </button>
+                      <button onClick={() => setIsVaultAllocating(false)} className="p-1 text-slate-400 hover:text-slate-600"><Plus className="w-3.5 h-3.5 rotate-45" /></button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-2xl -mr-12 -mt-12" />
+            </motion.div>
+
+
             
             {/* Income Section */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Income Sources</h3>
                   <p className="text-xs text-slate-400">Add your monthly income streams</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end flex-nowrap gap-1.5">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={handleCopyFromPrevious} 
-                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg"
+                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg px-2.5 text-xs font-medium"
                   >
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev. Month
+                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev
                   </Button>
-                  <Button variant="outline" size="sm" onClick={addIncome} className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 h-8 rounded-lg">
-                    <Plus className="w-4 h-4 mr-1" /> Add Income
+                  <Button variant="outline" size="sm" onClick={addIncome} className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 h-8 rounded-lg px-2.5 text-xs font-medium">
+                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
                   </Button>
                 </div>
               </div>
@@ -901,7 +920,8 @@ function FamilyBudgetContent() {
                         type="number"
                         placeholder="0" 
                         value={inc.monthlyAmount ? (inc.monthlyAmount * multiplier).toString() : ""} 
-                        onChange={(e) => updateIncome(inc.id, "monthlyAmount", parseNum(e.target.value, viewMode))}
+                        onChange={(e) => updateIncome(inc.id, "monthlyAmount", parseNum(e.target.value))}
+
                         className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
                       />
                     </div>
@@ -920,16 +940,16 @@ function FamilyBudgetContent() {
                   <h3 className="text-lg font-bold text-slate-800">Expenses & Savings</h3>
                   <p className="text-sm text-slate-500">Categorize for 50/30/20 breakdown</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end flex-nowrap gap-1.5">
                   <BankConnect onSyncSuccess={handleBankSync} />
                   <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                     <DialogTrigger asChild>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100/50 h-8 rounded-lg px-4 font-bold"
+                        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100/50 h-8 rounded-lg px-2.5 font-medium text-xs"
                       >
-                        <Download className="w-3.5 h-3.5 mr-2" /> Smart Import
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> Import
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
@@ -986,12 +1006,12 @@ function FamilyBudgetContent() {
                     variant="outline" 
                     size="sm" 
                     onClick={handleCopyFromPrevious} 
-                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg"
+                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg px-2.5 text-xs font-medium"
                   >
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev. Month
+                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev
                   </Button>
-                  <Button variant="outline" size="sm" onClick={addExpense} className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 h-8 rounded-lg">
-                    <Plus className="w-4 h-4 mr-1" /> Add Expense
+                  <Button variant="outline" size="sm" onClick={addExpense} className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 h-8 rounded-lg px-2.5 text-xs font-medium">
+                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
                   </Button>
                 </div>
               </div>
@@ -1016,7 +1036,8 @@ function FamilyBudgetContent() {
                         type="number" 
                         placeholder="0" 
                         value={exp.monthlyAmount ? (exp.monthlyAmount * multiplier).toString() : ""} 
-                        onChange={(e) => updateExpense(exp.id, "monthlyAmount", parseNum(e.target.value, viewMode))}
+                        onChange={(e) => updateExpense(exp.id, "monthlyAmount", parseNum(e.target.value))}
+
                         className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-rose-500"
                       />
                     </div>
@@ -1034,55 +1055,47 @@ function FamilyBudgetContent() {
           <div className="lg:col-span-5 space-y-4">
             
             {/* The 50/30/20 Rule Analysis */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <PieChartIcon className="w-5 h-5 text-indigo-500" />
-                The 50/30/20 Breakdown
+            <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+              <h3 className="text-xl font-medium text-white/95 mb-6 flex items-center gap-3">
+                <PieChartIcon className="w-5 h-5 text-[#E5C48B]" />
+                The 50/30/20 Analysis
               </h3>
               
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {metrics.breakdown.map((b) => (
                   <div key={b.id} className="space-y-3">
                     <div className="flex justify-between items-end">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 text-sm">{b.label}</span>
-                          <span className="text-[10px] font-black text-white px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
+                          <span className="font-medium text-white/90 text-sm tracking-tight">{b.label}</span>
+                          <span className="text-[9px] font-medium text-[#2D3748] px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
                             Target {b.targetPct}%
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xl font-black" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
-                          <span className="text-[10px] font-bold text-slate-400 capitalize">Actual Outgoings</span>
+                          <span className="text-2xl font-medium tracking-tighter" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
+                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Live Flow</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs text-slate-500 font-bold block mb-0.5">{fmt(b.targetAmount)} Target</span>
+                        <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{fmt(b.targetAmount)} Goal</span>
                         {b.isOver ? (
-                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Over
+                          <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                            <AlertCircle className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Variance
                           </span>
                         ) : (
-                          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Saved
+                          <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                            <CheckCircle2 className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Savings
                           </span>
                         )}
                       </div>
                     </div>
                     {/* Bullet Chart for 50/30/20 */}
-                    <div className="relative h-4 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200/50 shadow-inner">
-                      {/* 50% Milestone Marker */}
-                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/30 z-10" />
-                      {/* Target Indicator */}
+                    <div className="relative h-3 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
                       <div 
-                        className="absolute top-0 bottom-0 w-1 bg-black/20 z-20"
-                        style={{ left: `${b.targetPct}%` }}
-                      />
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${b.actualPct}%` }}
-                        className="h-full rounded-r-md shadow-lg transition-all duration-500 opacity-90"
-                        style={{ backgroundColor: b.color }}
+                        className="absolute h-full rounded-full transition-all duration-700 opacity-90 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
+                        style={{ backgroundColor: b.color, width: `${b.actualPct}%` }}
                       />
                     </div>
                   </div>
@@ -1090,8 +1103,8 @@ function FamilyBudgetContent() {
               </div>
 
               {/* Summary Pie Chart */}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Actual Distribution</h4>
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-6 text-center">Relative Distribution</h4>
                 {metrics.pieData.length > 0 ? (
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -1100,13 +1113,13 @@ function FamilyBudgetContent() {
                           data={metrics.pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={50}
-                          outerRadius={70}
-                          paddingAngle={5}
+                          innerRadius={55}
+                          outerRadius={75}
+                          paddingAngle={8}
                           dataKey="value"
                           stroke="none"
-                          labelLine={true}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                         >
                           {metrics.pieData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1114,48 +1127,43 @@ function FamilyBudgetContent() {
                         </Pie>
                         <RechartsTooltip 
                           formatter={(value) => sym + value.toLocaleString()}
-                          itemStyle={{ fontSize: 13, fontWeight: 'bold' }}
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          itemStyle={{ fontSize: 13, fontWeight: 'medium', color: '#111827' }}
+                          contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
                         />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
+                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '20px' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <p className="text-center text-slate-400 text-sm py-8">Add expenses to see chart</p>
+                  <p className="text-center text-slate-500 text-xs py-8 font-medium">Add inputs to generate flow analysis</p>
                 )}
               </div>
               {/* Family Savings Pillars */}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Savings Pillars</h4>
-                  <TrendingUp className="w-4 h-4 text-indigo-500" />
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Savings Velocity Pillars</h4>
+                  <TrendingUp className="w-4 h-4 text-[#E5C48B]" />
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {goals.map((g) => {
                     const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
                     return (
-                      <div key={g.id} className="space-y-2">
+                      <div key={g.id} className="space-y-2.5">
                         <div className="flex justify-between items-end">
                           <div>
-                            <p className="text-[11px] font-black text-slate-700 uppercase">{g.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400">
-                              {sym}{g.current.toLocaleString()} of {sym}{g.target.toLocaleString()}
+                            <p className="text-[11px] font-medium text-white/90 uppercase tracking-tight">{g.name}</p>
+                            <p className="text-[10px] font-medium text-slate-400">
+                              {sym}{g.current.toLocaleString()} / {sym}{g.target.toLocaleString()}
                             </p>
                           </div>
-                          <span className="text-xs font-black text-indigo-600">{pct.toFixed(0)}%</span>
+                          <span className="text-xs font-medium text-[#B8D8BA]">{pct.toFixed(0)}%</span>
                         </div>
                         {/* High-Precision Bullet Chart */}
-                        <div className="relative h-4 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200/50 shadow-inner group-hover:bg-slate-200 transition-colors">
-                          {/* Qualitative Range: 50% Stability Marker */}
-                          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-300 z-10" />
-                          {/* Qualitative Range: 80% Velocity Marker */}
-                          <div className="absolute left-[80%] top-0 bottom-0 w-px bg-slate-300 z-10" />
-                          
+                        <div className="relative h-2.5 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
-                            className="h-full bg-indigo-500 rounded-r-md shadow-lg shadow-indigo-200/50"
+                            className="h-full bg-emerald-500/80 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-700"
                           />
                         </div>
                       </div>
@@ -1166,500 +1174,31 @@ function FamilyBudgetContent() {
             </div>
 
             {/* Guides & Tips */}
-            <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6">
-              <h4 className="font-bold text-indigo-900 mb-2">Rule of Thumb</h4>
-              <p className="text-sm text-indigo-800/80 leading-relaxed">
-                The <strong className="text-indigo-900">50/30/20 rule</strong> is a simple budgeting method that can help you manage your money effectively. The basic rule of thumb is to divide up after-tax income and allocate it to spend: 50% on needs, 30% on wants, and socking away 20% to savings.
+            <div className="bg-[#1E293B] border border-slate-700 rounded-[32px] p-8 shadow-xl">
+              <h4 className="font-medium text-white/95 mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                <Bot className="w-4 h-4 text-[#E5C48B]" />
+                Portfolio Guidance
+              </h4>
+              <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                The <strong className="font-medium text-white">50/30/20 rule</strong> is an institutional-grade framework for capital allocation. We recommend deploying <span className="text-white">50% to essentials</span>, <span className="text-white">30% to living luxuries</span>, and scaling <span className="text-white">20% into wealth-building assets</span>.
               </p>
             </div>
 
-            </div>
+
           </div>
-        </div>
-      )}
-
-      {viewMode === "monthly" && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 pb-10">
-          <div className="bg-white border border-slate-200 rounded-[32px] p-6 shadow-sm relative overflow-hidden group">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">Financial Flow Intelligence</h3>
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Live Granular Flow Analysis • Interactive Visualization</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden md:block">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total Managed</p>
-                  <p className="text-md font-black text-emerald-600 leading-none">{fmt(metrics.totalIncome)}</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="h-[600px] w-full mt-2">
-              {sankeyData && sankeyData.nodes.length > 1 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <Sankey
-                    data={sankeyData}
-                    node={<CustomSankeyNode />}
-                    link={<CustomSankeyLink />}
-                    nodePadding={20}
-                    margin={{ left: 100, right: 180, top: 40, bottom: 40 }}
-                    sort={false}
-                  >
-                    <RechartsTooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          // In Sankey, payload[0].payload can be a link or a node
-                          const isLink = data.source && data.target;
-                          const name = isLink 
-                            ? `${data.source.name} → ${data.target.name}` 
-                            : (data.name || 'Financial Flow');
-                          const value = data.value || 0;
-                          const color = isLink ? data.source.color : (data.color || "#6366f1");
-
-                          return (
-                            <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
-                                <p className="text-xl font-black text-slate-800">{sym}{Number(value).toLocaleString()}</p>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </Sankey>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-50 rounded-2xl bg-slate-50/10">
-                  <PieChartIcon className="w-6 h-6 opacity-30 text-slate-400" />
-                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Add inputs to view flow</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AIChatInsights({ history, currency }) {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hi! I'm your AI budget assistant. Ask me anything about your spending over the last 6 months!" }
-  ]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef(null);
-  const sym = getCurrencySymbol(currency);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isTyping]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
-    
-    const userMsg = input.trim();
-    setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setIsTyping(true);
-
-    try {
-      const response = await base44.integrations.Core.InvokeLLM({
-        prompt: `
-        User Question: ${userMsg}
-        Financial Data (Last 6 Months): ${JSON.stringify(history)}
-        Currency Symbol: ${sym}
-        
-        CRITICAL TASK: 
-        1. Analyze the data across months (the 'Financial Data' array has 6 entries).
-        2. If providing a breakdown, trend, or comparison, you MUST include a JSON component in your response for a chart.
-        3. Format your response as: [Your Text Analysis] followed by a JSON block:
-           {"chart": "bar" | "pie" | "line" | "area", "data": [{"name": "Label", "value": 100}, ...]}
-        4. Be professional and concise. Avoid technical JSON jargon in the text.
-      `});
-      
-      const content = typeof response === "string" ? response : (response.content || JSON.stringify(response));
-      
-      // Parse potential chart data
-      let textContent = content;
-      let chartData = null;
-      let chartType = 'bar';
-
-      try {
-        const jsonMatch = content.match(/\{.*"data".*\}/s);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          chartData = parsed.data;
-          chartType = parsed.chart || 'bar';
-          textContent = content.replace(jsonMatch[0], "").trim();
-        }
-      } catch (e) {
-        console.warn("Failed to parse AI chart data", e);
-      }
-
-      setMessages(prev => [...prev, { role: 'assistant', content: textContent, chartData, chartType }]);
-    } catch (e) {
-      console.error("AI Insights Error:", e);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I had trouble analyzing your data. Please try again." }]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[750px]">
-      <div className="bg-indigo-600 p-5 text-white flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-indigo-100" />
-        </div>
-        <div>
-          <h3 className="font-bold text-sm">AI Financial Insights</h3>
-          <p className="text-[10px] text-indigo-100 uppercase tracking-wider font-semibold opacity-80">Dynamics 6-Month Engine</p>
         </div>
       </div>
-      
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] rounded-2xl p-4 shadow-sm ${
-              m.role === 'user' 
-                ? 'bg-indigo-600 text-white rounded-tr-none' 
-                : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
-            }`}>
-              {m.role === 'assistant' && (
-                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-indigo-500 uppercase">
-                  <Bot className="w-3 h-3" /> WealthLens AI
-                </div>
-              )}
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
-              
-              {m.chartData && (
-                <div className="mt-4 pt-4 border-t border-slate-100 h-48 w-full min-w-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    {m.chartType === 'area' ? (
-                      <AreaChart data={m.chartData}>
-                        <defs>
-                          <linearGradient id="colorAI" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <YAxis hide />
-                        <RechartsTooltip formatter={(v) => sym + v.toLocaleString()} />
-                        <Area type="monotone" dataKey="value" stroke="#6366f1" fillOpacity={1} fill="url(#colorAI)" />
-                      </AreaChart>
-                    ) : m.chartType === 'line' ? (
-                      <LineChart data={m.chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <YAxis hide />
-                        <RechartsTooltip formatter={(v) => sym + v.toLocaleString()} />
-                        <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{fill: '#6366f1', r: 4}} />
-                      </LineChart>
-                    ) : m.chartType === 'pie' ? (
-                      <PieChart>
-                        <Pie
-                          data={m.chartData}
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {m.chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={['#6366f1', '#10b981', '#f43f5e', '#f59e0b'][index % 4]} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip formatter={(v) => sym + v.toLocaleString()} />
-                      </PieChart>
-                    ) : (
-                      <BarChart data={m.chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                        <YAxis hide />
-                        <RechartsTooltip formatter={(v) => sym + v.toLocaleString()} />
-                        <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    )}
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none p-4 flex gap-1 items-center">
-              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />
-              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75" />
-              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 bg-white border-t border-slate-100">
-        <div className="flex gap-2">
-          <Input 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about your spending..."
-            className="flex-1 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-indigo-500 h-11 text-sm"
-          />
-          <Button 
-            onClick={handleSend}
-            disabled={isTyping || !input.trim()}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white w-11 h-11 rounded-xl p-0 flex items-center justify-center shrink-0"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-           {[ 
-             "Eating Out Chart", 
-             "Savings trajectory", 
-             "Biggest spend categories",
-             "Income vs Expense ratio",
-             "Spending Trends"
-           ].map(q => (
-             <button 
-               key={q} 
-               onClick={() => setInput(q.includes('trajectory') ? q : `Generate a chart for: ${q}`)}
-               className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-indigo-100 transition-all"
-             >
-               {q}
-             </button>
-           ))}
+    )}
         </div>
       </div>
     </div>
   );
 }
 
-function BudgetReports({ currency, selectedDate, onOpenImport }) {
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const sym = getCurrencySymbol(currency);
 
-  const fetchHistory = async () => {
-    setIsLoading(true);
-    const data = [];
-    const now = new Date(selectedDate);
-    // Fetch 6 months history
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const y = d.getFullYear();
-      const m = (d.getMonth() + 1).toString().padStart(2, '0');
-      const key = `wealthlens-budget-${y}-${m}`;
-      
-      let saved = await base44.user.loadData(key);
-      if (!saved) {
-        const local = localStorage.getItem(key);
-        if (local) saved = JSON.parse(local);
-      }
 
-      const totalIncome = (saved?.incomes || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-      const totalExpenses = (saved?.expenses || []).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-      
-      const categoryData = (saved?.expenses || []).reduce((acc, e) => {
-        const cat = e.category || "other";
-        acc[cat] = (acc[cat] || 0) + (Number(e.monthlyAmount) || 0);
-        return acc;
-      }, {});
 
-      data.push({
-        name: d.toLocaleString('default', { month: 'short' }),
-        income: totalIncome,
-        expenses: totalExpenses,
-        balance: Math.max(0, totalIncome - totalExpenses),
-        deficit: totalExpenses > totalIncome ? totalExpenses - totalIncome : 0,
-        categories: Object.entries(categoryData).map(([name, value]) => ({ name, value })),
-        rawCategories: categoryData
-      });
-    }
-    setHistory(data);
-    setIsLoading(false);
-  };
 
-  useEffect(() => {
-    fetchHistory();
-  }, [currency, selectedDate]);
-
-  if (isLoading) return <div className="py-20 text-center text-slate-500">Generating trends...</div>;
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-8">
-      <Tabs defaultValue="overview" className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-slate-100 p-1 rounded-2xl h-12">
-            <TabsTrigger value="overview" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">Overview</TabsTrigger>
-            <TabsTrigger value="trends" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">Visual Trends</TabsTrigger>
-            <TabsTrigger value="ai" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">AI Analysis</TabsTrigger>
-          </TabsList>
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-400 font-medium bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-            Last Updated Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-        </div>
-
-        <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700" />
-              <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-3 relative">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                   <TrendingUp className="w-5 h-5 text-emerald-600" />
-                </div>
-                Cash Flow Balance (6M)
-              </h3>
-              <div className="h-80 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={history}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} tickFormatter={(v) => sym + v} />
-                    <RechartsTooltip 
-                      formatter={(v) => sym + v.toLocaleString()}
-                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}} />
-                    <Bar dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} barSize={24} name="Income" />
-                    <Bar dataKey="expenses" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={24} name="Expense" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110 duration-700" />
-              <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-3 relative">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                   <Wallet className="w-5 h-5 text-indigo-600" />
-                </div>
-                Savings Strategy Engine
-              </h3>
-              <div className="h-80 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={history}>
-                    <defs>
-                      <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} tickFormatter={(v) => sym + v} />
-                    <RechartsTooltip 
-                      formatter={(v) => sym + v.toLocaleString()}
-                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Area type="monotone" dataKey="balance" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorBalance)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="trends">
-          <div className="space-y-8">
-            {/* Row 1: The Sankey & Treemap */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Cash Flow Sankey Removal - Moved to Editor */}
-              <div className="lg:col-span-8 bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden bg-slate-50/30">
-                <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                  <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
-                    <TrendingUp className="w-8 h-8 text-indigo-400" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Sankey moved to Editor</h3>
-                  <p className="text-sm text-slate-500 max-w-sm">We've integrated the live cash flow chart directly into the budget editor for real-time analysis while you work.</p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setViewMode("monthly")}
-                    className="mt-6 rounded-xl border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold"
-                  >
-                    Go to Editor
-                  </Button>
-                </div>
-              </div>
-
-              {/* Expense Treemap */}
-              <div className="lg:col-span-4 bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
-                <h3 className="text-sm font-black text-slate-800 tracking-widest uppercase mb-6">Spending Hierarchy</h3>
-                <div className="h-[400px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <Treemap
-                      data={history[history.length - 1]?.categories || []}
-                      dataKey="value"
-                      ratio={4/3}
-                      stroke="#fff"
-                      fill="#6366f1"
-                    >
-                      <RechartsTooltip />
-                    </Treemap>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Row 2: Monthly Intensity Heatmap */}
-            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-               <div className="flex justify-between items-center mb-8">
-                  <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Spending Intensity Matrix</h3>
-                    <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest tracking-tighter">Color-coded temporal heatmap</p>
-                  </div>
-               </div>
-               
-               <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                 {history.map((h, i) => {
-                   const intensity = Math.min((h.expenses / (h.income || 1)) * 100, 100);
-                   let color = "bg-emerald-500";
-                   if (intensity > 90) color = "bg-rose-500";
-                   else if (intensity > 70) color = "bg-amber-500";
-                   else if (intensity > 50) color = "bg-indigo-500";
-                   
-                   return (
-                     <div key={i} className="flex flex-col gap-2">
-                        <div 
-                          className={`h-24 rounded-2xl ${color} flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer shadow-lg shadow-black/5`}
-                          style={{ opacity: 0.1 + (intensity / 100) }}
-                        >
-                           <span className="text-lg font-black">{intensity.toFixed(0)}%</span>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[10px] font-black uppercase text-slate-400">{h.name}</p>
-                          <p className="text-[10px] font-bold text-slate-700">{sym}{h.expenses.toLocaleString()}</p>
-                        </div>
-                     </div>
-                   );
-                 })}
-               </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="ai">
-          <div className="max-w-4xl mx-auto">
-             <AIChatInsights history={history} currency={currency} />
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
 
 export default function FamilyBudgetPage() {
   return (

@@ -17,6 +17,8 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
+import { ReportProvider } from '@/lib/ReportContext';
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
@@ -48,28 +50,30 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <Routes>
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
-      
+    <ReportProvider>
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/" element={
+          <LayoutWrapper currentPageName={mainPageKey}>
+            <MainPage />
+          </LayoutWrapper>
+        } />
+        
 
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        {Object.entries(Pages).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />
+        ))}
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </ReportProvider>
   );
 };
 

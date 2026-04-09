@@ -323,5 +323,14 @@ export function generatePortfolioPdf({ holdings, currency }) {
   });
 
   drawFooter();
-  pdf.save(`WealthLens-Portfolio-${new Date().toISOString().split("T")[0]}.pdf`);
+  const filename = `WealthLens-Portfolio-${new Date().toISOString().split("T")[0]}.pdf`;
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

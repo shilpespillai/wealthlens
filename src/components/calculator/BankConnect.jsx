@@ -79,9 +79,9 @@ export default function BankConnect({ onSyncSuccess }) {
 
   if (status === 'success') {
     return (
-      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 animate-in zoom-in-95 duration-300">
-        <CheckCircle2 className="w-5 h-5" />
-        <span className="text-sm font-bold uppercase tracking-wider">Bank Linked</span>
+      <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 h-8 rounded-lg border border-emerald-100 animate-in zoom-in-95 duration-300">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        <span className="text-xs font-semibold uppercase tracking-wider">Bank Linked</span>
       </div>
     );
   }
@@ -90,19 +90,19 @@ export default function BankConnect({ onSyncSuccess }) {
     <Button
       onClick={handleSync}
       disabled={isLoading || !linkToken}
-      className={`relative overflow-hidden group transition-all duration-300 ${
+      className={`relative overflow-hidden group transition-all duration-300 h-8 ${
         status === 'error' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
-      } text-white font-bold px-6 py-2 rounded-xl shadow-lg hover:shadow-xl`}
+      } text-white font-medium px-3 rounded-lg shadow-sm text-xs hover:shadow-md`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : status === 'error' ? (
-          <AlertCircle className="w-4 h-4" />
+          <AlertCircle className="w-3.5 h-3.5" />
         ) : (
-          <Landmark className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <Landmark className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
         )}
-        <span>{isLoading ? 'Connecting...' : status === 'error' ? 'Try Again' : 'Link Bank Account'}</span>
+        <span>{isLoading ? 'Connecting...' : status === 'error' ? 'Try Again' : 'Link Bank'}</span>
       </div>
       
       {isLoading && (

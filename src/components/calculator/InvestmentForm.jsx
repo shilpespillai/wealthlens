@@ -93,13 +93,13 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
     <div className="space-y-6">
       {/* Currency */}
       <div className="space-y-3">
-        <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Currency</Label>
+        <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Currency</Label>
         <CurrencySelector value={params.currency} onChange={(v) => update("currency", v)} />
       </div>
 
       {/* Initial Investment */}
       <div className="space-y-3">
-        <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Initial Investment</Label>
+        <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Initial Investment</Label>
         <div className="relative">
           <Input
             type="number"
@@ -107,7 +107,7 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
             max={10000000}
             value={params.initialAmount}
             onChange={(e) => update("initialAmount", parseFloat(e.target.value) || 0)}
-            className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-semibold rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
+            className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-medium rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
             placeholder="Any amount from $1 to $10M" />
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {/* Contribution — only for relevant instruments */}
       {config.showContribution && (
         <div className="space-y-3">
-          <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Contribution</Label>
+          <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Contribution</Label>
           <div className="relative">
             <Input
               type="number"
@@ -123,7 +123,7 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
               max={1000000}
               value={params.monthlyContribution}
               onChange={(e) => update("monthlyContribution", parseFloat(e.target.value) || 0)}
-              className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-semibold rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
+              className="bg-slate-50 text-slate-600 pl-10 px-3 py-1 text-base font-medium rounded-xl flex w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 border-white/10 focus:border-indigo-400/50 focus:ring-indigo-400/20"
               placeholder="Any amount from $0 to $1M" />
           </div>
         </div>
@@ -132,8 +132,8 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {/* Time Horizon */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Time Horizon</Label>
-          <span className="text-sm font-black bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">{params.years} years</span>
+          <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Time Horizon</Label>
+          <span className="text-sm font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">{params.years} years</span>
         </div>
         <Slider value={[params.years]} onValueChange={([v]) => update("years", v)} min={1} max={40} step={1} className="py-2" />
         <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
@@ -144,8 +144,8 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {/* Expected Return Rate */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">{config.returnLabel}</Label>
-          <span className="text-slate-500 text-sm font-black">{params.returnRate}%</span>
+          <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">{config.returnLabel}</Label>
+          <span className="text-slate-500 text-sm font-semibold">{params.returnRate}%</span>
         </div>
         <Slider value={[params.returnRate]} onValueChange={([v]) => update("returnRate", v)} min={0} max={config.returnMax} step={0.5} className="py-2" />
       </div>
@@ -153,8 +153,8 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {/* Inflation Rate */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Inflation Rate</Label>
-          <span className="text-slate-500 text-sm font-black">{params.inflationRate}%</span>
+          <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Inflation Rate</Label>
+          <span className="text-slate-500 text-sm font-semibold">{params.inflationRate}%</span>
         </div>
         <Slider value={[params.inflationRate]} onValueChange={([v]) => update("inflationRate", v)} min={0} max={15} step={0.5} className="py-2" />
       </div>
@@ -162,7 +162,7 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {/* Contribution Frequency — only for relevant instruments */}
       {config.showContributionFreq && (
         <div className="space-y-3">
-          <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Contribution Frequency</Label>
+          <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Contribution Frequency</Label>
           <Select value={params.frequency} onValueChange={(v) => update("frequency", v)}>
             <SelectTrigger className="bg-slate-50 text-slate-600 px-3 py-2 text-sm font-semibold rounded-xl flex w-full items-center justify-between whitespace-nowrap border shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-14 border-white/10">
               <SelectValue />
@@ -180,8 +180,8 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {config.showTax && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">Capital Gains Tax</Label>
-            <span className="text-slate-500 text-sm font-black">{params.taxRate}%</span>
+            <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">Capital Gains Tax</Label>
+            <span className="text-slate-500 text-sm font-semibold">{params.taxRate}%</span>
           </div>
           <Slider value={[params.taxRate]} onValueChange={([v]) => update("taxRate", v)} min={0} max={50} step={1} className="py-2" />
         </div>
@@ -191,8 +191,8 @@ export default function InvestmentForm({ params, setParams, instrument = "stocks
       {config.showFees && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-xs font-bold text-slate-900 uppercase tracking-[0.15em]">{config.feesLabel}</Label>
-            <span className="text-slate-500 text-sm font-black">{params.fees}%</span>
+            <Label className="text-xs font-medium text-slate-900 uppercase tracking-[0.15em]">{config.feesLabel}</Label>
+            <span className="text-slate-500 text-sm font-semibold">{params.fees}%</span>
           </div>
           <Slider value={[params.fees]} onValueChange={([v]) => update("fees", v)} min={0} max={5} step={0.05} className="py-2" />
         </div>

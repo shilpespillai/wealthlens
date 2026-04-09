@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Zap, Shield, DollarSign, Brain } from "lucide-react";
+import { TrendingUp, Zap, Shield, DollarSign, Brain, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
@@ -167,15 +167,15 @@ export default function Home() {
 
   const handleLogin = async () => {
     if (isAuthenticated) {
-      window.location.href = createPageUrl("Calculator");
+      window.location.href = "/Dashboard";
       return;
     }
     
     try {
       if (base44.auth.redirectToLogin) {
-        await base44.auth.redirectToLogin(createPageUrl("Calculator"));
+        await base44.auth.redirectToLogin("/Dashboard");
       } else {
-        window.location.href = `/Login?redirect_to=${encodeURIComponent(createPageUrl("Calculator"))}`;
+        window.location.href = `/Login?redirect_to=${encodeURIComponent("/Dashboard")}`;
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -190,7 +190,24 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-softPeach">
+    <div className="min-h-screen bg-softPeach relative">
+      {/* Institutional Public Header */}
+      <nav className="sticky top-0 z-50 bg-softPeach/80 backdrop-blur-md border-b border-gray-200/50 px-8 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-deepPurple rounded-lg flex items-center justify-center text-white font-medium text-lg shadow-lg">W</div>
+            <span className="text-sm font-serif font-medium text-gray-900 tracking-tight italic">Wealth<span className="text-deepPurple">Lens</span></span>
+          </div>
+          <Button 
+            onClick={handleLogin}
+            variant="ghost" 
+            className="text-gray-900 font-bold uppercase tracking-widest text-[10px] gap-2 hover:bg-deepPurple/10 group"
+          >
+            Terminal Login <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </div>
+      </nav>
+
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
           <motion.div

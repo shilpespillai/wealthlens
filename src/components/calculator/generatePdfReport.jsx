@@ -9,21 +9,20 @@ const fmt = (n, sym = "$") => {
   return `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 };
 
-// ─── Color Palette (light theme) ─────────────────────────────────────────────
-const INDIGO     = [99, 102, 241];
-const VIOLET     = [139, 92, 246];
-const EMERALD    = [16, 185, 129];
-const AMBER      = [245, 158, 11];
-const ROSE       = [239, 68, 68];
-const SLATE_900  = [15, 23, 42];
-const SLATE_700  = [51, 65, 85];
-const SLATE_500  = [100, 116, 139];
-const SLATE_200  = [226, 232, 240];
-const SLATE_50   = [248, 250, 252];
-const WHITE      = [255, 255, 255];
-const BG         = [255, 255, 255]; // page background
+// ─── Color Palette ─────────────────────────────────────────────────────────────
+const INDIGO    = [99, 102, 241];
+const VIOLET    = [139, 92, 246];
+const EMERALD   = [16, 185, 129];
+const AMBER     = [245, 158, 11];
+const ROSE      = [239, 68, 68];
+const SLATE_900 = [15, 23, 42];
+const SLATE_700 = [51, 65, 85];
+const SLATE_500 = [100, 116, 139];
+const SLATE_200 = [226, 232, 240];
+const SLATE_50  = [248, 250, 252];
+const WHITE     = [255, 255, 255];
 
-export async function generatePdfReport({ params, results, instrument }) {
+export function generatePdfReport({ params, results, instrument, activeTab }) {
   const sym = getCurrencySymbol(params.currency);
   const s = results.summary;
   const yearlyData = results.yearlyData;
@@ -39,7 +38,7 @@ export async function generatePdfReport({ params, results, instrument }) {
     gold: "Gold", mutual_funds: "Mutual Funds", fixed_deposit: "Fixed Deposit", property: "Property"
   }[instrument] || instrument;
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ─── Helpers ────────────────────────────────────────────────────────────────
   const setFill   = (rgb) => pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
   const setStroke = (rgb) => pdf.setDrawColor(rgb[0], rgb[1], rgb[2]);
   const setFont   = (color, size, style = "normal") => {
@@ -70,7 +69,10 @@ export async function generatePdfReport({ params, results, instrument }) {
     pdf.line(M, PH - 12, PW - M, PH - 12);
     setFont(SLATE_500, 7);
     pdf.text("WealthLens Investment Report  •  Confidential", M, PH - 6);
-    pdf.text(new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }), PW - M, PH - 6, { align: "right" });
+    pdf.text(
+      new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }),
+      PW - M, PH - 6, { align: "right" }
+    );
   };
 
   const newPage = () => {
@@ -102,7 +104,7 @@ export async function generatePdfReport({ params, results, instrument }) {
 
   const lineChart = (x, y, w, h, series) => {
     roundedRect(x, y, w, h, 4, WHITE, SLATE_200);
-    const pad = { t: 8, r: 8, b: 14, l: 14 };
+    const pad = { t: 8, r: 8, b: 14, l: 18 };
     const cw = w - pad.l - pad.r;
     const ch = h - pad.t - pad.b;
     const ox = x + pad.l;
@@ -119,6 +121,14 @@ export async function generatePdfReport({ params, results, instrument }) {
       setFont(SLATE_500, 5);
       pdf.text(fmt(max * g / 4, ""), ox - 2, gy + 1, { align: "right" });
     }
+    // Legend
+    series.forEach((s, si) => {
+      const lx = ox + cw - (series.length - si - 1) * 30;
+      setFill(s.color);
+      pdf.roundedRect(lx - 10, y + 2, 8, 3, 1, 1, "F");
+      setFont(SLATE_500, 5);
+      pdf.text(s.label || "", lx, y + 5);
+    });
     // Lines
     series.forEach((s) => {
       pdf.setDrawColor(s.color[0], s.color[1], s.color[2]);
@@ -141,27 +151,6 @@ export async function generatePdfReport({ params, results, instrument }) {
     });
   };
 
-  const barChart = (x, y, w, h, data) => {
-    roundedRect(x, y, w, h, 4, WHITE, SLATE_200);
-    const pad = { t: 8, r: 8, b: 14, l: 14 };
-    const cw = w - pad.l - pad.r;
-    const ch = h - pad.t - pad.b;
-    const ox = x + pad.l;
-    const oy = y + pad.t;
-    const maxVal = Math.max(...data.map(d => d.value), 1);
-    const bw = (cw / data.length) * 0.65;
-    const gap = cw / data.length;
-    data.forEach((d, i) => {
-      const bh = (d.value / maxVal) * ch;
-      setFill(d.color || INDIGO);
-      pdf.roundedRect(ox + i * gap + (gap - bw) / 2, oy + ch - bh, bw, bh, 2, 2, "F");
-      setFont(SLATE_500, 5);
-      pdf.text(d.label.length > 7 ? d.label.slice(0, 7) + "…" : d.label, ox + i * gap + gap / 2, oy + ch + 5, { align: "center" });
-      setFont(SLATE_700, 5.5, "bold");
-      pdf.text(fmt(d.value, ""), ox + i * gap + gap / 2, oy + ch - bh - 2, { align: "center" });
-    });
-  };
-
   const horizontalStackedBar = (x, y, w, segments, total) => {
     roundedRect(x, y, w, 8, 3, WHITE, SLATE_200);
     let bx = x;
@@ -173,38 +162,38 @@ export async function generatePdfReport({ params, results, instrument }) {
     });
   };
 
-  // ─── PAGE 1: Cover & Key Metrics ──────────────────────────────────────────
+  // ─── PAGE 1: Cover & Visual Overview ────────────────────────────────────────
   drawPageBg();
+  drawFooter();
 
   // Hero header
-  roundedRect(M, M, CW, 52, 6, INDIGO);
-  // subtle accent triangle
-  setFill(VIOLET);
+  roundedRect(M, M, CW, 52, 6, [17, 24, 39]);
+  setFill([197, 160, 89]);
   pdf.triangle(PW - M - 60, M, PW - M, M, PW - M, M + 52, "F");
 
   setFont(WHITE, 7, "bold");
   pdf.text("WEALTHLENS  ·  INVESTMENT ANALYSIS REPORT", M + 8, M + 10);
-  setFont(WHITE, 18, "bold");
+  setFont([197, 160, 89], 18, "bold");
   pdf.text(`${instrName} Portfolio`, M + 8, M + 26);
-  setFont([196, 181, 253], 8);
+  setFont(SLATE_500, 8);
   pdf.text(`${params.years}-Year Projection  ·  ${params.currency}  ·  ${new Date().toLocaleDateString()}`, M + 8, M + 36);
 
-  setFont([196, 181, 253], 7);
+  setFont([197, 160, 89], 7);
   pdf.text("PROJECTED NET WORTH", PW - M - 8, M + 14, { align: "right" });
   setFont(WHITE, 17, "bold");
   pdf.text(fmt(s.finalValue, sym), PW - M - 8, M + 28, { align: "right" });
-  setFont([196, 181, 253], 8);
+  setFont([197, 160, 89], 8);
   pdf.text(`+${s.totalReturnPercent}% total return`, PW - M - 8, M + 38, { align: "right" });
 
   let y = M + 62;
 
-  // Key Metrics row
+  // Key Metrics Cards
   const metrics = [
-    { label: "Final Value",       value: fmt(s.finalValue, sym),                 sub: `After ${params.years} years`,        color: INDIGO },
-    { label: "After-Tax Value",   value: fmt(s.afterTax, sym),                   sub: `${params.taxRate}% tax rate`,        color: EMERALD },
-    { label: "Real Value",        value: fmt(s.realValue, sym),                   sub: `Inflation adj. ${params.inflationRate}%`, color: [14, 116, 144] },
-    { label: "Total Returns",     value: fmt(s.totalReturns, sym),               sub: `${s.totalReturnPercent}% ROI`,       color: VIOLET },
-    { label: "Net Annual Return", value: `${(s.annualizedReturn || 0).toFixed(1)}%`, sub: "Net of fees",                    color: AMBER },
+    { label: "Final Value",       value: fmt(s.finalValue, sym),                      sub: `After ${params.years} years`,          color: INDIGO },
+    { label: "After-Tax Value",   value: fmt(s.afterTax, sym),                        sub: `${params.taxRate}% tax rate`,          color: EMERALD },
+    { label: "Real Value",        value: fmt(s.realValue, sym),                        sub: `Inflation adj. ${params.inflationRate}%`, color: [14, 116, 144] },
+    { label: "Total Returns",     value: fmt(s.totalReturns, sym),                    sub: `${s.totalReturnPercent}% ROI`,         color: VIOLET },
+    { label: "Net Annual Return", value: `${(s.annualizedReturn || 0).toFixed(1)}%`,  sub: "Net of fees",                          color: AMBER },
   ];
   const cardW = (CW - 8) / 5;
   metrics.forEach((m, i) => metricCard(M + i * (cardW + 2), y, cardW, m.label, m.value, m.sub, m.color));
@@ -219,14 +208,14 @@ export async function generatePdfReport({ params, results, instrument }) {
   setFont(SLATE_900, 8, "bold");
   pdf.text("Investment Parameters", M + 6, y + 8);
   const paramRows = [
-    ["Asset Class", instrName],
-    ["Initial Investment", `${sym}${(params.initialAmount || 0).toLocaleString()}`],
+    ["Asset Class",          instrName],
+    ["Initial Investment",   `${sym}${(params.initialAmount || 0).toLocaleString()}`],
     ["Monthly Contribution", `${sym}${(params.monthlyContribution || 0).toLocaleString()}`],
-    ["Time Horizon", `${params.years} years`],
-    ["Expected Return", `${params.returnRate}% p.a.`],
-    ["Inflation Rate", `${params.inflationRate}%`],
-    ["Tax Rate", `${params.taxRate}%`],
-    ["Annual Fees", `${params.fees}%`],
+    ["Time Horizon",         `${params.years} years`],
+    ["Expected Return",      `${params.returnRate}% p.a.`],
+    ["Inflation Rate",       `${params.inflationRate}%`],
+    ["Tax Rate",             `${params.taxRate}%`],
+    ["Annual Fees",          `${params.fees}%`],
   ];
   paramRows.forEach(([k, v], i) => {
     const ry = y + 15 + i * 8;
@@ -249,9 +238,9 @@ export async function generatePdfReport({ params, results, instrument }) {
 
   const total = (s.totalContributed || 0) + Math.max(0, s.totalReturns || 0) + (s.taxPaid || 0);
   const segments = [
-    { label: "Contributions",       value: s.totalContributed || 0,               color: VIOLET },
-    { label: "Investment Returns",  value: Math.max(0, s.totalReturns || 0),      color: INDIGO },
-    { label: "Tax Paid",            value: s.taxPaid || 0,                        color: ROSE },
+    { label: "Contributions",      value: s.totalContributed || 0,          color: VIOLET },
+    { label: "Investment Returns", value: Math.max(0, s.totalReturns || 0), color: INDIGO },
+    { label: "Tax Paid",           value: s.taxPaid || 0,                   color: ROSE   },
   ];
   horizontalStackedBar(col2X + 6, y + 14, halfW - 12, segments, total);
   let ly = y + 30;
@@ -266,60 +255,65 @@ export async function generatePdfReport({ params, results, instrument }) {
   });
   y += 88;
 
-  // Growth line chart
+  // Growth line chart (programmatic — no html2canvas)
   y = sectionTitle("Portfolio Growth Over Time", y);
   const chartData = yearlyData.map(d => ({ year: d.year, value: d.nominalValue }));
-  const realData   = yearlyData.map(d => ({ year: d.year, value: d.realValue }));
-  const contribs   = yearlyData.map(d => ({ year: d.year, value: d.totalContributed }));
-  lineChart(M, y, CW, 62, [
-    { data: contribs, color: [196, 181, 253] },
-    { data: realData, color: EMERALD },
-    { data: chartData, color: INDIGO },
+  const realData  = yearlyData.map(d => ({ year: d.year, value: d.realValue }));
+  const contribs  = yearlyData.map(d => ({ year: d.year, value: d.totalContributed }));
+  lineChart(M, y, CW, 66, [
+    { data: contribs,  color: [196, 181, 253], label: "Contributed" },
+    { data: realData,  color: EMERALD,          label: "Real Value"  },
+    { data: chartData, color: INDIGO,           label: "Nominal"     },
   ]);
-  // legend
-  [[VIOLET, "Contributions"], [EMERALD, "Real Value"], [INDIGO, "Portfolio Value"]].forEach(([color, label], i) => {
-    const lx = M + 10 + i * 58;
-    setFill(color);
-    pdf.rect(lx, y + 65, 10, 2, "F");
-    setFont(SLATE_500, 6);
-    pdf.text(label, lx + 13, y + 66.5);
-  });
-  y += 74;
+  y += 78;
 
-  // Milestones
+  // Wealth Milestones
+  if (y > PH - 60) { drawFooter(); newPage(); y = M + 8; }
   y = sectionTitle("Wealth Milestones", y);
-  const milestones = [0.25, 0.5, 0.75, 1].map(pct => {
-    const idx = Math.max(0, Math.floor(pct * (yearlyData.length - 1)));
-    return yearlyData[idx];
-  });
-  const mW = (CW - 6) / 4;
-  milestones.forEach((m, i) => {
-    roundedRect(M + i * (mW + 2), y, mW, 22, 4, WHITE, SLATE_200);
-    setFill(INDIGO);
-    pdf.roundedRect(M + i * (mW + 2), y, mW, 2, 1, 1, "F");
-    setFont(SLATE_500, 6);
-    pdf.text(`Year ${m?.year}`, M + i * (mW + 2) + mW / 2, y + 8, { align: "center" });
-    setFont(SLATE_900, 9, "bold");
-    pdf.text(fmt(m?.nominalValue, sym), M + i * (mW + 2) + mW / 2, y + 15, { align: "center" });
-    setFont(SLATE_500, 5.5);
-    pdf.text(`${fmt(m?.realValue, sym)} real`, M + i * (mW + 2) + mW / 2, y + 20, { align: "center" });
-  });
+  const milestones = [100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000];
+  const reached = milestones
+    .map(m => {
+      const yr = yearlyData.find(d => d.nominalValue >= m);
+      return yr ? { milestone: m, year: yr.year } : null;
+    })
+    .filter(Boolean);
+
+  if (reached.length > 0) {
+    const msW = (CW - (reached.length - 1) * 4) / Math.min(reached.length, 6);
+    reached.slice(0, 6).forEach((ms, i) => {
+      const mx = M + i * (msW + 4);
+      roundedRect(mx, y, msW, 22, 4, WHITE, SLATE_200);
+      setFill(INDIGO);
+      pdf.roundedRect(mx, y, msW, 2, 1, 1, "F");
+      setFont(SLATE_500, 6, "bold");
+      pdf.text("MILESTONE", mx + msW / 2, y + 7, { align: "center" });
+      setFont(SLATE_900, 8, "bold");
+      pdf.text(fmt(ms.milestone, sym), mx + msW / 2, y + 14, { align: "center" });
+      setFont(EMERALD, 6, "bold");
+      pdf.text(`Year ${ms.year}`, mx + msW / 2, y + 19, { align: "center" });
+    });
+    y += 30;
+  } else {
+    setFont(SLATE_500, 8);
+    pdf.text("No milestones reached within the projection period.", M, y + 8);
+    y += 18;
+  }
 
   drawFooter();
 
-  // ─── PAGE 2: Year-by-Year Table ───────────────────────────────────────────
+  // ─── PAGE 2: Year-by-Year Table ─────────────────────────────────────────────
   newPage();
   y = M + 8;
   y = sectionTitle("Year-by-Year Breakdown", y);
 
   const cols = [
-    { label: "Year",           w: 14, align: "center" },
-    { label: "Portfolio Value",w: 36, align: "right" },
-    { label: "Total Invested", w: 36, align: "right" },
-    { label: "Returns",        w: 30, align: "right" },
-    { label: "Real Value",     w: 34, align: "right" },
-    { label: "After-Tax",      w: 34, align: "right" },
-    { label: "Tax Paid",       w: 26, align: "right" },
+    { label: "Year",            w: 14, align: "center" },
+    { label: "Portfolio Value", w: 36, align: "right"  },
+    { label: "Total Invested",  w: 36, align: "right"  },
+    { label: "Returns",         w: 30, align: "right"  },
+    { label: "Real Value",      w: 34, align: "right"  },
+    { label: "After-Tax",       w: 34, align: "right"  },
+    { label: "Tax Paid",        w: 26, align: "right"  },
   ];
   const totalColW = cols.reduce((a, c) => a + c.w, 0);
   const tableX = M + (CW - totalColW) / 2;
@@ -349,13 +343,13 @@ export async function generatePdfReport({ params, results, instrument }) {
     pdf.rect(tableX, y, totalColW, 7, "F");
 
     const rowVals = [
-      { v: `${d.year}`, align: "center" },
-      { v: fmt(d.nominalValue, sym), align: "right" },
-      { v: fmt(d.totalContributed, sym), align: "right" },
-      { v: fmt(d.gains, sym), align: "right" },
-      { v: fmt(d.realValue, sym), align: "right" },
-      { v: fmt(d.afterTax, sym), align: "right" },
-      { v: fmt(d.taxPaid, sym), align: "right" },
+      { v: `${d.year}`,                    align: "center" },
+      { v: fmt(d.nominalValue, sym),        align: "right"  },
+      { v: fmt(d.totalContributed, sym),    align: "right"  },
+      { v: fmt(d.gains, sym),               align: "right"  },
+      { v: fmt(d.realValue, sym),           align: "right"  },
+      { v: fmt(d.afterTax, sym),            align: "right"  },
+      { v: fmt(d.taxPaid, sym),             align: "right"  },
     ];
     let rx = tableX;
     rowVals.forEach((cell, ci) => {
@@ -367,7 +361,6 @@ export async function generatePdfReport({ params, results, instrument }) {
       pdf.text(cell.v, textX, y + 5, { align: cell.align });
       rx += col.w;
     });
-    // row bottom border
     setStroke(SLATE_200);
     pdf.setLineWidth(0.15);
     pdf.line(tableX, y + 7, tableX + totalColW, y + 7);
@@ -376,12 +369,12 @@ export async function generatePdfReport({ params, results, instrument }) {
 
   drawFooter();
 
-  // ─── PAGE 3: Market Analysis & Tax Strategies ─────────────────────────────
+  // ─── PAGE 3: Market Analysis & Tax Strategies ────────────────────────────────
   newPage();
   y = M + 8;
   y = sectionTitle("Market Analysis Insights", y);
 
-  const marketInsights = getMarketInsights(instrument, params, s, sym, pdf);
+  const marketInsights = getMarketInsights(instrument, params, s, sym);
   for (const section of marketInsights) {
     const lines = section.items.flatMap(item => pdf.splitTextToSize(`• ${item}`, CW - 18));
     const boxH = lines.length * 5 + 16;
@@ -396,12 +389,12 @@ export async function generatePdfReport({ params, results, instrument }) {
     y += boxH + 6;
   }
 
-  // Scenario bar chart
+  // Scenario cards
   if (y < PH - 70) {
     y = sectionTitle("Scenario Analysis", y);
     const scenarios = [
-      { label: "Conservative", rate: params.returnRate * 0.6, color: AMBER },
-      { label: "Moderate",     rate: params.returnRate,       color: INDIGO },
+      { label: "Conservative", rate: params.returnRate * 0.6, color: AMBER   },
+      { label: "Moderate",     rate: params.returnRate,       color: INDIGO  },
       { label: "Aggressive",   rate: params.returnRate * 1.5, color: EMERALD },
     ];
     const sW = (CW - 8) / 3;
@@ -449,14 +442,23 @@ export async function generatePdfReport({ params, results, instrument }) {
   setFill(AMBER);
   pdf.roundedRect(M, y, CW, 2, 2, 2, "F");
   setFont([146, 64, 14], 7, "bold");
-  pdf.text("⚠  Disclaimer", M + 8, y + 8);
+  pdf.text("Disclaimer", M + 8, y + 8);
   setFont([120, 53, 15], 6.5);
   const disclaimer = "This report is for educational purposes only. Projections are estimates based on assumed rates and do not account for actual market volatility, inflation changes, or tax law changes. Past performance does not guarantee future results. Always seek advice from a qualified financial advisor before making investment decisions.";
   pdf.text(pdf.splitTextToSize(disclaimer, CW - 16), M + 8, y + 15);
 
   drawFooter();
 
-  pdf.save(`WealthLens-${instrName}-${new Date().toISOString().split("T")[0]}.pdf`);
+  const filename = `WealthLens-${instrName}-${new Date().toISOString().split("T")[0]}.pdf`;
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function calcFinalValue(params, returnRate) {

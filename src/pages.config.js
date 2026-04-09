@@ -65,6 +65,14 @@ import Login from './pages/Login';
 import FamilyBudget from './pages/FamilyBudget';
 import SuburbAnalyzer from './pages/SuburbAnalyzer';
 import AuthCallback from './pages/AuthCallback';
+import Dashboard from './pages/Dashboard';
+import BudgetCalendar from './pages/BudgetCalendar';
+import IncomeExpenseReport from './pages/reports/IncomeExpenseReport';
+import CashflowsReport from './pages/reports/CashflowsReport';
+import NetWorthReport from './pages/reports/NetWorthReport';
+import TrendsReport from './pages/reports/TrendsReport';
+import DigestReport from './pages/reports/DigestReport';
+import SetBudget from './pages/SetBudget';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -86,6 +94,14 @@ export const PAGES = {
     "FamilyBudget": FamilyBudget,
     "SuburbAnalyzer": SuburbAnalyzer,
     "AuthCallback": AuthCallback,
+    "Dashboard": Dashboard,
+    "BudgetCalendar": BudgetCalendar,
+    "reports/IncomeExpense": IncomeExpenseReport,
+    "reports/Cashflows": CashflowsReport,
+    "reports/NetWorth": NetWorthReport,
+    "reports/Trends": TrendsReport,
+    "reports/Digest": DigestReport,
+    "SetBudget": SetBudget,
 }
 
 export const pagesConfig = {

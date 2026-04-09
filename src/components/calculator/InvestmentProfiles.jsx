@@ -72,35 +72,38 @@ const profiles = [
 
 export default function InvestmentProfiles({ onSelect }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-2">
       {profiles.map((profile, i) => {
         const Icon = profile.icon;
         return (
           <motion.button
             key={profile.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05 }}
             onClick={() => onSelect(profile.defaults)}
-            className="group relative bg-slate-800/30 backdrop-blur-sm border border-white/10 rounded-2xl p-5 text-left hover:border-white/20 hover:bg-slate-800/50 transition-all duration-300">
-
-            <div className={cn(
-              "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform",
-              profile.color
-            )}>
-              <Icon className="w-6 h-6 text-white" />
+            className="group flex flex-col w-full bg-[#111827] border border-white/5 rounded-xl p-3 text-left hover:border-[#C5A059]/30 hover:bg-[#1a2333] transition-all duration-300 shadow-lg"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded bg-[#C5A059]/10 flex items-center justify-center border border-[#C5A059]/10 group-hover:bg-[#C5A059]/20 transition-all">
+                <Icon className="w-3 h-3 text-[#C5A059]" />
+              </div>
+              <h3 className="text-[#C5A059] text-[9px] font-black uppercase tracking-widest truncate">{profile.label}</h3>
             </div>
-            <h3 className="text-slate-700 mb-1 text-sm font-bold">{profile.label}</h3>
-            <p className="text-slate-600 mb-3 text-xs">{profile.description}</p>
-            <div className="space-y-1 text-xs text-slate-500">
-              <p>Initial: ${profile.defaults.initialAmount.toLocaleString()}</p>
-              <p>Monthly: ${profile.defaults.monthlyContribution.toLocaleString()}</p>
+            
+            <div className="flex flex-col gap-0.5">
+               <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-gray-500 font-medium">Initial</span>
+                  <span className="text-[9px] text-gray-300 font-black">${profile.defaults.initialAmount.toLocaleString()}</span>
+               </div>
+               <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-gray-500 font-medium">Monthly</span>
+                  <span className="text-[9px] text-gray-300 font-black">${profile.defaults.monthlyContribution.toLocaleString()}</span>
+               </div>
             </div>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity pointer-events-none"
-            style={{ backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-stops))` }} />
-          </motion.button>);
-
+          </motion.button>
+        );
       })}
-    </div>);
-
+    </div>
+  );
 }
