@@ -36,14 +36,14 @@ export const AuthProvider = ({ children }) => {
           setAuthError(null);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
-          // If we just landed with tokens in the hash on the home page, redirect to the dashboard
-          if (window.location.hash.includes('access_token=') && (window.location.pathname === '/' || window.location.pathname === '')) {
-            // Use replaceState to clear the hash without a full reload if possible, 
-            // but for Supabase it's safer to let the AuthCallback or a hard-redirect handle the transition
-            // to ensure storage is synchronized.
+          // If we are on the home page and a session is detected, redirect to the dashboard
+          // This catches cases where the OAuth redirect lands on / instead of /auth/callback
+          if (window.location.pathname === '/' || window.location.pathname === '' || window.location.hash.includes('access_token=')) {
+            console.log('Detected session on home page, pushing to Dashboard...');
             setTimeout(() => {
+               // Use origin to ensure we strip codes/hashes from the URL
                window.location.href = window.location.origin + '/Dashboard';
-            }, 500);
+            }, 300);
           }
         } else {
           setUser(null);
