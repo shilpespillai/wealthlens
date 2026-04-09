@@ -77,15 +77,34 @@ const callGeminiDirectly = async (prompt, type) => {
 export const base44 = {
   auth: {
     me: async () => {
-      // Mock dev user for testing
-      const isProd = import.meta.env.PROD;
-      if (!isProd) {
-        const stored = localStorage.getItem('mockUser');
-        if (stored) return JSON.parse(stored);
+      // In production, sync with Supabase session if enabled
+      if (isProd && isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          return {
+            ...session.user,
+            ...session.user.user_metadata
+          };
+        }
       }
+
+      // Mock dev user fallback
+      const stored = localStorage.getItem('mockUser');
+      if (stored) return JSON.parse(stored);
       return null;
     },
     updateMe: async (params) => {
+      // In production, update Supabase metadata if enabled
+      if (isProd && isSupabaseEnabled) {
+        try {
+          await supabase.auth.updateUser({
+            data: params
+          });
+        } catch (err) {
+          console.error("Supabase updateMe failed:", err);
+        }
+      }
+
       const stored = localStorage.getItem('mockUser');
       if (stored) {
         const user = JSON.parse(stored);

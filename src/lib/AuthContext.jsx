@@ -58,11 +58,6 @@ export const AuthProvider = ({ children }) => {
       authSubscription = subscription;
     }
 
-    // Safety: Clear mockUser if in production to prevent interference
-    if (import.meta.env.PROD) {
-      localStorage.removeItem('mockUser');
-    }
-
     return () => {
       if (authSubscription) authSubscription.unsubscribe();
     };
