@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { calculateInvestment } from "@/components/calculator/calculationEngine";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { GripVertical, Bot, CheckCircle2, AlertCircle, Calendar, ChevronDown, Settings } from "lucide-react";
+import { GripVertical, Bot, CheckCircle2, AlertCircle, Calendar, ChevronDown, Settings, BarChart3, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Standard formatting
@@ -619,26 +619,84 @@ export function DashboardContent() {
       <section className="bg-white border-b border-gray-200 pt-10 shadow-sm mb-10 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-[#C5A059]" />
         <div className="max-w-[1450px] mx-auto px-6 sm:px-10 pb-10">
-          <div className="flex items-start justify-between mb-8">
-            <div className="space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
+            <div className="flex-1 space-y-8">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                   <p className="text-[10px] uppercase font-medium tracking-[0.3em] text-[#C5A059] font-sans">Earning and spending</p>
-                   <Link to="/FamilyBudget" className="text-[10px] text-slate-400 hover:text-slate-600 font-medium transition-colors">See more</Link>
+                   <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
+                   <p className="text-[10px] uppercase font-black tracking-[0.4em] text-[#C5A059] font-sans">Institutional Intelligence</p>
                 </div>
-                <h1 className="text-4xl font-serif font-medium text-textPrimary tracking-tight italic">Wealth Scenario Timeline</h1>
+                <div className="flex items-baseline gap-4">
+                  <h1 className="text-5xl font-serif font-medium text-[#1E293B] tracking-tight italic">Wealth Scenario Timeline</h1>
+                  <Link to="/FamilyBudget" className="text-xs text-slate-400 hover:text-[#7C3AED] font-bold border-b border-dashed border-slate-200 hover:border-[#7C3AED] transition-all pb-0.5">Explore full budget data</Link>
+                </div>
               </div>
 
-              {/* Institutional Period Selector */}
-              <div className="relative">
+              {/* Enhanced Grid of Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl">
+                {/* Earning Card */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50 group">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Revenue</p>
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                      <TrendingUp className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-[#00A381] tracking-tight">{formatCurrency(currentPeriodMetrics.earning)}</p>
+                  <p className="text-[9px] text-slate-500 mt-2 font-medium">Inflows for current period</p>
+                </div>
+
+                {/* Spending Card */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Operational Burn</p>
+                    <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+                      <BarChart3 className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-[#E56B6B] tracking-tight">{formatCurrency(currentPeriodMetrics.spending)}</p>
+                  <p className="text-[9px] text-slate-500 mt-2 font-medium">Outflows & liabilities</p>
+                </div>
+
+                {/* Net Position Card */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Net Position</p>
+                    <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-[#7C3AED]">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <p className={`text-2xl font-bold tracking-tight ${currentPeriodMetrics.difference >= 0 ? 'text-[#00A381]' : 'text-[#E56B6B]'}`}>
+                    {currentPeriodMetrics.difference >= 0 ? '+' : ''}{formatCurrency(currentPeriodMetrics.difference)}
+                  </p>
+                  <p className="text-[9px] text-slate-500 mt-2 font-medium">Cash flow surplus/deficit</p>
+                </div>
+
+                {/* Savings Velocity Card */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Savings Velocity</p>
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center text-[#C5A059]">
+                      <Target className="w-3 h-3" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-[#C5A059] tracking-tight">{currentPeriodMetrics.savingsRate.toFixed(2)}%</p>
+                  <p className="text-[9px] text-slate-500 mt-2 font-medium">Capital retention efficiency</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-6 h-full justify-between pb-2">
+              <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-xl shadow-slate-200 min-w-[200px]">
+                <p className="text-[8px] uppercase font-black tracking-[0.2em] text-slate-400 mb-2">Selected Time Horizon</p>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="flex items-center gap-2 group">
-                      <span className="text-sm font-medium text-[#7C3AED] group-hover:text-[#6D28D9] transition-colors">{selectedPeriod}</span>
-                      <ChevronDown className="w-4 h-4 text-[#7C3AED] group-hover:translate-y-0.5 transition-transform" />
+                    <button className="flex items-center justify-between w-full group py-1 border-b border-white/10 hover:border-white/30 transition-all">
+                      <span className="text-sm font-bold text-white tracking-tight">{selectedPeriod}</span>
+                      <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="start">
+                  <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="end">
                     <div className="grid grid-cols-3 bg-white">
                       {[
                         { title: "NOW", items: ["This Week", "This Month", "This Quarter", "This Year", "This Financial", "Custom Range"] },
@@ -657,49 +715,17 @@ export function DashboardContent() {
                                 {item}
                               </button>
                             ))}
-                            {section.title === "PAST" && (
-                                <button className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-500 hover:bg-rose-50 rounded-md transition-all mt-4 flex items-center gap-2">
-                                  <span>×</span> Clear
-                                </button>
-                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </PopoverContent>
                 </Popover>
-                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Transactions for Jan 1 - Mar 31, 2026</p>
-              </div>
-
-              {/* Totals for Period Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-6 pt-4 border-t border-slate-100/60 max-w-2xl">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium mb-1">Earning</p>
-                  <p className="text-xl font-medium text-[#00A381]">{formatCurrency(currentPeriodMetrics.earning)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium mb-1">Spending</p>
-                  <p className="text-xl font-medium text-[#E56B6B]">{formatCurrency(currentPeriodMetrics.spending)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium mb-1">Difference</p>
-                  <p className={`text-xl font-medium ${currentPeriodMetrics.difference >= 0 ? 'text-[#00A381]' : 'text-[#E56B6B]'}`}>
-                    ({formatCurrency(Math.abs(currentPeriodMetrics.difference))})
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium mb-1">Savings rate</p>
-                  <p className="text-xl font-medium text-[#E56B6B]">{currentPeriodMetrics.savingsRate.toFixed(2)}%</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-[9px] text-slate-500 font-medium">9 April 2026</p>
+                  <Settings className="w-3 h-3 text-slate-500 hover:text-white transition-colors cursor-pointer" />
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-1">
-              <p className="text-[9px] text-slate-400 uppercase font-medium tracking-[0.2em]">Observation Date</p>
-              <p className="text-sm font-medium text-slate-700">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-              <button className="mt-8 text-slate-400 hover:text-slate-600 transition-colors">
-                <Settings className="w-4 h-4" />
-              </button>
             </div>
           </div>
           
