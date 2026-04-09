@@ -105,9 +105,10 @@ export const base44 = {
   },
 
   appLogs: {
-    logUserInApp: async (pageName) => {
-      console.log(`[Mock Log] User navigated to: ${pageName}`);
-      return { success: true };
+    logNavigation: (pageName) => {
+      if (!import.meta.env.PROD) {
+        console.log(`[Mock Log] User navigated to: ${pageName}`);
+      }
     }
   },
 

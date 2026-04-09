@@ -29,7 +29,7 @@ export default function Sidebar() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const currentTab = searchParams.get('tab');
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, user } = useAuth();
 
   const isActive = (path, tab) => {
     if (tab) return location.pathname === path && currentTab === tab;
@@ -232,10 +232,16 @@ export default function Sidebar() {
       {/* Sidebar Footer */}
       <div className="p-6 border-t border-white/5 bg-black/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#E5C48B] flex items-center justify-center text-[10px] font-medium text-[#111827]">JD</div>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#E5C48B] flex items-center justify-center text-[10px] font-medium text-[#111827]">
+            {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}
+          </div>
           <div>
-            <p className="text-[10px] font-medium text-white uppercase tracking-widest">John Doe</p>
-            <p className="text-[9px] text-[#C5A059] uppercase tracking-tighter">Pro Member</p>
+            <p className="text-[10px] font-medium text-white uppercase tracking-widest truncate max-w-[120px]">
+              {user?.full_name || user?.email?.split('@')[0] || "User"}
+            </p>
+            <p className="text-[9px] text-[#C5A059] uppercase tracking-tighter">
+              {user?.provider === 'google' ? 'Verified Member' : 'Member'}
+            </p>
           </div>
         </div>
       </div>

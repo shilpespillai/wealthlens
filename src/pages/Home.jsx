@@ -166,13 +166,16 @@ export default function Home() {
   }, []);
 
   const handleLogin = async () => {
-    // If not authenticated, go straight to the login page (the screenshot you attached)
-    if (!isAuthenticated) {
+    // Determine if we are truly authenticated via Supabase session
+    const isActuallyAuthenticated = isAuthenticated && !authLoading;
+
+    if (!isActuallyAuthenticated) {
+      // Unconditionally go to the login page (the screenshot you attached)
       window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
       return;
     }
     
-    // If already authenticated, proceed to Dashboard
+    // If robustly authenticated, proceed to Dashboard
     window.location.href = "/Dashboard";
   };
 
