@@ -621,18 +621,6 @@ export function DashboardContent() {
         <div className="max-w-[1450px] mx-auto px-6 sm:px-10 pb-10">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
             <div className="flex-1 space-y-8">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
-                   <p className="text-[10px] uppercase font-black tracking-[0.4em] text-[#C5A059] font-sans">Institutional Intelligence</p>
-                </div>
-                <div className="flex items-baseline gap-4">
-                  <h1 className="text-5xl font-serif font-medium text-[#1E293B] tracking-tight italic">Wealth Scenario Timeline</h1>
-                  <Link to="/FamilyBudget" className="text-xs text-slate-400 hover:text-[#7C3AED] font-bold border-b border-dashed border-slate-200 hover:border-[#7C3AED] transition-all pb-0.5">Explore full budget data</Link>
-                </div>
-              </div>
-
-              {/* Enhanced Grid of Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl">
                 {/* Earning Card */}
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:shadow-lg hover:shadow-slate-200/50 group">
