@@ -36,31 +36,21 @@ export const AuthProvider = ({ children }) => {
           setAuthError(null);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
+          // If we just landed with tokens in the hash on the home page, redirect to the calculator
           if (window.location.hash.includes('access_token=') && (window.location.pathname === '/' || window.location.pathname === '')) {
+            // Use replaceState to clear the hash without a full reload if possible, 
+            // but for Supabase it's safer to let the AuthCallback or a hard-redirect handle the transition
+            // to ensure storage is synchronized.
             setTimeout(() => {
-               window.location.href = '/Dashboard';
+               window.location.href = '/Calculator';
             }, 500);
           }
         } else {
-          // Handle mock session bypass during initialization
-          const isDev = !import.meta.env.PROD;
-          const mockUser = localStorage.getItem('mockUser');
-          const manualLogout = localStorage.getItem('_manual_logout');
-          
-          if (isDev && mockUser && event === 'INITIAL_SESSION' && !manualLogout) {
-            console.log('[AuthContext] Picked up mock session during INITIAL_SESSION.');
-            const parsed = JSON.parse(mockUser);
-            setUser(parsed);
-            setIsAuthenticated(true);
-            setAuthError(null);
-          } else {
-            console.log(`[AuthContext] Clearing state for event: ${event}`);
-            setUser(null);
-            setIsAuthenticated(false);
-            localStorage.removeItem('mockUser');
-            if (event === 'SIGNED_OUT') {
-              setAuthError({ type: 'auth_required', message: 'Signed out successfully' });
-            }
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem('mockUser');
+          if (event === 'SIGNED_OUT') {
+            setAuthError({ type: 'auth_required', message: 'Signed out successfully' });
           }
         }
         setIsLoadingAuth(false);
@@ -104,44 +94,24 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
         } else {
-          // In PROD, we ONLY allow real Supabase sessions. 
-          // Mock fallbacks are strictly DEV-only to prevent production state leaks.
-          const isDev = !import.meta.env.PROD;
-          const manualLogout = localStorage.getItem('_manual_logout');
-
-          if (isDev) {
-            const localUser = await base44.auth.me();
-            if (localUser && !manualLogout) {
-              setUser(localUser);
-              setIsAuthenticated(true);
-              setAuthError(null);
-            } else {
-              setUser(null);
-              setIsAuthenticated(false);
-              setAuthError({ type: 'auth_required', message: 'Authentication required' });
-            }
+          // Check local storage mock fallback
+          const localUser = await base44.auth.me();
+          if (localUser) {
+            setUser(localUser);
+            setIsAuthenticated(true);
           } else {
-            // PROD: No session means NOT authenticated
             setUser(null);
             setIsAuthenticated(false);
             setAuthError({ type: 'auth_required', message: 'Authentication required' });
           }
         }
       } else {
-        // Purely mock fallback — ONLY in DEV
-        if (!import.meta.env.PROD) {
-          const localUser = await base44.auth.me();
-          if (localUser) {
-            setUser(localUser);
-            setIsAuthenticated(true);
-            setAuthError(null);
-          } else {
-            setUser(null);
-            setIsAuthenticated(false);
-            setAuthError({ type: 'auth_required', message: 'Authentication required' });
-          }
+        // purely mock fallback
+        const localUser = await base44.auth.me();
+        if (localUser) {
+          setUser(localUser);
+          setIsAuthenticated(true);
         } else {
-          // PROD: If Supabase is disabled, we cannot be authenticated
           setUser(null);
           setIsAuthenticated(false);
           setAuthError({ type: 'auth_required', message: 'Authentication required' });
@@ -156,8 +126,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     console.log('--- NUKE LOGOUT INITIATED ---');
-    localStorage.setItem('_manual_logout', 'true');
-    console.log('Set manual logout kill-switch');
     
     if (isSupabaseEnabled) {
       try {
