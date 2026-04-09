@@ -36,13 +36,13 @@ export const AuthProvider = ({ children }) => {
           setAuthError(null);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
-          // If we just landed with tokens in the hash on the home page, redirect to the calculator
+          // If we just landed with tokens in the hash on the home page, redirect to the dashboard
           if (window.location.hash.includes('access_token=') && (window.location.pathname === '/' || window.location.pathname === '')) {
             // Use replaceState to clear the hash without a full reload if possible, 
             // but for Supabase it's safer to let the AuthCallback or a hard-redirect handle the transition
             // to ensure storage is synchronized.
             setTimeout(() => {
-               window.location.href = '/Calculator';
+               window.location.href = window.location.origin + '/Dashboard';
             }, 500);
           }
         } else {

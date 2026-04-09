@@ -37,11 +37,12 @@ export default function AuthCallback() {
         // Short delay to show success, then redirect
         setTimeout(() => {
           const params = new URLSearchParams(window.location.search);
-          let redirectTo = params.get('redirect_to') || '/';
+          let redirectTo = params.get('redirect_to') || '/Dashboard';
           if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
-            redirectTo = '/';
+            redirectTo = '/Dashboard';
           }
-          window.location.replace(redirectTo);
+          // Stripping the hash ensures we don't end up with /# or /Dashboard#
+          window.location.href = window.location.origin + redirectTo;
         }, 800);
 
       } else if (event === 'SIGNED_OUT' || (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION' && event !== 'TOKEN_REFRESHED')) {
@@ -71,11 +72,11 @@ export default function AuthCallback() {
         setStatus('success');
         setTimeout(() => {
           const params = new URLSearchParams(window.location.search);
-          let redirectTo = params.get('redirect_to') || '/';
+          let redirectTo = params.get('redirect_to') || '/Dashboard';
           if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
-            redirectTo = '/';
+            redirectTo = '/Dashboard';
           }
-          window.location.replace(redirectTo);
+          window.location.href = window.location.origin + redirectTo;
         }, 800);
       } else if (error) {
         const urlParams = new URLSearchParams(window.location.search);
