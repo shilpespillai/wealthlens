@@ -171,15 +171,8 @@ export default function Home() {
       return;
     }
     
-    try {
-      if (base44.auth.redirectToLogin) {
-        await base44.auth.redirectToLogin("/Dashboard");
-      } else {
-        window.location.href = `/Login?redirect_to=${encodeURIComponent("/Dashboard")}`;
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-    }
+    // If not authenticated, go straight to the login page
+    window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
   };
 
   if (authLoading) {

@@ -97,8 +97,9 @@ export const base44 = {
       localStorage.removeItem('mockUser');
       base44.auth.redirectToLogin();
     },
-    redirectToLogin: () => {
-       const redirect = window.location.pathname !== '/' ? `?redirect_to=${encodeURIComponent(window.location.pathname)}` : '';
+    redirectToLogin: (targetPath) => {
+       const path = targetPath || window.location.pathname;
+       const redirect = path !== '/' ? `?redirect_to=${encodeURIComponent(path)}` : '';
        window.location.href = `/Login${redirect}`;
     }
   },

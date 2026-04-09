@@ -3,9 +3,9 @@ import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 import { TrendingUp, Loader2, CheckCircle, XCircle } from "lucide-react";
 
 /**
- * AuthCallback - handles the OAuth redirect from Google (via Supabase).
- * Supabase automatically processes the URL hash tokens and fires onAuthStateChange.
- * We listen for SIGNED_IN, store the user in localStorage, then redirect home.
+ * AuthCallback - handles the OAuth redirect from Google (via Supabase PKCE flow).
+ * With PKCE, Supabase returns a `code` query param. We must exchange it for a
+ * session before the user is considered signed in.
  */
 export default function AuthCallback() {
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
@@ -17,78 +17,100 @@ export default function AuthCallback() {
       return;
     }
 
-    // Listen for auth state change — this fires as soon as Supabase
-    // processes the access_token / code from the URL
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const user = session.user;
-
-        // Store user in localStorage so the existing mockUser auth system picks it up
-        localStorage.setItem('mockUser', JSON.stringify({
-          id: user.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-          provider: user.app_metadata?.provider || 'google',
-          avatar: user.user_metadata?.avatar_url,
-        }));
-
-        setStatus('success');
-
-        // Short delay to show success, then redirect
-        setTimeout(() => {
-          const params = new URLSearchParams(window.location.search);
-          let redirectTo = params.get('redirect_to') || '/Dashboard';
-          if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
-            redirectTo = '/Dashboard';
-          }
-          // Stripping the hash ensures we don't end up with /# or /Dashboard#
-          window.location.href = window.location.origin + redirectTo;
-        }, 800);
-
-      } else if (event === 'SIGNED_OUT' || (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION' && event !== 'TOKEN_REFRESHED')) {
-        // Handle error states
+    const handleCallback = async () => {
+      try {
+        // ── Check URL for PKCE code (query param) ────────────────────────────
         const urlParams = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const error = urlParams.get('error_description') || urlParams.get('error') || hashParams.get('error_description') || hashParams.get('error');
-        if (error) {
-          setErrorMsg(decodeURIComponent(error.replace(/\+/g, ' ')));
-          setStatus('error');
-        }
-      }
-    });
-
-    // Also try getSession as a fallback (handles cases where SIGNED_IN already fired)
-    const trySession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (session?.user) {
-        const user = session.user;
-        localStorage.setItem('mockUser', JSON.stringify({
-          id: user.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-          provider: user.app_metadata?.provider || 'google',
-          avatar: user.user_metadata?.avatar_url,
-        }));
-        setStatus('success');
-        setTimeout(() => {
-          const params = new URLSearchParams(window.location.search);
-          let redirectTo = params.get('redirect_to') || '/Dashboard';
-          if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
-            redirectTo = '/Dashboard';
-          }
-          window.location.href = window.location.origin + redirectTo;
-        }, 800);
-      } else if (error) {
-        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
         const urlError = urlParams.get('error_description') || urlParams.get('error');
-        setErrorMsg(urlError ? decodeURIComponent(urlError) : error.message);
+
+        if (urlError) {
+          setErrorMsg(decodeURIComponent(urlError.replace(/\+/g, ' ')));
+          setStatus('error');
+          return;
+        }
+
+        if (code) {
+          console.log('[AuthCallback] PKCE code detected, exchanging...');
+          // PKCE flow — exchange the code for a real session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('[AuthCallback] exchangeCodeForSession error:', error);
+            setErrorMsg(error.message);
+            setStatus('error');
+            return;
+          }
+          if (data?.session?.user) {
+            console.log('[AuthCallback] PKCE success, user:', data.session.user.email);
+            onSuccess(data.session.user);
+            return;
+          }
+        }
+
+        // ── Implicit flow fallback (hash fragment) ────────────────────────────
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const hashError = hashParams.get('error_description') || hashParams.get('error');
+
+        if (hashError) {
+          setErrorMsg(decodeURIComponent(hashError.replace(/\+/g, ' ')));
+          setStatus('error');
+          return;
+        }
+
+        if (accessToken) {
+          console.log('[AuthCallback] Implicit flow access_token detected');
+          // Let Supabase pick up the hash session automatically
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            onSuccess(session.user);
+            return;
+          }
+        }
+
+        // ── Final fallback: poll getSession once more ─────────────────────────
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('[AuthCallback] Fallback session found');
+          onSuccess(session.user);
+          return;
+        }
+
+        // Keep searching for 12s (handled by timeout)
+      } catch (err) {
+        console.error('[AuthCallback] Unexpected error:', err);
+        setErrorMsg(err.message || 'Unexpected error during sign-in.');
         setStatus('error');
       }
     };
 
-    trySession();
+    const onSuccess = (user) => {
+      // Clear any manual logout kill-switch if it exists
+      localStorage.removeItem('_manual_logout');
 
-    // Timeout fallback — if nothing fires after 10s, show error
+      localStorage.setItem('mockUser', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+        provider: user.app_metadata?.provider || 'google',
+        avatar: user.user_metadata?.avatar_url,
+      }));
+
+      setStatus('success');
+
+      setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        let redirectTo = params.get('redirect_to') || '/Dashboard';
+        if (!redirectTo || redirectTo.toLowerCase().includes('login') || redirectTo.toLowerCase().includes('callback')) {
+          redirectTo = '/Dashboard';
+        }
+        window.location.href = window.location.origin + redirectTo;
+      }, 800);
+    };
+
+    handleCallback();
+
+    // Timeout fallback — if nothing fires after 12s, show error
     const timeout = setTimeout(() => {
       setStatus(s => {
         if (s === 'loading') {
@@ -97,12 +119,9 @@ export default function AuthCallback() {
         }
         return s;
       });
-    }, 10000);
+    }, 12000);
 
-    return () => {
-      subscription?.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => clearTimeout(timeout);
   }, []);
 
   return (
