@@ -166,13 +166,14 @@ export default function Home() {
   }, []);
 
   const handleLogin = async () => {
-    if (isAuthenticated) {
-      window.location.href = "/Dashboard";
+    // If not authenticated, go straight to the login page (the screenshot you attached)
+    if (!isAuthenticated) {
+      window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
       return;
     }
     
-    // If not authenticated, go straight to the login page
-    window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
+    // If already authenticated, proceed to Dashboard
+    window.location.href = "/Dashboard";
   };
 
   if (authLoading) {

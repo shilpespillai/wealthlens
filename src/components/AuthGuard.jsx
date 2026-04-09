@@ -9,8 +9,14 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const user = await base44.auth.me();
-        setIsAuthenticated(!!user);
+        // In production, strictly use Supabase for auth check
+        if (import.meta.env.PROD) {
+          const { data: { session } } = await supabase.auth.getSession();
+          setIsAuthenticated(!!session?.user);
+        } else {
+          const user = await base44.auth.me();
+          setIsAuthenticated(!!user);
+        }
       } catch {
         setIsAuthenticated(false);
       }

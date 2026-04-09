@@ -58,6 +58,11 @@ export const AuthProvider = ({ children }) => {
       authSubscription = subscription;
     }
 
+    // Safety: Clear mockUser if in production to prevent interference
+    if (import.meta.env.PROD) {
+      localStorage.removeItem('mockUser');
+    }
+
     return () => {
       if (authSubscription) authSubscription.unsubscribe();
     };
@@ -94,7 +99,13 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
         } else {
-          // Check local storage mock fallback
+          setUser(null);
+          setIsAuthenticated(false);
+          setAuthError({ type: 'auth_required', message: 'Authentication required' });
+        }
+      } else {
+        // purely mock fallback — only in dev
+        if (!import.meta.env.PROD) {
           const localUser = await base44.auth.me();
           if (localUser) {
             setUser(localUser);
@@ -104,17 +115,9 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(false);
             setAuthError({ type: 'auth_required', message: 'Authentication required' });
           }
-        }
-      } else {
-        // purely mock fallback
-        const localUser = await base44.auth.me();
-        if (localUser) {
-          setUser(localUser);
-          setIsAuthenticated(true);
         } else {
           setUser(null);
           setIsAuthenticated(false);
-          setAuthError({ type: 'auth_required', message: 'Authentication required' });
         }
       }
     } catch (error) {
