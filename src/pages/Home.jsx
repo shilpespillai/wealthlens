@@ -18,7 +18,6 @@ import StatsBar from "@/components/home/StatsBar";
 import AssetShowcase from "@/components/home/AssetShowcase";
 import ComparisonTable from "@/components/home/ComparisonTable";
 import FAQ from "@/components/home/FAQ";
-import SupportChat from "@/components/home/SupportChat";
 
 
 const FEATURES = [
