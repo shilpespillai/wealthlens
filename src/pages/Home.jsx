@@ -152,14 +152,6 @@ export default function Home() {
 
 
   useEffect(() => {
-    // If user is already authenticated and lands on the home page, 
-    // push them to the Dashboard automatically for a better "Terminal" experience.
-    if (!authLoading && isAuthenticated) {
-      window.location.href = "/Dashboard";
-    }
-  }, [isAuthenticated, authLoading]);
-
-  useEffect(() => {
     async function loadPrice() {
       try {
         const p = await base44.app.getPrice();
