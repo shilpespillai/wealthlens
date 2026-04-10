@@ -34,7 +34,6 @@ export const AuthProvider = ({ children }) => {
           setUser(mappedUser);
           setIsAuthenticated(true);
           setAuthError(null);
-          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
           // If we are on the home page and a session is detected, redirect to the dashboard
           // This catches cases where the OAuth redirect lands on / instead of /auth/callback
@@ -99,21 +98,12 @@ export const AuthProvider = ({ children }) => {
           setAuthError({ type: 'auth_required', message: 'Authentication required' });
         }
       } else {
-        // purely mock fallback — only in dev
-        if (!import.meta.env.PROD) {
-          const localUser = await base44.auth.me();
-          if (localUser) {
-            setUser(localUser);
-            setIsAuthenticated(true);
-          } else {
-            setUser(null);
-            setIsAuthenticated(false);
-            setAuthError({ type: 'auth_required', message: 'Authentication required' });
-          }
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
+        setUser(null);
+        setIsAuthenticated(false);
+        setAuthError({ 
+          type: 'auth_required', 
+          message: 'Production Authentication Error: Supabase is not properly configured. Please check your .env file.' 
+        });
       }
     } catch (error) {
       console.error('Auth check error:', error);

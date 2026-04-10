@@ -74,11 +74,11 @@ const callGeminiDirectly = async (prompt, type) => {
   }
 };
 
-export const base44 = {
+export const base44 = {/* Dev Mock Login Bypass Hidden - Production Parity Enforced */
   auth: {
     me: async () => {
       // In production, sync with Supabase session if enabled
-      if (isProd && isSupabaseEnabled) {
+      if (isSupabaseEnabled) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           return {
@@ -95,7 +95,7 @@ export const base44 = {
     },
     updateMe: async (params) => {
       // In production, update Supabase metadata if enabled
-      if (isProd && isSupabaseEnabled) {
+      if (isSupabaseEnabled) {
         try {
           await supabase.auth.updateUser({
             data: params
@@ -194,12 +194,35 @@ export const base44 = {
   
   user: {
     loadData: async (key) => {
-      console.log(`[Mock API] Loading: ${key}`);
+      console.log(`[Production Sync] Loading: ${key}`);
+      const { supabase, isSupabaseEnabled } = await import('@/lib/supabaseClient');
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('user_data')
+            .select('payload')
+            .eq('user_id', session.user.id)
+            .eq('key', key)
+            .single();
+          if (!error && data) return data.payload;
+        }
+      }
       const stored = localStorage.getItem(key);
       return stored ? JSON.parse(stored) : null;
     },
     saveData: async (key, data) => {
-      console.log(`[Mock API] Saving: ${key}`);
+      console.log(`[Production Sync] Saving: ${key}`);
+      const { supabase, isSupabaseEnabled } = await import('@/lib/supabaseClient');
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase
+            .from('user_data')
+            .upsert({ user_id: session.user.id, key: key, payload: data, updated_at: new Date() });
+          return { success: true };
+        }
+      }
       localStorage.setItem(key, JSON.stringify(data));
       return { success: true };
     }

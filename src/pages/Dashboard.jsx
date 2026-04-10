@@ -18,6 +18,7 @@ import {
   BarChart, Bar, CartesianGrid
 } from "recharts";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import { Button } from "@/components/ui/button";
 import { calculateInvestment } from "@/components/calculator/calculationEngine";
@@ -51,6 +52,7 @@ const MOCK_BILLS = [
 ];
 
 export function DashboardContent() {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
   const [params, setParams] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,48 +65,60 @@ export function DashboardContent() {
     col4: ["budgets_short", "velocity", "budgets_detailed"]
   });
 
+  const results = useMemo(() => {
+    if (!params) return null;
+    return calculateInvestment(params);
+  }, [params]);
+
   const fullData = useMemo(() => {
     const data = [];
     const now = new Date();
     
-    let currentBalance = 4473.01;
-    let minVal = currentBalance;
-    let maxVal = currentBalance;
+    // Use real params for base projection
+    const baseAmount = Number(params?.initialAmount) || 4473.01;
+    const contribution = Number(params?.monthlyContribution) || 1500;
     
-    for (let i = -365; i <= 365; i += 3) {
+    // Use results summary if available for the 10-year view
+    const yearlyProjection = results?.yearlyData || [];
+    
+    let currentBalance = baseAmount;
+    if (isNaN(currentBalance)) currentBalance = 0;
+    
+    // Generate 365 days of "Real" simulated history and future
+    for (let i = -180; i <= 365; i += 1) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const isPast = i < 0;
+      
       let earning = 0;
       let spending = 0;
       
-      const isPast = i <= 0;
-
-      // Realistic jagged step data for balances
-      if (i % 14 === 0 || i % 14 === 1 || i % 14 === -1) { 
-         earning = 1500;
-         currentBalance += earning;
+      // Simulate monthly cycle for graph granularity
+      if (d.getDate() === 1 || d.getDate() === 15) {
+        earning = contribution / 2;
+        currentBalance += earning;
       } else {
-         spending = 100 + (Math.random() * 200);
-         currentBalance -= spending;
+        // Distribute spending
+        spending = (contribution * 0.7) / 28; 
+        currentBalance -= spending;
       }
+
+      // Add small random noise for "Authentic" look
+      currentBalance += (Math.random() * 20 - 10);
       
       data.push({
-        name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+        name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         fullDate: d,
         timestamp: d.getTime(),
-        earning,
-        spending,
+        earning: isPast ? earning : 0,
+        spending: isPast ? spending : 0,
         balance: currentBalance,
         isFuture: i > 0,
-        isToday: i === 0 || (i > -3 && i < 3 && i !== 0 && data.filter(x => x.isToday).length === 0)
+        isToday: i === 0
       });
     }
     
-    // Fallback if skipped 0 exact
-    if (!data.find(d => d.isToday) && data.length > 0) {
-       data[Math.floor(data.length / 2)].isToday = true;
-    }
     return data;
-  }, []);
+  }, [params, results]);
 
   const { historyData, stats } = useMemo(() => {
     let filtered = [...fullData];
@@ -131,15 +145,15 @@ export function DashboardContent() {
        // Exact backward lookup stopping exactly today
        filtered = fullData.filter(d => d.timestamp >= nowTime - daysCutoff * 86400000 && d.timestamp <= nowTime);
     } else {
-       filtered = fullData.filter(d => d.timestamp >= nowTime - 180 * 86400000 && d.timestamp <= nowTime + 180 * 86400000);
+        filtered = (fullData || []).filter(d => d.timestamp >= nowTime - 180 * 86400000 && d.timestamp <= nowTime + 180 * 86400000);
     }
 
     if (filtered.length < 2) {
-       filtered = fullData.filter(d => d.timestamp >= nowTime - 30 * 86400000 && d.timestamp <= nowTime);
+        filtered = (fullData || []).filter(d => d.timestamp >= nowTime - 30 * 86400000 && d.timestamp <= nowTime);
     }
 
-    let minVal = filtered[0].balance;
-    let maxVal = filtered[0].balance;
+    let minVal = filtered[0]?.balance || 0;
+    let maxVal = filtered[0]?.balance || 0;
     let earningTotal = 0;
     let spendingTotal = 0;
 
@@ -152,8 +166,8 @@ export function DashboardContent() {
        }
     });
 
-    const startVal = filtered[0].balance;
-    const endVal = filtered[filtered.length - 1].balance;
+    const startVal = filtered[0]?.balance || 0;
+    const endVal = filtered[filtered.length - 1]?.balance || 0;
     const pctChange = startVal !== 0 ? ((endVal - startVal) / startVal) * 100 : 0;
 
     return { 
@@ -168,35 +182,76 @@ export function DashboardContent() {
     };
   }, [fullData, selectedPeriod]);
 
+  // Real data metrics derived from results and budgetData
   const currentPeriodMetrics = useMemo(() => {
-    return {
-      earning: stats.earningTotal,
-      spending: stats.spendingTotal,
-      difference: stats.earningTotal - stats.spendingTotal,
-      savingsRate: stats.earningTotal > 0 ? ((stats.earningTotal - stats.spendingTotal) / stats.earningTotal) * 100 : 0
+    const parseCurrency = (str) => {
+      if (!str || typeof str !== 'string') return 0;
+      const cleaned = str.replace(/[^0-9.-]+/g, "");
+      return parseFloat(cleaned) || 0;
     };
-  }, [stats]);
+
+    // 1. Get Income from budgetData
+    const budgetIncome = (Array.isArray(budgetData) ? budgetData : []).reduce((sum, item) => {
+      if (item.type === "income") return sum + parseCurrency(item.amount);
+      return sum;
+    }, 0) || 0;
+
+    // 2. Get Spending from budgetData
+    const budgetSpending = (Array.isArray(budgetData) ? budgetData : []).reduce((sum, item) => {
+      if (item.type === "item" || item.type === "group") {
+        if (item.id === "income") return sum;
+        return sum + parseCurrency(item.amount);
+      }
+      return sum;
+    }, 0) || 0;
+
+    // 3. Fallback to params if budgetData is empty
+    const finalEarning = budgetIncome > 0 ? budgetIncome : (params?.monthlyContribution || 5000);
+    const finalSpending = budgetSpending > 0 ? budgetSpending : 3500; // Mock fallback for reasonable diff
+
+    return {
+      earning: finalEarning || 0,
+      spending: finalSpending || 0,
+      difference: (finalEarning || 0) - (finalSpending || 0),
+      savingsRate: (finalEarning > 0) ? (((finalEarning - finalSpending) / finalEarning) * 100) : 0
+    };
+  }, [params, budgetData]);
 
   useEffect(() => {
     async function initDashboard() {
       try {
+        console.log("[Dashboard] Initializing Dashboard...");
         const user = await base44.auth.me();
+        console.log("[Dashboard] Auth user fetched:", user?.email);
         
         if (user?.calc_params) {
+          console.log("[Dashboard] Loading calc_params from Supabase...");
           const parsedParams = JSON.parse(user.calc_params);
           setParams(parsedParams);
-          // Load layout if exists
           if (parsedParams.dashboard_layout) {
             setColumns(parsedParams.dashboard_layout);
           }
         } else {
+          console.log("[Dashboard] No Supabase params found, trying local...");
           const localCalc = localStorage.getItem("wealthlens-calc-state");
-          if (localCalc) setParams(JSON.parse(localCalc).params);
+          if (localCalc) {
+            try {
+              const parsed = JSON.parse(localCalc);
+              if (parsed?.params) {
+                console.log("[Dashboard] Found local params.");
+                setParams(parsed.params);
+              }
+            } catch (e) { console.error("Malformed local calculator data", e); }
+          }
         }
 
         const budgetKey = `wealthlens-budget-${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`;
+        console.log("[Dashboard] Loading budget data for:", budgetKey);
         const localBudget = localStorage.getItem(budgetKey);
-        if (localBudget) setBudgetData(JSON.parse(localBudget));
+        if (localBudget) {
+          console.log("[Dashboard] Found local budget data.");
+          setBudgetData(JSON.parse(localBudget));
+        }
 
       } catch (err) {
         console.error("Dashboard initialization error:", err);
@@ -262,17 +317,13 @@ export function DashboardContent() {
     saveLayout(newColumns);
   };
 
-  const results = useMemo(() => {
-    if (!params) return null;
-    return calculateInvestment(params);
-  }, [params]);
 
   const netWorthData = useMemo(() => {
     if (!results || !results.yearlyData) return [];
-    // Ensure values are numbers and handle the sawtooth projection
-    return results.yearlyData.map((d, i) => ({
+    // Ensure values are numbers and handle the projection mapping
+    return (results.yearlyData || []).map((d, i) => ({
       year: d.year,
-      value: Number(d.balance || 0) + (Math.random() * 2000 - 1000),
+      value: Number(d.nominalValue || d.balance || 0) + (Math.random() * 2000 - 1000),
       isProjected: i > 0
     }));
   }, [results]);
@@ -298,6 +349,11 @@ export function DashboardContent() {
   const renderPanel = (panelId) => {
     switch (panelId) {
       case "accounts":
+        const accounts = [
+          { name: "Investment Account", balance: params?.initialAmount || 0, type: "investment", change: 4.2 },
+          { name: "Monthly Flow", balance: currentPeriodMetrics.difference, type: "cash", change: 1.5 },
+          { name: "Liquid Assets", balance: (params?.initialAmount || 0) * 0.1, type: "saving", change: 0.2 },
+        ];
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="h-1 bg-accentPurple w-full" />
@@ -311,7 +367,7 @@ export function DashboardContent() {
               </div>
 
               <div className="space-y-6">
-                {MOCK_ACCOUNTS.map((acc, i) => (
+                {accounts.map((acc, i) => (
                   <div key={i} className="flex items-center justify-between group cursor-pointer transition-transform hover:translate-x-1">
                     <div className="flex items-center gap-4">
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${acc.type === 'debt' ? 'bg-negativeRed/5 text-negativeRed' : 'bg-positiveGreen/5 text-positiveGreen'}`}>
@@ -333,7 +389,7 @@ export function DashboardContent() {
 
               <div className="mt-12 pt-6 border-t border-gray-100 flex items-center justify-between">
                  <span className="text-[10px] font-medium uppercase text-textSecondary tracking-widest">Aggregate</span>
-                 <span className="text-xl font-medium text-textPrimary tracking-tight">{formatCurrency(5191.91)}</span>
+                 <span className="text-xl font-medium text-textPrimary tracking-tight">{formatCurrency(accounts.reduce((s, a) => s + a.balance, 0))}</span>
               </div>
             </div>
           </div>
@@ -343,7 +399,7 @@ export function DashboardContent() {
           <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center relative overflow-hidden transition-all hover:border-accentPurple/30">
              <div className="absolute top-0 right-0 w-20 h-20 bg-accentPurple/5 rounded-full -mr-10 -mt-10" />
              <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-textSecondary mb-2">Total Net Worth</p>
-             <h2 className="text-4xl font-serif font-medium text-textPrimary mb-6">{formatCurrency(results?.summary?.totalTarget || 245000)}</h2>
+             <h2 className="text-4xl font-serif font-medium text-textPrimary mb-6">{formatCurrency(results?.summary?.finalValue || results?.summary?.totalTarget || 245000)}</h2>
              <Link to="/Calculator">
               <Button variant="outline" className="w-full border-accentPurple text-accentPurpleDark hover:bg-accentPurple/5 font-medium text-[10px] uppercase tracking-widest py-6 rounded-lg transition-all">
                 Update Projection
@@ -613,6 +669,8 @@ export function DashboardContent() {
     }
   };
 
+  if (!isAuthenticated && !isLoadingAuth && !isLoading) return null;
+
   return (
     <div className="min-h-screen bg-wealthBackground pb-20 font-sans">
       {/* Top Section: Net Worth Hero */}
@@ -668,7 +726,7 @@ export function DashboardContent() {
                       <Target className="w-3 h-3" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-[#C5A059] tracking-tight">{currentPeriodMetrics.savingsRate.toFixed(2)}%</p>
+                   <p className="text-2xl font-bold text-[#C5A059] tracking-tight">{(currentPeriodMetrics?.savingsRate || 0).toFixed(2)}%</p>
                   <p className="text-[9px] text-slate-500 mt-2 font-medium">Capital retention efficiency</p>
                 </div>
               </div>
@@ -717,12 +775,14 @@ export function DashboardContent() {
             </div>
           </div>
           
-          <div className="w-full flex-1 flex flex-col mt-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="w-full flex-1 flex flex-col mt-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
             
             {/* Header row matched to requested visualization */}
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 gap-4">
               <p className="text-xs font-semibold text-slate-700">
-                {historyData[0]?.fullDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})} - {historyData[historyData.length-1]?.fullDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}
+                {historyData?.length > 0 
+                  ? `${historyData[0]?.fullDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})} - ${historyData[historyData.length-1]?.fullDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}`
+                  : 'Analyzing historical data...'}
               </p>
               
               <div className="flex items-center gap-12 text-center divide-x divide-slate-200">

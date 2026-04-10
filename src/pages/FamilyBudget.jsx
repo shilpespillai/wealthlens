@@ -55,14 +55,24 @@ import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import BankConnect from "@/components/calculator/BankConnect";
+import { useAuth } from "@/lib/AuthContext";
+import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { INITIAL_BUDGET_DATA } from "./SetBudget";
 
 
 const EXPENSE_CATEGORIES = [
-  { id: "fixed", label: "Fixed / Needs", color: "#B8D8BA", targetPct: 50 },
+  { id: "fixed", label: "Fixed / Needs", color: "#B8D8BA", targetPct: 45 },
   { id: "variable", label: "Variable / Wants", color: "#E5C48B", targetPct: 30 },
   { id: "savings", label: "Savings & Debt", color: "#E5989B", targetPct: 20 },
+  { id: "uncategorized", label: "Uncategorized", color: "#94A3B8", targetPct: 5 },
 ];
 
 const DEFAULT_INCOMES = [
@@ -85,6 +95,7 @@ const DEFAULT_GOALS = [
 ];
 
 function FamilyBudgetContent() {
+  const { isAuthenticated } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [currency, setCurrency] = useState("USD");
@@ -240,8 +251,8 @@ function FamilyBudgetContent() {
           setExpenses(savedExpenses || []);
           if (savedCurrency) setCurrency(savedCurrency);
           
-          const maxIncId = savedIncomes?.length > 0 ? Math.max(...savedIncomes.map(i => i.id)) : 0;
-          const maxExpId = savedExpenses?.length > 0 ? Math.max(...savedExpenses.map(e => e.id)) : 0;
+          const maxIncId = (savedIncomes || []).length > 0 ? Math.max(...savedIncomes.map(i => i.id || 0)) : 0;
+          const maxExpId = (savedExpenses || []).length > 0 ? Math.max(...savedExpenses.map(e => e.id || 0)) : 0;
           setNextIncomeId(maxIncId + 1);
           setNextExpenseId(maxExpId + 1);
         } else {
@@ -253,8 +264,8 @@ function FamilyBudgetContent() {
             setExpenses(localExpenses || []);
             if (localCurrency) setCurrency(localCurrency);
             
-            const maxIncId = localIncomes?.length > 0 ? Math.max(...localIncomes.map(i => i.id)) : 0;
-            const maxExpId = localExpenses?.length > 0 ? Math.max(...localExpenses.map(e => e.id)) : 0;
+            const maxIncId = (localIncomes || []).length > 0 ? Math.max(...localIncomes.map(i => i.id || 0)) : 0;
+            const maxExpId = (localExpenses || []).length > 0 ? Math.max(...localExpenses.map(e => e.id || 0)) : 0;
             setNextIncomeId(maxIncId + 1);
             setNextExpenseId(maxExpId + 1);
           } else {
@@ -350,11 +361,24 @@ function FamilyBudgetContent() {
   const updateIncome = (id, field, val) => setIncomes(incomes.map(i => i.id === id ? { ...i, [field]: val } : i));
 
   const addExpense = () => {
-    setExpenses([...expenses, { id: nextExpenseId, name: "", category: "variable", monthlyAmount: 0 }]);
+    setExpenses([...expenses, { id: nextExpenseId, name: "Uncategorized", category: "variable", monthlyAmount: 0 }]);
     setNextExpenseId(nextExpenseId + 1);
   };
   const removeExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
   const updateExpense = (id, field, val) => setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: val } : e));
+
+  // Flattened budget categories for the dropdown
+  const budgetCategories = useMemo(() => {
+    const cats = [];
+    INITIAL_BUDGET_DATA.forEach(group => {
+      if (group.type === "group" && group.children) {
+        group.children.forEach(child => cats.push(child.category));
+      } else if (group.type === "item" || group.type === "income") {
+        cats.push(group.category);
+      }
+    });
+    return ["Uncategorized", ...new Set(cats)];
+  }, []);
 
   const parseNum = (val) => {
     return parseFloat(val) || 0;
@@ -424,10 +448,14 @@ function FamilyBudgetContent() {
       if (n.includes("rent") || n.includes("mortgage") || c === "fixed") return colors.fixed;
       if (c === "variable" || n.includes("food") || n.includes("grocery") || n.includes("living")) return colors.variable;
       if (c === "savings" || n.includes("savings") || n.includes("surplus") || n.includes("invest")) return colors.savings;
+      if (c === "uncategorized") return "#94A3B8";
       return "#94a3b8"; // Slate for unknown
     };
 
-    const safeVal = (v) => Math.max(0.01, Number(v) || 0);
+    const safeVal = (v) => {
+      const num = Number(v) || 0;
+      return Math.max(0.1, num); // Ensure minimal flow for Sankey to render links
+    };
 
     // 1. Individual Incomes
     incomes.forEach((inc, i) => {
@@ -685,6 +713,7 @@ function FamilyBudgetContent() {
             </div>
           </div>
 
+        </div>
       </div>
 
 
@@ -1018,18 +1047,39 @@ function FamilyBudgetContent() {
               <div className="space-y-3">
                 {expenses.map((exp) => (
                   <div key={exp.id} className="flex flex-col sm:flex-row gap-3 items-center group">
-                    <Input 
-                      placeholder="Expense Label" 
-                      value={exp.name} 
-                      onChange={(e) => updateExpense(exp.id, "name", e.target.value)}
-                      className="flex-1 bg-slate-50 border-slate-200"
-                    />
-                    <Input 
-                      placeholder="Category" 
-                      value={exp.category} 
-                      onChange={(e) => updateExpense(exp.id, "category", e.target.value.toLowerCase())}
-                      className="w-full sm:w-40 bg-slate-50 border-slate-200 text-sm"
-                    />
+                    <div className="flex-1 w-full">
+                      <Select 
+                        value={exp.name || "Uncategorized"} 
+                        onValueChange={(val) => updateExpense(exp.id, "name", val)}
+                      >
+                        <SelectTrigger className="bg-slate-50 border-slate-200">
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {budgetCategories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="w-full sm:w-40">
+                      <Select 
+                        value={exp.category || "variable"} 
+                        onValueChange={(val) => updateExpense(exp.id, "category", val)}
+                      >
+                        <SelectTrigger className="bg-slate-50 border-slate-200 text-sm">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">Fixed</SelectItem>
+                          <SelectItem value="variable">Variable</SelectItem>
+                          <SelectItem value="savings">Savings</SelectItem>
+                          <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="relative w-full sm:w-40">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
                       <Input 
@@ -1037,7 +1087,6 @@ function FamilyBudgetContent() {
                         placeholder="0" 
                         value={exp.monthlyAmount ? (exp.monthlyAmount * multiplier).toString() : ""} 
                         onChange={(e) => updateExpense(exp.id, "monthlyAmount", parseNum(e.target.value))}
-
                         className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-rose-500"
                       />
                     </div>
@@ -1188,17 +1237,11 @@ function FamilyBudgetContent() {
           </div>
         </div>
       </div>
-    )}
-        </div>
-      </div>
+      )}
     </div>
+  </div>
   );
 }
-
-
-
-
-
 
 export default function FamilyBudgetPage() {
   return (

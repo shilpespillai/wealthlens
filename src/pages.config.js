@@ -73,6 +73,7 @@ import NetWorthReport from './pages/reports/NetWorthReport';
 import TrendsReport from './pages/reports/TrendsReport';
 import DigestReport from './pages/reports/DigestReport';
 import SetBudget from './pages/SetBudget';
+import Transactions from './pages/Transactions';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -102,6 +103,7 @@ export const PAGES = {
     "reports/Trends": TrendsReport,
     "reports/Digest": DigestReport,
     "SetBudget": SetBudget,
+    "Transactions": Transactions,
 }
 
 export const pagesConfig = {

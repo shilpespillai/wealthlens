@@ -1,13 +1,15 @@
 export function calculateInvestment(params) {
+  if (!params) return { yearlyData: [], summary: { finalValue: 0, totalContributed: 0, totalReturns: 0, afterTax: 0, taxPaid: 0, realValue: 0, totalReturnPercent: 0, annualizedReturn: 0 } };
+
   const {
-    initialAmount,
-    monthlyContribution,
-    years,
-    returnRate,
-    inflationRate,
-    frequency,
-    taxRate,
-    fees,
+    initialAmount = 0,
+    monthlyContribution = 0,
+    years = 10,
+    returnRate = 7,
+    inflationRate = 2,
+    frequency = "monthly",
+    taxRate = 0,
+    fees = 0,
   } = params;
 
   const monthlyRate = (returnRate - fees) / 100 / 12;
@@ -77,10 +79,12 @@ export function calculateInvestment(params) {
 }
 
 export function calculateScenarios(params) {
+  if (!params) return { conservative: calculateInvestment(null), moderate: calculateInvestment(null), aggressive: calculateInvestment(null) };
+  
   const scenarios = {
-    conservative: { ...params, returnRate: params.returnRate * 0.6 },
+    conservative: { ...params, returnRate: (params.returnRate || 0) * 0.6 },
     moderate: { ...params },
-    aggressive: { ...params, returnRate: params.returnRate * 1.5 },
+    aggressive: { ...params, returnRate: (params.returnRate || 0) * 1.5 },
   };
 
   return {

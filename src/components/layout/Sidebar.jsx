@@ -157,6 +157,12 @@ export default function Sidebar() {
               >
                 Calendar
               </Link>
+              <Link 
+                to="/Transactions" 
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Transactions') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+              >
+                Transactions
+              </Link>
             </div>
           )}
         </div>

@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import AuthGuard from "@/components/AuthGuard";
 
-const INITIAL_BUDGET_DATA = [
+export const INITIAL_BUDGET_DATA = [
   {
     id: "income",
     category: "Salary and Wages",
