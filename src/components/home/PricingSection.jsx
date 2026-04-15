@@ -84,7 +84,7 @@ export default function PricingSection({ onGetStarted, price = 10 }) {
   };
 
   return (
-    <section className="bg-white py-10 sm:py-14 border-t border-gray-100">
+    <section id="pricing" className="bg-white py-10 sm:py-14 border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   ChevronRight, 
   ChevronDown, 
@@ -8,185 +7,325 @@ import {
   Calendar, 
   Info,
   CheckCircle2,
-  FileText
+  FileText,
+  ChevronLeft,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { base44 } from "@/api/base44Client";
+import { addMonths, subMonths, format } from "date-fns";
+import { generateIncomeExpensePdf } from "@/components/reports/generateIncomeExpensePdf";
+import { toast } from "react-hot-toast";
 
-const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+// Shared Mock Generator (Simplified for consistency)
+const MOCK_TRANS_GEN = (() => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+  const transactions = [];
+  const CATEGORY_CONFIG = [
+    { name: "Salary", type: "income", amount: 5500 },
+    { name: "Bonus", type: "income", amount: 2000 },
+    { name: "Housing", type: "expense", amount: -1850 },
+    { name: "Groceries", type: "expense", amount: -150 },
+    { name: "Dining Out", type: "expense", amount: -45 },
+    { name: "Transport", type: "expense", amount: -25 },
+    { name: "Utilities", type: "expense", amount: -85 },
+    { name: "Healthcare", type: "expense", amount: -210 },
+    { name: "Entertainment", type: "expense", amount: -45.99 },
+    { name: "Shopping", type: "expense", amount: -60 },
+    { name: "Savings", type: "expense", amount: -500 },
+    { name: "Investments", type: "expense", amount: -500 }
+  ];
+  months.forEach((m) => {
+    CATEGORY_CONFIG.forEach((cat, cIdx) => {
+      if (cat.name === "Bonus" && m !== "Jan") return;
+      const day = (5 + (cIdx * 2)) % 28;
+      transactions.push({
+        id: `mock-${m}-${cat.name}`,
+        date: `${m} ${day.toString().padStart(2, '0')}`,
+        merchant: cat.name,
+        amount: cat.amount,
+        category: cat.name,
+        type: cat.type
+      });
+    });
+  });
+  return transactions;
+})();
+
+// Budget Targets based on INITIAL_BUDGET_DATA in SetBudget.jsx
+const BUDGET_TARGETS = {
+  "Salary": 3188.36,
+  "Bonus": 0,
+  "Housing": -1028.57,
+  "Utilities": -281.89,
+  "Groceries": -535.71,
+  "Dining Out": -200.00,
+  "Entertainment": -321.43,
+  "Healthcare": -41.10,
+  "Transport": -100.00,
+  "Shopping": -150.00,
+  "Savings": -500.00,
+  "Investments": -500.00
+};
+
+const NESTING_GROUPS = {
+  "Household": ["Housing", "Utilities"],
+  "Living": ["Groceries", "Dining Out", "Shopping", "Transport"],
+  "Lifestyle": ["Entertainment", "Healthcare"]
+};
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function IncomeExpenseReport() {
-  const [expandAll, setExpandAll] = useState(false);
-  const [includeTransfers, setIncludeTransfers] = useState(false);
+  const { formatAmount, normalizeTransactionData } = useFinancialParser();
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 3, 1)); // Default to April 2026 for demo
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [nestCategories, setNestCategories] = useState(true);
+  const [showPercentages, setShowPercentages] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(["Household", "Living", "Lifestyle"]);
 
-  const INCOME_DATA = [
-     { category: "Salary and Wages", budgeted: 3188.36, actual: 0, diff: -3188.36 },
-  ];
+  const monthKey = `wealthlens-budget-${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-  const EXPENSE_DATA = [
-     { category: "Rent", budgeted: -1028.57, actual: 0, diff: 1028.57 },
-     { category: "Utilities", budgeted: -281.89, actual: 0, diff: 281.89 },
-     { category: "Groceries", budgeted: -535.71, actual: 0, diff: 535.71 },
-     { category: "Eating Out", budgeted: -200.00, actual: 0, diff: 200.00 },
-     { category: "Entertainment", budgeted: -321.43, actual: 0, diff: 321.43 },
-     { category: "Healthcare", budgeted: -41.10, actual: 0, diff: 41.10 },
-  ];
+  useEffect(() => {
+    async function load() {
+      const saved = await base44.user.loadData(monthKey);
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, MOCK_TRANS_GEN);
+      setIncomes(normIncs);
+      setExpenses(normExps);
+    }
+    load();
+  }, [monthKey, normalizeTransactionData, selectedDate]);
+
+  const reportData = useMemo(() => {
+    const processGroup = (txs) => {
+      const cats = {};
+      txs.forEach(t => {
+        if (!cats[t.category]) cats[t.category] = { category: t.category, actual: 0, budgeted: BUDGET_TARGETS[t.category] || 0 };
+        cats[t.category].actual += Math.abs(Number(t.monthlyAmount || 0));
+      });
+      return Object.values(cats);
+    };
+
+    const rawIncs = processGroup(incomes);
+    const rawExps = processGroup(expenses);
+
+    if (!nestCategories) return { incomes: rawIncs, expenses: rawExps };
+
+    // Apply Nesting
+    const nest = (data) => {
+      const nested = [];
+      const handled = new Set();
+      
+      Object.entries(NESTING_GROUPS).forEach(([groupName, children]) => {
+        const groupItems = data.filter(d => children.includes(d.category));
+        if (groupItems.length > 0) {
+          const groupSum = groupItems.reduce((s, curr) => ({ 
+            actual: s.actual + curr.actual, 
+            budgeted: s.budgeted + Math.abs(curr.budgeted) 
+          }), { actual: 0, budgeted: 0 });
+          
+          nested.push({ 
+            category: groupName, 
+            isGroup: true, 
+            ...groupSum, 
+            children: groupItems 
+          });
+          children.forEach(c => handled.add(c));
+        }
+      });
+
+      // Add loose items
+      data.forEach(d => { if (!handled.has(d.category)) nested.push(d); });
+      return nested;
+    };
+
+    return { incomes: rawIncs, expenses: nest(rawExps) };
+  }, [incomes, expenses, nestCategories]);
+
+  const totalActualIncome = incomes.reduce((s, i) => s + Number(i.monthlyAmount || 0), 0);
+  const totalActualExpense = expenses.reduce((s, e) => s + Math.abs(Number(e.monthlyAmount || 0)), 0);
+
+  const handleExport = () => {
+    const loadingToast = toast.loading("Generating professional PDF report...");
+    try {
+      generateIncomeExpensePdf({
+        date: selectedDate,
+        incomes,
+        expenses,
+        incomeTotal: totalActualIncome,
+        expenseTotal: totalActualExpense,
+        reportData
+      });
+      toast.success("PDF report downloaded!", { id: loadingToast });
+    } catch (error) {
+      console.error("PDF Export Error:", error);
+      toast.error("Failed to generate PDF", { id: loadingToast });
+    }
+  };
+
+  const renderRow = (item, isSub = false, total = 1) => {
+    const isExpanded = expandedGroups.includes(item.category);
+    const diff = Math.abs(item.budgeted) - Math.abs(item.actual);
+    const pct = total > 0 ? ((Math.abs(item.actual) / total) * 100).toFixed(1) + "%" : "0%";
+
+    return (
+      <React.Fragment key={item.category}>
+        <tr className={`group hover:bg-slate-50 transition-colors ${isSub ? "bg-slate-50/30" : ""}`}>
+          <td className={`px-8 py-4 flex items-center gap-3 ${isSub ? "pl-12" : ""}`}>
+            {item.isGroup ? (
+              <button 
+                onClick={() => setExpandedGroups(prev => prev.includes(item.category) ? prev.filter(g => g !== item.category) : [...prev, item.category])}
+                className="w-5 h-5 flex items-center justify-center hover:bg-slate-100 rounded"
+              >
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+              </button>
+            ) : <div className={`w-2 h-2 rounded-full border ${isSub ? "border-slate-300 scale-75" : "border-slate-200"}`} />}
+            <span className={`text-xs ${item.isGroup ? "font-medium text-slate-700 uppercase tracking-wider" : "font-normal text-slate-600"}`}>
+              {item.category}
+            </span>
+          </td>
+          <td className="px-8 py-4 text-right text-xs font-medium text-slate-400">{formatAmount(Math.abs(item.budgeted))}</td>
+          <td className="px-8 py-4 text-right text-xs font-medium text-slate-700">{formatAmount(item.actual)}</td>
+          <td className={`px-8 py-4 text-right text-xs font-medium ${diff >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+            {formatAmount(diff)}
+          </td>
+          {showPercentages && (
+            <td className="px-8 py-4 text-right text-[10px] font-medium text-slate-400">{pct}</td>
+          )}
+        </tr>
+        {item.isGroup && isExpanded && item.children.map(child => renderRow(child, true, total))}
+      </React.Fragment>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Container for Navbar Area — purely white background */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white">
-        <div className="bg-[#1E293B] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-3">
-               <FileText className="w-6 h-6 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Income & Expense</h1>
-            </div>
-            <div className="flex items-center gap-4">
-               <div className="flex items-center bg-slate-800/50 rounded-lg border border-slate-700 p-1">
-                  <span className="text-xs text-slate-400 px-3 py-1.5 flex items-center gap-2">
-                     <Calendar className="w-3.5 h-3.5" />
-                     Apr 1, 2026 - Apr 30, 2026
-                  </span>
-               </div>
-               <Button variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-xs uppercase tracking-widest gap-2">
-                  <Download className="w-4 h-4" /> Export
-               </Button>
-               <Button className="bg-[#C5A059] hover:bg-[#B38F4D] text-white text-xs uppercase tracking-widest gap-2">
-                  <Plus className="w-4 h-4" /> Add to reports
-               </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main panel starts below Navbar */}
+    <div className="flex flex-col h-full bg-white font-sans">
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
-        {/* Filter Sidebar */}
-        <aside className="w-72 bg-white border-r border-slate-200 overflow-y-auto p-6 space-y-8 shadow-sm">
+        {/* Unified Analysis Sidebar */}
+        <aside className="w-80 bg-white border-r border-slate-100 p-8 space-y-10 overflow-y-auto">
            <div className="space-y-6">
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Analysis Options</p>
-              
-              <div className="space-y-4">
+              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Analysis Options</p>
+              <div className="space-y-5">
                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-600">Expand all categories</span>
-                    <Switch checked={expandAll} onCheckedChange={setExpandAll} />
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tight">Nest categories</span>
+                    <Switch checked={nestCategories} onCheckedChange={setNestCategories} />
                  </div>
                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-600">Include transfers</span>
-                    <Switch checked={includeTransfers} onCheckedChange={setIncludeTransfers} />
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-600">Nest categories</span>
-                    <Switch checked={true} />
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-600">Show % of total</span>
-                    <Switch />
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tight">Show % of total</span>
+                    <Switch checked={showPercentages} onCheckedChange={setShowPercentages} />
                  </div>
               </div>
            </div>
 
            <div className="space-y-4">
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Reports</p>
-              <div className="bg-[#C5A059]/10 border border-[#C5A059]/20 p-3 rounded-xl flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-[#C5A059] flex items-center justify-center text-white">
-                    <Info className="w-4 h-4" />
-                 </div>
-                 <span className="text-xs font-semibold text-[#C5A059]">Default report</span>
-              </div>
-           </div>
-
-           <div className="space-y-4">
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Accounts</p>
+              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Accounts</p>
               <div className="space-y-2">
-                 <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center gap-3">
-                    <Checkbox id="account1" checked />
-                    <div className="flex-1">
-                       <p className="text-[10px] font-semibold text-slate-700 truncate">Sample Bank Account</p>
-                       <p className="text-[11px] font-bold text-teal-600">$3,547.45</p>
+                {["Sample Bank", "Credit Card"].map((acc, i) => (
+                  <div key={i} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between group hover:border-[#C5A059]/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      <Checkbox checked />
+                      <span className="text-[10px] font-medium text-slate-500 uppercase">{acc}</span>
                     </div>
-                    <CheckCircle2 className="w-4 h-4 text-teal-500" />
-                 </div>
-                 <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center gap-3">
-                    <Checkbox id="account2" checked />
-                    <div className="flex-1">
-                       <p className="text-[10px] font-semibold text-slate-700 truncate">Sample Credit Card</p>
-                       <p className="text-[11px] font-bold text-rose-500">($2,345.54)</p>
-                    </div>
-                    <CheckCircle2 className="w-4 h-4 text-teal-500" />
-                 </div>
+                    <CheckCircle2 className="w-4 h-4 text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                ))}
               </div>
            </div>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-10 bg-[#F8F9FB]">
-           <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                 <thead className="bg-white border-b border-slate-100">
-                    <tr>
-                       <th className="px-8 py-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Category</th>
-                       <th className="px-8 py-6 text-[10px] uppercase font-bold tracking-widest text-slate-400 text-right">Budgeted</th>
-                       <th className="px-8 py-6 text-[10px] uppercase font-bold tracking-widest text-slate-400 text-right">Actual</th>
-                       <th className="px-8 py-6 text-[10px] uppercase font-bold tracking-widest text-slate-400 text-right">Difference</th>
+        <main className="flex-1 overflow-y-auto p-12 pt-6 bg-[#F8F9FB]">
+            {/* Premium Header - Now part of the scroll flow */}
+            <div className="max-w-6xl mx-auto mb-8">
+              <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
+                <div className="px-8 py-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-6 h-6 text-[#C5A059]" />
+                    <h1 className="text-xl font-medium text-white tracking-tight">Income & Expense</h1>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-1.5 border border-slate-700">
+                        <Select value={selectedDate.getMonth().toString()} onValueChange={(v) => setSelectedDate(new Date(selectedDate.getFullYear(), parseInt(v), 1))}>
+                          <SelectTrigger className="w-[110px] h-7 text-[11px] text-white font-medium bg-transparent border-none focus:ring-0">
+                            <SelectValue placeholder="Month" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTHS.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Select value={selectedDate.getFullYear().toString()} onValueChange={(v) => setSelectedDate(new Date(parseInt(v), selectedDate.getMonth(), 1))}>
+                          <SelectTrigger className="w-[80px] h-7 text-[11px] text-white font-medium bg-transparent border-none focus:ring-0">
+                            <SelectValue placeholder="Year" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2024, 2025, 2026].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center border border-slate-700 rounded-lg shadow-sm overflow-hidden bg-slate-800">
+                        <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 border-r border-slate-700 hover:bg-slate-700 transition-colors">
+                          <ChevronLeft className="w-4 h-4 text-slate-400" />
+                        </button>
+                        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-slate-700 transition-colors">
+                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        </button>
+                    </div>
+                    <Button onClick={handleExport} variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-medium uppercase tracking-widest gap-2">
+                        <Download className="w-4 h-4" /> Export PDF
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+           <div className="max-w-6xl mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
+              <table className="w-full text-left border-collapse">
+                 <thead>
+                    <tr className="bg-slate-50/50">
+                       <th className="px-8 py-6 text-[10px] uppercase font-medium tracking-[0.15em] text-slate-400">Category</th>
+                       <th className="px-8 py-6 text-[10px] uppercase font-medium tracking-[0.15em] text-slate-400 text-right">Budgeted</th>
+                       <th className="px-8 py-6 text-[10px] uppercase font-medium tracking-[0.15em] text-slate-400 text-right">Actual</th>
+                       <th className="px-8 py-6 text-[10px] uppercase font-medium tracking-[0.15em] text-slate-400 text-right">Variance</th>
+                       {showPercentages && <th className="px-8 py-6 text-[10px] uppercase font-medium tracking-[0.15em] text-slate-400 text-right">% of Total</th>}
                     </tr>
                  </thead>
-                 <tbody>
-                    <tr className="bg-slate-50/50">
-                       <td className="px-8 py-3 text-[11px] font-bold text-slate-800"></td>
-                       <td className="px-8 py-3 text-[11px] font-bold text-slate-800 text-right">679.66</td>
-                       <td className="px-8 py-3 text-[11px] font-bold text-slate-800 text-right">0.00</td>
-                       <td className="px-8 py-3 text-[11px] font-bold text-rose-500 text-right">(679.66)</td>
-                    </tr>
-
+                 <tbody className="divide-y divide-slate-50">
                     {/* INCOME SECTION */}
-                    <tr>
-                       <td colSpan={4} className="px-8 pt-10 pb-4">
-                          <span className="text-[10px] font-bold tracking-[0.2em] text-teal-500 uppercase">Income</span>
-                       </td>
-                    </tr>
-                    {INCOME_DATA.map((item, idx) => (
-                       <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                          <td className="px-8 py-4 flex items-center gap-3">
-                             <div className="w-2 h-2 rounded-full border border-teal-400" />
-                             <span className="text-xs font-medium text-slate-600">{item.category}</span>
-                          </td>
-                          <td className="px-8 py-4 text-xs font-medium text-indigo-600 text-right">{formatCurrency(item.budgeted)}</td>
-                          <td className="px-8 py-4 text-xs font-medium text-slate-600 text-right">{formatCurrency(item.actual)}</td>
-                          <td className="px-8 py-4 text-xs font-medium text-rose-500 text-right">({formatCurrency(Math.abs(item.diff))})</td>
-                       </tr>
-                    ))}
-                    <tr className="border-t border-slate-100">
+                    <tr><td colSpan={showPercentages ? 5 : 4} className="px-8 pt-10 pb-4 text-[10px] font-medium text-teal-400 uppercase tracking-[0.2em]">Income</td></tr>
+                    {reportData.incomes.map(item => renderRow(item, false, totalActualIncome))}
+                    
+                    <tr className="bg-teal-50/20">
                        <td className="px-8 py-4 italic text-xs font-medium text-teal-500">Total Income</td>
-                       <td className="px-8 py-4 text-xs font-bold text-slate-800 text-right">3,188.36</td>
-                       <td className="px-8 py-4 text-xs font-bold text-slate-800 text-right">0.00</td>
-                       <td className="px-8 py-4 text-xs font-bold text-rose-500 text-right">(3,188.36)</td>
+                       <td className="px-8 py-4 text-xs font-medium text-slate-400 text-right">---</td>
+                       <td className="px-8 py-4 text-xs font-medium text-slate-800 text-right">{formatAmount(totalActualIncome)}</td>
+                       <td colSpan={showPercentages ? 2 : 1} />
                     </tr>
 
                     {/* EXPENSE SECTION */}
-                    <tr>
-                       <td colSpan={4} className="px-8 pt-12 pb-4">
-                          <span className="text-[10px] font-bold tracking-[0.2em] text-rose-500 uppercase">Expense</span>
-                       </td>
+                    <tr><td colSpan={showPercentages ? 5 : 4} className="px-8 pt-12 pb-4 text-[10px] font-medium text-rose-400 uppercase tracking-[0.2em]">Expenses</td></tr>
+                    {reportData.expenses.map(item => renderRow(item, false, totalActualExpense))}
+                    
+                    <tr className="bg-rose-50/20">
+                       <td className="px-8 py-4 italic text-xs font-medium text-rose-500">Total Expense</td>
+                       <td className="px-8 py-4 text-xs font-medium text-slate-400 text-right">---</td>
+                       <td className="px-8 py-4 text-xs font-medium text-slate-800 text-right">{formatAmount(totalActualExpense)}</td>
+                       <td colSpan={showPercentages ? 2 : 1} />
                     </tr>
-                    {EXPENSE_DATA.map((item, idx) => (
-                       <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                          <td className="px-8 py-4 flex items-center gap-3">
-                             <div className="w-2 h-2 rounded-full border border-rose-400" />
-                             <span className="text-xs font-medium text-slate-600">{item.category}</span>
-                          </td>
-                          <td className="px-8 py-4 text-xs font-medium text-indigo-600 text-right">({formatCurrency(Math.abs(item.budgeted))})</td>
-                          <td className="px-8 py-4 text-xs font-medium text-slate-600 text-right">{formatCurrency(item.actual)}</td>
-                          <td className="px-8 py-4 text-xs font-medium text-teal-600 text-right">{formatCurrency(Math.abs(item.diff))}</td>
-                       </tr>
-                    ))}
-                    <tr className="border-t border-slate-100 bg-slate-50/30">
-                       <td className="px-8 py-5 italic text-xs font-medium text-rose-500">Total Expense</td>
-                       <td className="px-8 py-5 text-xs font-bold text-slate-800 text-right">(2,508.70)</td>
-                       <td className="px-8 py-5 text-xs font-bold text-slate-800 text-right">0.00</td>
-                       <td className="px-8 py-5 text-xs font-bold text-teal-600 text-right">2,508.70</td>
+                    
+                    {/* Summary Footer */}
+                    <tr className="bg-[#1E293B] border-t-2 border-slate-700">
+                       <td className="px-8 py-6 text-xs font-medium text-white uppercase tracking-wider">MONTHLY SURPLUS</td>
+                       <td className="px-8 py-6 text-right text-xs font-medium text-slate-400">---</td>
+                       <td className="px-8 py-6 text-right text-sm font-medium text-white group-hover:text-[#C5A059] transition-colors">{formatAmount(totalActualIncome - totalActualExpense)}</td>
+                       <td colSpan={showPercentages ? 2 : 1} className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-[10px] text-slate-500 uppercase">Savings Velocity</span>
+                            <span className="text-xs font-medium text-teal-400">{(( (totalActualIncome - totalActualExpense) / totalActualIncome ) * 100).toFixed(1)}%</span>
+                          </div>
+                       </td>
                     </tr>
                  </tbody>
               </table>

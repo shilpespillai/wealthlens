@@ -1,175 +1,382 @@
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   Building2, 
   Plus, 
   ChevronRight, 
   ChevronLeft,
-  Calendar,
+  Calendar as CalendarIcon,
   Wallet,
   Landmark,
   Car,
   CreditCard,
-  Target
+  Target,
+  X,
+  ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip 
 } from "recharts";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, addMonths, subMonths, endOfMonth, isSameMonth } from "date-fns";
+import { base44 } from "@/api/base44Client";
+import { cn } from "@/lib/utils";
+import { toast } from "react-hot-toast";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
-const COLORS = ['#818CF8', '#6366F1', '#D946EF', '#F472B6'];
+const ASSET_COLORS = ['#10B981', '#06B6D4', '#6366F1', '#8B5CF6', '#F59E0B'];
+const DEBT_COLORS  = ['#EF4444', '#F97316', '#475569', '#334155', '#94A3B8'];
+const NW_COLORS    = ['#C5A059', '#1E293B'];
 
-const MOCK_PIE_DATA = [
-  { name: 'Vehicles', value: 8990 },
-  { name: 'Bank', value: 3547 },
-  { name: 'Credit Cards', value: 2346 },
-  { name: 'Loans', value: 5000 },
+// Shared Mock Generator (to sync surplus)
+const MOCK_TRANS_GEN = (() => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+  const transactions = [];
+  const CATEGORY_CONFIG = [
+    { name: "Salary", type: "income", amount: 5500 },
+    { name: "Bonus", type: "income", amount: 2000 },
+    { name: "Housing", type: "expense", amount: -1850 },
+    { name: "Groceries", type: "expense", amount: -150 },
+    { name: "Investments", type: "expense", amount: -500 }
+  ];
+  months.forEach((m) => {
+    CATEGORY_CONFIG.forEach((cat) => {
+      if (cat.name === "Bonus" && m !== "Jan") return;
+      transactions.push({
+        id: `mock-${m}-${cat.name}`,
+        date: `${m} 15 2026`,
+        merchant: cat.name,
+        amount: cat.amount,
+        category: cat.name,
+        type: cat.type
+      });
+    });
+  });
+  return transactions;
+})();
+
+const INITIAL_ACCOUNTS = [
+  { id: '1', name: 'Primary Bank', category: 'Bank', value: 5240, type: 'asset' }, // Base January Value
+  { id: '2', name: 'Mazda Premacy', category: 'Vehicles', value: 8990, type: 'asset' },
+  { id: '3', name: 'Sample Credit Card', category: 'Credit Cards', value: 2346, type: 'debt' },
+  { id: '4', name: 'Car Loan', category: 'Loans', value: 5000, type: 'debt' },
 ];
 
 export default function NetWorthReport() {
+  const { normalizeTransactionData } = useFinancialParser();
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 3, 1)); // April 2026
+  const [viewMode, setViewMode] = useState('networth'); // networth, assets, debt
+  const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
+  const [addMode, setAddMode] = useState(null); 
+  const [newAccount, setNewAccount] = useState({ name: '', category: 'Bank', value: '' });
+  const [allTransactions, setAllTransactions] = useState([]);
+
+  // Load from Vault & Sync Transactions
+  useEffect(() => {
+    async function load() {
+      const savedAccounts = await base44.user.loadData("wealthlens-networth-accounts");
+      if (savedAccounts) setAccounts(savedAccounts);
+
+      const savedLedger = await base44.user.loadData("wealthlens-full-ledger");
+      const demoInterval = [
+        new Date(2026, 0, 1), new Date(2026, 1, 1), 
+        new Date(2026, 2, 1), new Date(2026, 3, 1), 
+        new Date(2026, 4, 1)
+      ];
+      let combined = [];
+      demoInterval.forEach(month => {
+        const { incomes, expenses } = normalizeTransactionData(savedLedger || [], month, MOCK_TRANS_GEN);
+        combined = [...combined, ...incomes, ...expenses];
+      });
+      setAllTransactions(combined);
+    }
+    load();
+  }, [normalizeTransactionData]);
+
+  // Unified Save
+  const saveAccounts = async (updated) => {
+    setAccounts(updated);
+    await base44.user.saveData("wealthlens-networth-accounts", updated);
+  };
+
+  const handleAddAccount = () => {
+    if (!newAccount.name || !newAccount.value) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    const updated = [...accounts, { 
+      ...newAccount, 
+      id: Date.now().toString(), 
+      value: parseFloat(newAccount.value), 
+      type: addMode 
+    }];
+    saveAccounts(updated);
+    setNewAccount({ name: '', category: 'Bank', value: '' });
+    setAddMode(null);
+    toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`);
+  };
+
+  // Temporal Logic: Calculate Cumulative Surplus up to Selected Month
+  const cumulativeSurplus = useMemo(() => {
+    const endOfSelected = endOfMonth(selectedDate);
+    return allTransactions
+      .filter(t => new Date(t.date || t.actualDate) <= endOfSelected)
+      .reduce((sum, t) => {
+        const val = Math.abs(t.monthlyAmount || t.amount || 0);
+        // Normalized data uses 'spendType' for income/expense distinction
+        const isIncome = t.type === 'income' || t.spendType === 'income';
+        return isIncome ? sum + val : sum - val;
+      }, 0);
+  }, [allTransactions, selectedDate]);
+
+  // Adjust Bank Account only for visual display
+  const temporalAccounts = useMemo(() => {
+    return accounts.map(a => {
+      if (a.name === 'Primary Bank' || a.category === 'Bank') {
+        const baseVal = a.value;
+        return { ...a, value: baseVal + cumulativeSurplus };
+      }
+      return a;
+    });
+  }, [accounts, cumulativeSurplus]);
+
+  const assets = temporalAccounts.filter(a => a.type === 'asset');
+  const debts = temporalAccounts.filter(a => a.type === 'debt');
+  
+  const totalAssets = assets.reduce((s, a) => s + a.value, 0);
+  const totalDebts = debts.reduce((s, d) => s + d.value, 0);
+  const netWorth = totalAssets - totalDebts;
+
+  const chartData = useMemo(() => {
+    if (viewMode === 'assets') {
+      const groups = assets.reduce((acc, a) => {
+        acc[a.category] = (acc[a.category] || 0) + a.value;
+        return acc;
+      }, {});
+      return Object.entries(groups).map(([name, value]) => ({ name, value }));
+    }
+    if (viewMode === 'debt') {
+      const groups = debts.reduce((acc, d) => {
+        acc[d.category] = (acc[d.category] || 0) + d.value;
+        return acc;
+      }, {});
+      return Object.entries(groups).map(([name, value]) => ({ name, value }));
+    }
+    return [
+      { name: 'Total Assets', value: totalAssets },
+      { name: 'Total Debts', value: totalDebts }
+    ];
+  }, [temporalAccounts, viewMode, totalAssets, totalDebts]);
+
+  const displayValue = viewMode === 'assets' ? totalAssets : viewMode === 'debt' ? totalDebts : netWorth;
+
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Container for Navbar Area — purely white background */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white">
-        <div className="bg-[#1E293B] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden">
+      {/* Premium Header */}
+      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
+        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
           <div className="px-8 py-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
                <Building2 className="w-6 h-6 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Net Worth as of today</h1>
+               <h1 className="text-xl font-medium text-white tracking-tight">Net Worth Breakdown</h1>
             </div>
-            <div className="flex items-center gap-8">
-               <div className="hidden lg:flex items-center gap-6 border-r border-slate-700 pr-8">
-                  <div className="flex items-center gap-2">
-                     <Switch id="hideZero" checked />
-                     <label htmlFor="hideZero" className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Hide $0 accounts</label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                     <Switch id="expandAll" checked />
-                     <label htmlFor="expandAll" className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Expand all sections</label>
-                  </div>
-               </div>
+            
+            <div className="flex items-center gap-6">
+               <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors">
+                      <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
+                      {format(selectedDate, "MMMM yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d) => d && setSelectedDate(d)}
+                      initialFocus
+                      className="text-white"
+                    />
+                  </PopoverContent>
+               </Popover>
                
-               <div className="flex items-center gap-4">
-                  <div className="flex items-center bg-slate-800/50 rounded-lg border border-slate-700 p-1">
-                     <span className="text-xs text-slate-400 px-3 py-1.5 flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5" />
-                        April 2026
-                     </span>
-                  </div>
-                  <div className="flex items-center border border-slate-700 rounded-lg bg-slate-800/50">
-                     <button className="p-2 border-r border-slate-700 text-slate-400 hover:text-white"><ChevronLeft className="w-4 h-4" /></button>
-                     <button className="p-2 text-slate-400 hover:text-white"><ChevronRight className="w-4 h-4" /></button>
-                  </div>
+               <div className="flex items-center border border-slate-700 rounded-xl bg-slate-800 overflow-hidden shadow-inner">
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 border-r border-slate-700 transition-all"><ChevronLeft className="w-4 h-4" /></button>
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ChevronRight className="w-4 h-4" /></button>
                </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main panel starts below Navbar */}
-      <div className="flex-1 overflow-y-auto bg-[#F8F9FB] p-12">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-12 pt-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           
           {/* Analysis View (Left Card) */}
-          <div className="lg:col-span-4 bg-[#E0E7FF] border border-slate-200 rounded-[32px] p-10 flex flex-col items-center shadow-lg relative overflow-hidden h-full min-h-[600px]">
+          <div className="lg:col-span-4 bg-[#E0E7FF] border border-slate-200 rounded-[32px] p-10 flex flex-col items-center shadow-lg relative overflow-hidden min-h-[600px]">
              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full -mr-12 -mt-12 blur-3xl opacity-50" />
              
-             <div className="flex items-center bg-white/50 backdrop-blur-sm rounded-lg p-1 mb-8 self-center shadow-sm">
-                <Button variant="ghost" size="sm" className="text-[10px] font-semibold uppercase tracking-widest px-6 h-8 text-slate-500">Assets</Button>
-                <Button variant="ghost" size="sm" className="bg-[#4338CA] text-white text-[10px] font-semibold uppercase tracking-widest px-6 h-8 shadow-md">Net Worth</Button>
-                <Button variant="ghost" size="sm" className="text-[10px] font-semibold uppercase tracking-widest px-6 h-8 text-slate-500">Debt</Button>
+             <div className="flex items-center bg-white/50 backdrop-blur-sm rounded-xl p-1 mb-8 self-center shadow-sm border border-white/50">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setViewMode('assets')}
+                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'assets' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                >Assets</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setViewMode('networth')}
+                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'networth' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                >Net Worth</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setViewMode('debt')}
+                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'debt' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                >Debt</Button>
              </div>
 
-             <div className="text-center mb-8">
-                <p className="text-3xl font-bold text-slate-800 tracking-tight">$5,192</p>
+             <div className="text-center mb-8 relative z-10">
+                <p className="text-[10px] font-medium text-indigo-600 uppercase tracking-[0.2em] mb-1">{viewMode.toUpperCase()}</p>
+                <p className="text-4xl font-medium text-slate-900 tracking-tight">{formatCurrency(displayValue)}</p>
              </div>
 
              <div className="w-full h-[280px] mb-8 relative">
                 <ResponsiveContainer width="100%" height="100%">
                    <PieChart>
                       <Pie
-                        data={MOCK_PIE_DATA}
+                        data={chartData}
                         cx="50%"
                         cy="50%"
                         innerRadius={80}
                         outerRadius={100}
                         paddingAngle={5}
                         dataKey="value"
+                        animationDuration={1000}
                       >
-                        {MOCK_PIE_DATA.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
+                        {chartData.map((entry, index) => {
+                          const palette = viewMode === 'assets' ? ASSET_COLORS : viewMode === 'debt' ? DEBT_COLORS : NW_COLORS;
+                          return <Cell key={`cell-${index}`} fill={palette[index % palette.length]} stroke="rgba(255,255,255,0.1)" />;
+                        })}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '12px', color: '#fff' }}
-                        itemStyle={{ fontSize: '12px' }}
+                        position={{ x: 10, y: -20 }}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                          border: '1px solid #E2E8F0', 
+                          borderRadius: '16px', 
+                          padding: '12px 16px',
+                          color: '#0F172A', 
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                          backdropFilter: 'blur(8px)'
+                        }}
+                        itemStyle={{ fontSize: '11px', fontWeight: 'medium', color: '#334155' }}
+                        formatter={(value) => formatCurrency(value)}
                       />
                    </PieChart>
                 </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Global</span>
+                  <span className="text-sm font-medium text-slate-800">{viewMode === 'debt' ? 'Liabilities' : 'Wealth'}</span>
+                </div>
              </div>
 
-             <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full">
-                {MOCK_PIE_DATA.map((item, idx) => (
-                   <div key={idx} className="flex flex-col">
-                      <div className="flex items-center gap-2 mb-1">
-                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx] }} />
-                         <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{item.name}</span>
-                      </div>
-                      <span className="text-xs font-bold text-slate-800 ml-4.5">{formatCurrency(item.value)}</span>
-                   </div>
-                ))}
+             <div className="grid grid-cols-1 gap-y-3 w-full">
+                {chartData.map((item, idx) => {
+                   const palette = viewMode === 'assets' ? ASSET_COLORS : viewMode === 'debt' ? DEBT_COLORS : NW_COLORS;
+                   return (
+                    <div key={idx} className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-white/50 backdrop-blur-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: palette[idx % palette.length] }} />
+                          <span className="text-[10px] font-medium text-slate-600 uppercase tracking-widest leading-none">{item.name}</span>
+                        </div>
+                        <span className="text-xs font-medium text-slate-800">{formatCurrency(item.value)}</span>
+                    </div>
+                   );
+                })}
              </div>
           </div>
 
-          {/* Breakdown List (Center/Right) */}
+          {/* Breakdown List */}
           <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
              
              {/* Assets Column */}
              <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
                    <div>
-                      <h2 className="text-xl font-bold text-slate-800 tracking-tight">Assets</h2>
-                      <p className="text-[10px] uppercase font-semibold text-teal-600 tracking-widest">What I Own</p>
+                      <h2 className="text-xl font-medium text-slate-800 tracking-tight">Assets</h2>
+                      <p className="text-[10px] uppercase font-medium text-teal-600 tracking-widest">What I Own</p>
                    </div>
-                   <span className="text-lg font-bold text-teal-600">$12,537</span>
+                   <span className="text-lg font-medium text-teal-600">{formatCurrency(totalAssets)}</span>
                 </div>
 
                 <div className="space-y-4">
-                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm group hover:border-[#C5A059]/40 transition-all">
-                      <div className="flex items-center justify-between mb-3 border-b border-slate-50 pb-3">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600 font-bold">1</div>
-                            <span className="text-xs font-bold text-slate-700">Bank</span>
-                         </div>
-                         <span className="text-xs font-bold text-slate-800">$3,547</span>
+                   {assets.map(asset => (
+                      <div key={asset.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm group hover:border-[#C5A059]/40 transition-all">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+                                 {asset.category === 'Vehicles' ? <Car className="w-5 h-5" /> : asset.category === 'Bank' ? <Landmark className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-xs font-medium text-slate-800">{asset.name}</span>
+                                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{asset.category}</span>
+                              </div>
+                           </div>
+                           <span className="text-sm font-medium text-slate-800">{formatCurrency(asset.value)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 pl-11">
-                         <div className="w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center text-[10px] text-white">S</div>
-                         <span className="flex-1 text-[11px] font-medium text-slate-500 underline decoration-slate-200 cursor-pointer">Sample Bank Account</span>
-                         <span className="text-[11px] font-bold text-slate-700">$3,547</span>
-                      </div>
-                   </div>
+                   ))}
 
-                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm group hover:border-[#C5A059]/40 transition-all">
-                      <div className="flex items-center justify-between mb-3 border-b border-slate-50 pb-3">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600 font-bold">1</div>
-                            <span className="text-xs font-bold text-slate-700">Vehicles</span>
-                         </div>
-                         <span className="text-xs font-bold text-slate-800">$8,990</span>
-                      </div>
-                      <div className="flex items-center gap-3 pl-11">
-                         <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-white"><Car className="w-3 h-3" /></div>
-                         <span className="flex-1 text-[11px] font-medium text-slate-500 underline decoration-slate-200 cursor-pointer">Mazda Premacy</span>
-                         <span className="text-[11px] font-bold text-slate-700">$8,990</span>
-                      </div>
-                   </div>
-
-                   <Button className="w-full h-14 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 text-xs font-bold uppercase tracking-widest gap-3 rounded-2xl">
-                      <Plus className="w-4 h-4" /> Add Asset
-                   </Button>
+                   <Dialog open={addMode === 'asset'} onOpenChange={(val) => setAddMode(val ? 'asset' : null)}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" className="w-full h-14 bg-teal-50/50 hover:bg-teal-50 border border-dashed border-teal-200 text-teal-700 text-xs font-medium uppercase tracking-widest gap-3 rounded-2xl transition-all">
+                          <Plus className="w-4 h-4" /> Add Asset
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white rounded-[24px]">
+                        <DialogHeader>
+                          <DialogTitle className="font-medium text-lg">Add New Asset</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="name" className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Asset Name</Label>
+                            <Input id="name" placeholder="e.g. Primary Residence" className="rounded-xl border-slate-200" value={newAccount.name} onChange={(e) => setNewAccount({...newAccount, name: e.target.value})} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Category</Label>
+                              <Select value={newAccount.category} onValueChange={(v) => setNewAccount({...newAccount, category: v})}>
+                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-white">
+                                  <SelectItem value="Bank">Bank</SelectItem>
+                                  <SelectItem value="Property">Property</SelectItem>
+                                  <SelectItem value="Vehicles">Vehicles</SelectItem>
+                                  <SelectItem value="Investments">Investments</SelectItem>
+                                  <SelectItem value="Personal">Personal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="value" className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Current Value</Label>
+                              <Input id="value" type="number" placeholder="50000" className="rounded-xl border-slate-200" value={newAccount.value} onChange={(e) => setNewAccount({...newAccount, value: e.target.value})} />
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={handleAddAccount} className="bg-[#C5A059] hover:bg-[#B38F4D] text-white font-medium uppercase tracking-widest px-8 rounded-xl h-11 transition-all">Save Asset</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                   </Dialog>
                 </div>
              </div>
 
@@ -177,52 +384,75 @@ export default function NetWorthReport() {
              <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
                    <div>
-                      <h2 className="text-xl font-bold text-slate-800 tracking-tight">Debts</h2>
-                      <p className="text-[10px] uppercase font-semibold text-rose-500 tracking-widest">What I Owe</p>
+                      <h2 className="text-xl font-medium text-slate-800 tracking-tight">Debts</h2>
+                      <p className="text-[10px] uppercase font-medium text-rose-500 tracking-widest">What I Owe</p>
                    </div>
-                   <span className="text-lg font-bold text-rose-500">($7,346)</span>
+                   <span className="text-lg font-medium text-rose-500">({formatCurrency(totalDebts)})</span>
                 </div>
 
                 <div className="space-y-4">
-                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm group hover:border-[#C5A059]/40 transition-all">
-                      <div className="flex items-center justify-between mb-3 border-b border-slate-50 pb-3">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 font-bold">1</div>
-                            <span className="text-xs font-bold text-slate-700">Credit Cards</span>
-                         </div>
-                         <span className="text-xs font-bold text-slate-800">($2,346)</span>
+                   {debts.map(debt => (
+                      <div key={debt.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm group hover:border-rose-300/40 transition-all">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+                                 {debt.category === 'Loans' ? <Landmark className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-xs font-medium text-slate-800">{debt.name}</span>
+                                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{debt.category}</span>
+                              </div>
+                           </div>
+                           <span className="text-sm font-medium text-slate-800">({formatCurrency(debt.value)})</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 pl-11">
-                         <div className="w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center text-[10px] text-white">S</div>
-                         <span className="flex-1 text-[11px] font-medium text-slate-500 underline decoration-slate-200 cursor-pointer">Sample Credit Card</span>
-                         <span className="text-[11px] font-bold text-slate-700">($2,346)</span>
-                      </div>
-                   </div>
+                   ))}
 
-                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm group hover:border-[#C5A059]/40 transition-all">
-                      <div className="flex items-center justify-between mb-3 border-b border-slate-50 pb-3">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 font-bold">1</div>
-                            <span className="text-xs font-bold text-slate-700">Loans</span>
-                         </div>
-                         <span className="text-xs font-bold text-slate-800">($5,000)</span>
-                      </div>
-                      <div className="flex items-center gap-3 pl-11">
-                         <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-white"><Landmark className="w-3 h-3" /></div>
-                         <span className="flex-1 text-[11px] font-medium text-slate-500 underline decoration-slate-200 cursor-pointer">Car Loan</span>
-                         <span className="text-[11px] font-bold text-slate-700">($5,000)</span>
-                      </div>
-                   </div>
-
-                   <Button className="w-full h-14 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold uppercase tracking-widest gap-3 rounded-2xl">
-                      <Plus className="w-4 h-4" /> Add Debt
-                   </Button>
+                   <Dialog open={addMode === 'debt'} onOpenChange={(val) => setAddMode(val ? 'debt' : null)}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" className="w-full h-14 bg-rose-50/50 hover:bg-rose-50 border border-dashed border-rose-200 text-rose-700 text-xs font-medium uppercase tracking-widest gap-3 rounded-2xl transition-all">
+                          <Plus className="w-4 h-4" /> Add Debt
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white rounded-[24px]">
+                        <DialogHeader>
+                          <DialogTitle className="font-medium text-lg">Add New Debt</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="dname" className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Debt Name</Label>
+                            <Input id="dname" placeholder="e.g. Student Loan" className="rounded-xl border-slate-200" value={newAccount.name} onChange={(e) => setNewAccount({...newAccount, name: e.target.value})} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Category</Label>
+                              <Select value={newAccount.category} onValueChange={(v) => setNewAccount({...newAccount, category: v})}>
+                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-white">
+                                  <SelectItem value="Loans">Loans</SelectItem>
+                                  <SelectItem value="Credit Cards">Credit Cards</SelectItem>
+                                  <SelectItem value="Mortgage">Mortgage</SelectItem>
+                                  <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="dvalue" className="text-[10px] uppercase tracking-widest font-medium text-slate-400">Outstanding Balance</Label>
+                              <Input id="dvalue" type="number" placeholder="2500" className="rounded-xl border-slate-200" value={newAccount.value} onChange={(e) => setNewAccount({...newAccount, value: e.target.value})} />
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={handleAddAccount} className="bg-rose-600 hover:bg-rose-700 text-white font-medium uppercase tracking-widest px-8 rounded-xl h-11 transition-all">Save Debt</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                   </Dialog>
                 </div>
              </div>
 
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

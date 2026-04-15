@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
+  ChevronRight,
+  TrendingUp,
+  ArrowRightLeft,
   PieChart as PieChartIcon, 
   Plus, 
   Trash2, 
   Wallet, 
   Receipt, 
   PiggyBank, 
-  TrendingUp,
   AlertCircle,
   CheckCircle2,
   Calendar,
@@ -20,9 +22,6 @@ import {
   Lock
 } from "lucide-react";
 
-
-
-
 import { 
   PieChart, 
   Pie, 
@@ -30,41 +29,18 @@ import {
   ResponsiveContainer, 
   Tooltip as RechartsTooltip, 
   Legend, 
-  Sankey,
-  ResponsiveContainer as ChartContainer
+  Sankey
 } from "recharts";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import AuthGuard from "@/components/AuthGuard";
-import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import BankConnect from "@/components/calculator/BankConnect";
 import { useAuth } from "@/lib/AuthContext";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { INITIAL_BUDGET_DATA } from "./SetBudget";
 
 
@@ -94,8 +70,33 @@ const DEFAULT_GOALS = [
   { id: 4, name: "Medical Fund", target: 5000, current: 0 }
 ];
 
+const MOCK_TRANSACTIONS = [
+  { id: 'm1', date: "Apr 28", merchant: "Client Payment", amount: 2800.00, category: "Salary", account: "Sample Bank Account", balance: 12450.00, status: "confirmed", type: "income", spendType: 'income' },
+  { id: 'm2', date: "Apr 25", merchant: "Whole Foods", amount: -156.40, category: "Groceries", account: "Sample Bank Account", balance: 9650.00, status: "confirmed", type: "expense", spendType: 'variable' },
+  { id: 'm3', date: "Apr 20", merchant: "Shell Station", amount: -85.00, category: "Transport", account: "Sample Credit Card", balance: -2140.00, status: "confirmed", type: "expense", spendType: 'variable' },
+  { id: 'm4', date: "Apr 15", merchant: "Mortgage Auto-pay", amount: -2200.00, category: "Housing", account: "Sample Bank Account", balance: 9800.00, status: "confirmed", type: "expense", spendType: 'fixed' },
+  { id: 'm5', date: "Apr 12", merchant: "Amazon Gadgets", amount: -145.99, category: "Entertainment", account: "Sample Credit Card", balance: -2055.00, status: "confirmed", type: "expense", spendType: 'variable' },
+  { id: 'm6', date: "Apr 10", merchant: "Secondary Income", amount: 1200.00, category: "Salary", account: "Sample Bank Account", balance: 12000.00, status: "confirmed", type: "income", spendType: 'income' },
+  { id: 'm7', date: "Apr 05", merchant: "Utility Bill", amount: -320.00, category: "Utilities", account: "Sample Bank Account", balance: 10800.00, status: "confirmed", type: "expense", spendType: 'fixed' },
+  { id: 'm8', date: "Apr 02", merchant: "Netflix", amount: -19.99, category: "Entertainment", account: "Sample Credit Card", balance: -1909.00, status: "confirmed", type: "expense", spendType: 'variable' },
+  ...Array.from({ length: 20 }).map((_, i) => ({
+    id: `m-extra-${i}`,
+    date: `Mar ${Math.max(1, 28 - i)}`,
+    merchant: ["Uber", "Starbucks", "Gym", "Internet", "Water", "Rent"][i % 6],
+    amount: -[15.00, 5.50, 60.00, 80.00, 45.00, 1800.00][i % 6],
+    category: ["Transport", "Eating Out", "Health", "Utilities", "Utilities", "Housing"][i % 6],
+    spendType: i % 6 === 5 || i % 6 === 3 ? 'fixed' : 'variable',
+    account: i % 2 === 0 ? "Sample Bank Account" : "Sample Credit Card",
+    balance: 5000 - (i * 100),
+    status: "confirmed",
+    type: "expense"
+  }))
+];
+
 function FamilyBudgetContent() {
+  const { parseCurrency, formatAmount, calculateMetrics, syncData, normalizeTransactionData } = useFinancialParser();
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [currency, setCurrency] = useState("USD");
@@ -105,33 +106,7 @@ function FamilyBudgetContent() {
   const [selectedVaultGoal, setSelectedVaultGoal] = useState("");
   const [vaultWithdrawAmount, setVaultWithdrawAmount] = useState("");
   const [isVaultAllocating, setIsVaultAllocating] = useState(false);
-  const [nextIncomeId, setNextIncomeId] = useState(2);
-  const [nextExpenseId, setNextExpenseId] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importText, setImportText] = useState("");
-
-  const fileInputRef = React.useRef(null);
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target.result;
-      if (typeof result === "string") {
-        setImportText(result);
-        toast.success(`${file.name} loaded. Click Analyze to process.`);
-      }
-    };
-    
-    if (file.type === "application/pdf") {
-      toast.info("PDF support is currently via AI-pasted text. Try copying the PDF text directly.");
-    } else {
-      reader.readAsText(file);
-    }
-  };
 
   const monthKey = useMemo(() => {
     const y = selectedDate.getFullYear();
@@ -139,206 +114,29 @@ function FamilyBudgetContent() {
     return `wealthlens-budget-${y}-${m}`;
   }, [selectedDate]);
 
-  const handleImport = async () => {
-    if (!importText.trim()) return;
-    
-    setIsLoading(true);
-    const toastId = toast.loading("Analyzing statement with AI...");
-
-    try {
-      // Use AI for better extraction
-      const response = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract financial transactions from the following bank statement text. 
-        Return ONLY a JSON array of objects with the following keys: "name", "category" (one of: "fixed", "variable", "savings"), and "monthlyAmount" (number). 
-        Statement text: ${importText.substring(0, 4000)}`
-      });
-
-      let parsedData = [];
-      if (typeof response === "string") {
-        const jsonMatch = response.match(/\[.*\]/s);
-        if (jsonMatch) parsedData = JSON.parse(jsonMatch[0]);
-      } else if (Array.isArray(response)) {
-        parsedData = response;
-      } else if (response.transactions) {
-        parsedData = response.transactions;
-      }
-
-      if (parsedData.length > 0) {
-        const formatted = parsedData.map(item => ({
-          id: Date.now() + Math.random(),
-          name: item.name || "Imported Item",
-          category: item.category || "variable",
-          monthlyAmount: Number(item.monthlyAmount) || 0
-        }));
-        
-        setExpenses(prev => [...prev, ...formatted]);
-        toast.success(`Imported ${formatted.length} transactions!`, { id: toastId });
-        setImportText("");
-        setIsImportModalOpen(false);
-      } else {
-        throw new Error("No transactions found");
-      }
-    } catch (e) {
-      console.error("AI Import failed", e);
-      toast.error("AI Analysis failed. Falling back to basic parsing...", { id: toastId });
-      
-      // Basic fallback logic
-      const lines = importText.split('\n');
-      const newExpenses = [];
-      lines.forEach(line => {
-        const amountMatch = line.match(/\d+\.\d{2}/) || line.match(/\d+(\,\d{3})*(\.\d{2})?/);
-        if (amountMatch) {
-          let amountStr = amountMatch[0].replace(/,/g, '');
-          const amount = parseFloat(amountStr);
-          if (isNaN(amount)) return;
-          const description = line.replace(amountMatch[0], '').trim().substring(0, 40);
-          let category = "variable";
-          const lowerDesc = description.toLowerCase();
-          if (lowerDesc.includes('rent') || lowerDesc.includes('mortgage') || lowerDesc.includes('util')) category = "fixed";
-          if (lowerDesc.includes('save') || lowerDesc.includes('invest')) category = "savings";
-          
-          newExpenses.push({
-            id: Date.now() + Math.random(),
-            name: description || "Imported Payment",
-            category,
-            monthlyAmount: amount
-          });
-        }
-      });
-      if (newExpenses.length > 0) {
-        setExpenses(prev => [...prev, ...newExpenses]);
-        toast.success(`Imported ${newExpenses.length} transactions via fallback.`);
-        setImportText("");
-        setIsImportModalOpen(false);
-      } else {
-        toast.error("Format not recognized.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBankSync = (transactions) => {
-    const formatted = transactions.map(item => ({
-      id: Date.now() + Math.random(),
-      name: item.name,
-      category: item.category,
-      monthlyAmount: item.amount
-    }));
-
-    // Check for duplicates
-    const existing = new Set(expenses.map(e => `${e.name}-${e.monthlyAmount}`));
-    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.monthlyAmount}`));
-
-    if (uniqueNew.length > 0) {
-      setExpenses(prev => [...prev, ...uniqueNew]);
-      toast.success(`Synced ${uniqueNew.length} new transactions from your bank!`);
-    } else {
-      toast.info("No new transactions found since last sync.");
-    }
-  };
-
-  // Load from server (preferred) or localStorage
+  // Load from server
   useEffect(() => {
     async function initData() {
       setIsLoading(true);
-      try {
-        // Try server first
-        const saved = await base44.user.loadData(monthKey);
-        if (saved) {
-          const { incomes: savedIncomes, expenses: savedExpenses, currency: savedCurrency } = saved;
-          setIncomes(savedIncomes || []);
-          setExpenses(savedExpenses || []);
-          if (savedCurrency) setCurrency(savedCurrency);
-          
-          const maxIncId = (savedIncomes || []).length > 0 ? Math.max(...savedIncomes.map(i => i.id || 0)) : 0;
-          const maxExpId = (savedExpenses || []).length > 0 ? Math.max(...savedExpenses.map(e => e.id || 0)) : 0;
-          setNextIncomeId(maxIncId + 1);
-          setNextExpenseId(maxExpId + 1);
-        } else {
-          // Fallback to localStorage
-          const localSaved = localStorage.getItem(monthKey);
-          if (localSaved) {
-            const { incomes: localIncomes, expenses: localExpenses, currency: localCurrency } = JSON.parse(localSaved);
-            setIncomes(localIncomes || []);
-            setExpenses(localExpenses || []);
-            if (localCurrency) setCurrency(localCurrency);
-            
-            const maxIncId = (localIncomes || []).length > 0 ? Math.max(...localIncomes.map(i => i.id || 0)) : 0;
-            const maxExpId = (localExpenses || []).length > 0 ? Math.max(...localExpenses.map(e => e.id || 0)) : 0;
-            setNextIncomeId(maxIncId + 1);
-            setNextExpenseId(maxExpId + 1);
-          } else {
-            // New month, start at 0 as requested by user
-            setIncomes([]);
-            setExpenses([]);
-            setNextIncomeId(1);
-            setNextExpenseId(1);
-          }
-        }
-      } catch (e) { 
-        console.error("Could not load budget", e); 
-      } finally {
-        setIsLoading(false);
-      }
+      const saved = await base44.user.loadData(monthKey);
+      
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, MOCK_TRANSACTIONS);
+      
+      setIncomes(normIncs);
+      setExpenses(normExps);
+      if (saved?.currency) setCurrency(saved.currency);
+      
+      // Registry sync
+      syncData(monthKey, { incomes: normIncs, expenses: normExps, currency: saved?.currency || currency }, { silent: true });
+      setIsLoading(false);
     }
     initData();
-  }, [monthKey]);
-
-  const handleSave = async () => {
-    try {
-      const data = { incomes, expenses, currency };
-      // Save locally
-      localStorage.setItem(monthKey, JSON.stringify(data));
-      
-      // Save to server
-      const success = await base44.user.saveData(monthKey, data);
-      
-      if (success) {
-        toast.success(`Budget for ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })} saved!`);
-      } else {
-        toast.warning("Saved locally, but server sync failed.");
-      }
-    } catch {
-      toast.error("Failed to save budget");
-    }
-  };
+  }, [monthKey, normalizeTransactionData, selectedDate]);
 
   const changeMonth = (offset) => {
     const next = new Date(selectedDate);
     next.setMonth(next.getMonth() + offset);
     setSelectedDate(next);
-  };
-
-  const handleCopyFromPrevious = async () => {
-    const prevDate = new Date(selectedDate);
-    prevDate.setMonth(prevDate.getMonth() - 1);
-    const y = prevDate.getFullYear();
-    const m = (prevDate.getMonth() + 1).toString().padStart(2, '0');
-    const prevKey = `wealthlens-budget-${y}-${m}`;
-    
-    setIsLoading(true);
-    const toastId = toast.loading(`Copying from ${prevDate.toLocaleString('default', { month: 'short' })}...`);
-    
-    try {
-      let saved = await base44.user.loadData(prevKey);
-      if (!saved) {
-        const local = localStorage.getItem(prevKey);
-        if (local) saved = JSON.parse(local);
-      }
-      
-      if (saved && (saved.incomes?.length > 0 || saved.expenses?.length > 0)) {
-        setIncomes(saved.incomes || []);
-        setExpenses(saved.expenses || []);
-        toast.success("Imported previous month's plan!", { id: toastId });
-      } else {
-        toast.error("No data found in previous month.", { id: toastId });
-      }
-    } catch (e) {
-      toast.error("Failed to copy data.", { id: toastId });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const selectMonthYear = (month, year) => {
@@ -349,36 +147,44 @@ function FamilyBudgetContent() {
   };
 
   const sym = getCurrencySymbol(currency);
-  const multiplier = 1;
-  const fmt = (val) => `${sym}${(val * multiplier).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  const rawFmt = (val) => (val * multiplier).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-  const addIncome = () => {
-    setIncomes([...incomes, { id: nextIncomeId, name: "", monthlyAmount: 0 }]);
-    setNextIncomeId(nextIncomeId + 1);
-  };
-  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
-  const updateIncome = (id, field, val) => setIncomes(incomes.map(i => i.id === id ? { ...i, [field]: val } : i));
+    const aggregatedIncomes = useMemo(() => {
+    const groups = incomes.reduce((acc, curr) => {
+      const cat = curr.category || "Salary";
+      const st = curr.spendType || 'income';
+      if (!acc[cat]) acc[cat] = { name: cat, amount: 0, count: 0, spendType: st };
+      acc[cat].amount += (curr.monthlyAmount || 0);
+      acc[cat].count += 1;
+      return acc;
+    }, {});
+    return Object.values(groups);
+  }, [incomes]);
 
-  const addExpense = () => {
-    setExpenses([...expenses, { id: nextExpenseId, name: "Uncategorized", category: "variable", monthlyAmount: 0 }]);
-    setNextExpenseId(nextExpenseId + 1);
-  };
-  const removeExpense = (id) => setExpenses(expenses.filter(e => e.id !== id));
-  const updateExpense = (id, field, val) => setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: val } : e));
+  const aggregatedExpenses = useMemo(() => {
+    const groups = expenses.reduce((acc, curr) => {
+      const cat = curr.category || "Uncategorized";
+      const st = curr.spendType || 'variable';
+      if (!acc[cat]) acc[cat] = { name: cat, amount: 0, count: 0, category: cat, spendType: st };
+      acc[cat].amount += (curr.monthlyAmount || 0);
+      acc[cat].count += 1;
+      return acc;
+    }, {});
+    return Object.values(groups);
+  }, [expenses]);
 
-  // Flattened budget categories for the dropdown
-  const budgetCategories = useMemo(() => {
-    const cats = [];
-    INITIAL_BUDGET_DATA.forEach(group => {
-      if (group.type === "group" && group.children) {
-        group.children.forEach(child => cats.push(child.category));
-      } else if (group.type === "item" || group.type === "income") {
-        cats.push(group.category);
-      }
-    });
-    return ["Uncategorized", ...new Set(cats)];
-  }, []);
+
+
+  const unifiedFlow = useMemo(() => {
+    const incomesList = aggregatedIncomes.map(i => ({ ...i, flow: 'income', color: 'emerald' }));
+    const expensesList = aggregatedExpenses.map(e => ({ ...e, flow: 'expense', color: 'rose' }));
+    return [...incomesList, ...expensesList].sort((a, b) => b.amount - a.amount);
+  }, [aggregatedIncomes, aggregatedExpenses]);
+
+  const monthParam = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
 
   const parseNum = (val) => {
     return parseFloat(val) || 0;
@@ -386,14 +192,10 @@ function FamilyBudgetContent() {
 
 
   const metrics = useMemo(() => {
-    const totalIncome = incomes.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const expensesOnly = expenses.filter(e => e.category !== "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const savingsOnly = expenses.filter(e => e.category === "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const totalExpenses = expensesOnly + savingsOnly;
-    const balance = totalIncome - totalExpenses;
+    const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses);
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
-      const catExpenses = expenses.filter(e => e.category === cat.id);
+      const catExpenses = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === cat.id);
       const amount = catExpenses.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
       const actualPct = totalIncome > 0 ? (amount / totalIncome) * 100 : 0;
       const targetAmount = (totalIncome * cat.targetPct) / 100;
@@ -418,12 +220,11 @@ function FamilyBudgetContent() {
       color: b.color
     }));
 
-    const fixedExpenses = expenses.filter(e => e.category === "fixed").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const variableWants = expenses.filter(e => e.category === "variable").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const savings = expenses.filter(e => e.category === "savings").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const fixedExpenses = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === "fixed").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const variableWants = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === "variable").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
 
     return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
-  }, [incomes, expenses]);
+  }, [incomes, expenses, calculateMetrics]);
 
   const sankeyData = useMemo(() => {
     if ((incomes.length === 0 && expenses.length === 0) || metrics.totalIncome === 0) return null;
@@ -441,14 +242,15 @@ function FamilyBudgetContent() {
       gross: "#8b5cf6"      // Violet
     };
 
-    const getSectionColor = (name, category = "") => {
+    const getSectionColor = (name, category = "", spendType = "") => {
       const n = (name || "").toLowerCase();
+      const st = (spendType || "").toLowerCase();
       const c = (category || "").toLowerCase();
+      
       if (n.includes("tax") || c.includes("tax")) return colors.tax;
-      if (n.includes("rent") || n.includes("mortgage") || c === "fixed") return colors.fixed;
-      if (c === "variable" || n.includes("food") || n.includes("grocery") || n.includes("living")) return colors.variable;
-      if (c === "savings" || n.includes("savings") || n.includes("surplus") || n.includes("invest")) return colors.savings;
-      if (c === "uncategorized") return "#94A3B8";
+      if (st === "fixed" || n.includes("rent") || n.includes("mortgage")) return colors.fixed;
+      if (st === "variable" || n.includes("food") || n.includes("grocery")) return colors.variable;
+      if (st === "savings" || n.includes("savings") || n.includes("invest")) return colors.savings;
       return "#94a3b8"; // Slate for unknown
     };
 
@@ -457,14 +259,24 @@ function FamilyBudgetContent() {
       return Math.max(0.1, num); // Ensure minimal flow for Sankey to render links
     };
 
+    const nodeNames = new Set();
+    const safeNodePush = (node) => {
+      let name = node.name || "Default";
+      while (nodeNames.has(name)) {
+        name += "\u00A0"; // Append non-breaking space until unique
+      }
+      nodeNames.add(name);
+      nodes.push({ ...node, name });
+    };
+
     // 1. Individual Incomes
     incomes.forEach((inc, i) => {
-      nodes.push({ name: inc.name || "Source", color: colors.income, value: Number(inc.monthlyAmount) || 0 });
+      safeNodePush({ name: inc.name || "Source", color: colors.income, value: Number(inc.monthlyAmount) || 0 });
     });
 
     const grossIncomeIndex = nodes.length;
     const totalInc = Number(metrics.totalIncome) || 0;
-    nodes.push({ name: "Gross Income", color: colors.gross, value: totalInc });
+    safeNodePush({ name: "Gross Income", color: colors.gross, value: totalInc });
 
     // Link Incomes to Gross
     incomes.forEach((inc, i) => {
@@ -473,40 +285,40 @@ function FamilyBudgetContent() {
 
     // 2. Gross Income to Categories
     const fixedIndex = nodes.length;
-    nodes.push({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
+    safeNodePush({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
     if (metrics.fixedExpenses > 0) {
       links.push({ source: grossIncomeIndex, target: fixedIndex, value: safeVal(metrics.fixedExpenses) });
     }
 
     const variableIndex = nodes.length;
-    nodes.push({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
+    safeNodePush({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
     if (metrics.variableWants > 0) {
       links.push({ source: grossIncomeIndex, target: variableIndex, value: safeVal(metrics.variableWants) });
     }
 
     const savingsIndex = nodes.length;
-    nodes.push({ name: "Savings", color: colors.savings, value: metrics.savings });
+    safeNodePush({ name: "Savings", color: colors.savings, value: metrics.savings });
     if (metrics.savings > 0) {
       links.push({ source: grossIncomeIndex, target: savingsIndex, value: safeVal(metrics.savings) });
     }
 
     const surplusIndex = nodes.length;
     const bal = metrics.balance > 0 ? metrics.balance : 0;
-    nodes.push({ name: "Monthly Surplus", color: colors.surplus, value: bal });
+    safeNodePush({ name: "Monthly Surplus", color: colors.surplus, value: bal });
     if (bal > 0) {
       links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
     }
 
     // 3. Category to Items
     expenses.forEach((exp) => {
-      const cat = exp.category || "variable";
-      const color = getSectionColor(exp.name || "", cat);
+      const st = exp.spendType || "variable";
+      const color = getSectionColor(exp.name || "", exp.category || "", st);
       const itemIndex = nodes.length;
-      nodes.push({ name: exp.name || "Item", color, value: Number(exp.monthlyAmount) || 0 });
+      safeNodePush({ name: exp.name || "Item", color, value: Number(exp.monthlyAmount) || 0 });
       
       let targetCatIndex = variableIndex;
-      if (cat === "fixed" || color === colors.fixed) targetCatIndex = fixedIndex;
-      if (cat === "savings" || color === colors.savings) targetCatIndex = savingsIndex;
+      if (st === "fixed") targetCatIndex = fixedIndex;
+      if (st === "savings") targetCatIndex = savingsIndex;
       
       links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.monthlyAmount) });
     });
@@ -586,18 +398,25 @@ function FamilyBudgetContent() {
   };
 
   const vaultData = useMemo(() => {
-    let totalSurplus = 0;
-    Object.keys(localStorage).filter(k => k.startsWith('wealthlens-budget-')).forEach(k => {
-      try {
-        const data = JSON.parse(localStorage.getItem(k));
-        const inc = (data.incomes || []).reduce((s, i) => s + (Number(i.monthlyAmount) || 0), 0);
-        const exp = (data.expenses || []).reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0);
-        totalSurplus += (inc - exp);
-      } catch {}
-    });
+    let historicalSurplus = 0;
+    
+    // 1. Gather historical savings from registry (Fast & Source Agnostic)
+    try {
+      const registry = JSON.parse(localStorage.getItem('wealthlens-vault-registry') || '{}');
+      Object.keys(registry)
+        .filter(k => k !== monthKey)
+        .forEach(k => {
+          historicalSurplus += (Number(registry[k]) || 0);
+        });
+    } catch (err) {}
+      
+    // 2. Add current month's "live" surplus (includes mocks or unsaved session data)
+    const currentSurplus = metrics.totalIncome - metrics.totalExpenses;
+    const totalSurplus = historicalSurplus + currentSurplus;
+    
     const allocated = Number(localStorage.getItem('wealthlens-vault-allocated')) || 0;
     return { remaining: Math.max(0, totalSurplus - allocated), allocated };
-  }, [incomes, expenses]);
+  }, [incomes, expenses, monthKey, metrics.totalIncome, metrics.totalExpenses]);
 
   const handleVaultWithdraw = (goalId, amount) => {
     const withdrawal = Number(amount);
@@ -609,7 +428,7 @@ function FamilyBudgetContent() {
     const newAllocated = vaultData.allocated + withdrawal;
     localStorage.setItem('wealthlens-vault-allocated', newAllocated.toString());
     
-    toast.success(`Allocated ${getCurrencySymbol(currency)}${withdrawal.toLocaleString()} from vault to ${goals.find(g => g.id === goalId)?.name}`);
+    toast.success(`Allocated ${getCurrencySymbol(currency)}${(withdrawal || 0).toLocaleString()} from vault to ${goals.find(g => g.id === goalId)?.name}`);
     setVaultWithdrawAmount("");
   };
 
@@ -681,9 +500,6 @@ function FamilyBudgetContent() {
               <div className="w-24">
                 <CurrencySelector value={currency} onChange={setCurrency} />
               </div>
-              <Button onClick={handleSave} size="sm" className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-semibold gap-2 h-10 px-6 rounded-xl shadow-lg shadow-[#C5A059]/20 border-0">
-                <Save className="w-4 h-4" /> Save
-              </Button>
             </div>
           </div>
 
@@ -734,7 +550,7 @@ function FamilyBudgetContent() {
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total Managed</p>
-                <p className="text-md font-black text-[#C5A059] leading-none">{fmt(metrics.totalIncome)}</p>
+                <p className="text-md font-black text-[#C5A059] leading-none">{formatAmount(metrics.totalIncome)}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-[#2D3748] flex items-center justify-center border border-[#C5A059]/20">
                 <TrendingUp className="w-5 h-5 text-[#C5A059]" />
@@ -769,7 +585,7 @@ function FamilyBudgetContent() {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
-                              <p className="text-xl font-black text-slate-800">{sym}{Number(value).toLocaleString()}</p>
+                              <p className="text-xl font-black text-slate-800">{sym}{(Number(value) || 0).toLocaleString()}</p>
                             </div>
                           </div>
                         );
@@ -806,7 +622,7 @@ function FamilyBudgetContent() {
             <div>
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1">Total Monthly Income</p>
 
-              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{fmt(metrics.totalIncome)}</h2>
+              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{formatAmount(metrics.totalIncome)}</h2>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
               <Wallet className="w-5 h-5 text-emerald-500" />
@@ -816,7 +632,7 @@ function FamilyBudgetContent() {
             <div>
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-1">Total Monthly Expenses</p>
 
-              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{fmt(metrics.totalExpenses)}</h2>
+              <h2 className="text-2xl font-medium text-slate-700 tracking-tight">{formatAmount(metrics.totalExpenses)}</h2>
             </div>
             <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
               <Receipt className="w-5 h-5 text-rose-500" />
@@ -826,7 +642,7 @@ function FamilyBudgetContent() {
             <div>
               <p className={`text-[10px] font-medium uppercase tracking-widest mb-1 ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Remaining Balance</p>
               <h2 className={`text-2xl font-medium tracking-tight ${metrics.balance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {metrics.balance >= 0 ? '+' : '-'}{fmt(Math.abs(metrics.balance))}
+                {metrics.balance >= 0 ? '+' : '-'}{formatAmount(Math.abs(metrics.balance))}
               </h2>
             </div>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${metrics.balance >= 0 ? 'bg-emerald-100' : 'bg-rose-100'}`}>
@@ -912,191 +728,94 @@ function FamilyBudgetContent() {
             </motion.div>
 
 
-            
-            {/* Income Section */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Income Sources</h3>
-                  <p className="text-xs text-slate-400">Add your monthly income streams</p>
-                </div>
-                <div className="flex items-center justify-end flex-nowrap gap-1.5">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopyFromPrevious} 
-                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg px-2.5 text-xs font-medium"
-                  >
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={addIncome} className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 h-8 rounded-lg px-2.5 text-xs font-medium">
-                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {incomes.map((inc) => (
-                  <div key={inc.id} className="flex flex-col sm:flex-row gap-3 items-center group">
-                    <Input 
-                      placeholder="Income Label (e.g. Salary)" 
-                      value={inc.name} 
-                      onChange={(e) => updateIncome(inc.id, "name", e.target.value)}
-                      className="flex-1 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
-                    />
-                    <div className="relative w-full sm:w-48">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
-                      <Input 
-                        type="number"
-                        placeholder="0" 
-                        value={inc.monthlyAmount ? (inc.monthlyAmount * multiplier).toString() : ""} 
-                        onChange={(e) => updateIncome(inc.id, "monthlyAmount", parseNum(e.target.value))}
+                    {/* Aggregated Overview Pane — Now with Donut Chart */}
+            <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm relative overflow-hidden">
+               <div className="flex items-center justify-between mb-10">
+                 <div>
+                    <h3 className="text-2xl font-bold text-slate-800 tracking-tight">Financial Cash Flow</h3>
+                    <p className="text-sm text-slate-500 font-medium">Categorical contribution to your monthly budget.</p>
+                 </div>
+                 <Link to={`/Transactions?month=${monthParam}`}>
+                    <Button variant="outline" className="gap-2 h-10 px-5 rounded-full border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest transition-all">
+                       Audit Ledger <ChevronRight className="w-4 h-4" />
+                    </Button>
+                 </Link>
+               </div>
 
-                        className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
-                      />
-                    </div>
-                    <button onClick={() => removeIncome(inc.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Expenses Section */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-              <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Expenses & Savings</h3>
-                  <p className="text-sm text-slate-500">Categorize for 50/30/20 breakdown</p>
-                </div>
-                <div className="flex items-center justify-end flex-nowrap gap-1.5">
-                  <BankConnect onSyncSuccess={handleBankSync} />
-                  <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100/50 h-8 rounded-lg px-2.5 font-medium text-xs"
-                      >
-                        <Download className="w-3.5 h-3.5 mr-1.5" /> Import
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>AI Bank Statement Import</DialogTitle>
-                        <DialogDescription>
-                          Paste statement text or CSV content below. Our AI will automatically extract amounts and categorize them.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex-1 gap-2 border-dashed border-2 hover:border-indigo-400 hover:bg-indigo-50 transition-all border-slate-200"
-                          >
-                            <Download className="w-4 h-4" /> Upload CSV / TXT
-                          </Button>
-                          <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            className="hidden" 
-                            accept=".csv,.txt"
-                            onChange={handleFileUpload}
-                          />
+               <div className="flex flex-col md:flex-row items-center justify-center gap-12">
+                  {unifiedFlow.length === 0 ? (
+                     <div className="w-full py-20 text-center border-2 border-dashed border-slate-100 rounded-[32px]">
+                        <p className="text-sm text-slate-400 font-medium tracking-tight uppercase tracking-widest">No transaction data in ledger for {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+                     </div>
+                  ) : (
+                     <>
+                        <div className="w-full md:w-1/2 h-[320px] relative">
+                           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Monthly Flow</span>
+                             <span className="text-2xl font-medium text-slate-800 tracking-tighter">{formatAmount(metrics.totalExpenses)}</span>
+                           </div>
+                           <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                 <Pie
+                                    data={unifiedFlow.map(item => ({ ...item, value: Math.abs(item.amount) }))}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={85}
+                                    outerRadius={115}
+                                    paddingAngle={4}
+                                    dataKey="value"
+                                    stroke="none"
+                                    onClick={(data) => {
+                                       if (data && data.name) {
+                                         navigate(`/Transactions?search=${encodeURIComponent(data.name)}&month=${monthParam}`);
+                                       }
+                                    }}
+                                    className="cursor-pointer outline-none"
+                                 >
+                                    {unifiedFlow.map((entry, index) => (
+                                       <Cell 
+                                         key={`cell-${index}`} 
+                                         fill={entry.flow === 'income' ? '#06b6d4' : (entry.spendType === 'fixed' ? '#f59e0b' : (entry.spendType === 'savings' ? '#10b981' : '#f43f5e'))} 
+                                         className="hover:scale-105 transition-transform duration-300"
+                                       />
+                                    ))}
+                                 </Pie>
+                                 <RechartsTooltip 
+                                    formatter={(value) => formatAmount(value)}
+                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '12px' }}
+                                    itemStyle={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase' }}
+                                 />
+                              </PieChart>
+                           </ResponsiveContainer>
                         </div>
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100" /></div>
-                          <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-slate-400">or paste text</span></div>
-                        </div>
-                        <Textarea 
-                          placeholder="Paste your bank statement text here (e.g. 12/01 Amazon $45.99)..."
-                          className="min-h-[200px] bg-slate-50 border-slate-200"
-                          value={importText}
-                          onChange={(e) => setImportText(e.target.value)}
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsImportModalOpen(false); setImportText(""); }}>
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={handleImport}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                          disabled={!importText.trim()}
-                        >
-                          Analyze & Import
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopyFromPrevious} 
-                    className="text-slate-600 border-slate-200 hover:bg-slate-50 h-8 rounded-lg px-2.5 text-xs font-medium"
-                  >
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" /> Copy Prev
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={addExpense} className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 h-8 rounded-lg px-2.5 text-xs font-medium">
-                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {expenses.map((exp) => (
-                  <div key={exp.id} className="flex flex-col sm:flex-row gap-3 items-center group">
-                    <div className="flex-1 w-full">
-                      <Select 
-                        value={exp.name || "Uncategorized"} 
-                        onValueChange={(val) => updateExpense(exp.id, "name", val)}
-                      >
-                        <SelectTrigger className="bg-slate-50 border-slate-200">
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {budgetCategories.map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        <div className="w-full md:w-1/2 space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Breakdown by Category</h4>
+                          {unifiedFlow.map((item, index) => (
+                            <div 
+                              key={index}
+                              onClick={() => navigate(`/Transactions?search=${encodeURIComponent(item.name)}&month=${monthParam}`)}
+                              className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-500/5 hover:-translate-y-0.5 cursor-pointer transition-all duration-300 group"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-current ring-4 ring-offset-0 ring-current/10" style={{ color: item.flow === 'income' ? '#06b6d4' : (item.spendType === 'fixed' ? '#f59e0b' : (item.spendType === 'savings' ? '#10b981' : '#f43f5e')), backgroundColor: 'currentColor' }} />
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold text-slate-800 tracking-tight group-hover:text-purple-600 transition-colors uppercase">{item.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.count} Transactions</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-sm font-serif font-bold tracking-tight ${item.flow === 'income' ? 'text-cyan-600' : 'text-slate-700'}`}>
+                                  {item.flow === 'income' ? '+' : '-'}{formatAmount(item.amount)}
+                                </span>
+                              </div>
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        </div>
+                     </>
+                  )}
+               </div>
 
-                    <div className="w-full sm:w-40">
-                      <Select 
-                        value={exp.category || "variable"} 
-                        onValueChange={(val) => updateExpense(exp.id, "category", val)}
-                      >
-                        <SelectTrigger className="bg-slate-50 border-slate-200 text-sm">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Fixed</SelectItem>
-                          <SelectItem value="variable">Variable</SelectItem>
-                          <SelectItem value="savings">Savings</SelectItem>
-                          <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="relative w-full sm:w-40">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{sym}</span>
-                      <Input 
-                        type="number" 
-                        placeholder="0" 
-                        value={exp.monthlyAmount ? (exp.monthlyAmount * multiplier).toString() : ""} 
-                        onChange={(e) => updateExpense(exp.id, "monthlyAmount", parseNum(e.target.value))}
-                        className="pl-8 bg-slate-50 border-slate-200 focus-visible:ring-rose-500"
-                      />
-                    </div>
-                    <button onClick={() => removeExpense(exp.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+          </div>
 
           </div>
 
@@ -1128,14 +847,14 @@ function FamilyBudgetContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{fmt(b.targetAmount)} Goal</span>
+                        <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{formatAmount(b.targetAmount)} Goal</span>
                         {b.isOver ? (
                           <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Variance
+                            <AlertCircle className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Variance
                           </span>
                         ) : (
                           <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3 h-3" /> {fmt(Math.abs(b.diff))} Savings
+                            <CheckCircle2 className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Savings
                           </span>
                         )}
                       </div>

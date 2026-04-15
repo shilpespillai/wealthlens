@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Plus, 
@@ -8,8 +8,10 @@ import {
   MoreHorizontal, 
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowRightLeft,
   CreditCard,
   Building2,
   Tag,
@@ -26,7 +28,8 @@ import {
   List,
   Wrench,
   ExternalLink,
-  Edit2
+  Edit2,
+  Calendar
 } from "lucide-react";
 import { 
   Table, 
@@ -64,41 +67,64 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "react-router-dom";
 import AuthGuard from "@/components/AuthGuard";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
+import BankConnect from "@/components/calculator/BankConnect";
+import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { base44 } from "@/api/base44Client";
+import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
 // --- Mock Data ---
 
-const MOCK_TRANSACTIONS = [
-  { id: 1, date: "Mar 18", merchant: "Payment Received, thank you", amount: 160.00, category: "Repay Credit Card", account: "Sample Credit Card", balance: -2345.54, status: "confirmed", type: "income" },
-  { id: 2, date: "Mar 18", merchant: "Payment to Visa xxxx-1234", amount: -180.00, category: "Repay Credit Card", account: "Sample Bank Account", balance: 3555.45, status: "confirmed", type: "expense" },
-  { id: 3, date: "Mar 18", merchant: "Momotea", amount: -9.80, category: "Eating Out", account: "Sample Bank Account", balance: 3715.45, status: "uncategorized", type: "expense" },
-  { id: 4, date: "Mar 18", merchant: "Esquires Lorne Street Cafe", amount: -9.40, category: "Eating Out", account: "Sample Bank Account", balance: 3725.25, status: "confirmed", type: "expense" },
-  { id: 5, date: "Mar 17", merchant: "Nol Bu Ne Restaurant", amount: -26.00, category: "Eating Out", account: "Sample Bank Account", balance: 3734.65, status: "confirmed", type: "expense", note: "Finding this place was a little scary due to how hidden it is. But service was prompt, prices are cheap and the food is decent!" },
-  { id: 6, date: "Mar 17", merchant: "Velluto Cafe", amount: -4.20, category: "Eating Out", account: "Sample Bank Account", balance: 3760.65, status: "confirmed", type: "expense" },
-  { id: 7, date: "Mar 17", merchant: "Countdown Dunedin", amount: -24.00, category: "Groceries", account: "Sample Bank Account", balance: 3764.85, status: "confirmed", type: "expense", note: "First time making my own hot sauce. Simple and delicious!" },
-  { id: 8, date: "Mar 15", merchant: "The Point Cafe & Bar Balclutha", amount: -17.70, category: "Eating Out", account: "Sample Bank Account", balance: 3788.85, status: "confirmed", type: "expense" },
-  { id: 9, date: "Mar 14", merchant: "Netflix Subscription", amount: -19.99, category: "Entertainment", account: "Sample Credit Card", balance: -2505.54, status: "confirmed", type: "expense" },
-  { id: 10, date: "Mar 14", merchant: "Weekly Salary", amount: 2400.00, category: "Salary", account: "Sample Bank Account", balance: 6188.85, status: "confirmed", type: "income" },
-  { id: 11, date: "Mar 13", merchant: "Shell Gas Station", amount: -85.00, category: "Transport", account: "Sample Bank Account", balance: 3788.85, status: "awaiting", type: "expense" },
-  { id: 12, date: "Mar 12", merchant: "Amazon Prime", amount: -12.99, category: "Entertainment", account: "Sample Credit Card", balance: -2525.53, status: "confirmed", type: "expense" },
-  // Adding more to reach a "robust" feel
-  ...Array.from({ length: 40 }).map((_, i) => ({
-    id: 13 + i,
-    date: `Mar ${Math.max(1, 12 - Math.floor(i/4))}`,
-    merchant: ["Uber", "Starbucks", "Gym Membership", "Internet Provider", "Water utility", "Rent Payment"][i % 6],
-    amount: -[15.00, 5.50, 60.00, 80.00, 45.00, 1800.00][i % 6],
-    category: ["Transport", "Eating Out", "Health", "Utilities", "Utilities", "Fixed"][i % 6],
-    account: i % 2 === 0 ? "Sample Bank Account" : "Sample Credit Card",
-    balance: 3000 - (i * 50),
-    status: i % 10 === 0 ? "uncategorized" : (i % 7 === 0 ? "awaiting" : "confirmed"),
-    type: "expense"
-  }))
-];
+const MOCK_TRANSACTIONS = (() => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+  const transactions = [];
+  
+  const CATEGORY_MAP = [
+    { name: "Salary", type: "income", spendType: "income", amount: 5500, merchant: "Global Corp Salary" },
+    { name: "Bonus", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
+    { name: "Housing", type: "expense", spendType: "fixed", amount: -1850, merchant: "Metropolis Housing" },
+    { name: "Groceries", type: "expense", spendType: "variable", amount: -150, merchant: "Whole Foods Market" },
+    { name: "Dining Out", type: "expense", spendType: "variable", amount: -45, merchant: "Local Bistro" },
+    { name: "Transport", type: "expense", spendType: "variable", amount: -25, merchant: "Uber Trip" },
+    { name: "Utilities", type: "expense", spendType: "variable", amount: -85, merchant: "Shell Energy" },
+    { name: "Healthcare", type: "expense", spendType: "fixed", amount: -210, merchant: "City Health Premium" },
+    { name: "Entertainment", type: "expense", spendType: "fixed", amount: -45.99, merchant: "Cloud Streaming Hub" },
+    { name: "Shopping", type: "expense", spendType: "variable", amount: -60, merchant: "Amazon Store" },
+    { name: "Savings", type: "expense", spendType: "savings", amount: -500, merchant: "High-Yield Savings" },
+    { name: "Investments", type: "expense", spendType: "savings", amount: -500, merchant: "Vanguard ETF Index" }
+  ];
+
+  months.forEach((m, mIdx) => {
+    CATEGORY_MAP.forEach((cat, cIdx) => {
+      // Bonus only in Jan
+      if (cat.name === "Bonus" && m !== "Jan") return;
+
+      const day = (5 + (cIdx * 2)) % 28;
+      transactions.push({
+        id: `mock-${m}-${cat.name.replace(/\s+/g, '-')}`,
+        date: `${m} ${day.toString().padStart(2, '0')}`,
+        merchant: cat.merchant,
+        amount: cat.amount + (Math.random() * 10 - 5), 
+        category: cat.name,
+        spendType: cat.spendType,
+        type: cat.type,
+        account: cIdx % 2 === 0 ? "Sample Bank Account" : "Sample Credit Card",
+        balance: 10000 - (cIdx * 200)
+      });
+    });
+  });
+
+  return transactions;
+})();
 
 const SIDEBAR_ITEMS = [
-  { id: "all", label: "All transactions", count: 213, icon: List, color: "text-purple-600", bg: "bg-purple-50" },
-  { id: "uncategorized", label: "Uncategorized items", count: 3, icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
-  { id: "awaiting", label: "Awaiting confirmation", count: 19, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
+  { id: "all", label: "All items", icon: List, color: "text-purple-600", bg: "bg-purple-50" },
+  { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
+  { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
 const ACCOUNTS = [
@@ -107,24 +133,238 @@ const ACCOUNTS = [
 ];
 
 const CATEGORIES = [
-  "Salary and Wages", "Eating Out", "Groceries", "Entertainment", "Transport", "Utilities", "Health", "Fixed"
+  "Salary", "Bonus", "Housing", "Groceries", "Dining Out", "Transport", "Utilities", "Healthcare", "Entertainment", "Shopping", "Savings", "Investments"
+];
+
+const SPEND_TYPES = [
+  { id: "fixed", label: "Fixed", color: "text-emerald-600 bg-emerald-50" },
+  { id: "variable", label: "Variable", color: "text-rose-600 bg-rose-50" },
+  { id: "savings", label: "Savings", color: "text-blue-600 bg-blue-50" },
+  { id: "income", label: "Income", color: "text-cyan-600 bg-cyan-50" },
 ];
 
 function TransactionsContent() {
+  const { parseCurrency, formatAmount, syncData, calculateMetrics, normalizeTransactionData } = useFinancialParser();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialSearch = searchParams.get("search") || "";
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [entriesPerPage, setEntriesPerPage] = useState("25");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Deep filter helpers
+  const handleSidebarFilter = (type, q = "") => {
+    setSelectedTab(type);
+    setSearchQuery(q);
+  };
+  
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [currency, setCurrency] = useState("USD");
+  const [isLoading, setIsLoading] = useState(true);
+  const [importText, setImportText] = useState("");
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `wealthlens-budget-${y}-${m}`;
+  }, [selectedDate]);
+
+  // Deep Link Handling
+  useEffect(() => {
+    const monthParam = searchParams.get("month"); // Format: YYYY-MM
+    if (monthParam) {
+      const [y, m] = monthParam.split("-");
+      if (y && m) {
+        setSelectedDate(new Date(parseInt(y), parseInt(m) - 1, 1));
+      }
+    }
+    const searchParam = searchParams.get("search");
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    async function initData() {
+      setIsLoading(true);
+      const saved = await base44.user.loadData(monthKey);
+      
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, MOCK_TRANSACTIONS);
+      
+      setIncomes(normIncs);
+      setExpenses(normExps);
+      if (saved?.currency) setCurrency(saved.currency);
+      
+      // Sync to registry
+      syncData(monthKey, { incomes: normIncs, expenses: normExps, currency: saved?.currency || currency }, { silent: true });
+      setIsLoading(false);
+    }
+    initData();
+  }, [monthKey, normalizeTransactionData, selectedDate]);
+
+  const persistTransactionData = async (newIncomes, newExpenses) => {
+    await syncData(monthKey, { 
+      incomes: newIncomes || incomes, 
+      expenses: newExpenses || expenses, 
+      currency 
+    }, { silent: true });
+  };
+
+  const allTransactions = useMemo(() => {
+    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' }) + ' 01';
+    return [
+      ...incomes.map(i => ({ ...i, type: 'income', amount: i.monthlyAmount, merchant: i.name, date: (i.date && i.date !== 'Monthly') ? i.date : fallbackDate })),
+      ...expenses.map(e => ({ ...e, type: 'expense', amount: e.monthlyAmount, merchant: e.name, date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate }))
+    ];
+  }, [incomes, expenses, selectedDate]);
 
   const filteredTransactions = useMemo(() => {
-    return MOCK_TRANSACTIONS.filter(tx => {
-      const matchesSearch = tx.merchant.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            tx.category.toLowerCase().includes(searchQuery.toLowerCase());
-      if (selectedTab === "uncategorized") return matchesSearch && tx.status === "uncategorized";
-      if (selectedTab === "awaiting") return matchesSearch && tx.status === "awaiting";
-      return matchesSearch;
+    let list = allTransactions;
+    if (selectedTab !== 'all') {
+      if (selectedTab === 'uncategorized') list = list.filter(tx => tx.category === 'Uncategorized');
+      else list = list.filter(tx => tx.type === selectedTab);
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      // Enhanced filtering: Match merchant OR exactly match category if the search is from a sidebar category click
+      list = list.filter(tx => 
+        tx.merchant.toLowerCase().includes(q) || 
+        (tx.category && tx.category.toLowerCase() === q) ||
+        (tx.category && tx.category.toLowerCase().includes(q))
+      );
+    }
+    return list.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [allTransactions, selectedTab, searchQuery]);
+
+  // Controlled Form State
+  const [manualForm, setManualForm] = useState({
+    merchant: "",
+    amount: "",
+    type: "expense",
+    category: "Groceries",
+    spendType: "variable",
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const handleManualAdd = () => {
+    if (!manualForm.merchant || !manualForm.amount) return toast.error("Please fill required fields");
+
+    const newItem = {
+      id: Date.now() + Math.random(),
+      name: manualForm.merchant,
+      category: manualForm.category || "Uncategorized",
+      monthlyAmount: parseFloat(manualForm.amount) || 0,
+      spendType: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
+      date: manualForm.date
+    };
+
+    if (manualForm.type === 'income') {
+      const updated = [...incomes, newItem];
+      setIncomes(updated);
+      persistTransactionData(updated, expenses);
+    } else {
+      const updated = [...expenses, newItem];
+      setExpenses(updated);
+      persistTransactionData(incomes, updated);
+    }
+    setManualForm({ 
+      merchant: "", 
+      amount: "", 
+      type: "expense", 
+      category: "Fixed", 
+      date: selectedDate.toISOString().split('T')[0] 
     });
-  }, [selectedTab, searchQuery]);
+    toast.success("Transaction added manually");
+  };
+
+  const handleUpdateItem = async (id, updates, type) => {
+    if (type === 'income') {
+      const updated = incomes.map(i => i.id === id ? { ...i, ...updates } : i);
+      setIncomes(updated);
+      persistTransactionData(updated, expenses);
+    } else {
+      const updated = expenses.map(e => e.id === id ? { ...e, ...updates } : e);
+      setExpenses(updated);
+      persistTransactionData(incomes, updated);
+    }
+    toast.success("Transaction updated");
+  };
+
+  const handleDelete = (id, type) => {
+    if (type === 'income') {
+      const updated = incomes.filter(i => i.id !== id);
+      setIncomes(updated);
+      persistTransactionData(updated, expenses);
+    } else {
+      const updated = expenses.filter(e => e.id !== id);
+      setExpenses(updated);
+      persistTransactionData(incomes, updated);
+    }
+    toast.info("Transaction removed");
+  };
+
+  const handleBankSync = (newItems) => {
+    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
+    const formatted = newItems.map(item => ({
+      id: Date.now() + Math.random(),
+      name: item.name,
+      category: item.category,
+      monthlyAmount: item.amount,
+      date: item.date || `${fallbackDate} 01`
+    }));
+    const existing = new Set(expenses.map(e => `${e.name}-${e.monthlyAmount}`));
+    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.monthlyAmount}`));
+    
+    if (uniqueNew.length > 0) {
+      const updated = [...expenses, ...uniqueNew];
+      setExpenses(updated);
+      persistTransactionData(incomes, updated);
+      toast.success(`Synced ${uniqueNew.length} new transactions!`);
+    } else {
+      toast.info("No new transactions found.");
+    }
+  };
+
+  const handleImportResults = (parsedData) => {
+    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
+    const formatted = parsedData.map(item => ({
+      id: Date.now() + Math.random(),
+      name: item.name || "Imported Item",
+      category: item.category || "variable",
+      monthlyAmount: Number(item.monthlyAmount) || 0,
+      date: item.date || `${fallbackDate} 01`
+    }));
+    const updated = [...expenses, ...formatted];
+    setExpenses(updated);
+    persistTransactionData(incomes, updated);
+    toast.success(`Imported ${formatted.length} transactions!`);
+  };
+
+  const handleCopyFromPrevious = async () => {
+    const prevDate = new Date(selectedDate);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const y = prevDate.getFullYear();
+    const m = (prevDate.getMonth() + 1).toString().padStart(2, '0');
+    const prevKey = `wealthlens-budget-${y}-${m}`;
+    const tId = toast.loading("Copying previous month...");
+    
+    const saved = await base44.user.loadData(prevKey);
+    if (saved && (saved.incomes?.length || saved.expenses?.length)) {
+      setIncomes(saved.incomes || []);
+      setExpenses(saved.expenses || []);
+      persistTransactionData(saved.incomes, saved.expenses);
+      toast.success("Copied data from " + prevDate.toLocaleString('default', { month: 'short' }), { id: tId });
+    } else {
+      toast.error("No data found in previous month", { id: tId });
+    }
+  };
+
+  const summary = calculateMetrics(incomes, expenses);
+  const sym = getCurrencySymbol(currency);
 
   const toggleSelectAll = () => {
     if (selectedTransactions.length === filteredTransactions.length) {
@@ -153,8 +393,18 @@ function TransactionsContent() {
             <input 
               type="text" 
               placeholder="Search transactions..."
-              className="bg-white/10 text-white text-xs rounded-full py-1.5 pl-9 pr-4 w-64 outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white/10 text-white text-xs rounded-full py-1.5 pl-9 pr-8 w-64 outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
             />
+            {searchQuery && (
+               <button 
+                 onClick={() => setSearchQuery("")}
+                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+               >
+                 <Plus className="w-3 h-3 rotate-45" />
+               </button>
+            )}
           </div>
           <div className="flex items-center gap-4 text-white/70">
             <LayoutGrid className="w-4 h-4 cursor-pointer hover:text-white" />
@@ -171,17 +421,17 @@ function TransactionsContent() {
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Overview</p>
             <div className="space-y-1">
-              <div className="bg-slate-200/50 rounded-lg p-3 border border-slate-200 mb-4">
-                <div className="flex justify-between items-center px-1">
-                   <span className="text-xs font-medium text-slate-500">Sum total</span>
-                   <span className="text-sm font-bold text-slate-700">($1,106.79)</span>
-                </div>
+              <div className="bg-slate-200/50 rounded-lg p-3 border border-slate-200 mb-4 text-center">
+                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Monthly Balance</span>
+                 <span className={`text-sm font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   {formatAmount(summary.balance)}
+                 </span>
               </div>
 
               {SIDEBAR_ITEMS.map((item) => (
                 <button 
                   key={item.id}
-                  onClick={() => setSelectedTab(item.id)}
+                  onClick={() => handleSidebarFilter(item.id, "")}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id ? 'bg-purple-600 text-white shadow-md' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
                 >
                   <div className="flex items-center gap-3">
@@ -189,7 +439,7 @@ function TransactionsContent() {
                     <span className="text-xs font-medium">{item.label}</span>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedTab === item.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    {item.count}
+                    {selectedTab === item.id ? 'all' : (item.id === 'all' ? allTransactions.length : allTransactions.filter(tx => tx.type === item.id || (item.id === 'uncategorized' && tx.category === 'Uncategorized')).length)}
                   </span>
                 </button>
               ))}
@@ -203,7 +453,11 @@ function TransactionsContent() {
             </div>
             <div className="space-y-1">
               {["All uncategorised", "Craft beer", "Good food", "Healthcare", "London", "Bargains"].map(s => (
-                <button key={s} className="w-full text-left px-4 py-2 text-xs text-slate-500 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center gap-2">
+                <button 
+                  key={s} 
+                  onClick={() => handleSidebarFilter("all", s)}
+                  className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 ${searchQuery === s ? 'bg-white shadow-sm text-purple-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
+                >
                   <Search className="w-3 h-3 text-slate-300" /> {s}
                 </button>
               ))}
@@ -223,7 +477,7 @@ function TransactionsContent() {
                     <span className="text-xs font-medium text-slate-600 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{acc.name}</span>
                   </div>
                   <p className="text-[11px] font-bold text-slate-800 tabular-nums ml-5">
-                    {acc.balance < 0 ? `(${Math.abs(acc.balance).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : acc.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    {(acc.balance || 0) < 0 ? `(${Math.abs(acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                   </p>
                 </div>
               ))}
@@ -237,7 +491,11 @@ function TransactionsContent() {
             </div>
             <div className="space-y-1">
               {CATEGORIES.map(c => (
-                <button key={c} className="w-full text-left px-4 py-1.5 text-xs text-slate-500 hover:text-purple-600 transition-colors truncate">
+                <button 
+                  key={c} 
+                  onClick={() => handleSidebarFilter("all", c)}
+                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${searchQuery === c ? 'text-purple-600 font-bold' : 'text-slate-500 hover:text-purple-600'}`}
+                >
                   {c}
                 </button>
               ))}
@@ -249,53 +507,105 @@ function TransactionsContent() {
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Action Header */}
           <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <Dialog>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-bold border-slate-200">
-                      <Plus className="w-4 h-4 text-slate-500" /> Add
+              <div className="flex items-center gap-2">
+                <BankConnect onSyncSuccess={handleBankSync} />
+                
+                <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all">
+                      <Download className="w-4 h-4" /> Import
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    <DialogTrigger asChild>
-                      <DropdownMenuItem className="gap-2 cursor-pointer">
-                        <FileText className="w-4 h-4" /> Add manually
-                      </DropdownMenuItem>
-                    </DialogTrigger>
-                    <DialogTrigger asChild>
-                      <DropdownMenuItem className="gap-2 cursor-pointer">
-                        <Download className="w-4 h-4" /> Import file
-                      </DropdownMenuItem>
-                    </DialogTrigger>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    {/* Reuse Import Logic UI */}
+                    <DialogHeader>
+                      <DialogTitle>AI Bank Statement Import</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                      <Textarea 
+                        placeholder="Paste your bank statement text here..."
+                        className="min-h-[200px] bg-slate-50"
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={() => handleImportResults(JSON.parse(importText))}>Import Raw JSON</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-                {/* Modals are handled separately by their content */}
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Transaction</DialogTitle>
-                    <DialogDescription>Enter the details of the transaction below.</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label className="text-right text-xs font-bold">Merchant</label>
-                      <Input placeholder="Esquires Cafe" className="col-span-3 h-9" />
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                      <Plus className="w-4 h-4 text-slate-400" /> Add Manually
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Transaction</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <Input 
+                        placeholder="Merchant/Label" 
+                        value={manualForm.merchant}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, merchant: e.target.value }))}
+                      />
+                      <Input 
+                        type="number" 
+                        placeholder="Amount" 
+                        step="0.01" 
+                        value={manualForm.amount}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, amount: e.target.value }))}
+                      />
+                      <Input 
+                        type="date"
+                        value={manualForm.date}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, date: e.target.value }))}
+                      />
+                      <Select 
+                        value={manualForm.type}
+                        onValueChange={(v) => setManualForm(prev => ({ ...prev, type: v }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="income">Income</SelectItem>
+                          <SelectItem value="expense">Expense</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select 
+                        value={manualForm.category}
+                        onValueChange={(v) => setManualForm(prev => ({ ...prev, category: v }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {manualForm.type === 'expense' && (
+                        <Select 
+                          value={manualForm.spendType}
+                          onValueChange={(v) => setManualForm(prev => ({ ...prev, spendType: v }))}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Spend Type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">Fixed</SelectItem>
+                            <SelectItem value="variable">Variable</SelectItem>
+                            <SelectItem value="savings">Savings</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label className="text-right text-xs font-bold">Amount</label>
-                      <Input type="number" placeholder="0.00" className="col-span-3 h-9" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <label className="text-right text-xs font-bold">Date</label>
-                      <Input type="date" className="col-span-3 h-9" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Save Transaction</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button onClick={handleManualAdd}>Save Transaction</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Button variant="outline" onClick={handleCopyFromPrevious} className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                   <Calendar className="w-4 h-4 text-slate-400" /> Copy Prev
+                </Button>
+              </div>
 
               <Button variant="ghost" className="h-9 gap-2 text-xs font-bold text-slate-500">
                 <Wrench className="w-4 h-4" /> Tools
@@ -329,12 +639,11 @@ function TransactionsContent() {
                 </button>
               </div>
             </div>
-          </div>
 
-          <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+          <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-normal">
             <span className="px-2">Showing 1-{Math.min(filteredTransactions.length, parseInt(entriesPerPage))} of {filteredTransactions.length} transactions.</span>
             {selectedTransactions.length > 0 && (
-              <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-bold shadow-sm shadow-purple-100 animate-in zoom-in-50">
+              <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-purple-100 animate-in zoom-in-50">
                 {selectedTransactions.length} selected
               </span>
             )}
@@ -354,14 +663,15 @@ function TransactionsContent() {
                   <TableHead className="w-[80px] p-4">
                     <Filter className="w-3.5 h-3.5 text-slate-400" />
                   </TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest p-4 text-slate-400 cursor-pointer hover:text-purple-600 transition-colors">
+                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400 cursor-pointer hover:text-purple-600 transition-colors">
                     Date <span className="text-[8px] ml-1">▼</span>
                   </TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest p-4 text-slate-400">Merchant</TableHead>
-                  <TableHead className="text-right text-[10px] font-black uppercase tracking-widest p-4 text-slate-400">Amount</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest p-4 text-slate-400">Category</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest p-4 text-slate-400">Account</TableHead>
-                  <TableHead className="text-right text-[10px] font-black uppercase tracking-widest p-4 text-slate-400">Balance</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Merchant</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Amount</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Category</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Spend Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Account</TableHead>
+                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -383,31 +693,66 @@ function TransactionsContent() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
-                                <DropdownMenuItem className="gap-2"><Edit2 className="w-4 h-4" /> Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 text-rose-600"><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 cursor-not-allowed text-slate-400"><Edit2 className="w-4 h-4" /> Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(tx.id, tx.type)} className="gap-2 text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
                               </DropdownMenuContent>
                            </DropdownMenu>
                            {tx.type === 'income' ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> : <ArrowDownRight className="w-3.5 h-3.5 text-slate-400" />}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs font-medium text-slate-500 whitespace-nowrap p-4">{tx.date}</TableCell>
+                      <TableCell className="text-xs font-normal text-slate-500 whitespace-nowrap p-4">{tx.date}</TableCell>
                       <TableCell className="p-4">
                         <div className="flex flex-col">
-                          <span className={`text-sm font-medium tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{tx.merchant}</span>
-                          {tx.note && <span className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-md bg-slate-50 p-2 rounded-lg border border-slate-100">{tx.note}</span>}
+                          <span className={`text-sm font-normal tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{tx.merchant}</span>
+                          {tx.note && <span className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-md bg-slate-50 p-2 rounded-lg border border-slate-100 font-normal">{tx.note}</span>}
                         </div>
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-medium p-4 tabular-nums ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.amount < 0 ? `(${Math.abs(tx.amount).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      <TableCell className={`text-right text-sm font-normal p-4 tabular-nums ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                        {formatAmount(tx.amount || 0)}
                       </TableCell>
                       <TableCell className="p-4">
-                        <Badge variant="outline" className={`text-[10px] font-medium border-slate-200 bg-white px-2.5 py-0.5 whitespace-nowrap ${tx.status === 'uncategorized' ? 'text-orange-600 border-orange-100 bg-orange-50' : ''}`}>
-                          {tx.category}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Select 
+                            value={tx.category || "Uncategorized"} 
+                            onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
+                          >
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
+                              <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>)}
+                              <SelectItem value="Uncategorized" className="text-[10px]">Uncategorized</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <button 
+                            onClick={() => handleSidebarFilter("all", tx.category)}
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-purple-600 transition-colors"
+                            title="Filter by this category"
+                          >
+                            <Filter className="w-3 h-3" />
+                          </button>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-xs font-medium text-slate-500 p-4 whitespace-nowrap">{tx.account}</TableCell>
-                      <TableCell className="text-right text-xs font-bold text-slate-400 p-4 tabular-nums">
-                        {tx.balance < 0 ? `(${Math.abs(tx.balance).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : tx.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      <TableCell className="p-4">
+                        <Select 
+                          value={tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
+                          onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
+                          disabled={tx.type === 'income'}
+                        >
+                          <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-purple-300 transition-all">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
+                            <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
+                            <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
+                            <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-xs font-normal text-slate-500 p-4 whitespace-nowrap">{tx.account}</TableCell>
+                      <TableCell className="text-right text-xs font-normal text-slate-400 p-4 tabular-nums">
+                        {(tx.balance || 0) < 0 ? `(${Math.abs(tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                       </TableCell>
                     </TableRow>
                   </React.Fragment>

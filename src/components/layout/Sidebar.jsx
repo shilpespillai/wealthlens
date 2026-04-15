@@ -217,10 +217,13 @@ export default function Sidebar() {
         <div className="pt-8">
           <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence</p>
           <div className="space-y-1">
-             <div className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5">
-                <Shield className="w-4 h-4 text-gray-600 group-hover:text-gray-400" />
+             <Link 
+                to="/PrivacyProtocol"
+                className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+             >
+                <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
                 <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
-             </div>
+             </Link>
              
              {isAuthenticated && (
                 <div 

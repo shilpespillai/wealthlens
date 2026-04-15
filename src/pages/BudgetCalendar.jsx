@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   format, 
   addMonths, 
@@ -9,34 +9,30 @@ import {
   endOfWeek, 
   isSameMonth, 
   isSameDay, 
-  addDays, 
   eachDayOfInterval,
-  getYear,
-  getMonth
+  parse,
+  startOfDay
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { base44 } from "@/api/base44Client";
 
-// Premium Mock Transactions as seen in the screenshot
-const MOCK_TRANSACTIONS = [
-  { id: 1, date: "2026-04-10", label: "Rent", amount: 240.00, type: "expense", color: "bg-purple-600" },
-  { id: 2, date: "2026-04-11", label: "Entertainment", amount: 75.00, type: "expense", color: "bg-emerald-500" },
-  { id: 3, date: "2026-04-17", label: "Rent", amount: 240.00, type: "expense", color: "bg-purple-600" },
-  { id: 4, date: "2026-04-18", label: "Entertainment", amount: 75.00, type: "expense", color: "bg-emerald-500" },
-  { id: 5, date: "2026-04-14", label: "Eating Out", amount: 70.00, type: "expense", color: "bg-rose-500" },
-  { id: 6, date: "2026-04-21", label: "Eating Out", amount: 70.00, type: "expense", color: "bg-rose-500" },
-  { id: 7, date: "2026-04-21", label: "Repay Credit Card", amount: 150.00, type: "expense", color: "bg-red-600" },
-  { id: 8, date: "2026-04-21", label: "Salary and Wages", amount: 1487.90, type: "income", color: "bg-teal-400" },
-  { id: 9, date: "2026-04-22", label: "Groceries", amount: 250.00, type: "expense", color: "bg-blue-600" },
-  { id: 10, date: "2026-04-24", label: "Rent", amount: 240.00, type: "expense", color: "bg-purple-600" },
-  { id: 11, date: "2026-04-25", label: "Entertainment", amount: 75.00, type: "expense", color: "bg-emerald-500" },
-  { id: 12, date: "2026-04-27", label: "Utilities", amount: 290.00, type: "expense", color: "bg-sky-500" },
-  { id: 13, date: "2026-04-28", label: "Eating Out", amount: 70.00, type: "expense", color: "bg-rose-500" },
-  { id: 14, date: "2026-04-30", label: "Depreciation...", amount: 112.38, type: "expense", color: "text-rose-500 font-medium" }, // Transparent style
-  { id: 15, date: "2026-04-30", label: "Interest on...", amount: 47.92, type: "expense", color: "text-rose-500 font-medium" },
-  { id: 16, date: "2026-05-01", label: "Rent", amount: 240.00, type: "expense", color: "bg-purple-600" },
-  { id: 17, date: "2026-05-02", label: "Entertainment", amount: 75.00, type: "expense", color: "bg-emerald-500" },
+// Accessing the shared mock generator logic
+const CATEGORY_MAP = [
+  { name: "Salary", color: "bg-teal-400" },
+  { name: "Bonus", color: "bg-teal-500" },
+  { name: "Housing", color: "bg-purple-600" },
+  { name: "Groceries", color: "bg-blue-600" },
+  { name: "Dining Out", color: "bg-rose-500" },
+  { name: "Transport", color: "bg-sky-500" },
+  { name: "Utilities", color: "bg-amber-500" },
+  { name: "Healthcare", color: "bg-red-600" },
+  { name: "Entertainment", color: "bg-emerald-500" },
+  { name: "Shopping", color: "bg-indigo-500" },
+  { name: "Savings", color: "bg-rose-600" },
+  { name: "Investments", color: "bg-slate-600" }
 ];
 
 const WEEKDAYS = ["Sun", "Mon", "Tues", "Wed", "Thurs", "Fri", "Sat"];
@@ -45,10 +41,77 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(val);
+// Re-defining the shared generator for consistency if loadData is empty
+const MOCK_TRANS_GEN = (() => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+  const transactions = [];
+  const CATEGORY_CONFIG = [
+    { name: "Salary", type: "income", spendType: "income", amount: 5500, merchant: "Global Corp Salary" },
+    { name: "Bonus", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
+    { name: "Housing", type: "expense", spendType: "fixed", amount: -1850, merchant: "Metropolis Housing" },
+    { name: "Groceries", type: "expense", spendType: "variable", amount: -150, merchant: "Whole Foods Market" },
+    { name: "Dining Out", type: "expense", spendType: "variable", amount: -45, merchant: "Local Bistro" },
+    { name: "Transport", type: "expense", spendType: "variable", amount: -25, merchant: "Uber Trip" },
+    { name: "Utilities", type: "expense", spendType: "variable", amount: -85, merchant: "Shell Energy" },
+    { name: "Healthcare", type: "expense", spendType: "fixed", amount: -210, merchant: "City Health Premium" },
+    { name: "Entertainment", type: "expense", spendType: "fixed", amount: -45.99, merchant: "Cloud Streaming Hub" },
+    { name: "Shopping", type: "expense", spendType: "variable", amount: -60, merchant: "Amazon Store" },
+    { name: "Savings", type: "expense", spendType: "savings", amount: -500, merchant: "High-Yield Savings" },
+    { name: "Investments", type: "expense", spendType: "savings", amount: -500, merchant: "Vanguard ETF Index" }
+  ];
+
+  months.forEach((m) => {
+    CATEGORY_CONFIG.forEach((cat, cIdx) => {
+      if (cat.name === "Bonus" && m !== "Jan") return;
+      const day = (5 + (cIdx * 2)) % 28;
+      transactions.push({
+        id: `mock-${m}-${cat.name}`,
+        date: `${m} ${day.toString().padStart(2, '0')}`,
+        merchant: cat.merchant,
+        amount: cat.amount,
+        category: cat.name,
+        spendType: cat.spendType,
+        type: cat.type
+      });
+    });
+  });
+  return transactions;
+})();
 
 export default function BudgetCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 1)); // Default to April 2026 per mockup
+  const { formatAmount, syncData, normalizeTransactionData } = useFinancialParser();
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 1)); // Default to April 2026 per current demo context
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [historicalSurplus, setHistoricalSurplus] = useState(0);
+
+  const monthKey = useMemo(() => {
+    const y = currentDate.getFullYear();
+    const m = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    return `wealthlens-budget-${y}-${m}`;
+  }, [currentDate]);
+
+  // Load and Normalize Categorical Data
+  useEffect(() => {
+    async function initData() {
+      const saved = await base44.user.loadData(monthKey);
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, currentDate, MOCK_TRANS_GEN);
+      setIncomes(normIncs);
+      setExpenses(normExps);
+
+      // Fetch starting balance from Vault Registry
+      const registry = JSON.parse(localStorage.getItem('wealthlens-vault-registry') || '{}');
+      let totalSurplus = 0;
+      Object.entries(registry).forEach(([key, val]) => {
+        if (key < monthKey) totalSurplus += val;
+      });
+      setHistoricalSurplus(totalSurplus);
+
+      // Maintenance sync
+      syncData(monthKey, { incomes: normIncs, expenses: normExps }, { silent: true });
+    }
+    initData();
+  }, [monthKey, normalizeTransactionData, currentDate]);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentDate));
@@ -60,115 +123,107 @@ export default function BudgetCalendar() {
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const goToToday = () => setCurrentDate(new Date());
 
-  const handleMonthChange = (val) => {
-    const newDate = new Date(currentDate.getFullYear(), parseInt(val), 1);
-    setCurrentDate(newDate);
-  };
+  const handleMonthChange = (val) => setCurrentDate(new Date(currentDate.getFullYear(), parseInt(val), 1));
+  const handleYearChange = (val) => setCurrentDate(new Date(parseInt(val), currentDate.getMonth(), 1));
 
-  const handleYearChange = (val) => {
-    const newDate = new Date(parseInt(val), currentDate.getMonth(), 1);
-    setCurrentDate(newDate);
-  };
-
-  // Helper to get transactions for a specific day
+  // Dynamic Transaction Parser
   const getTransactionsForDay = (day) => {
-    const dateStr = format(day, "yyyy-MM-dd");
-    return MOCK_TRANSACTIONS.filter(t => t.date === dateStr);
+    const dayStr = format(day, "d").padStart(2, '0');
+    const monthStr = format(day, "MMM");
+    const fullTag = `${monthStr} ${dayStr}`;
+
+    const incs = incomes.filter(i => i.date === fullTag).map(i => ({ ...i, type: 'income', label: i.category }));
+    const exps = expenses.filter(e => e.date === fullTag).map(e => ({ ...e, type: 'expense', label: e.category }));
+    
+    return [...incs, ...exps].map(tx => {
+      const catInfo = CATEGORY_MAP.find(c => c.name === tx.category);
+      return { ...tx, color: catInfo ? catInfo.color : (tx.type === 'income' ? 'bg-teal-400' : 'bg-slate-500') };
+    });
   };
 
-  // Simulate running balance (starting at a base value and adjusting)
-  // In real use, this would be computed from starting balance + daily deltas
   const getRunningBalance = (day) => {
-    // For visual consistency with mock:
-    // If it's the start area of April, show 5191.91
-    const dayOfMonth = day.getDate();
-    const month = day.getMonth();
-    if (month === 3) { // April
-       if (dayOfMonth < 17) return 5191.91;
-       if (dayOfMonth < 21) return 4876.91;
-       if (dayOfMonth === 21) return 5909.81;
-       if (dayOfMonth < 24) return 5659.81;
-       if (dayOfMonth < 27) return 5344.81;
-       if (dayOfMonth < 30) return 4984.81;
-       return 4788.01;
-    }
-    if (month === 4) { // May
-       if (dayOfMonth === 1) return 4548.01;
-       return 4473.01;
-    }
-    return 5191.91; 
+    // Current day's balance = Historical Surplus + Sum of month transactions up to today
+    const currentDay = startOfDay(day);
+    let monthDelta = 0;
+    
+    incomes.forEach(i => {
+      try {
+        const d = parse(i.date, "MMM dd", currentDate);
+        if (startOfDay(d) <= currentDay) monthDelta += Number(i.monthlyAmount || 0);
+      } catch (e) {}
+    });
+
+    expenses.forEach(e => {
+      try {
+        const d = parse(e.date, "MMM dd", currentDate);
+        if (startOfDay(d) <= currentDay) monthDelta -= Math.abs(Number(e.monthlyAmount || 0));
+      } catch (e) {}
+    });
+
+    return historicalSurplus + monthDelta;
   };
 
   return (
     <div className="flex flex-col h-full bg-[#F8F9FB]">
-      {/* Top Header Controls */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
         <div className="flex items-center gap-3">
-           <Button variant="ghost" className="text-slate-600 gap-2 hover:bg-slate-50 border border-slate-100 shadow-sm" onClick={() => {}}>
-              <Plus className="w-4 h-4" />
-              <span className="text-xs font-semibold">New budget</span>
-           </Button>
+          <Button variant="ghost" className="text-slate-600 gap-2 hover:bg-slate-50 border border-slate-100 shadow-sm">
+            <Plus className="w-4 h-4" />
+            <span className="text-xs font-semibold">New Entry</span>
+          </Button>
         </div>
 
         <div className="flex items-center gap-4">
-           {/* Navigation Controls */}
-           <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200 shadow-sm">
-              <Button variant="ghost" size="sm" onClick={goToToday} className="text-xs font-medium text-slate-600 px-3">
-                 Today
-              </Button>
-           </div>
-           
-           <div className="flex items-center gap-2">
-              <Select value={currentDate.getMonth().toString()} onValueChange={handleMonthChange}>
-                <SelectTrigger className="w-[110px] h-9 text-slate-700 font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m, idx) => (
-                    <SelectItem key={m} value={idx.toString()}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200 shadow-sm">
+            <Button variant="ghost" size="sm" onClick={goToToday} className="text-xs font-medium text-slate-600 px-3">
+              Today
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Select value={currentDate.getMonth().toString()} onValueChange={handleMonthChange}>
+              <SelectTrigger className="w-[110px] h-9 text-slate-700 font-medium border-none shadow-none focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m, idx) => (
+                  <SelectItem key={m} value={idx.toString()}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <Select value={currentDate.getFullYear().toString()} onValueChange={handleYearChange}>
-                <SelectTrigger className="w-[90px] h-9 text-slate-700 font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2024, 2025, 2026, 2027, 2028].map((y) => (
-                    <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-           </div>
+            <Select value={currentDate.getFullYear().toString()} onValueChange={handleYearChange}>
+              <SelectTrigger className="w-[90px] h-9 text-slate-700 font-medium border-none shadow-none focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026, 2027, 2028].map((y) => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-           <div className="flex items-center border border-slate-200 rounded-lg shadow-sm overflow-hidden bg-white">
-              <button 
-                onClick={prevMonth}
-                className="p-2 border-r border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                 <ChevronLeft className="w-4 h-4 text-slate-600" />
-              </button>
-              <button 
-                onClick={nextMonth}
-                className="p-2 hover:bg-slate-50 transition-colors"
-              >
-                 <ChevronRight className="w-4 h-4 text-slate-600" />
-              </button>
-           </div>
+          <div className="flex items-center border border-slate-200 rounded-lg shadow-sm overflow-hidden bg-white">
+            <button onClick={prevMonth} className="p-2 border-r border-slate-200 hover:bg-slate-50 transition-colors">
+              <ChevronLeft className="w-4 h-4 text-slate-600" />
+            </button>
+            <button onClick={nextMonth} className="p-2 hover:bg-slate-50 transition-colors">
+              <ChevronRight className="w-4 h-4 text-slate-600" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Weekday Headers */}
       <div className="grid grid-cols-7 border-b border-slate-200 bg-white">
         {WEEKDAYS.map((day) => (
-          <div key={day} className="py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div key={day} className="py-4 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">
             {day}
           </div>
         ))}
       </div>
 
-      {/* Main Calendar Grid */}
       <div className="flex-1 overflow-auto bg-slate-200 p-[1px] grid grid-cols-7 gap-[1px]">
         {days.map((day, idx) => {
           const trans = getTransactionsForDay(day);
@@ -177,45 +232,31 @@ export default function BudgetCalendar() {
           const balance = getRunningBalance(day);
           
           return (
-            <div 
-              key={idx} 
-              className={`min-h-[140px] flex flex-col p-3 relative group transition-colors duration-200 ${
-                isCurrentMonth ? 'bg-white' : 'bg-slate-50/70'
-              } hover:bg-slate-50/40`}
-            >
-              {/* Date Header */}
+            <div key={idx} className={`min-h-[140px] flex flex-col p-3 relative group transition-all duration-300 ${isCurrentMonth ? 'bg-white' : 'bg-slate-50/50'}`}>
               <div className="flex justify-end mb-2">
-                <span className={`text-[11px] font-semibold ${
-                  isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full -mr-1 -mt-1 shadow-md' : 
-                  isCurrentMonth ? 'text-slate-400' : 'text-slate-300'
-                }`}>
+                <span className={`text-[11px] font-bold ${isToday ? 'bg-purple-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-lg' : isCurrentMonth ? 'text-slate-500' : 'text-slate-300'}`}>
                   {format(day, "d")}
                 </span>
               </div>
 
-              {/* Transactions List */}
-              <div className="flex-1 space-y-1">
-                {trans.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-1">
-                    <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white truncate max-w-[80px] shadow-sm ${t.color.includes('text-') ? 'bg-transparent text-slate-600 italic' : t.color}`}>
+              <div className="flex-1 space-y-1.5 overflow-hidden">
+                {trans.map((t, tIdx) => (
+                  <div key={tIdx} className="flex flex-col gap-0.5 group/item cursor-pointer">
+                    <div className={`px-1.5 py-1 rounded text-[9px] font-bold text-white truncate shadow-sm transition-transform group-hover/item:scale-[1.02] ${t.color}`}>
                       {t.label}
                     </div>
-                    <div className={`text-[9px] font-semibold whitespace-nowrap ${t.color.includes('text-') ? t.color : 'text-rose-500'}`}>
-                      {formatCurrency(t.amount)}
+                    <div className="px-1 text-[8px] font-bold text-slate-400">
+                      {t.type === 'income' ? '+' : '-'}{formatAmount(t.monthlyAmount || 0)}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Running Balance at Bottom */}
-              <div className="mt-auto flex justify-center pt-2 border-t border-slate-50">
-                 <span className="text-[10px] font-medium text-slate-400">
-                    {formatCurrency(balance)}
+              <div className="mt-auto flex justify-center pt-2 border-t border-slate-50 group-hover:bg-slate-50/50 transition-colors">
+                 <span className="text-[10px] font-bold text-slate-400 font-mono tracking-tight">
+                    {formatAmount(balance)}
                  </span>
               </div>
-
-              {/* Hover Effect Add Button */}
-              <button className="absolute inset-0 z-0 opacity-0 group-hover:opacity-10 pointer-events-none bg-indigo-500 transition-opacity" />
             </div>
           );
         })}

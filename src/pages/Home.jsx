@@ -178,6 +178,13 @@ export default function Home() {
     window.location.href = "/Dashboard";
   };
 
+  const scrollToPricing = () => {
+    const section = document.getElementById('pricing');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -225,7 +232,7 @@ export default function Home() {
             
             <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
               <Button
-                onClick={handleLogin}
+                onClick={scrollToPricing}
                 className="w-full sm:w-auto bg-deepPurple hover:opacity-90 text-white font-black px-12 py-5 rounded-full text-xl shadow-2xl hover:scale-105 transition-all">
                 See Plans & Pricing
               </Button>

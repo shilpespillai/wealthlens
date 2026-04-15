@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Circle, 
@@ -19,7 +20,28 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { X } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
+import { toast } from "sonner";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
 
 export const INITIAL_BUDGET_DATA = [
   {
@@ -78,8 +100,8 @@ export const INITIAL_BUDGET_DATA = [
       {
         id: "groceries",
         category: "Groceries",
-        budget: "$0 spent",
-        status: "$536 left",
+        budget: "$268 spent",
+        status: "$268 left",
         amount: "536 / mo",
         icon: <Circle className="w-4 h-4 text-orange-200" />,
         type: "item",
@@ -156,6 +178,7 @@ export const INITIAL_BUDGET_DATA = [
 ];
 
 function BudgetRow({ item, level = 0, onToggle }) {
+  const { parseCurrency } = useFinancialParser();
   const isGroup = item.type === "group";
   const paddingLeft = level * 24 + 16;
 
@@ -179,16 +202,31 @@ function BudgetRow({ item, level = 0, onToggle }) {
           <div className="p-2 border border-slate-100 rounded-lg shadow-sm">
             {item.icon}
           </div>
-          <span className={`text-sm font-medium ${isGroup ? 'text-slate-700' : 'text-slate-600'}`}>
+          <Link 
+            to={`/reports/Trends?category=${encodeURIComponent(item.category)}`}
+            className={`text-sm font-medium transition-colors hover:text-indigo-600 hover:underline decoration-indigo-200 underline-offset-4 cursor-pointer ${isGroup ? 'text-slate-700' : 'text-slate-600'}`}
+          >
             {item.category}
-          </span>
+          </Link>
         </div>
 
         {/* Budget Column */}
         <div className="w-80 flex items-center px-6">
           <div className="w-full bg-slate-100 rounded-xl h-10 flex items-center px-4 relative overflow-hidden">
-             {/* Progress Fill Placeholder */}
-             <div className="absolute left-0 top-0 bottom-0 bg-slate-200/50 transition-all duration-500" style={{ width: `${item.progress || 0}%` }} />
+             {/* Progress Fill Indicator */}
+             {(() => {
+                const target = parseCurrency(item.amount);
+                const spent = parseCurrency(item.budget);
+                const progress = target > 0 ? Math.min((spent / target) * 100, 100) : 0;
+                const isOverspent = spent > target && target > 0;
+                
+                return (
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out ${isOverspent ? 'bg-rose-100/60' : 'bg-emerald-100/80'}`} 
+                    style={{ width: `${progress}%` }} 
+                  />
+                );
+             })()}
              
              <div className="relative z-10 flex items-center justify-between w-full">
                 {item.budget === "Start" ? (
@@ -218,7 +256,7 @@ function BudgetRow({ item, level = 0, onToggle }) {
         {/* Amount Column */}
         <div className="w-48 px-6 text-right">
           <span className={`text-[11px] font-bold ${item.amount.includes('earned') || item.type === "income" ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {item.amount !== "0 / mo" ? `$${item.amount}` : item.amount}
+            {item.amount}
           </span>
         </div>
 
@@ -258,8 +296,102 @@ function BudgetRow({ item, level = 0, onToggle }) {
 }
 
 export default function SetBudget() {
+  const { parseCurrency, formatAmount } = useFinancialParser();
   const [data, setData] = useState(INITIAL_BUDGET_DATA);
   const [isAllExpanded, setIsAllExpanded] = useState(true);
+  const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
+  const monthKey = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `wealthlens-budget-${y}-${m}`;
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      const saved = await base44.user.loadData(monthKey);
+      if (saved && saved.visualData) {
+        setData(saved.visualData);
+      }
+    };
+    init();
+  }, [monthKey]);
+
+  // New Budget Form State
+  const initialFormState = {
+    category: "",
+    repeat: false,
+    frequency: "1",
+    freqUnit: "weeks",
+    amount: "0.00",
+    type: "expense",
+    account: "Sample Bank Account"
+  };
+
+  const [newBudget, setNewBudget] = useState(initialFormState);
+
+  // Clear form when dialog opens/closes
+  useEffect(() => {
+    if (!isNewBudgetOpen) {
+      setNewBudget(initialFormState);
+    }
+  }, [isNewBudgetOpen]);
+
+  const flattenCategories = (items) => {
+    let result = [];
+    items.forEach(item => {
+      if (item.type === "item" || item.type === "income") {
+        result.push(item);
+      }
+      if (item.children) {
+        result = [...result, ...flattenCategories(item.children)];
+      }
+    });
+    return result;
+  };
+
+  const leafCategories = useMemo(() => flattenCategories(INITIAL_BUDGET_DATA), []);
+
+  const handleSaveNewBudget = () => {
+    if (!newBudget.category) {
+      toast.error("Please select a category");
+      return;
+    }
+
+    const newTarget = parseFloat(newBudget.amount) || 0;
+
+    const updateRecursive = (items) => {
+      return items.map(item => {
+        if (item.id === newBudget.category || item.category === newBudget.category) {
+          const currentSpent = parseCurrency(item.budget || "$0");
+          const remaining = newTarget - currentSpent;
+          const isIncome = item.type === "income" || newBudget.type === "income";
+
+          return { 
+            ...item, 
+            amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
+            budget: item.budget || (isIncome ? "$0 earned" : "$0 spent"),
+            status: isIncome 
+              ? `${formatAmount(remaining, { decimals: 0, useParentheses: false })} to go`
+              : `${formatAmount(remaining, { decimals: 0 })} left`
+          };
+        }
+        if (item.children) {
+          return { ...item, children: updateRecursive(item.children) };
+        }
+        return item;
+      });
+    };
+
+    setData(prev => {
+      const updated = updateRecursive(prev);
+      syncData(monthKey, { visualData: updated }, { silent: true });
+      return updated;
+    });
+
+    toast.success(`Updated budget for ${newBudget.category}`);
+    setIsNewBudgetOpen(false);
+  };
 
   const toggleGroup = (id) => {
     setData(prev => prev.map(item => {
@@ -294,27 +426,159 @@ export default function SetBudget() {
            <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
-                       <Plus className="w-3.5 h-3.5" /> New budget
-                    </Button>
-                    <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
-                       <Zap className="w-3.5 h-3.5" /> Auto-budget tool
-                    </Button>
+                    <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
+                           <Plus className="w-3.5 h-3.5" /> New budget
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
+                        <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
+                          <div className="space-y-0.5">
+                            <DialogTitle className="text-[22px] font-medium text-slate-700 tracking-tight">New budget</DialogTitle>
+                            <p className="text-[11px] font-medium text-slate-400">Scheduled for Apr 10, 2026</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-slate-700">{formatAmount(newBudget.amount || 0)}</span>
+                          </div>
+                        </DialogHeader>
+
+                        <div className="p-8 space-y-8">
+                          {/* Category Selection */}
+                          <div className="space-y-3">
+                            <label className="text-sm font-medium text-slate-600">What is this budget for?</label>
+                            <Select 
+                              value={newBudget.category} 
+                              onValueChange={(val) => setNewBudget({ ...newBudget, category: val })}
+                            >
+                              <SelectTrigger className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-400 shadow-none focus:ring-0 focus:border-slate-800 transition-all">
+                                <SelectValue placeholder="Choose budget category" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                {leafCategories.map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id} className="text-sm py-2.5">{cat.category}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Repeat Logic */}
+                          <div className="space-y-4">
+                            <label className="text-sm font-medium text-slate-600">Does this budget repeat?</label>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Checkbox 
+                                  id="repeat" 
+                                  checked={newBudget.repeat} 
+                                  onCheckedChange={(val) => setNewBudget({ ...newBudget, repeat: val })}
+                                  className="w-5 h-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                />
+                                <Label htmlFor="repeat" className="text-sm font-medium text-slate-700">Yes</Label>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-slate-400">every</span>
+                                <Input 
+                                  type="number" 
+                                  value={newBudget.frequency}
+                                  onChange={(e) => setNewBudget({ ...newBudget, frequency: e.target.value })}
+                                  className="w-12 h-8 border-none border-b border-slate-200 rounded-none bg-transparent px-1 text-center text-sm font-bold text-slate-700 focus-visible:ring-0 focus:border-slate-800"
+                                />
+                                <Select 
+                                  value={newBudget.freqUnit} 
+                                  onValueChange={(val) => setNewBudget({ ...newBudget, freqUnit: val })}
+                                >
+                                  <SelectTrigger className="w-24 bg-transparent border-none text-sm font-medium text-slate-400 shadow-none focus:ring-0 p-0 h-auto">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                    <SelectItem value="days">days</SelectItem>
+                                    <SelectItem value="weeks">weeks</SelectItem>
+                                    <SelectItem value="fortnight">fortnight</SelectItem>
+                                    <SelectItem value="months">months</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Amount & Type */}
+                          <div className="space-y-4">
+                            <label className="text-sm font-medium text-slate-600">How much?</label>
+                            <div className="flex items-center justify-between gap-8">
+                              <div className="flex-1 relative">
+                                <Input 
+                                  type="number" 
+                                  value={newBudget.amount}
+                                  onChange={(e) => setNewBudget({ ...newBudget, amount: e.target.value })}
+                                  className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-lg font-medium text-slate-700 shadow-none focus-visible:ring-0 focus:border-slate-800 transition-all tabular-nums"
+                                />
+                              </div>
+                              <RadioGroup 
+                                value={newBudget.type} 
+                                onValueChange={(val) => setNewBudget({ ...newBudget, type: val })}
+                                className="flex items-center gap-4"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="expense" id="expense" className="text-[#3b4754] border-[#3b4754]" />
+                                  <Label htmlFor="expense" className="text-sm font-medium text-slate-600">Expense</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="income" id="income" className="text-[#3b4754] border-[#3b4754]" />
+                                  <Label htmlFor="income" className="text-sm font-medium text-slate-600">Income</Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
+                          </div>
+
+                          {/* Account Selection */}
+                          <div className="space-y-3">
+                            <label className="text-sm font-medium text-slate-600">Which account's forecast is this budget for?</label>
+                            <Select 
+                              value={newBudget.account} 
+                              onValueChange={(val) => setNewBudget({ ...newBudget, account: val })}
+                            >
+                              <SelectTrigger className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-700 shadow-none focus:ring-0 focus:border-slate-800 transition-all font-medium">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                <SelectItem value="Sample Bank Account" className="text-sm py-2.5">Sample Bank Account</SelectItem>
+                                <SelectItem value="Savings Account" className="text-sm py-2.5">Savings Account</SelectItem>
+                                <SelectItem value="Credit Card" className="text-sm py-2.5">Credit Card</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <DialogFooter className="p-6 pt-2 border-t border-slate-50 gap-3 sm:justify-between items-center sm:flex-row">
+                          <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 p-0 h-auto">
+                            Advanced Options
+                          </Button>
+                          <div className="flex items-center gap-3">
+                            <Button 
+                              variant="ghost" 
+                              onClick={() => setIsNewBudgetOpen(false)}
+                              className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 px-6"
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={handleSaveNewBudget}
+                              className="bg-[#0f846a] hover:bg-[#0c6b56] text-white font-black uppercase tracking-widest px-8 h-12 rounded-[18px] shadow-lg shadow-[#0f846a]/20"
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                  </div>
                  
-                 <div className="flex items-center gap-2">
-                    <div className="relative">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                       <input 
-                         type="text" 
-                         placeholder="Search items..." 
-                         className="h-9 pl-9 pr-4 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-300 w-64"
-                       />
-                    </div>
+                  <div className="flex items-center gap-2">
                     <Button onClick={toggleAll} variant="ghost" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">
                        {isAllExpanded ? "Collapse All" : "Expand All"}
                     </Button>
-                 </div>
+                  </div>
               </div>
 
               <div className="flex items-center gap-2 px-1">

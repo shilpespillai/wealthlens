@@ -26,9 +26,8 @@ import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { GripVertical, Bot, CheckCircle2, AlertCircle, Calendar, ChevronDown, Settings, BarChart3, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
 
-// Standard formatting
-const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
 // Mock data for initial empty states
 const MOCK_ACCOUNTS = [
@@ -52,6 +51,7 @@ const MOCK_BILLS = [
 ];
 
 export function DashboardContent() {
+  const { parseCurrency, formatAmount } = useFinancialParser();
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const [params, setParams] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
@@ -184,12 +184,6 @@ export function DashboardContent() {
 
   // Real data metrics derived from results and budgetData
   const currentPeriodMetrics = useMemo(() => {
-    const parseCurrency = (str) => {
-      if (!str || typeof str !== 'string') return 0;
-      const cleaned = str.replace(/[^0-9.-]+/g, "");
-      return parseFloat(cleaned) || 0;
-    };
-
     // 1. Get Income from budgetData
     const budgetIncome = (Array.isArray(budgetData) ? budgetData : []).reduce((sum, item) => {
       if (item.type === "income") return sum + parseCurrency(item.amount);
@@ -381,7 +375,7 @@ export function DashboardContent() {
                       </div>
                     </div>
                     <p className={`text-sm font-medium tracking-tight ${acc.balance < 0 ? 'text-negativeRed' : 'text-positiveGreen'}`}>
-                      {acc.balance < 0 ? `(${formatCurrency(Math.abs(acc.balance))})` : formatCurrency(acc.balance)}
+                      {acc.balance < 0 ? `(${formatAmount(Math.abs(acc.balance))})` : formatAmount(acc.balance)}
                     </p>
                   </div>
                 ))}
@@ -389,7 +383,7 @@ export function DashboardContent() {
 
               <div className="mt-12 pt-6 border-t border-gray-100 flex items-center justify-between">
                  <span className="text-[10px] font-medium uppercase text-textSecondary tracking-widest">Aggregate</span>
-                 <span className="text-xl font-medium text-textPrimary tracking-tight">{formatCurrency(accounts.reduce((s, a) => s + a.balance, 0))}</span>
+                 <span className="text-xl font-medium text-textPrimary tracking-tight">{formatAmount(accounts.reduce((s, a) => s + a.balance, 0))}</span>
               </div>
             </div>
           </div>
@@ -399,7 +393,7 @@ export function DashboardContent() {
           <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center relative overflow-hidden transition-all hover:border-accentPurple/30">
              <div className="absolute top-0 right-0 w-20 h-20 bg-accentPurple/5 rounded-full -mr-10 -mt-10" />
              <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-textSecondary mb-2">Total Net Worth</p>
-             <h2 className="text-4xl font-serif font-medium text-textPrimary mb-6">{formatCurrency(results?.summary?.finalValue || results?.summary?.totalTarget || 245000)}</h2>
+             <h2 className="text-3xl font-serif font-medium text-textPrimary mb-6 truncate">{formatAmount(results?.summary?.finalValue || results?.summary?.totalTarget || 245000, { decimals: 0 })}</h2>
              <Link to="/Calculator">
               <Button variant="outline" className="w-full border-accentPurple text-accentPurpleDark hover:bg-accentPurple/5 font-medium text-[10px] uppercase tracking-widest py-6 rounded-lg transition-all">
                 Update Projection
@@ -421,39 +415,46 @@ export function DashboardContent() {
               </div>
 
               <div className="space-y-6">
-                {Object.entries(groupedTransactions).map(([date, transactions], dateIdx) => {
-                  const headerColors = [
-                    { bg: 'bg-accentPurple/20', text: 'text-accentPurpleDark' },
-                    { bg: 'bg-futureBlue/20', text: 'text-futureBlue' },
-                    { bg: 'bg-primaryGreen/20', text: 'text-primaryGreen' }
-                  ];
-                  const color = headerColors[dateIdx % headerColors.length];
-                  
-                  return (
-                    <div key={date} className="space-y-1">
-                      <div className={`${color.bg} px-4 py-1.5 rounded-md`}>
-                        <p className={`text-[10px] font-medium ${color.text} uppercase tracking-widest`}>{date}</p>
-                      </div>
-                      <div className="space-y-1">
-                        {transactions.map((tx, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 hover:bg-wealthBackground rounded-lg transition-colors group">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                tx.category === 'Income' ? 'bg-positiveGreen' : 
-                                tx.category === 'Fixed' ? 'bg-futureBlue' : 
-                                'bg-accentPurpleDark'
-                              }`} />
-                              <p className="text-sm font-medium text-textPrimary leading-none">{tx.name}</p>
+                {Object.keys(groupedTransactions).length > 0 ? (
+                  Object.entries(groupedTransactions).map(([date, transactions], dateIdx) => {
+                    const headerColors = [
+                      { bg: 'bg-accentPurple/20', text: 'text-accentPurpleDark' },
+                      { bg: 'bg-futureBlue/20', text: 'text-futureBlue' },
+                      { bg: 'bg-primaryGreen/20', text: 'text-primaryGreen' }
+                    ];
+                    const color = headerColors[dateIdx % headerColors.length];
+                    
+                    return (
+                      <div key={date} className="space-y-1">
+                        <div className={`${color.bg} px-4 py-1.5 rounded-md`}>
+                          <p className={`text-[10px] font-medium ${color.text} uppercase tracking-widest`}>{date}</p>
+                        </div>
+                        <div className="space-y-1">
+                          {transactions.map((tx, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 hover:bg-wealthBackground rounded-lg transition-colors group">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  tx.category === 'Income' ? 'bg-positiveGreen' : 
+                                  tx.category === 'Fixed' ? 'bg-futureBlue' : 
+                                  'bg-accentPurpleDark'
+                                }`} />
+                                <p className="text-sm font-medium text-textPrimary leading-none">{tx.name}</p>
+                              </div>
+                              <p className={`text-sm font-medium tracking-tight ${tx.amount > 0 ? 'text-positiveGreen' : 'text-negativeRed'}`}>
+                                {tx.amount < 0 ? `(${formatAmount(Math.abs(tx.amount))})` : `${formatAmount(tx.amount)}`}
+                              </p>
                             </div>
-                            <p className={`text-sm font-medium tracking-tight ${tx.amount > 0 ? 'text-positiveGreen' : 'text-negativeRed'}`}>
-                              {tx.amount < 0 ? `(${formatCurrency(Math.abs(tx.amount))})` : `${formatCurrency(tx.amount)}`}
-                            </p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <div className="py-20 flex flex-col items-center justify-center opacity-40">
+                    <Receipt className="w-8 h-8 mb-4 text-slate-300" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No recent transactions</p>
+                  </div>
+                )}
               </div>
               
               <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col items-end space-y-3">
@@ -490,52 +491,61 @@ export function DashboardContent() {
               </div>
 
               <div className="space-y-6">
-                <div>
-                  <div className="bg-negativeRed/10 px-4 py-1.5 rounded-md mb-2">
-                    <p className="text-[9px] font-medium text-negativeRed uppercase tracking-widest leading-none">Overdue bills</p>
-                  </div>
-                  {MOCK_BILLS.filter(b => b.status === "overdue").map((b, i) => (
-                    <div key={i} className="flex justify-between p-3 text-sm items-center">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-negativeRed" />
-                        <span className="font-medium text-textPrimary leading-none">{b.name}</span>
+                {MOCK_BILLS.length > 0 ? (
+                  <>
+                    <div>
+                      <div className="bg-negativeRed/10 px-4 py-1.5 rounded-md mb-2">
+                        <p className="text-[9px] font-medium text-negativeRed uppercase tracking-widest leading-none">Overdue bills</p>
                       </div>
-                      <span className="font-medium text-negativeRed tracking-tight">({formatCurrency(b.amount)})</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <div className="bg-futureBlue/10 px-4 py-1.5 rounded-md mb-2">
-                     <p className="text-[9px] font-medium text-futureBlue uppercase tracking-widest leading-none">Upcoming bills</p>
-                  </div>
-                  {MOCK_BILLS.filter(b => b.status === "upcoming").map((b, i) => (
-                    <div key={i} className="flex justify-between p-3 text-sm items-center">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-futureBlue" />
-                        <span className="font-medium text-textPrimary leading-none">{b.name}</span>
-                      </div>
-                      <span className="font-medium text-textPrimary tracking-tight">({formatCurrency(b.amount)})</span>
-                    </div>
-                  ))}
-                </div>
-
-                 <div>
-                  <div className="bg-positiveGreen/10 px-4 py-1.5 rounded-md mb-2">
-                     <p className="text-[9px] font-medium text-positiveGreen uppercase tracking-widest leading-none">Paid bills</p>
-                  </div>
-                  <div className="opacity-50 space-y-1">
-                    {MOCK_BILLS.filter(b => b.status === "paid").map((b, i) => (
-                      <div key={i} className="flex justify-between p-3 text-sm items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-positiveGreen" />
-                          <span className="font-medium text-textPrimary line-through leading-none">{b.name}</span>
+                      {MOCK_BILLS.filter(b => b.status === "overdue").map((b, i) => (
+                        <div key={i} className="flex justify-between p-3 text-sm items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-negativeRed" />
+                            <span className="font-medium text-textPrimary leading-none">{b.name}</span>
+                          </div>
+                          <span className="font-medium text-negativeRed tracking-tight">({formatAmount(b.amount)})</span>
                         </div>
-                        <span className="font-medium text-textSecondary tracking-tight leading-none">{formatCurrency(b.amount)}</span>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="bg-futureBlue/10 px-4 py-1.5 rounded-md mb-2">
+                         <p className="text-[9px] font-medium text-futureBlue uppercase tracking-widest leading-none">Upcoming bills</p>
                       </div>
-                    ))}
+                      {MOCK_BILLS.filter(b => b.status === "upcoming").map((b, i) => (
+                        <div key={i} className="flex justify-between p-3 text-sm items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-futureBlue" />
+                            <span className="font-medium text-textPrimary leading-none">{b.name}</span>
+                          </div>
+                          <span className="font-medium text-textPrimary tracking-tight">({formatAmount(b.amount)})</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="bg-positiveGreen/10 px-4 py-1.5 rounded-md mb-2">
+                         <p className="text-[9px] font-medium text-positiveGreen uppercase tracking-widest leading-none">Paid bills</p>
+                      </div>
+                      <div className="opacity-50 space-y-1">
+                        {MOCK_BILLS.filter(b => b.status === "paid").map((b, i) => (
+                          <div key={i} className="flex justify-between p-3 text-sm items-center">
+                            <div className="flex items-center gap-3">
+                              <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-positiveGreen" />
+                              <span className="font-medium text-textPrimary line-through leading-none">{b.name}</span>
+                            </div>
+                            <span className="font-medium text-textSecondary tracking-tight leading-none">{formatAmount(b.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-20 flex flex-col items-center justify-center opacity-40">
+                    <Zap className="w-8 h-8 mb-4 text-slate-300" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">All bills covered</p>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -571,7 +581,7 @@ export function DashboardContent() {
                         />
                     </div>
                     <div className="flex justify-between text-[9px] font-medium tracking-tight text-textSecondary">
-                        <span>{formatCurrency(b.val)} / {formatCurrency(b.target)}</span>
+                        <span>{formatAmount(b.val)} / {formatAmount(b.target)}</span>
                     </div>
                   </div>
                 ))}
@@ -592,7 +602,7 @@ export function DashboardContent() {
                            <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-negativeRed" />
                            <span className="font-medium text-textPrimary leading-none">{v.name}</span>
                         </div>
-                        <span className="font-medium text-negativeRed tracking-tight">({formatCurrency(v.amount)})</span>
+                        <span className="font-medium text-negativeRed tracking-tight">({formatAmount(v.amount)})</span>
                      </div>
                    ))}
                 </div>
@@ -656,7 +666,7 @@ export function DashboardContent() {
                     </div>
                     <div className="flex justify-between text-[9px] font-medium tracking-tight text-textSecondary">
                         <span>$0.00 earned</span>
-                        <span>{formatCurrency(b.val)} / {formatCurrency(b.target)}</span>
+                        <span>{formatAmount(b.val)} / {formatAmount(b.target)}</span>
                     </div>
                   </div>
                 ))}
@@ -688,7 +698,7 @@ export function DashboardContent() {
                       <TrendingUp className="w-3 h-3" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-[#00A381] tracking-tight">{formatCurrency(currentPeriodMetrics.earning)}</p>
+                  <p className="text-2xl font-bold text-[#00A381] tracking-tight">{formatAmount(currentPeriodMetrics.earning)}</p>
                   <p className="text-[9px] text-slate-500 mt-2 font-medium">Inflows for current period</p>
                 </div>
 
@@ -700,7 +710,7 @@ export function DashboardContent() {
                       <BarChart3 className="w-3 h-3" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-[#E56B6B] tracking-tight">{formatCurrency(currentPeriodMetrics.spending)}</p>
+                  <p className="text-2xl font-bold text-[#E56B6B] tracking-tight">{formatAmount(currentPeriodMetrics.spending)}</p>
                   <p className="text-[9px] text-slate-500 mt-2 font-medium">Outflows & liabilities</p>
                 </div>
 
@@ -713,7 +723,7 @@ export function DashboardContent() {
                     </div>
                   </div>
                   <p className={`text-2xl font-bold tracking-tight ${currentPeriodMetrics.difference >= 0 ? 'text-[#00A381]' : 'text-[#E56B6B]'}`}>
-                    {currentPeriodMetrics.difference >= 0 ? '+' : ''}{formatCurrency(currentPeriodMetrics.difference)}
+                    {currentPeriodMetrics.difference >= 0 ? '+' : ''}{formatAmount(currentPeriodMetrics.difference)}
                   </p>
                   <p className="text-[9px] text-slate-500 mt-2 font-medium">Cash flow surplus/deficit</p>
                 </div>
@@ -788,11 +798,11 @@ export function DashboardContent() {
               <div className="flex items-center gap-12 text-center divide-x divide-slate-200">
                 <div className="px-6 text-center">
                   <p className="text-[10px] text-slate-500 mb-1">Minimum value</p>
-                  <p className="text-sm font-semibold text-slate-800">{formatCurrency(stats.min)}</p>
+                  <p className="text-sm font-semibold text-slate-800">{formatAmount(stats.min)}</p>
                 </div>
                 <div className="px-6 text-center">
                   <p className="text-[10px] text-slate-500 mb-1">Maximum value</p>
-                  <p className="text-sm font-semibold text-slate-800">{formatCurrency(stats.max)}</p>
+                  <p className="text-sm font-semibold text-slate-800">{formatAmount(stats.max)}</p>
                 </div>
                 <div className="px-6 text-center">
                   <p className="text-[10px] text-slate-500 mb-1">Overall % change</p>
@@ -838,10 +848,10 @@ export function DashboardContent() {
                   <Tooltip 
                     cursor={{ stroke: '#475569', strokeWidth: 1 }}
                     contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                    formatter={(val) => formatCurrency(val)}
+                    formatter={(val) => formatAmount(val)}
                   />
                   <Area 
-                    type="linear" 
+                    type="monotone" 
                     dataKey="balance" 
                     stroke="url(#splitStroke)" 
                     strokeWidth={2}
