@@ -28,6 +28,7 @@ import { GripVertical, Bot, CheckCircle2, AlertCircle, Calendar, ChevronDown, Se
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { subDays, startOfWeek, endOfWeek, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { calculatePortfolioHoldings, getPortfolioMetrics } from "@/api/portfolioEngine";
 import { cn } from "@/lib/utils";
 
 
@@ -219,18 +220,10 @@ export function DashboardContent() {
       .reduce((sum, acc) => sum + acc.balance, 0);
     if (debtTotal < 0) groups['Liabilities'] = debtTotal;
 
-    // 3. Portfolio assets — Use latest snapshot on or before periodInfo.endDate
-    const portfolioGroups = {};
-    (liveData.portfolio || []).forEach(p => {
-      const snapDate = new Date(p.snapshot_date).getTime();
-      if (snapDate <= periodInfo.endDate) {
-        if (!portfolioGroups[p.label] || snapDate > new Date(portfolioGroups[p.label].snapshot_date).getTime()) {
-          portfolioGroups[p.label] = p;
-        }
-      }
-    });
+    // 3. Portfolio assets — Use intelligent Engine to get latest snapshot per unique item
+    const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date(periodInfo.endDate || Date.now()));
 
-    Object.values(portfolioGroups).forEach(p => {
+    latestHoldings.forEach(p => {
       const label = ASSET_LABELS[p.asset_class] || (p.asset_class ? p.asset_class.charAt(0).toUpperCase() + p.asset_class.slice(1) : 'Other');
       const val = Number(p.current_value || 0);
       if (val > 0) groups[label] = (groups[label] || 0) + val;

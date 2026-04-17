@@ -329,18 +329,47 @@ export const base44 = {
       const data = await base44.user.loadData(key);
       return Array.isArray(data) ? data : [];
     },
-    upsertRow: async (tableName, row) => {
+    upsertRow: async (tableName, row, options = {}) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from(sqlTable).upsert({ ...row, user_id: session.user.id, updated_at: new Date() });
+          // Optimized for WealthLens: Automatically handle composite unique constraints for planning tables
+          const upsertOptions = { ...options };
+          
+          // If we have an ID, Supabase handles the conflict on the primary key automatically.
+          // If NOT, we specify the logical unique constraint to prevent 409 errors.
+          if (!row.id) {
+            if (tableName === 'budgets' || tableName === 'monthly_summaries') {
+              upsertOptions.onConflict = 'user_id,month';
+            }
+            if (tableName === 'user_data') {
+              upsertOptions.onConflict = 'user_id,key';
+            }
+          }
+
+          const { error } = await supabase.from(sqlTable).upsert({ ...row, user_id: session.user.id, updated_at: new Date() }, upsertOptions);
           if (!error) return { success: true };
+          console.error(`[base44] Upsert failed for ${tableName}:`, error);
         }
       }
       const key = `wl_table_${tableName}`;
       const rows = await base44.db.getTable(tableName);
-      const index = rows.findIndex(r => r.id === row.id);
+      let targetId = row.id;
+      
+      // Local Fallback: Find by logical keys if ID is missing
+      if (!targetId) {
+        if (tableName === 'budgets' || tableName === 'monthly_summaries') {
+          const match = rows.find(r => r.month === row.month);
+          if (match) targetId = match.id;
+        }
+        if (tableName === 'user_data') {
+          const match = rows.find(r => r.key === row.key);
+          if (match) targetId = match.id;
+        }
+      }
+
+      const index = targetId ? rows.findIndex(r => r.id === targetId) : -1;
       const newRows = index >= 0 ? rows.map((r, i) => i === index ? { ...r, ...row, updated_at: new Date().toISOString() } : r)
                                   : [...rows, { ...row, id: row.id || Date.now().toString(), created_at: new Date().toISOString() }];
       return base44.user.saveData(key, newRows);

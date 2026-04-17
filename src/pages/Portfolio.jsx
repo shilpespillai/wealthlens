@@ -17,6 +17,7 @@ import PremiumGate from "@/components/calculator/PremiumGate";
 import { useSubscription } from "@/components/calculator/useSubscription";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useAuth } from "@/lib/AuthContext";
+import { calculatePortfolioHoldings } from "@/api/portfolioEngine";
 
 const ASSET_CLASSES = [
   { id: "stocks", label: "Stocks", color: "#E5C48B" },    // Muted Peach
@@ -46,6 +47,7 @@ function PortfolioContent() {
   const { isPremium } = useSubscription();
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [removedHoldings, setRemovedHoldings] = useState([]); // Track labels for hard deletion
   const [lastSaved, setLastSaved] = useState(null);
 
   // Load from Production DB
@@ -60,15 +62,11 @@ function PortfolioContent() {
         console.log('DEBUG_PORTFOLIO_ROWS_FOUND:', allData?.length);
         
         if (allData && allData.length > 0) {
-          // Find the latest snapshot date
-          const latestDate = allData.reduce((latest, item) => {
-            return !latest || item.snapshot_date > latest ? item.snapshot_date : latest;
-          }, null);
-
-          const latestSnapshot = allData.filter(d => d.snapshot_date === latestDate);
+          // Use intelligent Engine to get latest snapshot per unique item
+          const latestHoldings = calculatePortfolioHoldings(allData);
 
           // Map back to UI structure
-          const mapped = latestSnapshot.map(d => ({
+          const mapped = latestHoldings.map(d => ({
             id: d.id,
             label: d.label,
             asset: d.asset_class,
@@ -104,11 +102,27 @@ function PortfolioContent() {
     if (userLoaded) setHasChanges(true);
   }, [holdings, currency]);
 
-  const handleSave = async () => {
+   const handleSave = async () => {
     setIsSaving(true);
     const today = new Date().toISOString().split('T')[0];
     try {
-      // Save each holding as a snapshot entry
+      // 1. Permanent Purge: Delete records for items removed during this session
+      if (removedHoldings.length > 0) {
+        console.log('[Portfolio] Purging deleted labels:', removedHoldings);
+        const allHoldings = await base44.db.getTable("portfolio_holdings");
+        // Cross-reference labels to find all historical IDs to purge
+        const idsToPurge = allHoldings
+          .filter(h => removedHoldings.some(label => (h.label || '').toLowerCase() === (label || '').toLowerCase()))
+          .map(h => h.id);
+        
+        console.log(`[Portfolio] Found ${idsToPurge.length} historical records to purge`);
+        for (const id of idsToPurge) {
+          await base44.db.deleteRow("portfolio_holdings", id);
+        }
+        setRemovedHoldings([]);
+      }
+
+      // 2. Snapshot Update: Save each current holding as a snapshot entry
       const savePromises = holdings.map(h => {
         const row = {
           label: h.label,
@@ -118,8 +132,6 @@ function PortfolioContent() {
           snapshot_date: today,
           currency: currency
         };
-        // If it's an existing DB record, we keep the ID for the unique constraint (upsert)
-        // However, our UNIQUE is (user_id, label, snapshot_date), so upsert works on those keys if ID is missing.
         return base44.db.upsertRow("portfolio_holdings", row);
       });
 
@@ -130,7 +142,7 @@ function PortfolioContent() {
       });
       setHasChanges(false);
       setLastSaved(new Date());
-      toast.success(`Snapshot for ${today} saved to production vault`);
+      toast.success(`Portfolio synchronized and purged for ${today}`);
     } catch (err) {
       console.error("[Portfolio] Save failed:", err);
       toast.error("Failed to save portfolio changes");
@@ -155,7 +167,13 @@ function PortfolioContent() {
     setNextId(nextId + 1);
   };
 
-  const removeHolding = (id) => setHoldings(holdings.filter((h) => h.id !== id));
+   const removeHolding = (id) => {
+    const itemToRemove = holdings.find(h => h.id === id);
+    if (itemToRemove && itemToRemove.label) {
+      setRemovedHoldings(prev => [...prev, itemToRemove.label]);
+    }
+    setHoldings(holdings.filter((h) => h.id !== id));
+  };
 
   const updateHolding = (id, field, value) => {
     setHoldings(holdings.map((h) => h.id === id ? { ...h, [field]: value } : h));
