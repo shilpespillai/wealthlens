@@ -106,9 +106,49 @@ export default function StockPillarAnalyzer({ onOpenFairValue }) {
       {loading && !analysis && (
         <div className="flex flex-col items-center justify-center py-20 animate-pulse">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-          <p className="text-slate-600 font-medium">Scanning Yahoo Finance & Macrotrends...</p>
-          <p className="text-xs text-slate-400 mt-2">Checking 10 years of financial statements</p>
+          <p className="text-slate-600 font-medium">Scanning Market Data...</p>
+          <p className="text-xs text-slate-400 mt-2">Connecting to intelligence engine</p>
         </div>
+      )}
+
+      {/* Manual Entry Fallback for Heuristic Mode */}
+      {!loading && analysis && analysis.overallScore === 0 && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }}
+          className="bg-indigo-50/50 rounded-3xl border border-indigo-100 p-8 space-y-6"
+        >
+          <div className="flex items-start gap-4 mb-4">
+            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shrink-0">
+               <Info className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Manual Evaluation Mode</h4>
+              <p className="text-xs text-slate-500 font-medium">No API key found. Enter figures manually to run the 8-Pillar logic.</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {PILLAR_DEFINITIONS.map(def => (
+              <div key={def.id} className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">{def.label}</label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    placeholder="Value"
+                    className="h-9 bg-white border-slate-200 text-xs font-bold rounded-lg"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAnalysis(prev => ({
+                        ...prev,
+                        pillars: prev.pillars.map(p => p.id === def.id ? { ...p, current: val, passed: true } : p)
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       )}
 
       {/* Results Area */}

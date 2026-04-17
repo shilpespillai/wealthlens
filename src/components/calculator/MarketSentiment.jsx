@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, RefreshCw, Activity, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -72,6 +72,10 @@ export default function MarketSentiment({ instrument, currency, params }) {
 
   useEffect(() => {
     fetchSentiment();
+
+    const handleUpdate = () => fetchSentiment();
+    window.addEventListener('wl-intelligence-updated', handleUpdate);
+    return () => window.removeEventListener('wl-intelligence-updated', handleUpdate);
   }, [instrument, currency]);
 
   if (loading) {
@@ -149,12 +153,29 @@ export default function MarketSentiment({ instrument, currency, params }) {
       }
 
       {/* Outlook */}
-      {analysis.outlook &&
-      <div>
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em] mb-3">Outlook</h4>
-          <p className="text-sm text-slate-800 leading-relaxed">{analysis.outlook}</p>
+      {analysis.outlook && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-[0.15em]">Strategic Outlook</h4>
+          {typeof analysis.outlook === 'object' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Activity className="w-3 h-3 text-[#C5A059]" /> 6-12 Month Horizon
+                </p>
+                <p className="text-sm text-slate-800 leading-relaxed">{analysis.outlook.shortTerm_6_12_months || analysis.outlook.short_term}</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                   <Zap className="w-3 h-3 text-[#C5A059]" /> Long-Term Viability
+                </p>
+                <p className="text-sm text-slate-800 leading-relaxed">{analysis.outlook.longTerm_15_years || analysis.outlook.long_term}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-800 leading-relaxed">{analysis.outlook}</p>
+          )}
         </div>
-      }
+      )}
 
       {/* Risks */}
       {analysis.risks && analysis.risks.length > 0 &&

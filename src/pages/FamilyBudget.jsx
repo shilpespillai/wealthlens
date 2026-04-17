@@ -29,7 +29,17 @@ import {
   ResponsiveContainer, 
   Tooltip as RechartsTooltip, 
   Legend, 
-  Sankey
+  Sankey,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -85,6 +95,7 @@ function FamilyBudgetContent() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeView, setActiveView] = useState("sankey"); // sankey or burndown
 
   const [currency, setCurrency] = useState("USD");
   const [incomes, setIncomes] = useState([]);
@@ -265,9 +276,16 @@ function FamilyBudgetContent() {
       nodes.push({ ...node, name });
     };
 
-    // 1. Individual Incomes
-    incomes.forEach((inc, i) => {
-      safeNodePush({ name: inc.name || "Source", color: colors.income, value: Number(inc.monthlyAmount) || 0 });
+    // 1. Group Incomes by Name
+    const groupedIncomes = incomes.reduce((acc, inc) => {
+      const name = inc.name || "Source";
+      if (!acc[name]) acc[name] = { name, amount: 0 };
+      acc[name].amount += Number(inc.monthlyAmount) || 0;
+      return acc;
+    }, {});
+
+    Object.values(groupedIncomes).forEach(inc => {
+      safeNodePush({ name: inc.name, color: colors.income, value: inc.amount });
     });
 
     const grossIncomeIndex = nodes.length;
@@ -275,8 +293,8 @@ function FamilyBudgetContent() {
     safeNodePush({ name: "Gross Income", color: colors.gross, value: totalInc });
 
     // Link Incomes to Gross
-    incomes.forEach((inc, i) => {
-      links.push({ source: i, target: grossIncomeIndex, value: safeVal(inc.monthlyAmount) });
+    Object.values(groupedIncomes).forEach((inc, i) => {
+      links.push({ source: i, target: grossIncomeIndex, value: safeVal(inc.amount) });
     });
 
     // 2. Gross Income to Categories
@@ -305,22 +323,108 @@ function FamilyBudgetContent() {
       links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
     }
 
-    // 3. Category to Items
-    expenses.forEach((exp) => {
+    // 3. Group Expenses by Name and Category
+    const groupedExpensesMap = expenses.reduce((acc, exp) => {
+      const name = exp.name || "Item";
       const st = exp.spendType || "variable";
-      const color = getSectionColor(exp.name || "", exp.category || "", st);
+      const key = `${name}-${st}`;
+      if (!acc[key]) acc[key] = { name, st, amount: 0, category: exp.category };
+      acc[key].amount += Number(exp.monthlyAmount) || 0;
+      return acc;
+    }, {});
+
+    const sortedGroupedExpenses = Object.values(groupedExpensesMap).sort((a, b) => b.amount - a.amount);
+    
+    // Aggregation Logic: Keep top 15, group others
+    const topCount = 15;
+    const displayedExpenses = sortedGroupedExpenses.slice(0, topCount);
+    const otherExpenses = sortedGroupedExpenses.slice(topCount);
+
+    // Add Top Expenses
+    displayedExpenses.forEach((exp) => {
+      const color = getSectionColor(exp.name, exp.category, exp.st);
       const itemIndex = nodes.length;
-      safeNodePush({ name: exp.name || "Item", color, value: Number(exp.monthlyAmount) || 0 });
+      safeNodePush({ name: exp.name, color, value: exp.amount });
       
       let targetCatIndex = variableIndex;
-      if (st === "fixed") targetCatIndex = fixedIndex;
-      if (st === "savings") targetCatIndex = savingsIndex;
+      if (exp.st === "fixed") targetCatIndex = fixedIndex;
+      if (exp.st === "savings") targetCatIndex = savingsIndex;
       
-      links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.monthlyAmount) });
+      links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
     });
+
+    // Add "Other" node if needed
+    if (otherExpenses.length > 0) {
+      // Group by spendType for "Other Fixed", "Other Variable", "Other Savings"
+      const otherBySt = otherExpenses.reduce((acc, exp) => {
+        if (!acc[exp.st]) acc[exp.st] = 0;
+        acc[exp.st] += exp.amount;
+        return acc;
+      }, {});
+
+      Object.entries(otherBySt).forEach(([st, amount]) => {
+        if (amount <= 0) return;
+        const name = `Diversified ${st === 'fixed' ? 'Needs' : (st === 'savings' ? 'Savings' : 'Outflows')}`;
+        const itemIndex = nodes.length;
+        safeNodePush({ name, color: "#94a3b8", value: amount });
+        
+        let targetCatIndex = variableIndex;
+        if (st === "fixed") targetCatIndex = fixedIndex;
+        if (st === "savings") targetCatIndex = savingsIndex;
+        
+        links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(amount) });
+      });
+    }
 
     return { nodes, links };
   }, [incomes, expenses, metrics]);
+
+  const radarData = useMemo(() => {
+    return metrics.breakdown.map(b => ({
+      subject: b.label,
+      A: b.actualPct,
+      B: b.targetPct,
+      fullMark: 100
+    }));
+  }, [metrics.breakdown]);
+
+  const burndownData = useMemo(() => {
+    const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+    const today = selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear() 
+      ? new Date().getDate() 
+      : daysInMonth;
+
+    const data = [];
+    let cumulativeSpent = 0;
+    const totalPlanned = metrics.totalExpenses || 1;
+
+    // Daily actuals from ledger
+    const dailyTotals = allTransactions.reduce((acc, t) => {
+      const d = new Date(t.date || t.timestamp).getDate();
+      if (!acc[d]) acc[d] = 0;
+      if (t.type === 'expense' || t.spendType !== 'income') {
+        acc[d] += Math.abs(t.monthlyAmount || t.amount || 0);
+      }
+      return acc;
+    }, {});
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      if (i <= today) {
+        cumulativeSpent += (dailyTotals[i] || 0);
+      }
+      
+      const remainingActual = i <= today ? Math.max(0, totalPlanned - cumulativeSpent) : null;
+      const targetDecay = Math.max(0, totalPlanned - (totalPlanned / daysInMonth) * i);
+
+      data.push({
+        day: i,
+        actual: remainingActual,
+        target: targetDecay,
+        label: `Day ${i}`
+      });
+    }
+    return data;
+  }, [allTransactions, metrics.totalExpenses, selectedDate]);
 
   const CustomSankeyNode = (props) => {
     const { x, y, width, height, payload, containerWidth } = props;
@@ -337,27 +441,27 @@ function FamilyBudgetContent() {
           width={6}
           height={nodeHeight}
           fill={payload.color || "#10b981"}
-          rx={1}
-          className="transition-all duration-300"
+          rx={2}
+          className="transition-all duration-300 shadow-sm"
         />
         <text
-          x={x + (isOut ? -10 : 15)}
-          y={y + nodeHeight / 2 - 4}
+          x={x + (isOut ? -12 : 18)}
+          y={y + nodeHeight / 2 - 2}
           textAnchor={isOut ? "end" : "start"}
-          fill="#334155"
-          fontSize="10"
-          fontWeight="700"
-          className="tracking-tight"
+          fill="#1e293b"
+          fontSize="9"
+          fontWeight="800"
+          className="uppercase tracking-tight"
         >
           {payload.name}
         </text>
         <text
-          x={x + (isOut ? -10 : 15)}
+          x={x + (isOut ? -12 : 18)}
           y={y + nodeHeight / 2 + 8}
           textAnchor={isOut ? "end" : "start"}
           fill="#94a3b8"
-          fontSize="9"
-          fontWeight="600"
+          fontSize="8"
+          fontWeight="700"
         >
           {sym}{(payload.value || 0).toLocaleString()}
         </text>
@@ -532,7 +636,23 @@ function FamilyBudgetContent() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">Financial Flow Intelligence</h3>
-              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Live Granular Flow Analysis • Interactive Visualization</p>
+              <div className="flex items-center gap-4 mt-2">
+                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Live Granular Flow Analysis</p>
+                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                  <button 
+                    onClick={() => setActiveView("sankey")}
+                    className={`px-3 py-1 text-[8px] font-black uppercase rounded-md transition-all ${activeView === 'sankey' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Flow
+                  </button>
+                  <button 
+                    onClick={() => setActiveView("burndown")}
+                    className={`px-3 py-1 text-[8px] font-black uppercase rounded-md transition-all ${activeView === 'burndown' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    Velocity
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block">
@@ -546,33 +666,82 @@ function FamilyBudgetContent() {
           </div>
 
           <div className="h-[400px] w-full mt-2">
-            {sankeyData && sankeyData.nodes.length > 1 ? (
+            {activeView === 'sankey' ? (
+              sankeyData && sankeyData.nodes.length > 1 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <Sankey
+                    data={sankeyData}
+                    node={<CustomSankeyNode />}
+                    link={<CustomSankeyLink />}
+                    nodePadding={45}
+                    margin={{ left: 100, right: 200, top: 40, bottom: 40 }}
+                    sort={false}
+                  >
+                    <RechartsTooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const isLink = data.source && data.target;
+                          const name = isLink 
+                            ? `${data.source.name} → ${data.target.name}` 
+                            : (data.name || 'Financial Flow');
+                          const value = data.value || 0;
+                          const color = isLink ? data.source.color : (data.color || "#6366f1");
+
+                          return (
+                            <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
+                                <p className="text-xl font-black text-slate-800">{sym}{(Number(value) || 0).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </Sankey>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                  <PieChartIcon className="w-6 h-6 opacity-30 text-slate-400" />
+                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Add inputs below to generate flow</p>
+                </div>
+              )
+            ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <Sankey
-                  data={sankeyData}
-                  node={<CustomSankeyNode />}
-                  link={<CustomSankeyLink />}
-                  nodePadding={20}
-                  margin={{ left: 100, right: 180, top: 20, bottom: 20 }}
-                  sort={false}
-                >
+                <LineChart data={burndownData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="day" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}}
+                    dy={10}
+                    label={{ value: 'DAY OF MONTH', position: 'insideBottom', offset: -10, fontSize: 8, fontWeight: 900, fill: '#cbd5e1' }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}}
+                    tickFormatter={(val) => `${sym}${Math.round(val/1000)}k`}
+                  />
                   <RechartsTooltip 
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        const isLink = data.source && data.target;
-                        const name = isLink 
-                          ? `${data.source.name} → ${data.target.name}` 
-                          : (data.name || 'Financial Flow');
-                        const value = data.value || 0;
-                        const color = isLink ? data.source.color : (data.color || "#6366f1");
-
                         return (
-                          <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
-                              <p className="text-xl font-black text-slate-800">{sym}{(Number(value) || 0).toLocaleString()}</p>
+                          <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Day {payload[0].payload.day} Consumption</p>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center gap-4">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Remaining</span>
+                                <span className="text-md font-black text-slate-900">{sym}{Math.round(payload[0].value).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between items-center gap-4">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Target Pace</span>
+                                <span className="text-xs font-bold text-[#C5A059]">{sym}{Math.round(payload[1].value).toLocaleString()}</span>
+                              </div>
                             </div>
                           </div>
                         );
@@ -580,13 +749,27 @@ function FamilyBudgetContent() {
                       return null;
                     }}
                   />
-                </Sankey>
+                  <Line 
+                    type="monotone" 
+                    dataKey="actual" 
+                    stroke="#1e293b" 
+                    strokeWidth={4} 
+                    dot={{ r: 4, fill: '#1e293b', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    name="Actual Remaining"
+                    connectNulls
+                  />
+                  <Line 
+                    type="stepAfter" 
+                    dataKey="target" 
+                    stroke="#C5A059" 
+                    strokeWidth={2} 
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Target Decay"
+                  />
+                </LineChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                <PieChartIcon className="w-6 h-6 opacity-30 text-slate-400" />
-                <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">Add inputs below to generate flow</p>
-              </div>
             )}
           </div>
         </div>
@@ -855,6 +1038,70 @@ function FamilyBudgetContent() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Budget Integrity Radar */}
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Budget Integrity Radar</h4>
+                  <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-[#C5A059]" />
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">Actual</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                      <PolarGrid stroke="#334155" />
+                      <PolarAngleAxis 
+                        dataKey="subject" 
+                        tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={30} 
+                        domain={[0, 100]} 
+                        tick={false}
+                        axisLine={false}
+                      />
+                      <Radar
+                        name="Target"
+                        dataKey="B"
+                        stroke="#C5A059"
+                        fill="#C5A059"
+                        fillOpacity={0.1}
+                      />
+                      <Radar
+                        name="Actual"
+                        dataKey="A"
+                        stroke="#10b981"
+                        fill="#10b981"
+                        fillOpacity={0.5}
+                      />
+                      <RechartsTooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                             return (
+                               <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
+                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-2">{payload[0].payload.subject}</p>
+                                 <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-emerald-400">Actual: {payload[0].value.toFixed(1)}%</p>
+                                    <p className="text-[10px] font-bold text-[#C5A059]">Target: {payload[1].value}%</p>
+                                 </div>
+                               </div>
+                             );
+                          }
+                          return null;
+                        }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               {/* Summary Pie Chart */}

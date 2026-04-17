@@ -130,14 +130,15 @@ export default function TrendsReport() {
           .reduce((sum, t) => sum + Math.abs(t.monthlyAmount || t.amount || 0), 0);
       }
 
-      // Special case: April is 'Pending' in the screenshot
-      const isPending = format(month, "MMM") === "Apr";
+      // Dynamic Pending Logic: Month is pending if it's the current month or in the future
+      const today = new Date();
+      const isPending = isSameMonth(month, today) || month > today;
       
       const within = isPending ? 0 : Math.min(actual, budgeted);
       const overspent = isPending ? 0 : Math.max(0, actual - budgeted);
       const saved = isPending ? 0 : Math.max(0, budgeted - actual);
       const pending = isPending ? budgeted : 0;
-      const spent = format(month, "MMM") === "Nov" ? 100 : 0; // Purple segment for start
+      const spent = 0; // Removed hardcoded 'Nov' start segment for production accuracy
 
       return {
         month: format(month, "MMM d"),
@@ -150,16 +151,22 @@ export default function TrendsReport() {
         totalActual: actual
       };
     });
-  }, [allTransactions, activeInterval, selectedCategory, showType]);
+  }, [allTransactions, activeInterval, selectedCategory, showType, dbBudgets]);
 
   const stats = useMemo(() => {
-    if (!chartData || chartData.length === 0) return { budgeted: 0, totalActual: 0, overspent: 0, actual: 0, avg: 0 };
+    if (!chartData || chartData.length === 0) return { budgeted: 0, totalActual: 0, overspent: 0, within: 0, avg: 0 };
     
-    const lastMonth = chartData[chartData.length - 1];
-    const totalSpentInPeriod = chartData.reduce((sum, d) => sum + d.totalActual, 0);
-    const avg = totalSpentInPeriod / chartData.length;
+    // Aggregate totals for the selected period
+    const totals = chartData.reduce((acc, d) => ({
+      budgeted: acc.budgeted + d.budgeted,
+      totalActual: acc.totalActual + d.totalActual,
+      within: acc.within + d.within,
+      overspent: acc.overspent + d.overspent
+    }), { budgeted: 0, totalActual: 0, within: 0, overspent: 0 });
+
+    const avg = totals.totalActual / chartData.length;
     
-    return { ...lastMonth, avg };
+    return { ...totals, avg };
   }, [chartData]);
 
   const burndownData = useMemo(() => {
@@ -234,8 +241,34 @@ export default function TrendsReport() {
                       ) : "Pick date range"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700" align="end">
-                    <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="text-white" />
+                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl overflow-hidden rounded-3xl" align="end">
+                    <div className="flex h-[360px]">
+                      {/* Presets Sidebar */}
+                      <div className="w-40 border-r border-slate-700/50 p-4 space-y-2 flex flex-col justify-center bg-black/20">
+                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 px-2">Cycle Presets</p>
+                         {[
+                           { label: "Last 3 Months", get: () => ({ from: subMonths(new Date(), 3), to: new Date() }) },
+                           { label: "Last 6 Months", get: () => ({ from: subMonths(new Date(), 6), to: new Date() }) },
+                           { label: "Last 12 Months", get: () => ({ from: subMonths(new Date(), 12), to: new Date() }) },
+                           { label: "Year to Date", get: () => ({ from: new Date(new Date().getFullYear(), 0, 1), to: new Date() }) },
+                           { label: "Current Quarter", get: () => {
+                             const q = Math.floor(new Date().getMonth() / 3);
+                             return { from: new Date(new Date().getFullYear(), q * 3, 1), to: new Date() };
+                           }},
+                         ].map((p) => (
+                           <button 
+                             key={p.label}
+                             onClick={() => setDateRange(p.get())}
+                             className="w-full text-left px-3 py-2 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:bg-[#C5A059]/10 hover:text-[#C5A059] transition-all"
+                           >
+                             {p.label}
+                           </button>
+                         ))}
+                      </div>
+                      <div className="p-2">
+                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="text-white bg-transparent" />
+                      </div>
+                    </div>
                   </PopoverContent>
                </Popover>
 
@@ -404,36 +437,36 @@ export default function TrendsReport() {
                              {format(dateRange.from, "MMM")} - {format(dateRange.to, "MMM")} Cycle
                           </p>
                           
-                          <div className="space-y-10">
-                            <div className="space-y-2">
-                               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Target Budget</p>
-                               <p className="text-xl font-medium text-slate-900">{formatCurrency(stats.budgeted)}</p>
-                            </div>
+                 <div className="space-y-10">
+                    <div className="space-y-2">
+                       <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Target</p>
+                       <p className="text-xl font-medium text-slate-900">{formatCurrency(stats.budgeted)}</p>
+                    </div>
 
-                            <div className="space-y-6 pt-8 border-t border-slate-100">
-                               <div className="flex items-center justify-between">
-                                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Actual {showType}</p>
-                                  <p className="text-xl font-medium text-indigo-600">{formatCurrency(stats.totalActual)}</p>
-                               </div>
+                    <div className="space-y-6 pt-8 border-t border-slate-100">
+                       <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Actual</p>
+                          <p className="text-xl font-medium text-indigo-600">{formatCurrency(stats.totalActual)}</p>
+                       </div>
 
-                               <div className="space-y-4 pt-2">
-                                 <div className="flex items-center justify-between bg-teal-50/50 p-4 rounded-2xl border border-teal-100/50">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-2 h-2 rounded-full bg-teal-500 shadow-sm shadow-teal-500/50" />
-                                      <span className="text-[10px] font-medium text-teal-700 uppercase tracking-widest">Within</span>
-                                    </div>
-                                    <span className="text-xs font-medium text-slate-700">{formatCurrency(stats.within)}</span>
-                                 </div>
-                                 <div className="flex items-center justify-between bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
-                                      <span className="text-[10px] font-medium text-rose-700 uppercase tracking-widest">Overspent</span>
-                                    </div>
-                                    <span className="text-xs font-medium text-rose-600">{formatCurrency(stats.overspent)}</span>
-                                 </div>
-                               </div>
+                       <div className="space-y-4 pt-2">
+                         <div className="flex items-center justify-between bg-teal-50/50 p-4 rounded-2xl border border-teal-100/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-teal-500 shadow-sm shadow-teal-500/50" />
+                              <span className="text-[10px] font-medium text-teal-700 uppercase tracking-widest leading-none">Period Within Budget</span>
                             </div>
-                          </div>
+                            <span className="text-xs font-medium text-slate-700">{formatCurrency(stats.within)}</span>
+                         </div>
+                         <div className="flex items-center justify-between bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
+                              <span className="text-[10px] font-medium text-rose-700 uppercase tracking-widest leading-none">Period Overspent</span>
+                            </div>
+                            <span className="text-xs font-medium text-rose-600">{formatCurrency(stats.overspent)}</span>
+                         </div>
+                       </div>
+                    </div>
+                 </div>
                        </div>
 
                        <Dialog open={isBurndownOpen} onOpenChange={setIsBurndownOpen}>

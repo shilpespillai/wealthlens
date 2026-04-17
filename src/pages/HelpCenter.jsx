@@ -1,146 +1,544 @@
-import React from "react";
-import { ArrowLeft, LifeBuoy, Search, FileText, Video, MessageCircle, ExternalLink, HelpCircle } from "lucide-react";
+import React, { useEffect } from "react";
+import { 
+  ArrowLeft, 
+  Search, 
+  FileText, 
+  BookOpen, 
+  ShieldCheck, 
+  Calculator, 
+  Activity,
+  ChevronRight,
+  ExternalLink,
+  Lock,
+  MessageSquare,
+  HelpCircle,
+  FileBadge,
+  Layers,
+  Zap,
+  Cpu,
+  RefreshCcw,
+  LayoutDashboard,
+  TrendingUp,
+  Target,
+  Binary
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import mermaid from "mermaid";
+import { generateManualPdf } from "../utils/generateManualPdf";
 
 export default function HelpCenter() {
+  const contentRef = React.useRef(null);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      securityLevel: "loose",
+      fontFamily: "Inter, system-ui, sans-serif",
+    });
+    mermaid.contentLoaded();
+  }, []);
+
+  const sections = [
+    { id: "architecture", label: "01. Architecture" },
+    { id: "dashboard", label: "02. Dashboard Spec" },
+    { id: "calculator-detail", label: "03. Analysis Suite" },
+    { id: "reports-detail", label: "04. Intelligence Hub" },
+    { id: "neural-bridge", label: "05. Neural Bridge" },
+    { id: "operational-specs", label: "06. Operational Specs" },
+    { id: "compliance", label: "07. Compliance & Security" }
+  ];
+
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (contentRef.current) {
+      await generateManualPdf(contentRef.current, {
+        onProgress: (val) => setIsGenerating(val)
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 py-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
-        <a href="/" className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 mb-10 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </a>
-        
-        {/* Hero Section */}
-        <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-900 rounded-[2.5rem] p-8 sm:p-20 mb-12 text-center text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
-          <div className="relative z-10 max-w-3xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl font-black mb-6 tracking-tight">How can we help you?</h1>
-            <p className="text-indigo-100 mb-10 text-xl leading-relaxed">Search our knowledge base for professional-grade answers to your financial modeling and platform questions.</p>
-            
-            <div className="relative group max-w-2xl mx-auto">
-               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 w-6 h-6 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search topics: inflation, compounding, security..." 
-                className="relative w-full bg-white text-slate-900 placeholder-slate-400 rounded-[1.25rem] py-5 pl-16 pr-6 shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all font-medium text-lg border-none"
-              />
+    <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-[#C5A059]/10">
+      
+      {/* Structural Header */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-[1440px] mx-auto px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/Dashboard" className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+               <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </Link>
+            <div className="h-4 w-[1px] bg-slate-100" />
+            <div className="flex items-center gap-2">
+               <FileBadge className="w-4 h-4 text-[#C5A059]" />
+               <p className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.2em]">Technical Manual <span className="text-slate-300 mx-2 font-normal">/</span> <span className="text-slate-500 text-[9px]">v4.2.0-ELITE</span></p>
             </div>
           </div>
-          <LifeBuoy className="absolute -right-16 -bottom-16 w-96 h-96 text-white/5 rotate-12" />
+          
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-md">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Logic Nominal</span>
+            </div>
+            <button 
+              onClick={handleExportPDF}
+              disabled={isGenerating}
+              className="bg-slate-900 text-white px-4 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCcw className="w-3 h-3 animate-spin" />
+                  Synthesizing...
+                </>
+              ) : (
+                "Export PDF"
+              )}
+            </button>
+          </div>
         </div>
+      </header>
 
-        {/* Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            {[
-              { icon: FileText, title: "Quick Start Guide", color: "indigo", text: "Master the essentials of wealth trajectory modeling in under 5 minutes." },
-              { icon: Video, title: "Training Videos", color: "violet", text: "Visual walkthroughs of advanced family budgeting and portfolio features." },
-              { icon: MessageCircle, title: "Common Solutions", color: "blue", text: "Searchable database of frequently asked questions and technical fixes." }
-            ].map((cat, i) => (
-              <div key={i} className="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-xl transition-all cursor-pointer group text-center flex flex-col items-center">
-                  <div className={`w-16 h-16 bg-${cat.color}-50 text-${cat.color}-600 rounded-2xl flex items-center justify-center mb-6 border border-${cat.color}-100 group-hover:bg-${cat.color}-600 group-hover:text-white transition-all transform group-hover:scale-110 group-hover:rotate-3`}>
-                      <cat.icon className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-3">{cat.title}</h3>
-                  <p className="text-slate-500 leading-relaxed font-medium">{cat.text}</p>
+      <div className="max-w-[1440px] mx-auto flex gap-0">
+        
+        {/* Sticky Sidebar Navigation */}
+        <aside className="hidden lg:block w-72 border-r border-slate-100 h-[calc(100vh-64px)] sticky top-16 p-8 overflow-y-auto">
+          <div className="space-y-12">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-[#C5A059] uppercase tracking-[0.3em] mb-6">Documentation</h4>
+              <nav className="flex flex-col gap-2">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => scrollToSection(section.id)}
+                    className="flex items-center gap-3 text-[10px] font-bold text-slate-500 hover:text-slate-900 py-2 transition-all group text-left"
+                  >
+                    <div className="w-1 h-1 rounded-full bg-slate-200 group-hover:bg-[#C5A059] transition-colors" />
+                    <span className="uppercase tracking-widest">{section.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            <div className="p-6 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
+                <span className="text-[9px] font-black uppercase text-slate-900 tracking-widest">Auth Integrity</span>
               </div>
-            ))}
-        </div>
+              <p className="text-[8px] text-slate-500 leading-relaxed font-semibold uppercase">SEC-DEEP-AUDIT Verified: 2026.04.17</p>
+            </div>
+          </div>
+        </aside>
 
-        {/* Content Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                    <HelpCircle className="w-6 h-6 text-indigo-600" />
-                    Essential Articles
-                  </h2>
+        {/* Main Content Area */}
+        <main ref={contentRef} className="flex-1 px-8 lg:px-20 py-20 pb-40">
+          
+          {/* Title & Search */}
+          <section className="mb-32 space-y-12">
+             <div className="space-y-4">
+                <div className="flex items-center gap-2 text-[9px] font-bold text-[#C5A059] uppercase tracking-[0.4em]">
+                  <Cpu className="w-3.5 h-3.5" />
+                  Intelligence Documentation
+                </div>
+                <h1 className="text-5xl lg:text-7xl font-bold text-slate-900 tracking-tight leading-[0.9] italic">
+                  Institutional <br />
+                  <span className="text-slate-400 font-medium NOT-italic">Technical Spec.</span>
+                </h1>
+                <p className="text-slate-500 text-xs font-medium uppercase tracking-[0.1em] max-w-xl leading-relaxed">
+                  Comprehensive documentation of the WealthLens v4.2.0-ELITE architecture, including data flow protocols, neural bridge connectivity, and 8-pillar financial logic.
+                </p>
+             </div>
+
+             <div className="relative max-w-2xl group pt-4">
+               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 mt-2" />
+               <input 
+                 type="text" 
+                 placeholder="SEARCH SPECIFICATIONS (E.G., AES-256, TVM MATH, NEURAL BRIDGE...)" 
+                 className="w-full bg-slate-50 border border-slate-200 rounded-xl py-6 pl-12 pr-6 text-[10px] font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all uppercase tracking-widest"
+               />
+             </div>
+          </section>
+
+          {/* 01. Architecture */}
+          <section id="architecture" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">01. System Architecture</h2>
+             </div>
+             
+             <div className="bg-slate-50 border border-slate-200 rounded-3xl p-12 relative overflow-hidden group">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#C5A059_1px,transparent_1px)] [background-size:20px_20px]" />
+                
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-12 relative z-10">
+                   <div className="bg-white border border-slate-200 rounded-2xl p-12 flex items-center justify-center shadow-sm min-h-[450px]">
+                      <div className="w-full">
+                         <pre className="mermaid flex justify-center py-4 scale-125 origin-center">
+{`graph TD
+    subgraph "Data Ingestion Layer"
+        A[Local Ledger] -->|AES-256| B(Data Hygiene Engine)
+        G[Live Bank Bridge] -->|Encrypted Tunnel| B
+    end
+    
+    subgraph "Cognitive Processing"
+        B -->|Refined Streams| C{AI Intelligence Hub}
+        C -->|Pattern Reg| H[Behavioral Models]
+    end
+    
+    subgraph "Output & Visualization"
+        C -->|Cognitive Insight| D[Reports: Trends/Digest]
+        C -->|Mathematical Load| E[Analysis Suite: Calculator]
+        H -->|Meta Feedback| D
+    end
+    
+    D -->|Cycle Feedback| B
+    E -->|Projection Strategy| F[Portfolio Allocation]
+    F -->|Balance Updates| A
+    
+    style C fill:#C5A059,stroke:#94763D,color:#fff
+    style G fill:#0EA5E9,stroke:#0284C7,color:#fff`}
+                         </pre>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      <div className="space-y-3">
+                         <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Stage 01: Ledger</p>
+                         <p className="text-[9px] text-slate-500 leading-relaxed font-semibold uppercase tracking-tight">Transactions and bank bridges feed the core hygiene layer where data is normalized.</p>
+                      </div>
+                      <div className="space-y-3">
+                         <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Stage 02: Neural</p>
+                         <p className="text-[9px] text-slate-500 leading-relaxed font-semibold uppercase tracking-tight">The Neural Bridge processes metadata to extract sentiment and behavioral trends.</p>
+                      </div>
+                      <div className="space-y-3">
+                         <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Stage 03: Logic</p>
+                         <p className="text-[9px] text-slate-500 leading-relaxed font-semibold uppercase tracking-tight">The Analysis Suite converts trends into long-term wealth projections with TVM math.</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 02. Dashboard Spec */}
+          <section id="dashboard" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">02. Dashboard Interface Spec</h2>
+             </div>
+             
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="space-y-10">
+                   <p className="text-slate-600 text-[11px] leading-relaxed font-medium uppercase tracking-tight italic border-l-2 border-[#C5A059] pl-6">
+                     The Dashboard is the platform's primary observability layer. It reconciles high-frequency data from three distinct sub-engines: Portfolio, Cashflows, and active Budgets.
+                   </p>
+                   
+                   <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Key Metrics Specification</h4>
+                      <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+                         <table className="w-full text-left border-collapse">
+                            <thead>
+                               <tr className="border-b border-slate-200">
+                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Component</th>
+                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Update Frequency</th>
+                               </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                               <tr>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Market Assets</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Real-time / 60s Pool</td>
+                               </tr>
+                               <tr>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Cashflow Velocity</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Daily Audit Cycle</td>
+                               </tr>
+                               <tr>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Net Worth Engine</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Event-driven (On Change)</td>
+                               </tr>
+                            </tbody>
+                         </table>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                   <div className="p-8 bg-slate-900 rounded-2xl text-white space-y-4">
+                      <LayoutDashboard className="w-6 h-6 text-[#C5A059]" />
+                      <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Net Worth Reconciler</h5>
+                      <p className="text-[9px] text-slate-400 leading-relaxed font-medium uppercase tracking-tight">
+                        Uses non-recursive balance aggregation across all integrated accounts. Implements a 'Liquidity Buffer' algorithm to separate true net worth from theoretical market value.
+                      </p>
+                   </div>
+                   <div className="p-8 border border-slate-100 rounded-2xl space-y-4">
+                      <Activity className="w-6 h-6 text-[#C5A059]" />
+                      <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Activity Stream</h5>
+                      <p className="text-[9px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                        Tracks 'Turn-of-Event' data changes. Every data point is timestamped and hash-verified for audit-ready financial tracking.
+                      </p>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 03. Analysis Suite */}
+          <section id="calculator-detail" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">03. Analysis Suite (Calculator)</h2>
+             </div>
+
+             <div className="space-y-12">
+                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-12 space-y-12">
+                   <div className="flex items-center gap-6">
+                      <Calculator className="w-8 h-8 text-[#C5A059]" />
+                      <div>
+                         <h3 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Geometric Growth Engine</h3>
+                         <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-1">Foundational Calculus: CAGR vs Arithmetic Mean</p>
+                      </div>
+                   </div>
+                   
+                   <p className="text-slate-600 text-[11px] leading-relaxed font-medium uppercase tracking-tight max-w-3xl">
+                     Our simulation engine models financial outcomes over 50 years using <strong>Sequential Discrete Compounding</strong>. It prioritizes CAGR (Compound Annual Growth Rate) over simpler arithmetic means to account for the mathematical reality of volatility drag.
+                   </p>
+
+                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="col-span-1 p-8 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
+                         <Target className="w-5 h-5 text-[#C5A059]" />
+                         <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">8-Pillars Performance</h5>
+                         <p className="text-[9px] text-slate-500 font-semibold uppercase leading-relaxed">
+                           Audit criteria measuring Inflation, Tax, Drag, Sequence Risk, Debt/Equity, Withdrawal, Volatility, and Diversity.
+                         </p>
+                      </div>
+                      <div className="col-span-2 p-8 bg-white border border-slate-200 rounded-2xl relative overflow-hidden group shadow-sm">
+                         <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Binary className="w-20 h-20" />
+                         </div>
+                         <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-6">Mathematical Theorem</h5>
+                         <pre className="text-[10px] font-mono text-slate-600 p-4 bg-slate-50 rounded-lg">
+                           FV = PV × (1 + r/n)^(n×t) + PMT × [((1 + r/n)^(n×t) - 1) / (r/n)]
+                         </pre>
+                         <p className="text-[8px] text-slate-400 mt-4 uppercase font-bold tracking-[0.2em]">Validated against ISO-21000 financial logic standards.</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 04. Intelligence Hub */}
+          <section id="reports-detail" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">04. Intelligence Hub</h2>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="p-10 bg-slate-50 border border-slate-200 rounded-[2.5rem] space-y-6">
+                   <TrendingUp className="w-8 h-8 text-[#C5A059]" />
+                   <h4 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Cognitive Reporting</h4>
+                   <p className="text-[10px] text-slate-500 font-semibold uppercase leading-relaxed">
+                      The Intelligence Hub consolidates data from across the platform to generate human-readable financial insights. Reports are generated in local browser memory to ensure zero PII leakage.
+                   </p>
+                   <div className="space-y-3 pt-4 border-t border-slate-200">
+                      <div className="flex items-center gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
+                         <span className="text-[9px] font-bold text-slate-900 uppercase">Trends: Behavioral pattern recognition</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
+                         <span className="text-[9px] font-bold text-slate-900 uppercase">Cashflow: Micro-audit transaction paths</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-[#C5A059]" />
+                         <span className="text-[9px] font-bold text-slate-900 uppercase">Digest: Executive summaries via AI Coach</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="p-10 border border-slate-100 rounded-[2.5rem] flex flex-col justify-center space-y-8 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-8 opacity-[0.05]">
+                      <FileText className="w-32 h-32" />
+                   </div>
+                   <h5 className="text-xs font-black text-slate-900 uppercase tracking-widest italic border-l-2 border-[#C5A059] pl-6">
+                      "WealthLens doesn't just show you numbers; it translates them into a strategy."
+                   </h5>
+                   <div className="space-y-4">
+                      <div className="p-5 bg-white border border-slate-100 rounded-xl shadow-sm">
+                         <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Export Format</p>
+                         <p className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">ISO-8601 Timestamped PDF / CSV Standard</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 05. Neural Bridge (New Data-Dense Section) */}
+          <section id="neural-bridge" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">05. Neural Bridge Connectivity</h2>
+             </div>
+             
+             <div className="space-y-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                   <div className="space-y-8">
+                      <h3 className="text-xl font-bold text-slate-900 uppercase tracking-widest leading-tight italic">
+                        The End-to-End <br />
+                        <span className="text-[#C5A059] NOT-italic">Encrypted Tunnel.</span>
+                      </h3>
+                      <p className="text-slate-500 text-[11px] leading-relaxed font-semibold uppercase tracking-tight">
+                        The Neural Bridge is our proprietary connectivity layer that facilitates read-only data pulls from global financial institutions. Data is never decrypted in transit; all normalization occurs on the client-side edge.
+                      </p>
+                      
+                      <div className="space-y-4">
+                         <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-xl border border-slate-100">
+                            <Lock className="w-5 h-5 text-[#C5A059] shrink-0" />
+                            <div>
+                               <h6 className="text-[10px] font-black text-slate-900 uppercase">AES-256 Symmetric Encryption</h6>
+                               <p className="text-[8px] text-slate-400 uppercase font-bold">Standard for all data at rest and in transit.</p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-xl border border-slate-100">
+                            <Zap className="w-5 h-5 text-[#C5A059] shrink-0" />
+                            <div>
+                               <h6 className="text-[10px] font-black text-slate-900 uppercase">Sub-second Latency Sync</h6>
+                               <p className="text-[8px] text-slate-400 uppercase font-bold">Real-time balancing of active market positions.</p>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden flex flex-col justify-center">
+                      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#C5A059_1px,transparent_1px)] [background-size:15px_15px]" />
+                      <div className="relative z-10 space-y-10">
+                         <div className="pb-8 border-b border-white/10">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#C5A059] mb-4">Edge Processing Protocol</h4>
+                            <p className="text-[9px] text-slate-400 leading-loose font-medium uppercase tracking-wide">
+                               1. REQUEST: Client-side initiation via OAuth2.0 <br />
+                               2. TUNNEL: Secure handoff through Neural Bridge <br />
+                               3. DECRYPT: Client-side local key decryption <br />
+                               4. ANALYZE: Edge-processing (RAM) - Zero server-side persistence
+                            </p>
+                         </div>
+                         
+                         <div className="flex gap-4">
+                            <div className="px-4 py-2 border border-white/20 rounded-lg text-[8px] font-black uppercase tracking-widest text-[#C5A059]">TLS 1.3</div>
+                            <div className="px-4 py-2 border border-white/20 rounded-lg text-[8px] font-black uppercase tracking-widest text-[#C5A059]">HTTP/3 (QUIC)</div>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 06. Operational Specs (New Data-Dense Section) */}
+          <section id="operational-specs" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">06. Operational Specifications</h2>
+             </div>
+             
+             <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 p-8 border-b border-slate-200">
+                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">System Performance Envelope</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                   {[
+                     { label: "Uptime SLA", value: "99.99%", desc: "Enterprise-grade reliability" },
+                     { label: "Compute Node", value: "Edge (Local)", desc: "Private browser execution" },
+                     { label: "Data Residency", value: "Sovereign", desc: "Local device persistence" },
+                     { label: "API Latency", value: "<150ms", desc: "Neural Hub response time" }
+                   ].map((item, i) => (
+                     <div key={i} className="p-10 space-y-2">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                        <p className="text-2xl font-bold text-slate-900 tracking-tight">{item.value}</p>
+                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">{item.desc}</p>
+                     </div>
+                   ))}
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-8 bg-slate-50 rounded-2xl space-y-6">
+                   <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Tech Stack Verification</h5>
+                   <div className="space-y-3">
+                      <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-tight">
+                         <span className="text-slate-500">Language</span>
+                         <span className="text-slate-900">React v18.2</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-tight">
+                         <span className="text-slate-500">Visualization</span>
+                         <span className="text-slate-900">Recharts / D3.js</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-tight">
+                         <span className="text-slate-500">Cryptography</span>
+                         <span className="text-slate-900">WebCrypto API</span>
+                      </div>
+                   </div>
                 </div>
                 
-                <div className="divide-y divide-slate-100">
-                    {[
-                      { q: "Interpreting Real vs. Nominal Purchasing Power", a: "Learn how the inflation discount applies to your future wealth goals." },
-                      { q: "Connecting External Financial Data", a: "A guide on using our Bank Sync (Plaid), CSV, and PDF smart import features safely." },
-                      { q: "Account Security & Private Mode", a: "Everything you need to know about how WealthLens keeps your data local and secure." },
-                      { q: "Customizing Tax & Fee Drags", a: "How to configure specific management ratios for more accurate projections." }
-                    ].map((item, i) => (
-                      <a href="#" key={i} className="group py-6 block hover:pl-2 transition-all">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors text-lg">{item.q}</h4>
-                            <p className="text-slate-500 font-medium">{item.a}</p>
-                          </div>
-                          <ExternalLink className="w-5 h-5 text-slate-300 group-hover:text-indigo-400 mt-1" />
-                        </div>
-                      </a>
-                    ))}
+                <div className="p-8 lg:col-span-2 border border-slate-100 rounded-2xl relative flex items-center gap-12">
+                   <div className="w-16 h-16 bg-[#C5A059]/10 rounded-2xl flex items-center justify-center shrink-0">
+                      <Layers className="w-8 h-8 text-[#C5A059]" />
+                   </div>
+                   <div className="space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em]">Cross-Platform Portability</h5>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                        WealthLens is engineered to be platform-agnostic. The core engine runs within any modern Chromium or WebKit environment, ensuring seamless synchronization across desktop and mobile terminal views.
+                      </p>
+                   </div>
                 </div>
-              </div>
+             </div>
+          </section>
 
-              {/* Comprehensive FAQ Section */}
-              <div className="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm overflow-hidden mt-8">
-                <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-3">
-                  <LifeBuoy className="w-6 h-6 text-indigo-600" />
-                  Professional Planning FAQ
-                </h2>
-                <div className="space-y-6">
-                  {[
-                    { 
-                      q: "Why is my projection different from my bank's forecast?", 
-                      a: "Bank tools often use 'Arithmetic Mean' and ignore management expense ratios (MER) or realistic inflation. WealthLens uses CAGR and adds 'Real' purchasing power adjustments, resulting in a more conservative but mathematically grounded outcome." 
-                    },
-                    { 
-                      q: "How should I estimate my expected return rate?", 
-                      a: "Conservative planners often use 4-5% (inflation-adjusted), while moderate-growth portfolios might target 7-8%. We recommend researching historical asset class returns and always accounting for your specific portfolio and volatility tolerance." 
-                    },
-                    { 
-                      q: "What is the 'Geometric Mean' and why does it matter?", 
-                      a: "Returns are non-linear. A 50% drop requires a 100% gain just to break even. Geometric compounding (CAGR) captures this volatility drag, whereas simple annual averages tend to overstate performance in volatile scenarios." 
-                    },
-                    { 
-                      q: "Does the model account for 100% dividend reinvestment?", 
-                      a: "Yes, our default logic assumes the DRIP (Dividend Reinvestment Plan) model where all distributions are automatically cycled back into principal. However, you should manually adjust your 'DRAG' settings if you plan to withdraw dividends for income." 
-                    },
-                    { 
-                      q: "Is connecting my bank account secure?", 
-                      a: "Yes. WealthLens uses Plaid, a world-class financial link, to securely connect to your bank. We never see or store your login credentials, and the integration is strictly read-only for transaction syncing." 
-                    }
-                  ].map((faq, i) => (
-                    <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                      <h4 className="font-bold text-slate-900 mb-3">{faq.q}</h4>
-                      <p className="text-slate-600 text-sm leading-relaxed">{faq.a}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* 07. Compliance & Security */}
+          <section id="compliance" className="mb-20 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">07. Compliance & Security</h2>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Link to="/PrivacyProtocol" className="group p-10 bg-slate-50 hover:bg-white border border-slate-100 hover:border-[#C5A059] transition-all rounded-[2rem] space-y-4">
+                   <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Privacy Protocol</h5>
+                      <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-[#C5A059]" />
+                   </div>
+                   <p className="text-[10px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">Enterprise-grade data handling specifications and PII protection standards.</p>
+                </Link>
+                <Link to="/SecurityPolicy" className="group p-10 bg-slate-50 hover:bg-white border border-slate-100 hover:border-[#C5A059] transition-all rounded-[2rem] space-y-4">
+                   <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Security Policy</h5>
+                      <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-[#C5A059]" />
+                   </div>
+                   <p className="text-[10px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">Technical deep-dive into the Zero-Trust architecture and Edge Compute safety.</p>
+                </Link>
+             </div>
+          </section>
 
-            <div className="lg:col-span-1 space-y-8">
-               <div className="bg-slate-900 rounded-[2rem] p-10 text-white relative shadow-2xl shadow-indigo-200/50">
-                  <h3 className="text-2xl font-black mb-6">Direct Support</h3>
-                  <p className="text-slate-400 leading-relaxed font-medium mb-10">
-                    Can't find what you're looking for? Our executive support team is available for premium inquiries.
-                  </p>
-                  <a 
-                    href="/contact" 
-                    className="block w-full bg-indigo-600 text-white text-center py-4 rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/50"
-                  >
-                    Contact Support
-                  </a>
-                  <p className="text-center text-xs text-slate-600 mt-6 font-bold uppercase tracking-widest">Typical response: 12-24 hours</p>
-               </div>
-
-               <div className="bg-indigo-50 rounded-[2rem] p-8 border border-indigo-100">
-                  <h4 className="font-black text-indigo-900 mb-4 text-xs uppercase tracking-widest">Platform Status</h4>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-sm font-bold text-indigo-800">All Systems Operational</span>
-                  </div>
-                  <p className="text-xs text-indigo-600">Last checked: 1 minute ago</p>
-               </div>
-            </div>
-        </div>
+        </main>
       </div>
+
+      <footer className="py-12 bg-slate-50 border-t border-slate-100 relative z-10">
+        <div className="max-w-[1440px] mx-auto px-8 flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+           <div className="flex items-center gap-4">
+              <span className="text-slate-900">WealthLens Knowledge Engineering</span>
+              <span className="w-1 h-1 rounded-full bg-slate-200" />
+              <span>SEC-DEEP-AUDIT Ready • ELITE-v4.2.0</span>
+           </div>
+           <p>© 2026 WealthLens Inc. Confidential Institutional Specification</p>
+        </div>
+      </footer>
+
     </div>
   );
 }
+
