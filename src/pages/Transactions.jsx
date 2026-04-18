@@ -31,6 +31,7 @@ import {
   Edit2,
   Calendar as CalendarIcon
 } from "lucide-react";
+import { CategoryIcon } from "@/utils/iconMap";
 import { 
   Table, 
   TableBody, 
@@ -77,6 +78,7 @@ import { useSearchParams } from "react-router-dom";
 import AuthGuard from "@/components/AuthGuard";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import BankConnect from "@/components/calculator/BankConnect";
+import { useCategories } from "@/hooks/useCategories";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -140,9 +142,7 @@ const ACCOUNTS = [
   { name: "Sample Credit Card", balance: -2345.54, color: "bg-rose-500" },
 ];
 
-const CATEGORIES = [
-  "Salary", "Bonus", "Housing", "Groceries", "Dining Out", "Transport", "Utilities", "Healthcare", "Entertainment", "Shopping", "Savings", "Investments"
-];
+// Category registry will be pulled dynamically from centralized useCategories hook
 
 const SPEND_TYPES = [
   { id: "fixed", label: "Fixed", color: "text-emerald-600 bg-emerald-50" },
@@ -162,6 +162,7 @@ function TransactionsContent() {
     getProductionLedger,
     getDatabaseTable
   } = useFinancialParser();
+  const { categories, isLoading: categoriesLoading } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
   const initialSearch = searchParams.get("search") || "";
@@ -277,9 +278,9 @@ function TransactionsContent() {
       const q = searchQuery.toLowerCase();
       // Enhanced filtering: Match merchant OR exactly match category if the search is from a sidebar category click
       list = list.filter(tx => 
-        tx.merchant.toLowerCase().includes(q) || 
-        (tx.category && tx.category.toLowerCase() === q) ||
-        (tx.category && tx.category.toLowerCase().includes(q))
+        (tx.merchant?.toLowerCase() || "").includes(q) || 
+        (tx.category?.toLowerCase() === q) ||
+        (tx.category?.toLowerCase() || "").includes(q)
       );
     }
     return list.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -391,17 +392,28 @@ function TransactionsContent() {
     prevDate.setMonth(prevDate.getMonth() - 1);
     const y = prevDate.getFullYear();
     const m = (prevDate.getMonth() + 1).toString().padStart(2, '0');
-    const prevKey = `wealthlens-budget-${y}-${m}`;
+    const prevMonthKey = `${y}-${m}`;
     const tId = toast.loading("Copying previous month...");
     
-    const saved = await base44.user.loadData(prevKey);
-    if (saved && (saved.incomes?.length || saved.expenses?.length)) {
-      setIncomes(saved.incomes || []);
-      setExpenses(saved.expenses || []);
-      persistTransactionData(saved.incomes, saved.expenses);
-      toast.success("Copied data from " + prevDate.toLocaleString('default', { month: 'short' }), { id: tId });
-    } else {
+    try {
+      const results = await base44.db.query("budgets", {
+        filters: [{ column: 'month', op: 'eq', value: prevMonthKey }]
+      });
+
+      if (results && results.length > 0) {
+        const saved = results[0].payload;
+        if (saved && (saved.incomes?.length || saved.expenses?.length)) {
+          setIncomes(saved.incomes || []);
+          setExpenses(saved.expenses || []);
+          setHasChanges(true); // Ensure they can commit this copy
+          toast.success("Copied data from " + prevDate.toLocaleString('default', { month: 'short' }), { id: tId });
+          return;
+        }
+      }
       toast.error("No data found in previous month", { id: tId });
+    } catch (err) {
+      console.error("Copy Prev failed:", err);
+      toast.error("Failed to copy data", { id: tId });
     }
   };
 
@@ -663,8 +675,8 @@ function TransactionsContent() {
                         onValueChange={(v) => setManualForm(prev => ({ ...prev, category: v }))}
                       >
                         <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        <SelectContent className="max-h-[300px]">
+                          {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       {manualForm.type === 'expense' && (
@@ -789,16 +801,30 @@ function TransactionsContent() {
                         {formatAmount(tx.amount || 0)}
                       </TableCell>
                       <TableCell className="p-4">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <Select 
                             value={tx.category || "Uncategorized"} 
                             onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
                           >
                             <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
-                              <SelectValue placeholder="Category" />
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <CategoryIcon 
+                                  iconId={categories.find(c => c.name === tx.category)?.icon_id} 
+                                  category={tx.category}
+                                  className="w-3.5 h-3.5 shrink-0" 
+                                />
+                                <SelectValue placeholder="Category" />
+                              </div>
                             </SelectTrigger>
-                            <SelectContent>
-                              {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>)}
+                            <SelectContent className="max-h-[300px]">
+                              {categories.map(c => (
+                                <SelectItem key={c.id} value={c.name} className="text-[10px]">
+                                  <div className="flex items-center gap-2">
+                                    <CategoryIcon iconId={c.icon_id} category={c.name} className="w-3 h-3" />
+                                    {c.name}
+                                  </div>
+                                </SelectItem>
+                              ))}
                               <SelectItem value="Uncategorized" className="text-[10px]">Uncategorized</SelectItem>
                             </SelectContent>
                           </Select>

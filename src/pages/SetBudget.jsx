@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useCategories } from "@/hooks/useCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Circle, 
@@ -10,17 +11,15 @@ import {
   Upload, 
   ArrowUpRight, 
   Folder,
-  LayoutGrid,
-  Settings2,
-  Check,
-  Search,
-  Zap,
-  MoreVertical,
-  Minus,
   Trash2,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  LayoutGrid,
+  Check,
+  Settings2,
+  Minus
 } from "lucide-react";
+import { CategoryIcon } from "@/utils/iconMap";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -46,6 +45,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { toast } from "sonner";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
+import { format } from "date-fns";
 
 export const INITIAL_BUDGET_DATA = [
   {
@@ -53,85 +53,69 @@ export const INITIAL_BUDGET_DATA = [
     category: "Salary and Wages",
     budget: "$0 earned",
     status: "3,188 to go",
+    monthly_target: 3188,
     amount: "3,188 / mo",
-    iconId: "circle-emerald",
+    iconId: "salary",
     type: "income",
     progress: 0,
     color: "emerald"
   },
   {
-    id: "household",
-    category: "Household",
-    budget: "Start",
-    amount: "0 / mo",
-    iconId: "folder-indigo",
-    type: "group",
-    isExpanded: true,
-    children: [
-      {
-        id: "rent",
-        category: "Rent",
-        budget: "$0 spent",
-        status: "$1,029 left",
-        amount: "1,029 / mo",
-        iconId: "circle-indigo",
-        type: "item",
-        progress: 0,
-        color: "indigo"
-      },
-      {
-        id: "utilities",
-        category: "Utilities",
-        budget: "$0 spent",
-        status: "$282 left",
-        amount: "282 / mo",
-        iconId: "circle-sky",
-        type: "item",
-        progress: 0,
-        color: "sky"
-      }
-    ]
+    id: "rent",
+    category: "Rent",
+    budget: "$0 spent",
+    status: "$1,029 left",
+    monthly_target: 1029,
+    amount: "1,029 / mo",
+    iconId: "home",
+    type: "item",
+    progress: 0,
+    color: "indigo"
   },
   {
-    id: "food",
-    category: "Food",
-    budget: "Start",
-    amount: "0 / mo",
-    iconId: "folder-orange",
-    type: "group",
-    isExpanded: true,
-    children: [
-      {
-        id: "groceries",
-        category: "Groceries",
-        budget: "$268 spent",
-        status: "$268 left",
-        amount: "536 / mo",
-        iconId: "circle-orange",
-        type: "item",
-        progress: 0,
-        color: "orange"
-      },
-      {
-        id: "eating_out",
-        category: "Eating Out",
-        budget: "$0 spent",
-        status: "$300 left",
-        amount: "300 / mo",
-        iconId: "circle-amber",
-        type: "item",
-        progress: 0,
-        color: "amber"
-      }
-    ]
+    id: "utilities",
+    category: "Utilities",
+    budget: "$0 spent",
+    status: "$282 left",
+    monthly_target: 282,
+    amount: "282 / mo",
+    iconId: "zap",
+    type: "item",
+    progress: 0,
+    color: "sky"
+  },
+  {
+    id: "groceries",
+    category: "Groceries",
+    budget: "$268 spent",
+    status: "$268 left",
+    monthly_target: 536,
+    amount: "536 / mo",
+    iconId: "shopping",
+    type: "item",
+    progress: 0,
+    color: "orange"
+  },
+  {
+    id: "eating_out",
+    category: "Eating Out",
+    budget: "$0 spent",
+    status: "$300 left",
+    monthly_target: 300,
+    amount: "300 / mo",
+    iconId: "utensils",
+    type: "item",
+    progress: 0,
+    color: "amber"
   },
   {
     id: "entertainment",
     category: "Entertainment",
     budget: "$0 spent",
     status: "$321 left",
+    monthly_target: 321,
     amount: "321 / mo",
-    iconId: "circle-emerald",
+    iconId: "play",
     type: "item",
     progress: 0,
     color: "emerald"
@@ -139,9 +123,10 @@ export const INITIAL_BUDGET_DATA = [
   {
     id: "fuel",
     category: "Fuel / Gas",
-    budget: "Start",
+    budget: "$0 spent",
+    monthly_target: 0,
     amount: "0 / mo",
-    iconId: "folder-purple",
+    iconId: "fuel",
     type: "item",
     progress: 0,
     color: "purple"
@@ -151,8 +136,9 @@ export const INITIAL_BUDGET_DATA = [
     category: "Healthcare",
     budget: "$0 spent",
     status: "$41 left",
+    monthly_target: 41,
     amount: "41 / mo",
-    iconId: "circle-yellow",
+    iconId: "activity",
     type: "item",
     progress: 0,
     color: "yellow"
@@ -162,8 +148,9 @@ export const INITIAL_BUDGET_DATA = [
     category: "Repay Credit Card",
     budget: "$0 transferred",
     status: "$321 remaining",
+    monthly_target: 321,
     amount: "321 / mo",
-    iconId: "zap-rose",
+    iconId: "credit-card",
     type: "item",
     progress: 0,
     color: "rose"
@@ -173,25 +160,17 @@ export const INITIAL_BUDGET_DATA = [
     category: "Repay Car Loan",
     budget: "$0 transferred",
     status: "$249 remaining",
+    monthly_target: 249,
     amount: "249 / mo",
-    iconId: "zap-rose",
+    iconId: "car",
     type: "item",
     progress: 0,
     color: "rose"
   }
 ];
 
-const getCategoryIcon = (iconId, category = "") => {
-  if (!iconId && category) {
-    const cat = category.toLowerCase();
-    if (cat.includes("folder") || ["household", "food"].includes(cat)) iconId = "folder-slate";
-    else if (cat.includes("income") || cat.includes("salary")) iconId = "circle-emerald";
-    else if (cat.includes("repay") || cat.includes("credit") || cat.includes("loan")) iconId = "zap-rose";
-    else iconId = "circle-slate";
-  }
-
-  const [type, color] = (iconId || "circle-slate").split("-");
-  const colorClass = {
+const getColorClass = (color) => {
+  return {
     emerald: "text-emerald-400",
     indigo: "text-indigo-400",
     sky: "text-sky-300",
@@ -202,18 +181,10 @@ const getCategoryIcon = (iconId, category = "") => {
     rose: "text-rose-400",
     slate: "text-slate-400"
   }[color || "slate"];
-
-  switch (type) {
-    case "folder": return <Folder className={`w-4 h-4 ${colorClass}`} />;
-    case "zap": return <Zap className={`w-4 h-4 ${colorClass}`} />;
-    default: return <Circle className={`w-4 h-4 ${colorClass}`} />;
-  }
 };
 
-function BudgetRow({ item, level = 0, onToggle, onEdit, onDelete }) {
+function BudgetRow({ item, onEdit, onDelete }) {
   const { parseCurrency } = useFinancialParser();
-  const isGroup = item.type === "group";
-  const paddingLeft = level * 24 + 16;
 
   return (
     <>
@@ -224,20 +195,17 @@ function BudgetRow({ item, level = 0, onToggle, onEdit, onDelete }) {
         </div>
 
         {/* Category Column */}
-        <div className="flex-1 flex items-center gap-3 min-w-[300px]" style={{ paddingLeft }}>
-          {isGroup ? (
-            <button onClick={() => onToggle(item.id)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
-              {item.isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </button>
-          ) : (
-            <div className="w-6" />
-          )}
+        <div className="flex-1 flex items-center gap-3 min-w-[300px] px-4">
           <div className="p-2 border border-slate-100 rounded-lg shadow-sm">
-            {getCategoryIcon(item.iconId, item.category)}
+            <CategoryIcon 
+              iconId={item.iconId} 
+              category={item.category} 
+              colorClass={getColorClass(item.color)} 
+            />
           </div>
           <Link 
             to={`/reports/Trends?category=${encodeURIComponent(item.category)}`}
-            className={`text-sm font-medium transition-colors hover:text-indigo-600 hover:underline decoration-indigo-200 underline-offset-4 cursor-pointer ${isGroup ? 'text-slate-700' : 'text-slate-600'}`}
+            className="text-sm font-medium transition-colors hover:text-indigo-600 hover:underline decoration-indigo-200 underline-offset-4 cursor-pointer text-slate-600"
           >
             {item.category}
           </Link>
@@ -293,14 +261,8 @@ function BudgetRow({ item, level = 0, onToggle, onEdit, onDelete }) {
           </span>
         </div>
 
-        {/* Roll Up Column */}
-        <div className="w-24 px-4 flex items-center justify-center">
-           {isGroup && (
-              <button className="text-slate-300 hover:text-slate-500 transition-colors">
-                 <ArrowUpRight className="w-4 h-4 rotate-[-45deg]" />
-              </button>
-           )}
-        </div>
+        {/* Roll Up Column (Removed) */}
+        <div className="w-24 px-4" />
 
         <div className="w-24 px-4 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
@@ -326,59 +288,98 @@ function BudgetRow({ item, level = 0, onToggle, onEdit, onDelete }) {
           </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {isGroup && item.isExpanded && item.children && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            {item.children.map((child) => (
-              <BudgetRow key={child.id} item={child} level={level + 1} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
 
 export default function SetBudget() {
   const { parseCurrency, formatAmount } = useFinancialParser();
+  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories();
+
+  // Integrated Flat Hierarchy Engine
+  const flattenCategories = (items) => {
+    let result = [];
+    if (!items) return result;
+    items.forEach(item => {
+      // Force all items into a flat structure
+      const flatItem = { ...item, type: item.type === 'income' ? 'income' : 'item' };
+      delete flatItem.children;
+      result.push(flatItem);
+      
+      if (item.children && item.children.length > 0) {
+        result = [...result, ...flattenCategories(item.children)];
+      }
+    });
+    return result;
+  };
+
+
+
   const [data, setData] = useState(INITIAL_BUDGET_DATA);
-  const [isAllExpanded, setIsAllExpanded] = useState(true);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-   const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
 
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
+  const leafCategories = useMemo(() => flattenCategories(INITIAL_BUDGET_DATA), []);
+
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const monthKey = useMemo(() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
     return `${y}-${m}`;
-  }, []);
+  }, [selectedDate]);
 
    useEffect(() => {
     const init = async () => {
       try {
         setIsInitialLoading(true);
-        // Fetch specifically from the relational budgets table
-        const results = await base44.db.query("budgets", {
+        // 1. Fetch specifically from the relational budgets table
+        let results = await base44.db.query("budgets", {
           filters: [{ column: 'month', op: 'eq', value: monthKey }]
         });
         
+        let saved;
+        let isTemplate = false;
+
         if (results && results.length > 0) {
-          const saved = results[0];
-          setBudgetId(saved.id);
-          if (saved.payload && saved.payload.visualData) {
-            setData(normalizeStructure(saved.payload.visualData));
+          saved = results[0];
+        } else {
+          // 2. CARRYOVER logic: If current month empty, fetch the absolute latest budget as a template
+          const allBudgets = await base44.db.getTable("budgets");
+          if (allBudgets && allBudgets.length > 0) {
+            const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
+            saved = sorted[0];
+            isTemplate = true;
           }
+        }
+
+        if (saved) {
+          if (!isTemplate) setBudgetId(saved.id);
+          else setBudgetId(null); // Fresh ID for a new month
+
+          if (saved.payload && saved.payload.visualData) {
+            let dataToLoad = saved.payload.visualData;
+            
+            // 3. SANITIZATION: If it's a carryover template, clear the spent status
+            if (isTemplate) {
+              dataToLoad = dataToLoad.map(item => ({
+                ...item,
+                budget: item.type === 'income' ? "$0 earned" : "$0 spent",
+                status: item.type === 'income' ? "Calculating..." : `${item.amount || '0'} left`,
+                progress: 0
+              }));
+            }
+            
+            setData(normalizeStructure(dataToLoad));
+          }
+        } else {
+          // 4. Default if absolute zero budgets in DB
+          setData(INITIAL_BUDGET_DATA);
+          setBudgetId(null);
         }
       } catch (err) {
         console.error("Failed to load budget:", err);
@@ -402,7 +403,7 @@ export default function SetBudget() {
         id: budgetId,
         month: monthKey, 
         payload: { 
-          visualData: sanitizeData(data),
+          visualData: flatItems,
           incomes: incomesToSave.map(i => ({ ...i, icon: null })),
           expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
@@ -417,9 +418,19 @@ export default function SetBudget() {
     }
   };
 
+  // Sync Global Category Registry (Flat Only)
+  useEffect(() => {
+    if (!categoriesLoading && categories.length === 0) {
+      console.log("[SetBudget] Category registry empty. Seeding defaults...");
+      const flatDefaults = flattenCategories(INITIAL_BUDGET_DATA).filter(c => c.type !== 'group');
+      seedCategories(flatDefaults);
+    }
+  }, [categoriesLoading, categories.length, seedCategories]);
+
   // New Budget Form State
   const initialFormState = {
     category: "",
+    categoryName: "",
     repeat: false,
     frequency: "1",
     freqUnit: "weeks",
@@ -438,81 +449,44 @@ export default function SetBudget() {
   }, [isNewBudgetOpen]);
   
    const normalizeStructure = (savedItems) => {
-    // 1. Get our standard template
-    const template = JSON.parse(JSON.stringify(INITIAL_BUDGET_DATA));
+    // Since we are now strictly flat, normalizeStructure simply merges 
+    // saved data with our standard template categories (if missing).
     
-    // 2. Extract all "leaf" items from the saved data (in case it's partially nested)
+    const template = JSON.parse(JSON.stringify(INITIAL_BUDGET_DATA));
     const savedLeaves = flattenCategories(savedItems);
     
-    // 3. Create a map for quick lookup
-    const leafMap = new Map();
-    savedLeaves.forEach(leaf => {
-      const key = (leaf.id || leaf.category || '').toLowerCase();
-      leafMap.set(key, leaf);
-    });
-
-    // 4. Populate the template with saved data
-    const populate = (items) => {
-      return items.map(tItem => {
-         const tKey = (tItem.id || tItem.category || '').toLowerCase();
-         // If this template item exists in saved data, use the saved values
-         if (leafMap.has(tKey)) {
-            const saved = leafMap.get(tKey);
-            leafMap.delete(tKey); // Remove so we don't duplicate later
-            return { ...tItem, ...saved };
-         }
-         // If it has children, recurse
-         if (tItem.children) {
-            return { ...tItem, children: populate(tItem.children) };
-         }
-         return tItem;
-      });
-    };
-
-    const structured = populate(template);
-
-    // 5. Add any "orphaned" saved items (that aren't in the template) to the top level
-    const orphans = Array.from(leafMap.values());
+    // Use a map to merge based on category name/id
+    const finalMap = new Map();
     
-    return [...structured, ...orphans];
-  };
-
-  const sanitizeData = (items) => {
-    return items.map(item => {
-      const { icon, ...rest } = item;
-      if (rest.children) {
-        rest.children = sanitizeData(rest.children);
-      }
-      return rest;
+    // Start with template
+    template.forEach(t => finalMap.set(t.category.toLowerCase(), t));
+    
+    // Overwrite with saved data
+    savedLeaves.forEach(s => {
+      const key = (s.category || "").toLowerCase();
+      if (key) finalMap.set(key, { ...(finalMap.get(key) || {}), ...s });
     });
+
+    return Array.from(finalMap.values());
   };
 
-  const flattenCategories = (items) => {
-    let result = [];
-    items.forEach(item => {
-      // If it has children, recurse and get the leaves
-      if (item.children && item.children.length > 0) {
-        result = [...result, ...flattenCategories(item.children)];
-      } else {
-        // If it's a leaf, add it to our flat list
-        result.push(item);
-      }
-    });
-    return result;
-  };
-
-  const leafCategories = useMemo(() => flattenCategories(INITIAL_BUDGET_DATA), []);
 
   const flatItems = useMemo(() => flattenCategories(data), [data]);
   
   const totals = useMemo(() => {
     let expense = 0;
+    let income = 0;
+    
     flatItems.forEach(item => {
-      if (item.type !== "income") {
-        expense += parseCurrency(item.amount || "0");
+      const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
+      if (item.type === "income") {
+        income += val;
+      } else {
+        expense += val;
       }
     });
-    return expense;
+    
+    return { expense, income, net: income - expense };
   }, [flatItems, parseCurrency]);
 
 
@@ -530,11 +504,12 @@ export default function SetBudget() {
 
     setEditingItem(item);
     setNewBudget({
-      category: item.id || item.category,
+      category: item.id,
+      categoryName: item.category,
       repeat: true,
       frequency: "1",
       freqUnit: "months",
-      amount: parseCurrency(item.amount || "0").toString(),
+      amount: (item.monthly_target || parseCurrency(item.amount || "0")).toString(),
       type: likelyType === "income" ? "income" : "expense",
       account: "Sample Bank Account"
     });
@@ -542,21 +517,8 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    const removeRecursive = (items) => {
-      return items.filter(item => {
-        if (item.id === targetId) return false;
-        // Search in children if any
-        return true;
-      }).map(item => {
-        if (item.children) {
-          return { ...item, children: removeRecursive(item.children) };
-        }
-        return item;
-      });
-    };
-    
     setData(prev => {
-      const updated = removeRecursive([...prev]);
+      const updated = prev.filter(item => item.id !== targetId);
       setHasChanges(true);
       return updated;
     });
@@ -565,86 +527,42 @@ export default function SetBudget() {
     toast.success("Category removed from current month's budget");
   };
 
-  const handleSaveNewBudget = () => {
-    if (!newBudget.category) {
-      toast.error("Please select a category");
-      return;
+  const handleSaveNewBudget = async () => {
+    // 1. Ensure the category exists in the central list
+    const searchName = newBudget.categoryName || "";
+    let catObj = categories.find(c => c.name.toLowerCase() === searchName.toLowerCase());
+    
+    if (!catObj && searchName) {
+      catObj = await addCategory(searchName, newBudget.type);
     }
 
     const newTarget = parseFloat(newBudget.amount) || 0;
-    let found = false;
-
-    const updateRecursive = (items) => {
-      return items.map(item => {
-        if (item.id === newBudget.category || item.category === newBudget.category) {
-          found = true;
-          const currentSpent = parseCurrency(item.budget || "$0");
-          const remaining = newTarget - currentSpent;
-          const isIncome = item.type === "income" || newBudget.type === "income";
-
-          return { 
-            ...item, 
-            amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
-            budget: item.budget || (isIncome ? "$0 earned" : "$0 spent"),
-            status: isIncome 
-              ? `${formatAmount(remaining, { decimals: 0, useParentheses: false })} to go`
-              : `${formatAmount(remaining, { decimals: 0 })} left`
-          };
-        }
-        if (item.children) {
-          return { ...item, children: updateRecursive(item.children) };
-        }
-        return item;
-      });
+    
+    const budgetItem = {
+      id: catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`,
+      category: searchName || (catObj ? catObj.name : "Uncategorized"),
+      budget: newBudget.type === "income" ? "$0 earned" : "$0 spent",
+      status: newBudget.type === "income" ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
+      monthly_target: newTarget,
+      amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
+      iconId: catObj?.icon_id || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
+      type: newBudget.type === "income" ? "income" : "item",
+      progress: 0,
+      color: catObj?.color || (newBudget.type === "income" ? "emerald" : "indigo")
     };
 
     setData(prev => {
-      let updated = updateRecursive(prev);
-      
-      // If not found, add as a new item
-      if (!found) {
-        const fallbackInfo = leafCategories.find(c => (c.id || '').toLowerCase() === (newBudget.category || '').toLowerCase() || (c.category || '').toLowerCase() === (newBudget.category || '').toLowerCase());
-        const isIncome = newBudget.type === "income";
-        
-        const newItem = {
-          id: newBudget.category,
-          category: fallbackInfo?.category || newBudget.category,
-          budget: isIncome ? "$0 earned" : "$0 spent",
-          status: isIncome ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
-          amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
-          iconId: fallbackInfo?.iconId || (isIncome ? "circle-emerald" : "circle-indigo"),
-          type: isIncome ? "income" : "item",
-          progress: 0,
-          color: fallbackInfo?.color || (isIncome ? "emerald" : "indigo")
-        };
-
-        // Attempt to nest under Household if it's a known household category
-        const householdCats = ["rent", "utilities", "mortgage", "rates", "internet", "food", "groceries", "health insurance", "dining & social"];
-        const lowerCat = (newItem.category || '').toLowerCase();
-        
-        const isHousehold = householdCats.includes(lowerCat);
-        
-        if (isHousehold) {
-          let householdFound = false;
-          updated = updated.map(group => {
-            if (group.id === "household") {
-              householdFound = true;
-              return { ...group, isExpanded: true, children: [...(group.children || []), newItem] };
-            }
-            return group;
-          });
-          
-          if (!householdFound) updated = [...updated, newItem];
-        } else {
-          updated = [...updated, newItem];
-        }
+      let updated;
+      if (editingItem) {
+        updated = prev.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
+      } else {
+        updated = [...prev, budgetItem];
       }
-
       setHasChanges(true);
       return updated;
     });
 
-    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${newBudget.category}. Remember to save changes.`);
+    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Remember to save changes.`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
   };
@@ -709,7 +627,53 @@ export default function SetBudget() {
            <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
+                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                        <Select 
+                          value={selectedDate.getMonth().toString()} 
+                          onValueChange={(val) => {
+                            const newDate = new Date(selectedDate);
+                            newDate.setMonth(parseInt(val));
+                            setSelectedDate(newDate);
+                          }}
+                        >
+                          <SelectTrigger className="w-28 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 12 }).map((_, i) => (
+                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                                {format(new Date(2026, i, 1), 'MMMM')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="w-[1px] h-4 bg-slate-200" />
+                        <Select 
+                          value={selectedDate.getFullYear().toString()} 
+                          onValueChange={(val) => {
+                            const newDate = new Date(selectedDate);
+                            newDate.setFullYear(parseInt(val));
+                            setSelectedDate(newDate);
+                          }}
+                        >
+                          <SelectTrigger className="w-20 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2025, 2026, 2027, 2028].map(y => (
+                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                                {y}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                     </div>
+
+                     <Link to="/Dashboard" className="h-9 px-4 flex items-center text-xs font-bold text-slate-400 hover:text-slate-900 gap-2 transition-colors">
+                        Command Center
+                     </Link>
+
+                     <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
                       <DialogTrigger asChild>
                         <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
                            <Plus className="w-3.5 h-3.5" /> New budget
@@ -735,22 +699,23 @@ export default function SetBudget() {
                         </DialogHeader>
 
                         <div className="p-8 space-y-8">
-                          {/* Category Selection */}
+                          {/* Category Selection (Centralized Registry) */}
                           <div className="space-y-3">
                             <label className="text-sm font-medium text-slate-600">What is this budget for?</label>
-                            <Select 
-                              value={newBudget.category} 
-                              onValueChange={(val) => setNewBudget({ ...newBudget, category: val })}
-                            >
-                              <SelectTrigger className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-400 shadow-none focus:ring-0 focus:border-slate-800 transition-all">
-                                <SelectValue placeholder="Choose budget category" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                {leafCategories.map(cat => (
-                                  <SelectItem key={cat.id} value={cat.id} className="text-sm py-2.5">{cat.category}</SelectItem>
+                            <div className="relative group">
+                              <Input 
+                                list="category-list"
+                                placeholder="Type to search or add category..."
+                                value={newBudget.categoryName || ""}
+                                onChange={(e) => setNewBudget({ ...newBudget, categoryName: e.target.value })}
+                                className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-700 shadow-none focus-visible:ring-0 focus:border-slate-800 transition-all font-medium"
+                              />
+                              <datalist id="category-list">
+                                {categories.map(cat => (
+                                  <option key={cat.id} value={cat.name} />
                                 ))}
-                              </SelectContent>
-                            </Select>
+                              </datalist>
+                            </div>
                           </div>
 
                           {/* Repeat Logic */}
@@ -929,7 +894,7 @@ export default function SetBudget() {
             {/* Institutional Signature Summary */}
             <div className="mx-0 my-0 p-8 pt-10 pb-12 bg-white border-t border-slate-100 flex items-center relative overflow-hidden">
                {/* Left: Branding & Integrity Badge */}
-               <div className="flex-1 flex items-center gap-6 px-12">
+               <div className="flex-1 flex items-center gap-10 px-12">
                   <div className="flex flex-col gap-1">
                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Ledger Integrity</p>
                      <div className="flex items-center gap-2">
@@ -939,13 +904,23 @@ export default function SetBudget() {
                         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Plan Verified</span>
                      </div>
                   </div>
+                  
                   <div className="h-10 w-px bg-slate-100" />
+                  
                   <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Monthly Intensity</p>
-                     <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-[#C5A059]" />
-                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optimized Flow</span>
-                     </div>
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Income Stream</p>
+                     <p className="text-xl font-black text-emerald-600 tabular-nums tracking-tighter">
+                        {formatAmount(totals.income)}
+                     </p>
+                  </div>
+
+                  <div className="h-10 w-px bg-slate-100" />
+
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Target Surplus</p>
+                     <p className={`text-xl font-black tabular-nums tracking-tighter ${totals.net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        {formatAmount(totals.net)}
+                     </p>
                   </div>
                </div>
 
@@ -953,7 +928,7 @@ export default function SetBudget() {
                <div className="flex items-center">
                   <div className="w-80 flex justify-end pr-12">
                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 text-right leading-tight">
-                        TOTAL MONTHLY<br />BUDGET SET
+                        TOTAL MONTHLY<br />EXPENSE TARGET
                      </p>
                   </div>
                   
@@ -961,7 +936,7 @@ export default function SetBudget() {
                   <div className="w-48 px-6 text-right relative">
                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#C5A059] rounded-full opacity-30" />
                      <p className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">
-                        {formatAmount(totals)}
+                        {formatAmount(totals.expense)}
                      </p>
                   </div>
                   

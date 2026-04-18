@@ -157,11 +157,12 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
-      const cat = curr.category || "Salary";
-      const st = curr.spendType || 'income';
-      if (!acc[cat]) acc[cat] = { name: cat, amount: 0, count: 0, spendType: st };
-      acc[cat].amount += (curr.monthlyAmount || 0);
-      acc[cat].count += 1;
+      const catName = curr.category || "Salary";
+      const key = catName.toLowerCase();
+      const st = (curr.spendType || 'income').toLowerCase();
+      if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, spendType: st };
+      acc[key].amount += (curr.monthlyAmount || 0);
+      acc[key].count += 1;
       return acc;
     }, {});
     return Object.values(groups);
@@ -169,11 +170,12 @@ function FamilyBudgetContent() {
 
   const aggregatedExpenses = useMemo(() => {
     const groups = expenses.reduce((acc, curr) => {
-      const cat = curr.category || "Uncategorized";
-      const st = curr.spendType || 'variable';
-      if (!acc[cat]) acc[cat] = { name: cat, amount: 0, count: 0, category: cat, spendType: st };
-      acc[cat].amount += (curr.monthlyAmount || 0);
-      acc[cat].count += 1;
+      const catName = curr.category || "Uncategorized";
+      const key = catName.toLowerCase();
+      const st = (curr.spendType || 'variable').toLowerCase();
+      if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, category: catName, spendType: st };
+      acc[key].amount += (curr.monthlyAmount || 0);
+      acc[key].count += 1;
       return acc;
     }, {});
     return Object.values(groups);
@@ -202,7 +204,11 @@ function FamilyBudgetContent() {
     const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses);
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
-      const catExpenses = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === cat.id);
+      const catExpenses = expenses.filter(e => {
+        const est = (e.spendType || "").toLowerCase();
+        const ecat = (e.category || "").toLowerCase();
+        return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === cat.id;
+      });
       const amount = catExpenses.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
       const actualPct = totalIncome > 0 ? (amount / totalIncome) * 100 : 0;
       const targetAmount = (totalIncome * cat.targetPct) / 100;
@@ -227,8 +233,17 @@ function FamilyBudgetContent() {
       color: b.color
     }));
 
-    const fixedExpenses = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === "fixed").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
-    const variableWants = expenses.filter(e => (e.spendType || (e.category === 'Fixed' ? 'fixed' : 'variable')) === "variable").reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    const fixedExpenses = expenses.filter(e => {
+      const est = (e.spendType || "").toLowerCase();
+      const ecat = (e.category || "").toLowerCase();
+      return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === "fixed";
+    }).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    
+    const variableWants = expenses.filter(e => {
+      const est = (e.spendType || "").toLowerCase();
+      const ecat = (e.category || "").toLowerCase();
+      return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === "variable";
+    }).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
 
     return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
   }, [incomes, expenses, calculateMetrics]);
@@ -610,7 +625,7 @@ function FamilyBudgetContent() {
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category === 'debt').reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category?.toLowerCase() === 'debt').reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">

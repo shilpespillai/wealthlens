@@ -79,6 +79,9 @@ function PortfolioContent() {
           // Next ID for new local items
           const nextVal = mapped.reduce((m, h) => typeof h.id === 'number' ? Math.max(m, h.id) : m, 0);
           setNextId(nextVal + 1);
+        } else {
+          // Explicitly clear state if DB is empty to prevent 'ghost rows'
+          setHoldings([]);
         }
 
         // Use authUser metadata for currency if available
@@ -106,6 +109,14 @@ function PortfolioContent() {
     setIsSaving(true);
     const today = new Date().toISOString().split('T')[0];
     try {
+      // 0. Garbage Collection: Filter out uninitialized rows (no label and zero value)
+      const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0);
+      
+      if (validHoldings.length === 0 && holdings.length > 0 && removedHoldings.length === 0) {
+        // If user manually cleared everything but didn't trigger 'trash', we should still treat it as a purge
+        // For efficiency, we rely on the specific 'removedHoldings' logic below.
+      }
+
       // 1. Permanent Purge: Delete records for items removed during this session
       if (removedHoldings.length > 0) {
         console.log('[Portfolio] Purging deleted labels:', removedHoldings);
@@ -123,7 +134,7 @@ function PortfolioContent() {
       }
 
       // 2. Snapshot Update: Save each current holding as a snapshot entry
-      const savePromises = holdings.map(h => {
+      const savePromises = validHoldings.map(h => {
         const row = {
           label: h.label,
           asset_class: h.asset,

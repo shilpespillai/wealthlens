@@ -186,8 +186,8 @@ export const useFinancialParser = () => {
       ...i, 
       category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category 
     }));
-    const presentIncCats = new Set(baseIncs.map(i => i.category));
-    const missingIncs = currentMocks.filter(m => m.type === 'income' && !presentIncCats.has(m.category)).map(t => ({ 
+    const presentIncCats = new Set(baseIncs.map(i => (i.category || "").toLowerCase()));
+    const missingIncs = currentMocks.filter(m => m.type === 'income' && !presentIncCats.has((m.category || "").toLowerCase())).map(t => ({ 
       ...t,
       name: t.merchant, 
       monthlyAmount: t.amount, 
@@ -199,8 +199,8 @@ export const useFinancialParser = () => {
       ...e, 
       category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category 
     }));
-    const presentExpCats = new Set(baseExps.map(e => e.category));
-    const missingExps = currentMocks.filter(m => m.type === 'expense' && !presentExpCats.has(m.category)).map(t => ({ 
+    const presentExpCats = new Set(baseExps.map(e => (e.category || "").toLowerCase()));
+    const missingExps = currentMocks.filter(m => m.type === 'expense' && !presentExpCats.has((m.category || "").toLowerCase())).map(t => ({ 
       ...t,
       name: t.merchant, 
       monthlyAmount: Math.abs(t.amount), 

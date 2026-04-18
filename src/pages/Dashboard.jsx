@@ -24,7 +24,18 @@ import { Button } from "@/components/ui/button";
 import { calculateInvestment } from "@/components/calculator/calculationEngine";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { GripVertical, Bot, CheckCircle2, AlertCircle, Calendar, ChevronDown, Settings, BarChart3, Sparkles } from "lucide-react";
+import { 
+  GripVertical, 
+  Bot, 
+  CheckCircle2, 
+  AlertCircle, 
+  Calendar, 
+  ChevronDown, 
+  Settings, 
+  BarChart3, 
+  Sparkles 
+} from "lucide-react";
+import { CategoryIcon } from "@/utils/iconMap";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { subDays, startOfWeek, endOfWeek, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -39,17 +50,17 @@ export function DashboardContent() {
   const [params, setParams] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("Rolling Quarter"); // Default to 90 days
   const [viewMode, setViewMode] = useState("spending");
-  
-  const currentMonthKey = useMemo(() => format(new Date(), 'yyyy-MM'), []);
+  const [selectedPeriod, setSelectedPeriod] = useState("This Month");
   
   // Live Data States
   const [liveData, setLiveData] = useState({
     accounts: [],
     transactions: [],
+    currentMonthTransactions: [],
     portfolio: [],
-    budgets: []
+    budgets: [],
+    currentMonthBudgets: []
   });
 
   const ASSET_THEMES = {
@@ -128,6 +139,13 @@ export function DashboardContent() {
     const now = new Date();
     const nowTime = now.getTime();
     
+    // Focus Month Logic: Derived from the selected period to drive Budget Sync
+    let focusMonthKey = format(now, 'yyyy-MM');
+    if (selectedPeriod === "Last Month") {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      focusMonthKey = format(lastMonth, 'yyyy-MM');
+    }
+    
     let daysCutoff = -1;
     switch (selectedPeriod) {
        case "This Week": case "Last Week": case "Rolling Week": daysCutoff = 7; break;
@@ -179,7 +197,7 @@ export function DashboardContent() {
     return { 
       historyData: filtered, 
       stats: { min: minVal, max: maxVal, change: pctChange, earningTotal, spendingTotal },
-      periodInfo: { startDate, endDate, daysCutoff }
+      periodInfo: { startDate, endDate, daysCutoff, focusMonthKey }
     };
   }, [fullData, selectedPeriod]);
 
@@ -252,27 +270,27 @@ export function DashboardContent() {
     return Object.values(daily).sort((a, b) => new Date(a.name) - new Date(b.name));
   }, [liveData.transactions, periodInfo, parseCurrency]);
 
-  // Budget summary scoped to selected period
-  // Budget visualData uses: { category, monthly_target (number), type }
+  // Consumption Target summary ALWAYS anchored to the CURRENT MONTH'S PRE-CALCULATED STATE
   const budgetSummary = useMemo(() => {
-    const periodStart = new Date(periodInfo.startDate);
-    const periodEnd   = new Date(periodInfo.endDate);
-
-    const expenseBudgets = liveData.budgets.filter(b => b.type !== 'income' && Number(b.monthly_target || 0) > 0);
-    const totalAllocated = expenseBudgets.reduce((sum, b) => sum + Number(b.monthly_target || 0), 0);
+    // 1. Filter for valid expense budgets from the CURRENT MONTH collection
+    const expenseBudgets = (liveData.currentMonthBudgets || []).filter(b => b.type !== 'income');
 
     const categories = expenseBudgets.map(b => {
       const catName = b.category || b.name;
-      const spent = liveData.transactions
-        .filter(tx => {
-          const d = new Date(tx.date);
-          return tx.category === catName && d >= periodStart && d <= periodEnd;
-        })
-        .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
-      return { name: catName, value: spent, total: Number(b.monthly_target || 0) };
+      
+      // Precision extraction from the pre-verified visual state
+      const spentValue = parseCurrency(b.budget || "0");
+      const targetValue = parseCurrency(b.amount || b.monthly_target || "0");
+      
+      return { 
+        name: catName, 
+        value: Math.abs(spentValue), 
+        total: Math.abs(targetValue) 
+      };
     });
 
-    const totalSpent = categories.reduce((s, c) => s + c.value, 0);
+    const totalAllocated = categories.reduce((sum, c) => sum + c.total, 0);
+    const totalSpent = categories.reduce((sum, c) => sum + c.value, 0);
     const remaining  = Math.max(0, totalAllocated - totalSpent);
 
     return {
@@ -281,7 +299,7 @@ export function DashboardContent() {
       remaining,
       breakdown: [...categories, { name: 'Remaining', value: remaining, isRemaining: true }]
     };
-  }, [liveData.budgets, liveData.transactions, periodInfo]);
+  }, [liveData.currentMonthBudgets, parseCurrency]);
 
   // --- HOLISTIC LOGIC ---
   const { chartData, holisticMetrics } = useMemo(() => {
@@ -330,13 +348,25 @@ export function DashboardContent() {
         return amt > 0 ? sum + amt : sum;
       }, 0);
 
-      // Scale Budgets into Bucket Interval
-      const divisor = diffDays <= 14 ? 30 : (diffDays <= 120 ? 4.333 : 1);
+      // Scale Budgets into Bucket Interval: 
+      // If we're looking at a Month or more, we want the FULL Monthly target.
+      // 4.333 is for Weekly views (diffDays <= 31 is roughly one month).
+      const divisor = diffDays <= 7 ? 4.333 : (diffDays <= 31 ? 1 : (diffDays / 30));
       
-      const totalMonthlyBudget = budgets.reduce((sum, b) => b.type !== 'income' ? sum + parseCurrency(b.amount) : sum, 0);
+      const totalMonthlyBudget = budgets
+        .filter(b => b.type !== 'income' && !(b.children && b.children.length > 0)) // Only leaf nodes
+        .reduce((sum, b) => {
+          const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
+          return sum + val;
+        }, 0);
       const bucketBudgetTarget = totalMonthlyBudget / divisor;
 
-      const totalMonthlyIncomeTarget = budgets.reduce((sum, b) => b.type === 'income' ? sum + parseCurrency(b.amount) : sum, 0);
+      const totalMonthlyIncomeTarget = budgets
+        .filter(b => b.type === 'income')
+        .reduce((sum, b) => {
+          const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
+          return sum + val;
+        }, 0);
       const bucketIncomeTarget = totalMonthlyIncomeTarget / divisor;
 
       return {
@@ -370,12 +400,24 @@ export function DashboardContent() {
     // Income & Spend scoped to the SELECTED PERIOD (not hardcoded 30 days)
     const periodStart = new Date(periodInfo.startDate);
     const periodEnd   = new Date(periodInfo.endDate);
-    const periodTxAll = transactions.filter(t => {
+    const periodTxAll = (liveData.transactions || []).filter(t => {
       const d = new Date(t.date);
       return d >= periodStart && d <= periodEnd;
     });
-    const incomePeriod = periodTxAll.reduce((sum, t) => parseCurrency(t.amount) > 0 ? sum + parseCurrency(t.amount) : sum, 0);
-    const spendPeriod  = periodTxAll.reduce((sum, t) => parseCurrency(t.amount) < 0 ? sum + Math.abs(parseCurrency(t.amount)) : sum, 0);
+
+    // Spend & Income logic: Use budgetSummary totals if viewing the Current Month horizon
+    const isCurrentMonthHorizon = selectedPeriod === 'This Month';
+    
+    const incomePeriod = isCurrentMonthHorizon ? parseCurrency(liveData.currentMonthBudgets.find(b => b.id === 'income')?.budget || "0")
+                          : periodTxAll
+                            .filter(t => (t.type === 'income' || t.kind === 'income' || parseCurrency(t.amount) > 0))
+                            .reduce((sum, t) => sum + Math.abs(parseCurrency(t.amount)), 0);
+
+    const spendPeriod = isCurrentMonthHorizon ? budgetSummary.totalSpent
+                          : periodTxAll
+                            .filter(t => (['expense', 'fixed', 'variable'].includes((t.type || t.kind || '').toLowerCase()) || parseCurrency(t.amount) < 0))
+                            .reduce((sum, t) => sum + Math.abs(parseCurrency(t.amount)), 0);
+    
     const savingsRate  = incomePeriod > 0 ? ((incomePeriod - spendPeriod) / incomePeriod) * 100 : 0;
 
     let score = 50;
@@ -395,7 +437,7 @@ export function DashboardContent() {
         burnRate: spendPeriod
       }
     };
-  }, [liveData, periodInfo, selectedPeriod, parseCurrency]);
+  }, [liveData.accounts, liveData.transactions, periodInfo, parseCurrency]);
 
   const currentPeriodMetrics = useMemo(() => {
     return {
@@ -420,22 +462,49 @@ export function DashboardContent() {
         // 2. Fetch Portfolio
         const dbPortfolio = await base44.db.getTable('portfolio_holdings');
         
-        // 3. Fetch Transactions
-        const dbTransactions = await getProductionLedger(); 
+        // 3. Separate Transaction Fetches for Scoping
+        const currentMonthFocus = format(new Date(), 'yyyy-MM');
         
-        // 4. Fetch Budgets & Parse for Current Month
+        // Fetch Horizon Transactions (Selected Period)
+        const horizonTx = await getProductionLedger(); 
+        
+        // Fetch Current Month Transactions (Strict Scoping for Targets)
+        const currentMonthTx = await getProductionLedger({ month: currentMonthFocus });
+        
+        // 4. Fetch Budgets with Carryover
         const dbBudgets = await base44.db.getTable('budgets');
-        const currentBudgetRow = dbBudgets?.find(b => b.month === currentMonthKey);
-        const parsedBudgets = currentBudgetRow?.payload?.visualData || [];
+        const focusMonth = periodInfo.focusMonthKey;
         
-        console.log("[Dashboard] Parsed Budgets for", currentMonthKey, ":", parsedBudgets.length);
+        // Horizon Budget (for chart targets etc)
+        const horizonRow = dbBudgets?.find(b => b.month === focusMonth) || 
+                           [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0];
+        
+        // Current Month Budget (Strict for Consumption targets)
+        const currentMonthRow = dbBudgets?.find(b => b.month === currentMonthFocus) || 
+                                horizonRow || 
+                                { payload: { visualData: [] } };
 
-        const txList = dbTransactions || [];
+        
+        // Institutional Flattening Engine
+        const flattenBudgets = (items) => {
+          let flat = [];
+          if (!Array.isArray(items)) return flat;
+          items.forEach(item => {
+            flat.push(item);
+            if (item.children && item.children.length > 0) {
+              flat = [...flat, ...flattenBudgets(item.children)];
+            }
+          });
+          return flat;
+        };
+
         setLiveData({
           accounts: dbAccounts || [],
-          transactions: txList,
+          transactions: horizonTx || [],
+          currentMonthTransactions: currentMonthTx || [],
           portfolio: dbPortfolio || [],
-          budgets: parsedBudgets
+          budgets: flattenBudgets(horizonRow?.payload?.visualData || []),
+          currentMonthBudgets: flattenBudgets(currentMonthRow?.payload?.visualData || [])
         });
 
         if (user?.calc_params) {
@@ -452,7 +521,7 @@ export function DashboardContent() {
       }
     }
     initDashboard();
-  }, []);
+  }, [periodInfo.focusMonthKey]);
 
   const saveLayout = async (newColumns) => {
     try {
@@ -888,23 +957,20 @@ export function DashboardContent() {
               </div>
 
               <div className="space-y-6">
-                {liveData.budgets.filter(b => b.type !== 'income').slice(0, 5).map((b, i) => {
-                  const catName = b.category || b.name;
-                  const target  = Number(b.monthly_target || 0);
-                  const pStart  = new Date(periodInfo.startDate);
-                  const pEnd    = new Date(periodInfo.endDate);
-                  const spent = liveData.transactions
-                    .filter(tx => {
-                      const d = new Date(tx.date);
-                      return tx.category === catName && d >= pStart && d <= pEnd;
-                    })
-                    .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
-                  const perc = target > 0 ? Math.min(100, (spent / target) * 100) : 0;
+                {budgetSummary.breakdown.filter(b => !b.isRemaining).slice(0, 5).map((b, i) => {
+                  const perc = b.total > 0 ? Math.min(100, (b.value / b.total) * 100) : 0;
 
                   return (
                     <div key={i} className="space-y-2">
                       <div className="flex justify-between text-[10px] font-black uppercase tracking-tight items-end">
-                          <span className="text-slate-800">{catName}</span>
+                          <div className="flex items-center gap-2">
+                             <CategoryIcon 
+                               iconId={b.iconId || b.icon_id} 
+                               category={b.name} 
+                               className="w-3.5 h-3.5" 
+                             />
+                             <span className="text-slate-800">{b.name}</span>
+                          </div>
                           <span className="text-[9px] text-slate-400 uppercase">{perc > 100 ? 'Budget Exceeded' : 'On Track'}</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -916,8 +982,8 @@ export function DashboardContent() {
                           />
                       </div>
                       <div className="flex justify-between text-[10px] font-black tracking-tight text-slate-500">
-                          <span>{b.monthly_target > 0 ? perc.toFixed(0) : "0"}% used</span>
-                          <span>{formatAmount(spent)} / {formatAmount(b.monthly_target)}</span>
+                          <span>{b.total > 0 ? perc.toFixed(0) : "0"}% used</span>
+                          <span>{formatAmount(b.value)} / {formatAmount(b.total)}</span>
                       </div>
                     </div>
                   );
@@ -1028,9 +1094,11 @@ export function DashboardContent() {
                     </div>
                   </PopoverContent>
                 </Popover>
-                <div className="mt-3 flex items-center justify-between">
-                  <p className="text-[9px] text-slate-500 font-medium">9 April 2026</p>
-                  <Settings className="w-3 h-3 text-slate-500 hover:text-white transition-colors cursor-pointer" />
+                <div className="mt-3 flex items-center justify-between relative z-[100]">
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] bg-white border border-slate-100 px-3 py-1 rounded shadow-sm">
+                    Targeting: {format(new Date(), 'MMMM yyyy')}
+                  </p>
+                  <Settings className="w-4 h-4 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer" />
                 </div>
               </div>
             </div>
