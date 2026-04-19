@@ -109,7 +109,7 @@ export default function TrendsReport() {
         if (selectedCategory === "All categories") {
           const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
           if (budgetsArray) {
-            budgeted = budgetsArray.reduce((sum, b) => sum + (parseFloat(b.amount?.replace(/[^\d.]/g, '')) || 0), 0);
+            budgeted = budgetsArray.reduce((sum, b) => sum + (Number(b.monthly_target) || 0), 0);
           }
         } else {
           const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
@@ -123,11 +123,11 @@ export default function TrendsReport() {
       if (selectedCategory === "All categories") {
         actual = monthTxs
           .filter(t => (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense')))
-          .reduce((sum, t) => sum + Math.abs(t.monthlyAmount || t.amount || 0), 0);
+          .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
       } else {
         actual = monthTxs
           .filter(t => (t.category || "").toLowerCase() === selectedCategory.toLowerCase())
-          .reduce((sum, t) => sum + Math.abs(t.monthlyAmount || t.amount || 0), 0);
+          .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
       }
 
       // Dynamic Pending Logic: Month is pending if it's the current month or in the future
@@ -184,13 +184,13 @@ export default function TrendsReport() {
       if (selectedCategory === "All categories") {
         const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
         if (budgetsArray) {
-          budget = budgetsArray.reduce((sum, b) => sum + (parseFloat(b.amount?.replace(/[^\d.]/g, '')) || 0), 0);
+          budget = budgetsArray.reduce((sum, b) => sum + (Number(b.monthly_target) || 0), 0);
         }
       } else {
         const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
         const found = flatBudgets.find(b => b.category === selectedCategory || b.id === selectedCategory);
         if (found) {
-          budget = parseFloat(found.amount?.replace(/[^\d.]/g, '')) || 0;
+          budget = Number(found.monthly_target) || 0;
         }
       }
     }
@@ -208,7 +208,7 @@ export default function TrendsReport() {
     return days.map((day, idx) => {
       const daySpend = monthTxs
         .filter(t => format(new Date(t.date || t.actualDate), "d") === format(day, "d"))
-        .reduce((sum, t) => sum + Math.abs(t.monthlyAmount || t.amount || 0), 0);
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
       
       cumulativeSpend += daySpend;
       

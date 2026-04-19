@@ -57,7 +57,7 @@ export default function CashflowsReport() {
           const tDate = t.date || t.actualDate;
           return t.category === category && isSameMonth(new Date(tDate), month);
         })
-        .reduce((sum, t) => sum + Math.abs(t.monthlyAmount || t.amount || 0), 0);
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
     };
 
     const incomeRows = INCOME_BASE.map(cat => ({

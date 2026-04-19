@@ -87,7 +87,7 @@ export default function IncomeExpenseReport() {
       const cats = {};
       txs.forEach(t => {
         if (!cats[t.category]) cats[t.category] = { category: t.category, actual: 0, budgeted: BUDGET_TARGETS[t.category] || 0 };
-        cats[t.category].actual += Math.abs(Number(t.monthlyAmount || 0));
+        cats[t.category].actual += Math.abs(Number(t.amount || 0));
       });
       return Object.values(cats);
     };
@@ -128,8 +128,8 @@ export default function IncomeExpenseReport() {
     return { incomes: rawIncs, expenses: nest(rawExps) };
   }, [incomes, expenses, nestCategories]);
 
-  const totalActualIncome = incomes.reduce((s, i) => s + Number(i.monthlyAmount || 0), 0);
-  const totalActualExpense = expenses.reduce((s, e) => s + Math.abs(Number(e.monthlyAmount || 0)), 0);
+  const totalActualIncome = incomes.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const totalActualExpense = expenses.reduce((s, e) => s + Math.abs(Number(e.amount || 0)), 0);
 
   const handleExport = () => {
     const loadingToast = toast.loading("Generating professional PDF report...");

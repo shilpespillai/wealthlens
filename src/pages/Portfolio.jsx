@@ -65,14 +65,16 @@ function PortfolioContent() {
           // Use intelligent Engine to get latest snapshot per unique item
           const latestHoldings = calculatePortfolioHoldings(allData);
 
-          // Map back to UI structure
-          const mapped = latestHoldings.map(d => ({
-            id: d.id,
-            label: d.label,
-            asset: d.asset_class,
-            currentValue: Number(d.current_value),
-            invested: Number(d.invested_amount)
-          }));
+          // Filter for valid labeled holdings to prevent 'ghost rows'
+          const mapped = latestHoldings
+            .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0)
+            .map(d => ({
+              id: d.id,
+              label: d.label || "",
+              asset: d.asset_class,
+              currentValue: Number(d.current_value),
+              invested: Number(d.invested_amount)
+            }));
 
           setHoldings(mapped);
           
@@ -147,6 +149,9 @@ function PortfolioContent() {
       });
 
       await Promise.all(savePromises);
+
+      // Clean up local state to remove purged ghost rows
+      setHoldings(validHoldings);
 
       await base44.auth.updateMe({
         portfolio_currency: currency

@@ -62,15 +62,15 @@ const EXPENSE_CATEGORIES = [
 ];
 
 const DEFAULT_INCOMES = [
-  { id: 1, name: "Primary Salary", monthlyAmount: 5000 },
+  { id: 1, name: "Primary Salary", amount: 5000 },
 ];
 
 const DEFAULT_EXPENSES = [
-  { id: 1, name: "Rent / Mortgage", category: "fixed", monthlyAmount: 1800 },
-  { id: 2, name: "Electricity / Gas / Water", category: "fixed", monthlyAmount: 250 },
-  { id: 3, name: "Internet & Phone Plans", category: "fixed", monthlyAmount: 120 },
-  { id: 4, name: "Groceries & Household", category: "variable", monthlyAmount: 800 },
-  { id: 5, name: "Health & Insurance", category: "fixed", monthlyAmount: 200 },
+  { id: 1, name: "Rent / Mortgage", category: "fixed", amount: 1800 },
+  { id: 2, name: "Electricity / Gas / Water", category: "fixed", amount: 250 },
+  { id: 3, name: "Internet & Phone Plans", category: "fixed", amount: 120 },
+  { id: 4, name: "Groceries & Household", category: "variable", amount: 800 },
+  { id: 5, name: "Health & Insurance", category: "fixed", amount: 200 },
 ];
 
 const DEFAULT_GOALS = [
@@ -161,7 +161,7 @@ function FamilyBudgetContent() {
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'income').toLowerCase();
       if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, spendType: st };
-      acc[key].amount += (curr.monthlyAmount || 0);
+      acc[key].amount += (curr.amount || 0);
       acc[key].count += 1;
       return acc;
     }, {});
@@ -174,7 +174,7 @@ function FamilyBudgetContent() {
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'variable').toLowerCase();
       if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, category: catName, spendType: st };
-      acc[key].amount += (curr.monthlyAmount || 0);
+      acc[key].amount += (curr.amount || 0);
       acc[key].count += 1;
       return acc;
     }, {});
@@ -209,7 +209,7 @@ function FamilyBudgetContent() {
         const ecat = (e.category || "").toLowerCase();
         return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === cat.id;
       });
-      const amount = catExpenses.reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+      const amount = catExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
       const actualPct = totalIncome > 0 ? (amount / totalIncome) * 100 : 0;
       const targetAmount = (totalIncome * cat.targetPct) / 100;
       const diff = amount - targetAmount;
@@ -237,13 +237,13 @@ function FamilyBudgetContent() {
       const est = (e.spendType || "").toLowerCase();
       const ecat = (e.category || "").toLowerCase();
       return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === "fixed";
-    }).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    }).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     
     const variableWants = expenses.filter(e => {
       const est = (e.spendType || "").toLowerCase();
       const ecat = (e.category || "").toLowerCase();
       return (est || (ecat === 'fixed' ? 'fixed' : 'variable')) === "variable";
-    }).reduce((sum, item) => sum + (Number(item.monthlyAmount) || 0), 0);
+    }).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
   }, [incomes, expenses, calculateMetrics]);
@@ -295,7 +295,7 @@ function FamilyBudgetContent() {
     const groupedIncomes = incomes.reduce((acc, inc) => {
       const name = inc.name || "Source";
       if (!acc[name]) acc[name] = { name, amount: 0 };
-      acc[name].amount += Number(inc.monthlyAmount) || 0;
+      acc[name].amount += Number(inc.amount) || 0;
       return acc;
     }, {});
 
@@ -344,7 +344,7 @@ function FamilyBudgetContent() {
       const st = exp.spendType || "variable";
       const key = `${name}-${st}`;
       if (!acc[key]) acc[key] = { name, st, amount: 0, category: exp.category };
-      acc[key].amount += Number(exp.monthlyAmount) || 0;
+      acc[key].amount += Number(exp.amount) || 0;
       return acc;
     }, {});
 
@@ -418,7 +418,7 @@ function FamilyBudgetContent() {
       const d = new Date(t.date || t.timestamp).getDate();
       if (!acc[d]) acc[d] = 0;
       if (t.type === 'expense' || t.spendType !== 'income') {
-        acc[d] += Math.abs(t.monthlyAmount || t.amount || 0);
+        acc[d] += Math.abs(t.amount || t.amount || 0);
       }
       return acc;
     }, {});
@@ -515,7 +515,7 @@ function FamilyBudgetContent() {
   const vaultData = useMemo(() => {
      // Aggregate surplus from the production ledger
      const surplusNow = allTransactions.reduce((sum, t) => {
-       const amount = Math.abs(t.monthlyAmount || t.amount || 0);
+       const amount = Math.abs(t.amount || t.amount || 0);
        return (t.type === 'income' || t.spendType === 'income') ? sum + amount : sum - amount;
      }, 0);
      
@@ -613,23 +613,23 @@ function FamilyBudgetContent() {
           <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
             <div className="flex items-center justify-between max-w-7xl mx-auto">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INCOME</p>
               </div>
               <div className="text-center w-full px-2 border-l border-white/5">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SPENT</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category?.toLowerCase() === 'debt').reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category?.toLowerCase() === 'debt').reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.monthlyAmount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">LEFT TO SPEND</p>
               </div>
             </div>

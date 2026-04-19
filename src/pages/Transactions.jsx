@@ -137,12 +137,10 @@ const SIDEBAR_ITEMS = [
   { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
-const ACCOUNTS = [
-  { name: "Sample Bank Account", balance: 3547.45, color: "bg-rose-500" },
-  { name: "Sample Credit Card", balance: -2345.54, color: "bg-rose-500" },
-];
+// Dynamic Categories and Accounts will be computed in the component
 
 // Category registry will be pulled dynamically from centralized useCategories hook
+const CATEGORIES_FALLBACK = []; 
 
 const SPEND_TYPES = [
   { id: "fixed", label: "Fixed", color: "text-emerald-600 bg-emerald-50" },
@@ -185,7 +183,21 @@ function TransactionsContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isCommiting, setIsCommiting] = useState(false);
+  const [dbAccounts, setDbAccounts] = useState([]);
   const fileInputRef = React.useRef(null);
+
+  // Dynamic derivations - Migration to centralized hook
+  const categoryNames = useMemo(() => {
+    return categories.map(c => c.name).sort();
+  }, [categories]);
+
+  const ACCOUNTS_SIDEBAR = useMemo(() => {
+    return dbAccounts.map(acc => ({
+      name: acc.name,
+      balance: Number(acc.balance || acc.base_balance || 0),
+      color: (acc.balance || acc.base_balance || 0) < 0 ? "bg-rose-500" : "bg-emerald-500"
+    }));
+  }, [dbAccounts]);
 
   const monthKey = useMemo(() => {
     const y = selectedDate.getFullYear();
@@ -224,6 +236,9 @@ function TransactionsContent() {
         setIncomes(normIncs);
         setExpenses(normExps);
         if (saved?.currency) setCurrency(saved.currency);
+
+        const accounts = await base44.db.getTable("user_accounts");
+        setDbAccounts(accounts || []);
       } catch (err) {
         console.error("Transactions initialization failed:", err);
       } finally {
@@ -263,8 +278,8 @@ function TransactionsContent() {
   const allTransactions = useMemo(() => {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' }) + ' 01';
     return [
-      ...incomes.map(i => ({ ...i, type: 'income', amount: i.monthlyAmount, merchant: i.name, date: (i.date && i.date !== 'Monthly') ? i.date : fallbackDate })),
-      ...expenses.map(e => ({ ...e, type: 'expense', amount: e.monthlyAmount, merchant: e.name, date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate }))
+      ...incomes.map(i => ({ ...i, type: 'income', amount: i.amount || 0, target: i.monthly_target, merchant: i.name, date: (i.date && i.date !== 'Monthly') ? i.date : fallbackDate })),
+      ...expenses.map(e => ({ ...e, type: 'expense', amount: e.amount || 0, target: e.monthly_target, merchant: e.name, date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate }))
     ];
   }, [incomes, expenses, selectedDate]);
 
@@ -303,7 +318,7 @@ function TransactionsContent() {
       id: Date.now() + Math.random(),
       name: manualForm.merchant,
       category: manualForm.category || "Uncategorized",
-      monthlyAmount: parseFloat(manualForm.amount) || 0,
+      amount: parseFloat(manualForm.amount) || 0,
       spendType: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
       date: manualForm.date
     };
@@ -356,11 +371,11 @@ function TransactionsContent() {
       id: Date.now() + Math.random(),
       name: item.name,
       category: item.category,
-      monthlyAmount: item.amount,
+      amount: item.amount,
       date: item.date || `${fallbackDate} 01`
     }));
-    const existing = new Set(expenses.map(e => `${e.name}-${e.monthlyAmount}`));
-    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.monthlyAmount}`));
+    const existing = new Set(expenses.map(e => `${e.name}-${e.amount}`));
+    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.amount}`));
     
     if (uniqueNew.length > 0) {
       const updated = [...expenses, ...uniqueNew];
@@ -378,7 +393,7 @@ function TransactionsContent() {
       id: Date.now() + Math.random(),
       name: item.name || "Imported Item",
       category: item.category || "variable",
-      monthlyAmount: Number(item.monthlyAmount) || 0,
+      amount: Number(item.amount || item.monthlyAmount) || 0,
       date: item.date || `${fallbackDate} 01`
     }));
     const updated = [...expenses, ...formatted];
@@ -558,7 +573,7 @@ function TransactionsContent() {
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </div>
             <div className="space-y-2 px-2">
-              {ACCOUNTS.map(acc => (
+              {ACCOUNTS_SIDEBAR.map(acc => (
                 <div key={acc.name} className="space-y-1 cursor-pointer group">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${acc.color}`} />
@@ -578,7 +593,7 @@ function TransactionsContent() {
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </div>
             <div className="space-y-1">
-              {CATEGORIES.map(c => (
+              {categoryNames.map(c => (
                 <button 
                   key={c} 
                   onClick={() => handleSidebarFilter("all", c)}

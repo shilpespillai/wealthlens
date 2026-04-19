@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { INITIAL_CATEGORIES } from '@/utils/constants';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
@@ -21,14 +22,12 @@ export const useCategories = () => {
         const sorted = data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setCategories(sorted);
       } else {
-        // Seeding logic: Flatten from INITIAL_BUDGET_DATA if absolute zero exist in DB
-        // Note: We don't import INITIAL_BUDGET_DATA directly to avoid circular dependencies
-        // if this was ever used in SetBudget imports. We'll pass seed data if needed or
-        // just rely on the first component that has the seed data to 'push' it if empty.
-        setCategories([]);
+        // Fallback to constants if DB table is empty or 404
+        setCategories(INITIAL_CATEGORIES);
       }
     } catch (err) {
-      console.error("[useCategories] Fetch failed:", err);
+      console.warn("[useCategories] Fetch failed, using local fallbacks:", err);
+      setCategories(INITIAL_CATEGORIES);
     } finally {
       setIsLoading(false);
     }

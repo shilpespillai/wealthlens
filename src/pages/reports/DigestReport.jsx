@@ -60,8 +60,8 @@ export default function DigestReport() {
   }, [allTransactions, selectedDate, selectedAccountId]);
 
   const metrics = useMemo(() => {
-    const earned = filteredMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
-    const spent = filteredMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
+    const earned = filteredMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const spent = filteredMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
     return { earned, spent, loss: spent > earned ? spent - earned : 0 };
   }, [filteredMonthTxs]);
 
@@ -82,8 +82,8 @@ export default function DigestReport() {
       });
       return {
         month: format(m, "MMM"),
-        inflow: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0),
-        outflow: monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0),
+        inflow: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
+        outflow: monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
       };
     });
   }, [allTransactions, selectedDate, selectedAccountId]);
@@ -96,7 +96,7 @@ export default function DigestReport() {
     const catTotals = {};
     expTxs.forEach(t => {
       const cat = t.category || 'Uncategorized';
-      catTotals[cat] = (catTotals[cat] || 0) + Math.abs(t.amount || t.monthlyAmount || 0);
+      catTotals[cat] = (catTotals[cat] || 0) + Math.abs(Number(t.amount || 0));
     });
     
     const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
@@ -110,8 +110,8 @@ export default function DigestReport() {
       return dateMatch && accountMatch;
     });
 
-    const prevExp = prevMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
-    const prevInc = prevMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
+    const prevExp = prevMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const prevInc = prevMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
 
     const highlights = [];
     const lows = [];
