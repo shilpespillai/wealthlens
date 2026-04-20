@@ -15,7 +15,7 @@ export const useCategories = () => {
   const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await base44.db.getTable('user_categories');
+      const data = await base44.db.getTable('categories');
       
       if (data && data.length > 0) {
         // Sort alphabetically for a high-density, professional UI feel
@@ -48,7 +48,7 @@ export const useCategories = () => {
     };
 
     try {
-      const result = await base44.db.upsertRow('user_categories', newCat);
+      const result = await base44.db.upsertRow('categories', newCat);
       await fetchCategories(); // Refresh list
       return result;
     } catch (err) {
@@ -60,17 +60,27 @@ export const useCategories = () => {
 
   const seedCategories = useCallback(async (flatList) => {
     try {
-      const promises = flatList.map(cat => {
-        return base44.db.upsertRow('user_categories', {
-          name: cat.category,
-          type: cat.type === 'income' ? 'income' : 'expense',
-          icon_id: cat.iconId || 'circle',
+      // 1. Fetch current categories to check for existence
+      const current = await base44.db.getTable('categories');
+      const existingNames = new Set((current || []).map(c => c.name.toLowerCase()));
+
+      // 2. Filter to only new categories to minimize DB calls
+      const newToSeed = flatList.filter(cat => !existingNames.has((cat.category || cat.name || "").toLowerCase()));
+
+      if (newToSeed.length === 0) return;
+
+      const promises = newToSeed.map(cat => {
+        return base44.db.upsertRow('categories', {
+          name: cat.category || cat.name,
+          type: (cat.type === 'income' || cat.spendType === 'income') ? 'income' : 'expense',
+          icon_id: cat.iconId || cat.icon_id || 'circle',
           color: cat.color || 'slate'
         });
       });
+      
       await Promise.all(promises);
       await fetchCategories();
-      console.log("[useCategories] Seeding complete.");
+      console.log(`[useCategories] Synchronization complete. Added ${newToSeed.length} missing categories.`);
     } catch (err) {
       console.error("[useCategories] Seeding failed:", err);
     }

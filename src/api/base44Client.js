@@ -315,7 +315,7 @@ export const base44 = {
   },
   
   db: {
-    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets" },
+    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets", categories: "user_categories" },
     getTable: async (tableName) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
@@ -337,19 +337,14 @@ export const base44 = {
           // Optimized for WealthLens: Automatically handle composite unique constraints for planning tables
           const upsertOptions = { ...options };
           
-          // If we have an ID, Supabase handles the conflict on the primary key automatically.
-          // If NOT, we specify the logical unique constraint to prevent 409 errors.
-          if (!row.id) {
-            if (tableName === 'budgets' || tableName === 'monthly_summaries') {
-              upsertOptions.onConflict = 'user_id,month';
-            }
-            if (tableName === 'user_data') {
-              upsertOptions.onConflict = 'user_id,key';
-            }
+          // Safety: Strip null or undefined ID to allow DB-generated defaults (UUIDs)
+          const cleanRow = { ...row };
+          if (cleanRow.id === null || cleanRow.id === undefined) {
+            delete cleanRow.id;
           }
 
-          const { error } = await supabase.from(sqlTable).upsert({ ...row, user_id: session.user.id, updated_at: new Date() }, upsertOptions);
-          if (!error) return { success: true };
+          const { data, error } = await supabase.from(sqlTable).upsert({ ...cleanRow, user_id: session.user.id, updated_at: new Date() }, upsertOptions).select();
+          if (!error) return data?.[0] || { success: true };
           console.error(`[base44] Upsert failed for ${tableName}:`, error);
         }
       }

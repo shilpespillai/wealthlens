@@ -48,125 +48,22 @@ import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 
 export const INITIAL_BUDGET_DATA = [
-  {
-    id: "income",
-    category: "Salary and Wages",
-    budget: "$0 earned",
-    status: "3,188 to go",
-    monthly_target: 3188,
-    amount: "3,188 / mo",
-    iconId: "salary",
-    type: "income",
-    progress: 0,
-    color: "emerald"
-  },
-  {
-    id: "rent",
-    category: "Rent",
-    budget: "$0 spent",
-    status: "$1,029 left",
-    monthly_target: 1029,
-    amount: "1,029 / mo",
-    iconId: "home",
-    type: "item",
-    progress: 0,
-    color: "indigo"
-  },
-  {
-    id: "utilities",
-    category: "Utilities",
-    budget: "$0 spent",
-    status: "$282 left",
-    monthly_target: 282,
-    amount: "282 / mo",
-    iconId: "zap",
-    type: "item",
-    progress: 0,
-    color: "sky"
-  },
-  {
-    id: "groceries",
-    category: "Groceries",
-    budget: "$268 spent",
-    status: "$268 left",
-    monthly_target: 536,
-    amount: "536 / mo",
-    iconId: "shopping",
-    type: "item",
-    progress: 0,
-    color: "orange"
-  },
-  {
-    id: "eating_out",
-    category: "Eating Out",
-    budget: "$0 spent",
-    status: "$300 left",
-    monthly_target: 300,
-    amount: "300 / mo",
-    iconId: "utensils",
-    type: "item",
-    progress: 0,
-    color: "amber"
-  },
-  {
-    id: "entertainment",
-    category: "Entertainment",
-    budget: "$0 spent",
-    status: "$321 left",
-    monthly_target: 321,
-    amount: "321 / mo",
-    iconId: "play",
-    type: "item",
-    progress: 0,
-    color: "emerald"
-  },
-  {
-    id: "fuel",
-    category: "Fuel / Gas",
-    budget: "$0 spent",
-    monthly_target: 0,
-    amount: "0 / mo",
-    iconId: "fuel",
-    type: "item",
-    progress: 0,
-    color: "purple"
-  },
-  {
-    id: "healthcare",
-    category: "Healthcare",
-    budget: "$0 spent",
-    status: "$41 left",
-    monthly_target: 41,
-    amount: "41 / mo",
-    iconId: "activity",
-    type: "item",
-    progress: 0,
-    color: "yellow"
-  },
-  {
-    id: "credit_card",
-    category: "Repay Credit Card",
-    budget: "$0 transferred",
-    status: "$321 remaining",
-    monthly_target: 321,
-    amount: "321 / mo",
-    iconId: "credit-card",
-    type: "item",
-    progress: 0,
-    color: "rose"
-  },
-  {
-    id: "car_loan",
-    category: "Repay Car Loan",
-    budget: "$0 transferred",
-    status: "$249 remaining",
-    monthly_target: 249,
-    amount: "249 / mo",
-    iconId: "car",
-    type: "item",
-    progress: 0,
-    color: "rose"
-  }
+  { id: "income", category: "Income", monthly_target: 0, amount: "0 / mo", iconId: "trending-up", type: "income", color: "emerald" },
+  { id: "housing", category: "Housing", monthly_target: 0, amount: "0 / mo", iconId: "home", type: "item", color: "indigo" },
+  { id: "utilities", category: "Utilities", monthly_target: 0, amount: "0 / mo", iconId: "zap", type: "item", color: "sky" },
+  { id: "financial", category: "Financial", monthly_target: 0, amount: "0 / mo", iconId: "banknote", type: "item", color: "slate" },
+  { id: "groceries", category: "Groceries", monthly_target: 0, amount: "0 / mo", iconId: "shopping-cart", type: "item", color: "orange" },
+  { id: "dining", category: "Dining & Food", monthly_target: 0, amount: "0 / mo", iconId: "utensils", type: "item", color: "amber" },
+  { id: "fuel", category: "Fuel & Transport", monthly_target: 0, amount: "0 / mo", iconId: "fuel", type: "item", color: "purple" },
+  { id: "healthcare", category: "Healthcare", monthly_target: 0, amount: "0 / mo", iconId: "activity", type: "item", color: "yellow" },
+  { id: "lifestyle", category: "Lifestyle", monthly_target: 0, amount: "0 / mo", iconId: "heart", type: "item", color: "rose" },
+  { id: "insurance", category: "Insurance", monthly_target: 0, amount: "0 / mo", iconId: "shield", type: "item", color: "blue" },
+  { id: "education", category: "Education", monthly_target: 0, amount: "0 / mo", iconId: "graduation-cap", type: "item", color: "violet" },
+  { id: "travel", category: "Travel", monthly_target: 0, amount: "0 / mo", iconId: "plane", type: "item", color: "cyan" },
+  { id: "shopping", category: "Shopping", monthly_target: 0, amount: "0 / mo", iconId: "shopping-bag", type: "item", color: "pink" },
+  { id: "gifts", category: "Gifts & Donations", monthly_target: 0, amount: "0 / mo", iconId: "gift", type: "item", color: "red" },
+  { id: "maintenance", category: "Maintenance", monthly_target: 0, amount: "0 / mo", iconId: "wrench", type: "item", color: "grey" },
+  { id: "uncategorized", category: "Uncategorized", monthly_target: 0, amount: "0 / mo", iconId: "circle", type: "item", color: "slate" }
 ];
 
 const getColorClass = (color) => {
@@ -357,13 +254,25 @@ export default function SetBudget() {
           }
         }
 
-        if (saved) {
+          if (saved) {
           if (!isTemplate) setBudgetId(saved.id);
           else setBudgetId(null); // Fresh ID for a new month
 
-          if (saved.payload && saved.payload.visualData) {
-            let dataToLoad = saved.payload.visualData;
-            
+          // Support both strategic 'visualData' and raw 'incomes'/'expenses' payloads
+          let dataToLoad = [];
+          if (saved.payload) {
+            if (saved.payload.visualData) {
+              dataToLoad = saved.payload.visualData;
+            } else if (saved.payload.incomes || saved.payload.expenses) {
+              // Reconstruct flat data from relational legacy payload
+              dataToLoad = [
+                ...(saved.payload.incomes || []),
+                ...(saved.payload.expenses || [])
+              ];
+            }
+          }
+          
+          if (dataToLoad.length > 0) {
             // 3. SANITIZATION: If it's a carryover template, clear the spent status
             if (isTemplate) {
               dataToLoad = dataToLoad.map(item => ({
@@ -398,8 +307,17 @@ export default function SetBudget() {
       const incomesToSave = flatItems.filter(i => i.type === "income");
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
+      // Institutional Sync: Ensure all categories in the budget are registered in user_categories
+      // This allows the full 16-suite to propagate to the transaction ledger on the first save.
+      await seedCategories(flatItems.map(item => ({
+        category: item.category,
+        type: item.type === 'income' ? 'income' : 'expense',
+        iconId: item.iconId,
+        color: item.color
+      })));
+
       // Commit to the relational budgets table with the structured payload
-      await base44.db.upsertRow("budgets", { 
+      const result = await base44.db.upsertRow("budgets", { 
         id: budgetId,
         month: monthKey, 
         payload: { 
@@ -408,8 +326,13 @@ export default function SetBudget() {
           expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
       });
+
+      if (result && result.id) {
+        setBudgetId(result.id);
+      }
+
       setHasChanges(false);
-      toast.success("Budget plan saved to relational database");
+      toast.success("Budget plan and category registry synchronized");
     } catch (err) {
       console.error("[SetBudget] Save failed:", err);
       toast.error("Failed to save budget");

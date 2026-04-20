@@ -38,7 +38,7 @@ import {
 import { CategoryIcon } from "@/utils/iconMap";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import { subDays, startOfWeek, endOfWeek, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { subDays, subMonths, startOfWeek, endOfWeek, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { calculatePortfolioHoldings, getPortfolioMetrics } from "@/api/portfolioEngine";
 import { cn } from "@/lib/utils";
 
@@ -177,11 +177,21 @@ export function DashboardContent() {
     let startDate = nowTime - daysCutoff * 86400000;
     let endDate = nowTime;
 
-    if (selectedPeriod.startsWith("Last ")) {
+    if (selectedPeriod === "This Month") {
+       startDate = startOfMonth(now).getTime();
+       endDate = endOfMonth(now).getTime();
+       filtered = fullData.filter(d => d.timestamp >= startDate && d.timestamp <= endDate);
+    } else if (selectedPeriod === "Last Month") {
+       const lm = subMonths(now, 1);
+       startDate = startOfMonth(lm).getTime();
+       endDate = endOfMonth(lm).getTime();
+       filtered = fullData.filter(d => d.timestamp >= startDate && d.timestamp <= endDate);
+    } else if (selectedPeriod.startsWith("Last ")) {
        startDate = nowTime - daysCutoff * 86400000 * 2;
        endDate = nowTime - daysCutoff * 86400000;
        filtered = fullData.filter(d => d.timestamp <= endDate && d.timestamp >= startDate);
     } else if (selectedPeriod.startsWith("This ")) {
+       // Relative "This Week" etc logic
        startDate = nowTime - (daysCutoff * 86400000 * 0.2);
        endDate = nowTime + (daysCutoff * 86400000 * 0.8);
        filtered = fullData.filter(d => d.timestamp >= startDate && d.timestamp <= endDate);
@@ -736,47 +746,70 @@ export function DashboardContent() {
           </div>
         );
       case "transactions":
-        const recentTxs = [...(liveData?.transactions || [])]
-           .sort((a, b) => new Date(b.date || b.actualDate) - new Date(a.date || a.actualDate))
-           .slice(0, 5);
+        // Use currentMonthTransactions as a reliable primary source for "This Month" view
+        // Fallback to horizon transactions for other periods (Last Month, 3 Months etc)
+        const isCurrentMonth = selectedPeriod === "This Month" || selectedPeriod === "Rolling Month";
+        const txSource = (isCurrentMonth && liveData?.currentMonthTransactions?.length > 0) 
+          ? liveData.currentMonthTransactions 
+          : (liveData?.transactions || []);
+          
+        const txs = [...txSource].filter(t => t.type === 'expense');
+        const catMap = {};
+        txs.forEach(t => {
+          const cat = t.category || 'Uncategorized';
+          catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount || 0));
+        });
+        const topCategories = Object.entries(catMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, value]) => ({ name, value }));
+
+        const totalPeriodSpend = Object.values(catMap).reduce((s, v) => s + v, 0) || 1;
+        
+        // Use global currentPeriodMetrics for consistency with the rest of the dashboard
+        const inflowForWidget = currentPeriodMetrics.earning;
+        const outflowForWidget = currentPeriodMetrics.spending;
 
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="h-1 bg-purple-600 w-full" />
-            <div className="p-8">
+             <div className="h-1 bg-purple-600 w-full" />
+             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-800 flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-purple-600" />
-                  Live Ledger
+                  TOP 5 expenses
                 </h3>
-                <Link to="/FamilyBudget" className="text-[8px] font-black uppercase text-purple-500 hover:text-purple-400 transition-colors tracking-widest">Explore Activity</Link>
               </div>
 
               <div className="space-y-4 mb-8 h-[280px] overflow-hidden">
-                 {recentTxs.length > 0 ? recentTxs.map((tx, idx) => (
+                 {topCategories.length > 0 ? topCategories.map((cat, idx) => (
                    <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors border border-slate-100">
-                      <div className="flex items-center gap-4">
-                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm", tx.type === 'income' ? "bg-emerald-50 border-emerald-100 text-emerald-600" : "bg-white border-slate-200 text-slate-800")}>
-                            {tx.type === 'income' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5 text-rose-500" />}
+                      <div className="flex items-center gap-4 flex-1">
+                         <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm bg-white border-slate-200 text-slate-800">
+                            <TrendingDown className="w-5 h-5 text-rose-500" />
                          </div>
-                         <div>
-                            <p className="text-xs font-black text-slate-800 leading-tight">{tx.merchant || tx.category}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{tx.category} • {format(new Date(tx.date || tx.actualDate), "MMM dd")}</p>
+                         <div className="flex-1">
+                            <p className="text-xs font-black text-slate-800 leading-tight">{cat.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                               <div className="h-1 bg-slate-200 rounded-full flex-1 max-w-[60px] overflow-hidden">
+                                  <div className="h-full bg-rose-500" style={{ width: `${(cat.value / totalPeriodSpend) * 100}%` }} />
+                               </div>
+                               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                                  {((cat.value / totalPeriodSpend) * 100).toFixed(0)}% of spend
+                               </p>
+                            </div>
                          </div>
                       </div>
-                      <div className="text-right">
-                         <p className={cn("text-xs font-black tracking-tighter", tx.type === 'income' ? "text-teal-600" : "text-rose-600")}>
-                            {tx.type === 'income' ? '+' : "-"}{formatAmount(Math.abs(Number(tx.amount || 0)))}
+                      <div className="text-right ml-4">
+                         <p className="text-xs font-black tracking-tighter text-rose-600">
+                            -{formatAmount(cat.value)}
                          </p>
-                         {tx.spend_type && (
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx.spend_type}</p>
-                         )}
                       </div>
                    </div>
                  )) : (
                    <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl">
                       <Receipt className="w-8 h-8 text-slate-200 mb-2" />
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No recent ledger data</p>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No expenses detected</p>
                    </div>
                  )}
               </div>
@@ -784,12 +817,12 @@ export function DashboardContent() {
               <div className="flex items-center justify-between p-3.5 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner">
                 <div>
                   <p className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Gross Inflow</p>
-                  <p className="text-xs font-black text-emerald-400">{formatAmount(ledgerTrend.reduce((s, d) => s + d.income, 0))}</p>
+                  <p className="text-xs font-black text-emerald-400">{formatAmount(inflowForWidget)}</p>
                 </div>
                 <div className="w-px h-6 bg-slate-800" />
                 <div className="text-right">
                   <p className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Gross Outflow</p>
-                  <p className="text-xs font-black text-rose-400">{formatAmount(ledgerTrend.reduce((s, d) => s + d.expense, 0))}</p>
+                  <p className="text-xs font-black text-rose-400">{formatAmount(outflowForWidget)}</p>
                 </div>
               </div>
               
