@@ -416,19 +416,38 @@ export const base44 = {
       }
       const key = `wl_table_${tableName}`;
       const currentRows = await base44.db.getTable(tableName);
-      const rowMap = new Map(currentRows.map(r => [r.id || r.name, r]));
+      const rowMap = new Map();
+      
+      // Initialize map with current rows, using ID and Name as keys for collision avoidance
+      currentRows.forEach(r => {
+        if (r.id) rowMap.set(String(r.id), r);
+        if (r.name) rowMap.set(String(r.name).toLowerCase().trim(), r);
+      });
       
       rows.forEach(row => {
-        const id = row.id || row.name;
-        const existing = rowMap.get(id);
+        const idKey = row.id ? String(row.id) : null;
+        const nameKey = row.name ? String(row.name).toLowerCase().trim() : null;
+        
+        const existing = (idKey && rowMap.get(idKey)) || (nameKey && rowMap.get(nameKey));
+        
         if (existing) {
-          rowMap.set(id, { ...existing, ...row, updated_at: new Date().toISOString() });
+          const updated = { ...existing, ...row, updated_at: new Date().toISOString() };
+          if (updated.id) rowMap.set(String(updated.id), updated);
+          if (updated.name) rowMap.set(String(updated.name).toLowerCase().trim(), updated);
         } else {
-          rowMap.set(id, { ...row, id: row.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() });
+          const newRow = { 
+            ...row, 
+            id: row.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, 
+            created_at: new Date().toISOString() 
+          };
+          if (newRow.id) rowMap.set(String(newRow.id), newRow);
+          if (newRow.name) rowMap.set(String(newRow.name).toLowerCase().trim(), newRow);
         }
       });
-      const newRows = Array.from(rowMap.values());
-      return base44.user.saveData(key, newRows);
+      
+      // Deduplicate by ID before saving
+      const finalRows = Array.from(new Map(Array.from(rowMap.values()).map(r => [r.id, r])).values());
+      return base44.user.saveData(key, finalRows);
     },
     deleteRow: async (tableName, id) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;

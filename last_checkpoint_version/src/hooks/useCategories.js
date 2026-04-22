@@ -71,9 +71,14 @@ export const useCategories = () => {
       const existingNames = new Set((current || []).map(c => (c.name || "").toLowerCase().trim()));
 
       // 2. Filter to only new categories to minimize DB calls
+      // Use alias-aware matching to prevent seeding if a variant already exists
       const newToSeed = flatList.filter(cat => {
-        const name = (cat.category || cat.name || "").toLowerCase().trim();
-        return name !== "" && !existingNames.has(name);
+        const canonicalName = (cat.name || "").toLowerCase().trim();
+        if (existingNames.has(canonicalName)) return false;
+        
+        // Check if any alias of this registry item exists in DB
+        const hasAliasMatch = cat.aliases?.some(alias => existingNames.has(alias.toLowerCase().trim()));
+        return !hasAliasMatch;
       });
 
       console.log(`[useCategories] New categories identified for seeding: ${newToSeed.length}`);
@@ -115,12 +120,15 @@ export const useCategories = () => {
     fetchCategories().then((data) => {
       if (mounted) {
         const count = Array.isArray(data) ? data.length : 0;
-        runSeeding(count);
+        console.log(`[useCategories] Init complete. Catalog count: ${count}`);
+        if (count < CORE_CATEGORY_REGISTRY.length) {
+          runSeeding(count);
+        }
       }
     });
 
     return () => { mounted = false; };
-  }, [fetchCategories, seedCategories]);
+  }, [fetchCategories]);
 
   return {
     categories,
