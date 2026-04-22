@@ -33,6 +33,7 @@ export const useCategories = () => {
     } finally {
       setIsLoading(false);
     }
+    return await base44.db.getTable('categories'); // Ensure we return the actual data for seeding check
   }, []);
 
   const addCategory = useCallback(async (name, type = 'expense') => {
