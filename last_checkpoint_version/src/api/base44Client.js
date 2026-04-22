@@ -416,37 +416,34 @@ export const base44 = {
       }
       const key = `wl_table_${tableName}`;
       const currentRows = await base44.db.getTable(tableName);
-      const rowMap = new Map();
+      const rowMap = new Map(currentRows.map(r => [String(r.id), r]));
       
-      // Initialize map with current rows, using ID and Name as keys for collision avoidance
-      currentRows.forEach(r => {
-        if (r.id) rowMap.set(String(r.id), r);
-        if (r.name) rowMap.set(String(r.name).toLowerCase().trim(), r);
-      });
-      
-      rows.forEach(row => {
-        const idKey = row.id ? String(row.id) : null;
-        const nameKey = row.name ? String(row.name).toLowerCase().trim() : null;
-        
-        const existing = (idKey && rowMap.get(idKey)) || (nameKey && rowMap.get(nameKey));
+      // Helper to find existing item by name (case-insensitive)
+      const findByName = (name) => {
+        if (!name) return null;
+        const search = name.toLowerCase().trim();
+        return Array.from(rowMap.values()).find(r => (r.name || "").toLowerCase().trim() === search);
+      };
+
+      rows.forEach((row, idx) => {
+        const existing = (row.id && rowMap.get(String(row.id))) || findByName(row.name);
         
         if (existing) {
           const updated = { ...existing, ...row, updated_at: new Date().toISOString() };
-          if (updated.id) rowMap.set(String(updated.id), updated);
-          if (updated.name) rowMap.set(String(updated.name).toLowerCase().trim(), updated);
+          rowMap.set(String(updated.id), updated);
         } else {
+          // Generate a highly unique local ID including timestamp and index
+          const newId = row.id || `local-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`;
           const newRow = { 
             ...row, 
-            id: row.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, 
+            id: newId,
             created_at: new Date().toISOString() 
           };
-          if (newRow.id) rowMap.set(String(newRow.id), newRow);
-          if (newRow.name) rowMap.set(String(newRow.name).toLowerCase().trim(), newRow);
+          rowMap.set(String(newId), newRow);
         }
       });
       
-      // Deduplicate by ID before saving
-      const finalRows = Array.from(new Map(Array.from(rowMap.values()).map(r => [r.id, r])).values());
+      const finalRows = Array.from(rowMap.values());
       return base44.user.saveData(key, finalRows);
     },
     deleteRow: async (tableName, id) => {
