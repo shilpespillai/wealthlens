@@ -81,7 +81,6 @@ import AuthGuard from "@/components/AuthGuard";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import BankConnect from "@/components/calculator/BankConnect";
 import { useCategories } from "@/hooks/useCategories";
-import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth } from "date-fns";
