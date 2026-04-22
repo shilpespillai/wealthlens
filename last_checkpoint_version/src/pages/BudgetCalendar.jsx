@@ -123,11 +123,11 @@ export default function BudgetCalendar() {
     };
 
     incomes.forEach(i => {
-      if (isBeforeOrSame(i.date)) monthDelta += Number(i.monthlyAmount || 0);
+      if (isBeforeOrSame(i.date)) monthDelta += Number(i.amount || 0);
     });
 
     expenses.forEach(e => {
-      if (isBeforeOrSame(e.date)) monthDelta -= Math.abs(Number(e.monthlyAmount || 0));
+      if (isBeforeOrSame(e.date)) monthDelta -= Math.abs(Number(e.amount || 0));
     });
 
     return historicalSurplus + monthDelta;
@@ -216,7 +216,7 @@ export default function BudgetCalendar() {
                       {t.label}
                     </div>
                     <div className="px-1 text-[8px] font-bold text-slate-400">
-                      {t.type === 'income' ? '+' : '-'}{formatAmount(t.monthlyAmount || 0)}
+                      {t.type === 'income' ? '+' : '-'}{formatAmount(t.amount || 0)}
                     </div>
                   </div>
                 ))}

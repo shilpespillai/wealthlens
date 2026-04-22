@@ -21,9 +21,12 @@ import {
   Palmtree,
   Layers,
   Table2,
-  TrendingUp
+  TrendingUp,
+  BookOpen
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import IntelligenceDialog from "../intelligence/IntelligenceDialog";
+import SupportDialog from "../intelligence/SupportDialog";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -43,6 +46,9 @@ export default function Sidebar() {
   const [calculatorOpen, setCalculatorOpen] = React.useState(
     location.pathname.includes('Calculator')
   );
+
+  const [intelOpen, setIntelOpen] = React.useState(false);
+  const [supportOpen, setSupportOpen] = React.useState(false);
 
   return (
     <aside className="w-64 bg-[#111827] border-r border-white/5 flex flex-col h-screen overflow-y-auto shrink-0 z-10 transition-all">
@@ -217,13 +223,37 @@ export default function Sidebar() {
         <div className="pt-8">
           <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence</p>
           <div className="space-y-1">
-             <Link 
-                to="/PrivacyProtocol"
-                className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+              <Link 
+                 to="/PrivacyProtocol"
+                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+              >
+                 <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
+              </Link>
+
+              <Link 
+                 to="/HelpCenter"
+                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+              >
+                 <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
+              </Link>
+
+             <div 
+                onClick={() => setIntelOpen(true)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
              >
-                <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
-                <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
-             </Link>
+                <Sparkles className="w-4 h-4 text-gray-600 group-hover:text-indigo-400" />
+                <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
+             </div>
+
+             <div 
+                onClick={() => setSupportOpen(true)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
+             >
+                <HelpCircle className="w-4 h-4 text-gray-600 group-hover:text-emerald-400" />
+                <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
+             </div>
              
              {isAuthenticated && (
                 <div 
@@ -254,6 +284,9 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+
+      <IntelligenceDialog open={intelOpen} onOpenChange={setIntelOpen} />
+      <SupportDialog open={supportOpen} onOpenChange={setSupportOpen} userEmail={user?.email} />
     </aside>
   );
 }

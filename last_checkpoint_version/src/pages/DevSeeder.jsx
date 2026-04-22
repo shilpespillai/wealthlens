@@ -17,14 +17,23 @@ export default function DevSeeder() {
     
     try {
       // 1. Seed Accounts first (Dependencies)
+      const accountMap = {};
       for (const acc of wealthLensSeed.accounts) {
-        await base44.db.upsertRow('accounts', acc);
+        const res = await base44.db.upsertRow('user_accounts', acc);
+        if (res && res.id) accountMap[acc.name] = res.id;
         successCount.accounts++;
       }
       
-      // 2. Seed Transactions
+      // 2. Seed Transactions with Account Mapping
       for (const tx of wealthLensSeed.transactions) {
-        await base44.db.upsertRow('transactions', tx);
+        const txToInsert = { 
+          ...tx, 
+          account_id: accountMap[tx.account] || null 
+        };
+        // Clean up seeder-only properties
+        delete txToInsert.account;
+        
+        await base44.db.upsertRow('transactions', txToInsert);
         successCount.transactions++;
       }
       

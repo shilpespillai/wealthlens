@@ -98,21 +98,36 @@ CREATE TABLE IF NOT EXISTS user_data (
     UNIQUE(user_id, key)
 );
 
--- 8. Row Level Security (RLS)
+-- 8. User Categories (Custom Classification Registry)
+CREATE TABLE IF NOT EXISTS user_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    icon_id TEXT DEFAULT 'circle',
+    color TEXT DEFAULT 'slate',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, name)
+);
+
+-- 9. Row Level Security (RLS)
 ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_holdings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_categories ENABLE ROW LEVEL SECURITY;
 
--- 9. Policies
+-- 10. Policies
 CREATE POLICY "Users can only see their own accounts" ON user_accounts FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only see their own transactions" ON transactions FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only see their own portfolio" ON portfolio_holdings FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only see their own budget" ON budgets FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only see their own summaries" ON monthly_summaries FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only see their own data" ON user_data FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can only see their own categories" ON user_categories FOR ALL USING (auth.uid() = user_id);
 
 -- 8. Automation Trigger for Pre-Aggregation (Optional but recommended)
 -- This function would be triggered after transaction inserts to keep summaries updated.

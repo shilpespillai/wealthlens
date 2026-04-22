@@ -32,7 +32,8 @@ const generateSeedData = () => {
         amount: 4500,
         category: 'Salary',
         type: 'income',
-        spend_type: 'income'
+        spend_type: 'income',
+        account: 'Global Offset Account'
       });
     }
 
@@ -44,7 +45,8 @@ const generateSeedData = () => {
         amount: -3200,
         category: 'Housing',
         type: 'expense',
-        spend_type: 'fixed'
+        spend_type: 'fixed',
+        account: 'Global Offset Account'
       });
     }
 
@@ -56,7 +58,8 @@ const generateSeedData = () => {
         amount: -(180 + Math.random() * 50),
         category: 'Groceries',
         type: 'expense',
-        spend_type: 'variable'
+        spend_type: 'variable',
+        account: 'Platinum Rewards'
       });
     }
 
@@ -69,7 +72,8 @@ const generateSeedData = () => {
           amount: -(60 + Math.random() * 80),
           category: 'Dining',
           type: 'expense',
-          spend_type: 'variable'
+          spend_type: 'variable',
+          account: 'Platinum Rewards'
         });
       }
     }

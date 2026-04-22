@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+import { format } from "date-fns";
+import { resolveCanonicalCategory } from '@/utils/constants';
 
 /**
  * useFinancialParser
@@ -109,14 +111,14 @@ export const useFinancialParser = () => {
 
   /**
    * calculateMetrics
-   * Consolidates complex budget reduction logic.
+   * Consolidates complex budget reduction logic based on raw DB fields.
    */
   const calculateMetrics = useCallback((incomes = [], expenses = []) => {
-    const totalIncome = incomes.reduce((sum, i) => sum + (Number(i.monthlyAmount) || 0), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.monthlyAmount) || 0), 0);
+    const totalIncome = incomes.reduce((sum, i) => sum + (Number(i.amount || i.monthly_target || 0)), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount || e.monthly_target || 0)), 0);
     const savings = expenses
       .filter(e => e.spendType === 'savings' || (e.name && e.name.toLowerCase().includes('save')))
-      .reduce((sum, e) => sum + (Number(e.monthlyAmount) || 0), 0);
+      .reduce((sum, e) => sum + (Number(e.amount || e.monthly_target || 0)), 0);
     
     return {
       totalIncome,
@@ -134,8 +136,8 @@ export const useFinancialParser = () => {
   const updateVaultRegistry = useCallback((monthKey, incomes, expenses) => {
     try {
       const registry = JSON.parse(localStorage.getItem('wealthlens-vault-registry') || '{}');
-      const inc = (incomes || []).reduce((s, i) => s + (Number(i.monthlyAmount) || 0), 0);
-      const exp = (expenses || []).reduce((s, e) => s + (Number(e.monthlyAmount) || 0), 0);
+      const inc = (incomes || []).reduce((s, i) => s + (Number(i.amount || i.monthly_target || 0)), 0);
+      const exp = (expenses || []).reduce((s, e) => s + (Number(e.amount || e.monthly_target || 0)), 0);
       registry[monthKey] = inc - exp;
       localStorage.setItem('wealthlens-vault-registry', JSON.stringify(registry));
     } catch (err) {
@@ -173,39 +175,109 @@ export const useFinancialParser = () => {
 
   /**
    * normalizeTransactionData
-   * Centralized 'Seed-and-Merge' logic to ensure all 12 categories are present.
+   * Aligned with DB Schema: Uses 'amount' for actuals and 'monthly_target' for targets.
+   * Performs category-based aggregation of raw transactions.
    */
-  const normalizeTransactionData = useCallback((saved, selectedDate, mocks) => {
-    const currentMocks = mocks || [];
+  const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
+    const rawTransactions = transactions || [];
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
     
+    // Account Resolution Helper
+    const resolveAccountId = (tx) => {
+      if (tx.account_id) return tx.account_id;
+      if (!tx.account || tx.account === 'Manual Vault') return null;
+      // Try to find ID by name
+      const found = accounts.find(a => a.name === tx.account);
+      return found ? found.id : null;
+    };
+
+    // Aggregation Helper
+    const aggregateByCategory = (categoryName, type) => {
+      const canonicalTarget = resolveCanonicalCategory(categoryName);
+      
+      const filtered = rawTransactions.filter(t => {
+        const transactionCategory = resolveCanonicalCategory(t.category);
+        const amount = Number(t.amount) || 0;
+        // Heuristic: If amount is positive and type is expense, or vice versa, trust the amount?
+        // Actually, let's just use the explicit type but be aware of mismatches.
+        return t.type === type && transactionCategory === canonicalTarget;
+      });
+      
+      return {
+        amount: filtered.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
+        count: filtered.length,
+        lastDate: filtered.length > 0 ? filtered[0].date : null
+      };
+    };
+
     // Normalize Incomes
-    const baseIncs = (data.incomes || []).map(i => ({ 
-      ...i, 
-      category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category 
-    }));
-    const presentIncCats = new Set(baseIncs.map(i => i.category));
-    const missingIncs = currentMocks.filter(m => m.type === 'income' && !presentIncCats.has(m.category)).map(t => ({ 
-      ...t,
-      name: t.merchant, 
-      monthlyAmount: t.amount, 
-      spendType: 'income' 
-    }));
+    const baseIncs = (data.incomes || []).map(i => {
+      const agg = aggregateByCategory(i.category || i.name || 'Salary', 'income');
+      const resolvedAccId = resolveAccountId(i);
+      return { 
+        ...i, 
+        amount: agg.amount, // Realized income
+        date: agg.lastDate || i.date,
+        name: i.name || i.merchant || i.category || 'Salary',
+        category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category,
+        type: 'income',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
+
+    const presentIncCats = new Set(baseIncs.map(i => (i.category || "").toLowerCase()));
+    const missingIncs = rawTransactions.filter(m => {
+      const amount = Number(m.amount) || 0;
+      // Trust explicit type first, but fallback to amount if type is ambiguous
+      const isIncome = m.type === 'income' || (m.type !== 'expense' && amount > 0);
+      return isIncome && !presentIncCats.has((m.category || "").toLowerCase());
+    }).map(t => {
+      const resolvedAccId = resolveAccountId(t);
+      return { 
+        ...t,
+        name: t.merchant || t.name || t.category || 'Income Item',
+        type: 'income',
+        spendType: 'income',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
     
     // Normalize Expenses
-    const baseExps = (data.expenses || []).map(e => ({ 
-      ...e, 
-      category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category 
-    }));
-    const presentExpCats = new Set(baseExps.map(e => e.category));
-    const missingExps = currentMocks.filter(m => m.type === 'expense' && !presentExpCats.has(m.category)).map(t => ({ 
-      ...t,
-      name: t.merchant, 
-      monthlyAmount: Math.abs(t.amount), 
-      spendType: t.spendType 
-    }));
+    const baseExps = (data.expenses || []).map(e => {
+      const agg = aggregateByCategory(e.category || e.name || 'Misc', 'expense');
+      const resolvedAccId = resolveAccountId(e);
+      return { 
+        ...e, 
+        amount: Math.abs(agg.amount || 0), // Realized spend
+        date: agg.lastDate || e.date,
+        name: e.name || e.merchant || e.category || 'Misc Expense',
+        category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category,
+        type: 'expense',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
+
+    const presentExpCats = new Set(baseExps.map(e => (e.category || "").toLowerCase()));
+    const missingExps = rawTransactions.filter(m => {
+      const amount = Number(m.amount) || 0;
+      const isExpense = m.type === 'expense' || (m.type !== 'income' && amount < 0);
+      return isExpense && !presentExpCats.has((m.category || "").toLowerCase());
+    }).map(t => {
+      const resolvedAccId = resolveAccountId(t);
+      return { 
+        ...t,
+        name: t.merchant || t.name || t.category || 'Expense Item',
+        type: 'expense',
+        amount: Math.abs(t.amount || 0),
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
 
     return {
       incomes: [...baseIncs, ...missingIncs],
@@ -242,6 +314,16 @@ export const useFinancialParser = () => {
       queryOptions.filters.push({ column: 'date', op: 'lte', value: end });
     }
     
+    // Support direct timestamp/date ranges (used by Dashboard)
+    if (filter.startDate) {
+      const startVal = typeof filter.startDate === 'number' ? format(new Date(filter.startDate), 'yyyy-MM-dd') : filter.startDate;
+      queryOptions.filters.push({ column: 'date', op: 'gte', value: startVal });
+    }
+    if (filter.endDate) {
+      const endVal = typeof filter.endDate === 'number' ? format(new Date(filter.endDate), 'yyyy-MM-dd') : filter.endDate;
+      queryOptions.filters.push({ column: 'date', op: 'lte', value: endVal });
+    }
+
     if (filter.accountId) {
       queryOptions.filters.push({ column: 'account_id', op: 'eq', value: filter.accountId });
     }
@@ -262,19 +344,15 @@ export const useFinancialParser = () => {
   const purgeProductionLedger = useCallback(async () => {
     const tId = toast.loading("Purging production ledger...");
     try {
-      // In a real environment, we would use a bulk delete. 
-      // With base44, we'll try to clear the known production keys or use a custom query if supported.
-      // Since base44.db doesn't have a clearTable, we'll use base44.db.query to get all and then delete or just warn.
-      // Wait, let's check if there's a delete method.
-      
-      // For now, we'll implement a targeted deletion if possible or just log it.
-      // Actually, let's look at base44Client.js again.
+      // Nuclear Purge: Resets all user-specific data to enable fresh provisioning/seeding
       const success = await base44.db.execute("DELETE FROM transactions;");
       await base44.db.execute("DELETE FROM budgets;");
       await base44.db.execute("DELETE FROM portfolio_holdings;");
+      await base44.db.execute("DELETE FROM user_accounts;");
+      await base44.db.execute("DELETE FROM monthly_summaries;");
       
       if (success) {
-        toast.success("Ledger purged successfully", { id: tId });
+        toast.success("Identity ledger purged successfully", { id: tId });
         return true;
       }
       throw new Error("Purge failed");
@@ -300,5 +378,6 @@ export const useFinancialParser = () => {
     purgeProductionLedger
   };
 };
+
 
 export default useFinancialParser;

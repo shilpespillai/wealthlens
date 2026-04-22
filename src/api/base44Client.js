@@ -294,7 +294,7 @@ export const base44 = {
       if (isSupabaseEnabled) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', session.user.id).eq('key', key).single();
+          const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', session.user.id).eq('key', key).maybeSingle();
           if (!error && data) return data.payload;
         }
       }
@@ -323,6 +323,13 @@ export const base44 = {
         if (session?.user) {
           const { data, error } = await supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
           if (!error && data) return data;
+          
+          // Catch 'missing table' error and allow local fallback
+          if (error && error.code === 'PGRST205') {
+            console.warn(`[base44] Table '${sqlTable}' not found in DB. Falling back to local vault.`);
+          } else if (error) {
+            console.error(`[base44] Fetch error for ${tableName}:`, error);
+          }
         }
       }
       const key = `wl_table_${tableName}`;
@@ -335,7 +342,8 @@ export const base44 = {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           // Optimized for WealthLens: Automatically handle composite unique constraints for planning tables
-          const upsertOptions = { ...options };
+          // Detect shorthand string options (e.g., "month") and map to onConflict
+          const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           
           // Safety: Strip null or undefined ID to allow DB-generated defaults (UUIDs)
           const cleanRow = { ...row };
@@ -343,9 +351,23 @@ export const base44 = {
             delete cleanRow.id;
           }
 
+          // Use the table's composite key or primary key for onConflict if not provided
+          if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
+            upsertOptions.onConflict = 'user_id,month'; // WealthLens standard for planning tables
+          } else if (upsertOptions.onConflict === 'month') {
+            upsertOptions.onConflict = 'user_id,month'; // Map shorthand to composite key
+          }
+
           const { data, error } = await supabase.from(sqlTable).upsert({ ...cleanRow, user_id: session.user.id, updated_at: new Date() }, upsertOptions).select();
           if (!error) return data?.[0] || { success: true };
-          console.error(`[base44] Upsert failed for ${tableName}:`, error);
+          
+          // Catch 'missing table' error and allow local fallback
+          if (error && error.code === 'PGRST205') {
+             console.warn(`[base44] Table '${sqlTable}' not found for upsert. Falling back to local vault.`);
+          } else {
+             console.error(`[base44] Upsert failed for ${tableName}:`, error);
+             return { error };
+          }
         }
       }
       const key = `wl_table_${tableName}`;
@@ -366,7 +388,46 @@ export const base44 = {
 
       const index = targetId ? rows.findIndex(r => r.id === targetId) : -1;
       const newRows = index >= 0 ? rows.map((r, i) => i === index ? { ...r, ...row, updated_at: new Date().toISOString() } : r)
-                                  : [...rows, { ...row, id: row.id || Date.now().toString(), created_at: new Date().toISOString() }];
+                                  : [...rows, { ...row, id: row.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() }];
+      return base44.user.saveData(key, newRows);
+    },
+    upsertRows: async (tableName, rows, options = {}) => {
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
+          if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
+            upsertOptions.onConflict = 'user_id,month';
+          }
+          const cleanRows = rows.map(r => {
+             const row = { ...r, user_id: session.user.id, updated_at: new Date() };
+             if (row.id === null || row.id === undefined) delete row.id;
+             return row;
+          });
+          const { data, error } = await supabase.from(sqlTable).upsert(cleanRows, upsertOptions).select();
+          if (!error) return data || { success: true };
+          if (error && error.code !== 'PGRST205') {
+            console.error(`[base44] Batch upsert failed for ${tableName}:`, error);
+            return { error };
+          }
+          console.warn(`[base44] Batch upsert for ${tableName} falling back to local vault (Table missing).`);
+        }
+      }
+      const key = `wl_table_${tableName}`;
+      const currentRows = await base44.db.getTable(tableName);
+      const rowMap = new Map(currentRows.map(r => [r.id || r.name, r]));
+      
+      rows.forEach(row => {
+        const id = row.id || row.name;
+        const existing = rowMap.get(id);
+        if (existing) {
+          rowMap.set(id, { ...existing, ...row, updated_at: new Date().toISOString() });
+        } else {
+          rowMap.set(id, { ...row, id: row.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() });
+        }
+      });
+      const newRows = Array.from(rowMap.values());
       return base44.user.saveData(key, newRows);
     },
     deleteRow: async (tableName, id) => {
@@ -381,6 +442,19 @@ export const base44 = {
       const key = `wl_table_${tableName}`;
       const rows = await base44.db.getTable(tableName);
       return base44.user.saveData(key, rows.filter(r => r.id !== id));
+    },
+    deleteByFilter: async (tableName, column, value) => {
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from(sqlTable).delete().eq(column, value).eq('user_id', session.user.id);
+          if (!error) return { success: true };
+        }
+      }
+      const key = `wl_table_${tableName}`;
+      const rows = await base44.db.getTable(tableName);
+      return base44.user.saveData(key, rows.filter(r => r[column] !== value));
     },
     getSummary: async (month) => {
       if (isSupabaseEnabled) {
@@ -441,6 +515,12 @@ export const base44 = {
       }
       if (limit) results = results.slice(0, limit);
       return results;
+    },
+    upsert: async function(tableName, row, options) {
+      return this.upsertRow(tableName, row, options);
+    },
+    delete: async function(tableName, id) {
+      return this.deleteRow(tableName, id);
     }
   },
 

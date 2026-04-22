@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useCategories } from "@/hooks/useCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Circle, 
@@ -10,14 +11,15 @@ import {
   Upload, 
   ArrowUpRight, 
   Folder,
+  Trash2,
+  ShieldCheck,
+  TrendingUp,
   LayoutGrid,
-  Settings2,
   Check,
-  Search,
-  Zap,
-  MoreVertical,
+  Settings2,
   Minus
 } from "lucide-react";
+import { CategoryIcon } from "@/utils/iconMap";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -43,145 +45,33 @@ import AuthGuard from "@/components/AuthGuard";
 import { toast } from "sonner";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
+import { format } from "date-fns";
 
-export const INITIAL_BUDGET_DATA = [
-  {
-    id: "income",
-    category: "Salary and Wages",
-    budget: "$0 earned",
-    status: "3,188 to go",
-    amount: "3,188 / mo",
-    icon: <Circle className="w-4 h-4 text-emerald-400" />,
-    type: "income",
-    progress: 0,
-    color: "emerald"
-  },
-  {
-    id: "household",
-    category: "Household",
-    budget: "Start",
-    amount: "0 / mo",
-    icon: <Folder className="w-4 h-4 text-indigo-400" />,
-    type: "group",
-    isExpanded: true,
-    children: [
-      {
-        id: "rent",
-        category: "Rent",
-        budget: "$0 spent",
-        status: "$1,029 left",
-        amount: "1,029 / mo",
-        icon: <Circle className="w-4 h-4 text-indigo-300" />,
-        type: "item",
-        progress: 0,
-        color: "indigo"
-      },
-      {
-        id: "utilities",
-        category: "Utilities",
-        budget: "$0 spent",
-        status: "$282 left",
-        amount: "282 / mo",
-        icon: <Circle className="w-4 h-4 text-sky-300" />,
-        type: "item",
-        progress: 0,
-        color: "sky"
-      }
-    ]
-  },
-  {
-    id: "food",
-    category: "Food",
-    budget: "Start",
-    amount: "0 / mo",
-    icon: <Folder className="w-4 h-4 text-orange-400" />,
-    type: "group",
-    isExpanded: true,
-    children: [
-      {
-        id: "groceries",
-        category: "Groceries",
-        budget: "$268 spent",
-        status: "$268 left",
-        amount: "536 / mo",
-        icon: <Circle className="w-4 h-4 text-orange-200" />,
-        type: "item",
-        progress: 0,
-        color: "orange"
-      },
-      {
-        id: "eating_out",
-        category: "Eating Out",
-        budget: "$0 spent",
-        status: "$300 left",
-        amount: "300 / mo",
-        icon: <Circle className="w-4 h-4 text-amber-300" />,
-        type: "item",
-        progress: 0,
-        color: "amber"
-      }
-    ]
-  },
-  {
-    id: "entertainment",
-    category: "Entertainment",
-    budget: "$0 spent",
-    status: "$321 left",
-    amount: "321 / mo",
-    icon: <Circle className="w-4 h-4 text-emerald-300" />,
-    type: "item",
-    progress: 0,
-    color: "emerald"
-  },
-  {
-    id: "fuel",
-    category: "Fuel / Gas",
-    budget: "Start",
-    amount: "0 / mo",
-    icon: <Folder className="w-4 h-4 text-purple-400" />,
-    type: "item",
-    progress: 0,
-    color: "purple"
-  },
-  {
-    id: "healthcare",
-    category: "Healthcare",
-    budget: "$0 spent",
-    status: "$41 left",
-    amount: "41 / mo",
-    icon: <Circle className="w-4 h-4 text-yellow-300" />,
-    type: "item",
-    progress: 0,
-    color: "yellow"
-  },
-  {
-    id: "credit_card",
-    category: "Repay Credit Card",
-    budget: "$0 transferred",
-    status: "$321 remaining",
-    amount: "321 / mo",
-    icon: <Zap className="w-4 h-4 text-rose-400" />,
-    type: "item",
-    progress: 0,
-    color: "rose"
-  },
-  {
-    id: "car_loan",
-    category: "Repay Car Loan",
-    budget: "$0 transferred",
-    status: "$249 remaining",
-    amount: "249 / mo",
-    icon: <Zap className="w-4 h-4 text-rose-400" />,
-    type: "item",
-    progress: 0,
-    color: "rose"
-  }
-];
+import { CORE_CATEGORY_REGISTRY, resolveCanonicalCategory } from "@/utils/constants";
 
-function BudgetRow({ item, level = 0, onToggle }) {
-  const { parseCurrency } = useFinancialParser();
-  const isGroup = item.type === "group";
-  const paddingLeft = level * 24 + 16;
+// Map colors based on registry values
+const getColorClass = (color) => {
+  return {
+    emerald: "text-emerald-400",
+    indigo: "text-indigo-400",
+    sky: "text-sky-300",
+    orange: "text-orange-400",
+    amber: "text-amber-300",
+    purple: "text-purple-400",
+    yellow: "text-yellow-300",
+    rose: "text-rose-400",
+    slate: "text-slate-400",
+    blue: "text-blue-400",
+    violet: "text-violet-400",
+    cyan: "text-cyan-300",
+    pink: "text-pink-400",
+    red: "text-red-400",
+    grey: "text-slate-400"
+  }[color || "slate"];
+};
+
+function BudgetRow({ item, onEdit, onDelete }) {
+  const { parseCurrency, formatAmount } = useFinancialParser();
 
   return (
     <>
@@ -192,20 +82,17 @@ function BudgetRow({ item, level = 0, onToggle }) {
         </div>
 
         {/* Category Column */}
-        <div className="flex-1 flex items-center gap-3 min-w-[300px]" style={{ paddingLeft }}>
-          {isGroup ? (
-            <button onClick={() => onToggle(item.id)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
-              {item.isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </button>
-          ) : (
-            <div className="w-6" />
-          )}
+        <div className="flex-1 flex items-center gap-3 min-w-[300px] px-4">
           <div className="p-2 border border-slate-100 rounded-lg shadow-sm">
-            {item.icon}
+            <CategoryIcon 
+              iconId={item.iconId} 
+              category={item.category} 
+              colorClass={getColorClass(item.color)} 
+            />
           </div>
           <Link 
             to={`/reports/Trends?category=${encodeURIComponent(item.category)}`}
-            className={`text-sm font-medium transition-colors hover:text-indigo-600 hover:underline decoration-indigo-200 underline-offset-4 cursor-pointer ${isGroup ? 'text-slate-700' : 'text-slate-600'}`}
+            className="text-sm font-medium transition-colors hover:text-indigo-600 hover:underline decoration-indigo-200 underline-offset-4 cursor-pointer text-slate-600"
           >
             {item.category}
           </Link>
@@ -256,76 +143,193 @@ function BudgetRow({ item, level = 0, onToggle }) {
 
         {/* Amount Column */}
         <div className="w-48 px-6 text-right">
-          <span className={`text-[11px] font-bold ${(item.amount?.includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {item.amount || "0 / mo"}
-          </span>
+           <span className={`text-[11px] font-bold tabular-nums ${(String(item.amount || "").includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
+             {(() => {
+               const val = String(item.amount || "0").replace(/\s?\/\s?mo/g, '');
+               const num = parseFloat(val);
+               return isNaN(num) ? val : formatAmount(num, { useParentheses: false });
+             })()}
+           </span>
         </div>
 
-        {/* Roll Up Column */}
-        <div className="w-24 px-4 flex items-center justify-center">
-           {isGroup && (
-              <button className="text-slate-300 hover:text-slate-500 transition-colors">
-                 <ArrowUpRight className="w-4 h-4 rotate-[-45deg]" />
-              </button>
-           )}
+        {/* Actions Column (Settings / Trash) */}
+        <div className="w-24 px-4 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+             onClick={() => onEdit && onEdit(item)}
+             className="text-slate-400 hover:text-indigo-500 transition-colors p-1"
+             title="Edit Category"
+          >
+             <Settings2 className="w-4 h-4" />
+          </button>
+          <button 
+             onClick={() => onDelete && onDelete(item.id)}
+             className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+             title="Delete Category"
+          >
+             <Trash2 className="w-4 h-4" />
+          </button>
         </div>
-
-        {/* Action Column */}
+        
+        {/* Actions Column (Legacy dots) */}
         <div className="w-16 px-4 flex items-center justify-center">
-          <button className="text-slate-200 group-hover:text-slate-400 transition-colors">
+          <button className="text-slate-200 hover:text-slate-400 transition-colors p-1">
             <MoreHorizontal className="w-5 h-5" />
           </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {isGroup && item.isExpanded && item.children && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            {item.children.map((child) => (
-              <BudgetRow key={child.id} item={child} level={level + 1} />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
 
 export default function SetBudget() {
   const { parseCurrency, formatAmount } = useFinancialParser();
-  const [data, setData] = useState(INITIAL_BUDGET_DATA);
-  const [isAllExpanded, setIsAllExpanded] = useState(true);
+  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories();
+
+  // Integrated Flat Hierarchy Engine
+  const flattenCategories = (items) => {
+    let result = [];
+    if (!items) return result;
+    items.forEach(item => {
+      // Force all items into a flat structure
+      const flatItem = { ...item, type: item.type === 'income' ? 'income' : 'item' };
+      delete flatItem.children;
+      result.push(flatItem);
+      
+      if (item.children && item.children.length > 0) {
+        result = [...result, ...flattenCategories(item.children)];
+      }
+    });
+    return result;
+  };
+
+  const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const monthKey = useMemo(() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = (d.getMonth() + 1).toString().padStart(2, '0');
-    return `${y}-${m}`;
-  }, []);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState(null);
+  const [budgetId, setBudgetId] = useState(null);
+  const [expectedIncome, setExpectedIncome] = useState(0);
+  const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
+  const leafCategories = useMemo(() => 
+    flattenCategories(CORE_CATEGORY_REGISTRY).filter(c => c.type !== 'income'), 
+    []
+  );
 
-  useEffect(() => {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
+
+   useEffect(() => {
     const init = async () => {
-      // Fetch specifically from the relational budgets table
-      const results = await base44.db.query("budgets", {
-        filters: [{ column: 'month', op: 'eq', value: monthKey }]
-      });
-      
-      if (results && results.length > 0) {
-        const saved = results[0];
-        if (saved.payload && saved.payload.visualData) {
-          setData(saved.payload.visualData);
+      try {
+        setIsInitialLoading(true);
+        // 1. Fetch specifically from the relational budgets table
+        let results = await base44.db.query("budgets", {
+          filters: [{ column: 'month', op: 'eq', value: monthKey }]
+        });
+        
+        let saved;
+        let isTemplate = false;
+
+        if (results && results.length > 0) {
+          saved = results[0];
+        } else {
+          // 2. CARRYOVER logic: If current month empty, fetch the absolute latest budget as a template
+          const allBudgets = await base44.db.getTable("budgets");
+          if (allBudgets && allBudgets.length > 0) {
+            const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
+            saved = sorted[0];
+            isTemplate = true;
+          }
         }
+
+          if (saved) {
+          if (!isTemplate) setBudgetId(saved.id);
+          else setBudgetId(null); // Fresh ID for a new month
+
+          // Handle global expected income baseline
+          if (saved.payload && saved.payload.expectedIncome !== undefined) {
+             setExpectedIncome(Number(saved.payload.expectedIncome));
+          } else if (saved.payload && saved.payload.incomes) {
+             // Fallback: sum legacy income rows if it's the first time converting
+             const legacySum = saved.payload.incomes.reduce((s, i) => s + Number(i.monthly_target || 0), 0);
+             setExpectedIncome(legacySum);
+          }
+
+          // Support both strategic 'visualData' and raw 'incomes'/'expenses' payloads
+          let dataToLoad = [];
+          if (saved.payload) {
+            dataToLoad = [
+              ...(saved.payload.visualData || []),
+              ...(saved.payload.expenses || [])
+            ];
+          }
+          
+          if (dataToLoad.length > 0) {
+            // Filter out any leaked income categories from the Table
+            dataToLoad = dataToLoad.filter(item => item.type !== 'income');
+            
+            setData(normalizeStructure(dataToLoad));
+          }
+        } else {
+          // 4. Default if absolute zero budgets in DB
+          setData(normalizeStructure([])); // Seed from registry
+          setBudgetId(null);
+        }
+      } catch (err) {
+        console.error("Failed to load budget:", err);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
     init();
   }, [monthKey]);
+
+  const handleCopyFromPreviousMonth = async () => {
+    const prevDate = new Date(selectedDate);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonthKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    if (!window.confirm(`Copy budget from ${prevMonthKey}? This will overwrite your current targets for ${monthKey}.`)) return;
+    
+    setIsSaving(true);
+    try {
+      const results = await base44.db.query("budgets", {
+        filters: [{ column: 'month', op: 'eq', value: prevMonthKey }]
+      });
+
+      if (results && results.length > 0) {
+        const prevBudget = results[0];
+        let prevData = [];
+        if (prevBudget.payload) {
+          prevData = prevBudget.payload.visualData || [...(prevBudget.payload.incomes || []), ...(prevBudget.payload.expenses || [])];
+        }
+
+        // Sanitize: carry over targets but clear actuals
+        const clonedData = prevData.map(item => ({
+          ...item,
+          budget: item.type === 'income' ? "$0 earned" : "$0 spent",
+          status: item.type === 'income' ? `${formatAmount(item.monthly_target || 0, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(item.monthly_target || 0, { decimals: 0 })} left`,
+          progress: 0
+        }));
+
+        setData(normalizeStructure(clonedData));
+        setHasChanges(true);
+        toast.success(`Leads from ${prevMonthKey} synchronized successfully.`);
+      } else {
+        toast.error(`No previous budget found for ${prevMonthKey}`);
+      }
+    } catch (err) {
+      console.error("Copy budget failed:", err);
+      toast.error("Failed to clone budget");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSaveBudget = async () => {
     setIsSaving(true);
@@ -335,17 +339,32 @@ export default function SetBudget() {
       const incomesToSave = flatItems.filter(i => i.type === "income");
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
+      // Institutional Sync: Ensure all categories in the budget are registered in user_categories
+      // This allows the full 16-suite to propagate to the transaction ledger on the first save.
+      await seedCategories(flatItems.map(item => ({
+        category: item.category,
+        type: item.type === 'income' ? 'income' : 'expense',
+        iconId: item.iconId,
+        color: item.color
+      })));
+
       // Commit to the relational budgets table with the structured payload
-      await base44.db.upsertRow("budgets", { 
+      const result = await base44.db.upsertRow("budgets", { 
+        id: budgetId,
         month: monthKey, 
         payload: { 
-          visualData: data,
-          incomes: incomesToSave,
-          expenses: expensesToSave
+          visualData: flatItems,
+          expectedIncome: expectedIncome, 
+          expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
       });
+
+      if (result && result.id) {
+        setBudgetId(result.id);
+      }
+
       setHasChanges(false);
-      toast.success("Budget plan saved to relational database");
+      toast.success("Budget plan and category registry synchronized");
     } catch (err) {
       console.error("[SetBudget] Save failed:", err);
       toast.error("Failed to save budget");
@@ -354,9 +373,18 @@ export default function SetBudget() {
     }
   };
 
+  // Sync Global Category Registry (Flat Only)
+  useEffect(() => {
+    if (!categoriesLoading && categories.length === 0) {
+      console.log("[SetBudget] Category registry empty. Seeding defaults...");
+      seedCategories(CORE_CATEGORY_REGISTRY);
+    }
+  }, [categoriesLoading, categories.length, seedCategories]);
+
   // New Budget Form State
   const initialFormState = {
     category: "",
+    categoryName: "",
     repeat: false,
     frequency: "1",
     freqUnit: "weeks",
@@ -373,77 +401,151 @@ export default function SetBudget() {
       setNewBudget(initialFormState);
     }
   }, [isNewBudgetOpen]);
+  
+  const normalizeStructure = (savedItems) => {
+    // 1. Start with the Core Category Registry (Single Source of Truth)
+    // Filter out income as "budget is always for expenses"
+    const template = CORE_CATEGORY_REGISTRY
+      .filter(cat => cat.type !== 'income')
+      .map(cat => ({
+        ...cat,
+        category: cat.name,
+        monthly_target: 0,
+        amount: "0",
+        budget: "$0 spent",
+        status: "0.00 left"
+      }));
 
-  const flattenCategories = (items) => {
-    let result = [];
-    items.forEach(item => {
-      if (item.type === "item" || item.type === "income") {
-        result.push(item);
-      }
-      if (item.children) {
-        result = [...result, ...flattenCategories(item.children)];
+    // 2. Normalize and merge saved items using Canonical Aliasing
+    const finalMap = new Map();
+    template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
+
+    savedItems.forEach(s => {
+      const canonicalName = resolveCanonicalCategory(s.category || s.name);
+      const key = canonicalName.toLowerCase();
+      
+      const existing = finalMap.get(key);
+      if (existing) {
+        // Merge saved data into existing canonical row
+        finalMap.set(key, { ...existing, ...s, category: canonicalName });
+      } else {
+        // standalone custom category
+        finalMap.set(key, { ...s, category: s.category || s.name });
       }
     });
-    return result;
+
+    return Array.from(finalMap.values());
   };
 
-  const leafCategories = useMemo(() => flattenCategories(INITIAL_BUDGET_DATA), []);
 
-  const handleSaveNewBudget = () => {
-    if (!newBudget.category) {
-      toast.error("Please select a category");
-      return;
+  const flatItems = useMemo(() => flattenCategories(data), [data]);
+  
+  const totals = useMemo(() => {
+    let expense = 0;
+    
+    flatItems.forEach(item => {
+      const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
+      // Items here are guaranteed to be expenses based on our new system
+      expense += val;
+    });
+    
+    return {
+      income: expectedIncome,
+      expense,
+      net: expectedIncome - expense,
+      pieData: [] // can be derived later if needed
+    };
+  }, [flatItems, expectedIncome, parseCurrency]);
+
+
+  const handleEditItem = (item) => {
+    // Determine the likely type if missing
+    let likelyType = item.type;
+    const cat = (item.category || "").toLowerCase();
+    
+    // Explicitly check for "Rent" which might be misclassified in legacy data
+    if (cat.includes("rent") || cat.includes("mortgage")) {
+      likelyType = "expense";
+    } else if (!likelyType) {
+      likelyType = (cat.includes("salary") || cat.includes("income")) ? "income" : "expense";
+    }
+
+    setEditingItem(item);
+    setNewBudget({
+      category: item.id,
+      categoryName: item.category,
+      repeat: true,
+      frequency: "1",
+      freqUnit: "months",
+      amount: (item.monthly_target || parseCurrency(item.amount || "0")).toString(),
+      type: likelyType === "income" ? "income" : "expense",
+      account: "Sample Bank Account"
+    });
+    setIsNewBudgetOpen(true);
+  };
+
+  const handleDeleteItem = (targetId) => {
+    setData(prev => {
+      const updated = prev.filter(item => item.id !== targetId);
+      setHasChanges(true);
+      return updated;
+    });
+    setIsNewBudgetOpen(false);
+    setEditingItem(null);
+    toast.success("Category removed from current month's budget");
+  };
+
+  const handleSaveNewBudget = async () => {
+    // 1. Ensure the category exists in the central list
+    const searchName = newBudget.categoryName || "";
+    let catObj = categories.find(c => c.name.toLowerCase() === searchName.toLowerCase());
+    
+    if (!catObj && searchName) {
+      catObj = await addCategory(searchName, newBudget.type);
     }
 
     const newTarget = parseFloat(newBudget.amount) || 0;
+    
+    const budgetItem = {
+      id: catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`,
+      category: searchName || (catObj ? catObj.name : "Uncategorized"),
+      budget: newBudget.type === "income" ? "$0 earned" : "$0 spent",
+      status: newBudget.type === "income" ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
+      monthly_target: newTarget,
+      amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
+      iconId: catObj?.icon_id || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
+      type: newBudget.type === "income" ? "income" : "item",
+      progress: 0,
+      color: catObj?.color || (newBudget.type === "income" ? "emerald" : "indigo")
+    };
 
-    const updateRecursive = (items) => {
+    setData(prev => {
+      let updated;
+      if (editingItem) {
+        updated = prev.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
+      } else {
+        updated = [...prev, budgetItem];
+      }
+      setHasChanges(true);
+      return updated;
+    });
+
+    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Remember to save changes.`);
+    setIsNewBudgetOpen(false);
+    setEditingItem(null);
+  };
+
+  const toggleGroup = (id) => {
+    const toggleRecursive = (items) => {
       return items.map(item => {
-        if (item.id === newBudget.category || item.category === newBudget.category) {
-          const currentSpent = parseCurrency(item.budget || "$0");
-          const remaining = newTarget - currentSpent;
-          const isIncome = item.type === "income" || newBudget.type === "income";
-
-          return { 
-            ...item, 
-            amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
-            budget: item.budget || (isIncome ? "$0 earned" : "$0 spent"),
-            status: isIncome 
-              ? `${formatAmount(remaining, { decimals: 0, useParentheses: false })} to go`
-              : `${formatAmount(remaining, { decimals: 0 })} left`
-          };
-        }
+        if (item.id === id) return { ...item, isExpanded: !item.isExpanded };
         if (item.children) {
-          return { ...item, children: updateRecursive(item.children) };
+          return { ...item, children: toggleRecursive(item.children) };
         }
         return item;
       });
     };
-
-    setData(prev => {
-      const updated = updateRecursive(prev);
-      setHasChanges(true); // Don't auto-sync anymore
-      return updated;
-    });
-
-    toast.success(`Updated budget for ${newBudget.category}. Remember to save changes.`);
-    setIsNewBudgetOpen(false);
-  };
-
-  const toggleGroup = (id) => {
-    setData(prev => prev.map(item => {
-      if (item.id === id) return { ...item, isExpanded: !item.isExpanded };
-      if (item.children) {
-         return {
-            ...item,
-            children: item.children.map(child => {
-               if (child.id === id) return { ...child, isExpanded: !child.isExpanded };
-               return child;
-            })
-         }
-      }
-      return item;
-    }));
+    setData(prev => toggleRecursive(prev));
   };
 
   const toggleAll = () => {
@@ -455,6 +557,36 @@ export default function SetBudget() {
     }));
   };
 
+   if (isInitialLoading) {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-12">
+           <div className="relative mb-12">
+              <div className="w-24 h-24 rounded-[32px] bg-slate-900 flex items-center justify-center animate-pulse">
+                 <LayoutGrid className="w-10 h-10 text-white" />
+              </div>
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-[#C5A059] flex items-center justify-center shadow-xl animate-bounce">
+                 <ShieldCheck className="w-5 h-5 text-white" />
+              </div>
+           </div>
+           
+           <div className="text-center space-y-4 max-w-md">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Initializing Strategic Ledger</h2>
+              <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                 <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="h-full bg-slate-900" 
+                 />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C5A059]">Syncing Global Allocation Parameters · {monthKey}</p>
+           </div>
+        </div>
+      </AuthGuard>
+    );
+  }
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-white">
@@ -463,7 +595,61 @@ export default function SetBudget() {
            <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
+                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                        <Select 
+                          value={selectedDate.getMonth().toString()} 
+                          onValueChange={(val) => {
+                            const newDate = new Date(selectedDate);
+                            newDate.setMonth(parseInt(val));
+                            setSelectedDate(newDate);
+                          }}
+                        >
+                          <SelectTrigger className="w-28 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 12 }).map((_, i) => (
+                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                                {format(new Date(2026, i, 1), 'MMMM')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="w-[1px] h-4 bg-slate-200" />
+                        <Select 
+                          value={selectedDate.getFullYear().toString()} 
+                          onValueChange={(val) => {
+                            const newDate = new Date(selectedDate);
+                            newDate.setFullYear(parseInt(val));
+                            setSelectedDate(newDate);
+                          }}
+                        >
+                          <SelectTrigger className="w-20 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2025, 2026, 2027, 2028].map(y => (
+                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                                {y}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                     </div>
+
+                     <Link to="/Dashboard" className="h-9 px-4 flex items-center text-xs font-bold text-slate-400 hover:text-slate-900 gap-2 transition-colors">
+                        Command Center
+                     </Link>
+
+                      <Button 
+                        variant="ghost" 
+                        onClick={handleCopyFromPreviousMonth}
+                        className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
+                      >
+                         <Upload className="w-3.5 h-3.5" /> Copy Last Month
+                      </Button>
+
+                     <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
                       <DialogTrigger asChild>
                         <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
                            <Plus className="w-3.5 h-3.5" /> New budget
@@ -489,22 +675,23 @@ export default function SetBudget() {
                         </DialogHeader>
 
                         <div className="p-8 space-y-8">
-                          {/* Category Selection */}
+                          {/* Category Selection (Centralized Registry) */}
                           <div className="space-y-3">
                             <label className="text-sm font-medium text-slate-600">What is this budget for?</label>
-                            <Select 
-                              value={newBudget.category} 
-                              onValueChange={(val) => setNewBudget({ ...newBudget, category: val })}
-                            >
-                              <SelectTrigger className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-400 shadow-none focus:ring-0 focus:border-slate-800 transition-all">
-                                <SelectValue placeholder="Choose budget category" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                {leafCategories.map(cat => (
-                                  <SelectItem key={cat.id} value={cat.id} className="text-sm py-2.5">{cat.category}</SelectItem>
+                            <div className="relative group">
+                              <Input 
+                                list="category-list"
+                                placeholder="Type to search or add category..."
+                                value={newBudget.categoryName || ""}
+                                onChange={(e) => setNewBudget({ ...newBudget, categoryName: e.target.value })}
+                                className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-slate-700 shadow-none focus-visible:ring-0 focus:border-slate-800 transition-all font-medium"
+                              />
+                              <datalist id="category-list">
+                                {categories.map(cat => (
+                                  <option key={cat.id} value={cat.name} />
                                 ))}
-                              </SelectContent>
-                            </Select>
+                              </datalist>
+                            </div>
                           </div>
 
                           {/* Repeat Logic */}
@@ -559,20 +746,7 @@ export default function SetBudget() {
                                   className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-lg font-medium text-slate-700 shadow-none focus-visible:ring-0 focus:border-slate-800 transition-all tabular-nums"
                                 />
                               </div>
-                              <RadioGroup 
-                                value={newBudget.type} 
-                                onValueChange={(val) => setNewBudget({ ...newBudget, type: val })}
-                                className="flex items-center gap-4"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="expense" id="expense" className="text-[#3b4754] border-[#3b4754]" />
-                                  <Label htmlFor="expense" className="text-sm font-medium text-slate-600">Expense</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="income" id="income" className="text-[#3b4754] border-[#3b4754]" />
-                                  <Label htmlFor="income" className="text-sm font-medium text-slate-600">Income</Label>
-                                </div>
-                              </RadioGroup>
+                              {/* Type is now effectively hardcoded to expense for the planner list */}
                             </div>
                           </div>
 
@@ -595,10 +769,19 @@ export default function SetBudget() {
                           </div>
                         </div>
 
-                        <DialogFooter className="p-6 pt-2 border-t border-slate-50 gap-3 sm:justify-between items-center sm:flex-row">
-                          <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 p-0 h-auto">
-                            Advanced Options
-                          </Button>
+                        <DialogFooter className="p-6 pt-2 border-t border-slate-50 gap-3 justify-between items-center flex flex-row">
+                          <div className="flex items-center gap-2">
+                             {editingItem && (
+                                <Button 
+                                   variant="ghost" 
+                                   size="sm"
+                                   className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 px-2 h-8 text-[10px] font-black uppercase tracking-widest"
+                                   onClick={() => handleDeleteItem(editingItem.id)}
+                                >
+                                   Delete Category
+                                </Button>
+                             )}
+                          </div>
                           <div className="flex items-center gap-3">
                             <Button 
                               variant="ghost" 
@@ -620,9 +803,11 @@ export default function SetBudget() {
                  </div>
                  
                   <div className="flex items-center gap-2">
-                    <Button onClick={toggleAll} variant="ghost" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">
-                       {isAllExpanded ? "Collapse All" : "Expand All"}
-                    </Button>
+                    {hasGroups && (
+                      <Button onClick={toggleAll} variant="ghost" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">
+                         {isAllExpanded ? "Collapse All" : "Expand All"}
+                      </Button>
+                    )}
                   </div>
               </div>
 
@@ -648,11 +833,9 @@ export default function SetBudget() {
                   Budget <ChevronDown className="w-3.5 h-3.5" />
                </div>
                <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right flex items-center justify-end gap-2">
-                  Amount <ChevronDown className="w-3.5 h-3.5 text-slate-200" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-200" /> Amount
                </div>
-               <div className="w-24 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-center">
-                  Roll Up
-               </div>
+               <div className="w-24" />
                <div className="w-16" />
             </div>
 
@@ -660,11 +843,76 @@ export default function SetBudget() {
             <div>
               {data.map((item) => (
                 <BudgetRow 
-                  key={item.id} 
-                  item={item} 
-                  onToggle={toggleGroup}
+                   item={item} 
+                   key={item.id} 
+                   onEdit={setEditingItem}
+                   onDelete={handleDeleteItem}
                 />
               ))}
+            </div>
+
+            {/* Institutional Signature Summary */}
+            <div className="mx-0 my-0 p-8 pt-10 pb-12 bg-white border-t border-slate-100 flex items-center relative overflow-hidden">
+               {/* Left: Branding & Integrity Badge */}
+               <div className="flex-1 flex items-center gap-10 px-12">
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Ledger Integrity</p>
+                     <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
+                           <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Plan Verified</span>
+                     </div>
+                  </div>
+                  
+                  <div className="h-10 w-px bg-slate-100" />
+                  
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Planned Monthly Income</p>
+                     <div className="flex items-center gap-2">
+                        <span className="text-xl font-medium text-emerald-600 tracking-tight">$</span>
+                        <input 
+                           type="number"
+                           value={expectedIncome}
+                           onChange={(e) => {
+                              setExpectedIncome(Number(e.target.value));
+                              setHasChanges(true);
+                           }}
+                           className="bg-emerald-50/30 border-none border-b border-emerald-100 focus:border-emerald-400 focus:ring-0 text-xl font-black text-emerald-600 tabular-nums tracking-tighter w-24 p-0"
+                        />
+                     </div>
+                  </div>
+
+                  <div className="h-10 w-px bg-slate-100" />
+
+                  <div className="flex flex-col gap-1">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Target Surplus</p>
+                     <p className={`text-xl font-black tabular-nums tracking-tighter ${totals.net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        {formatAmount(totals.net)}
+                     </p>
+                  </div>
+               </div>
+
+               {/* Right: Aligned Total Amount with Institutional Accents */}
+               <div className="flex items-center">
+                  <div className="w-80 flex justify-end pr-12">
+                     <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 text-right leading-tight">
+                        TOTAL MONTHLY<br />EXPENSE TARGET
+                     </p>
+                  </div>
+                  
+                  {/* The Figure: Aligned to Amount Column */}
+                  <div className="w-48 px-6 text-right relative">
+                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#C5A059] rounded-full opacity-30" />
+                     <p className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">
+                        {formatAmount(totals.expense)}
+                     </p>
+                  </div>
+                  
+                  <div className="w-16 flex items-center justify-center">
+                     <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.5)]" />
+                  </div>
+               </div>
             </div>
 
             {/* Footer / Empty State placeholder */}

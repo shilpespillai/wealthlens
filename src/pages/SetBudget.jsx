@@ -47,25 +47,9 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 
-export const INITIAL_BUDGET_DATA = [
-  { id: "income", category: "Income", monthly_target: 0, amount: "0 / mo", iconId: "trending-up", type: "income", color: "emerald" },
-  { id: "housing", category: "Housing", monthly_target: 0, amount: "0 / mo", iconId: "home", type: "item", color: "indigo" },
-  { id: "utilities", category: "Utilities", monthly_target: 0, amount: "0 / mo", iconId: "zap", type: "item", color: "sky" },
-  { id: "financial", category: "Financial", monthly_target: 0, amount: "0 / mo", iconId: "banknote", type: "item", color: "slate" },
-  { id: "groceries", category: "Groceries", monthly_target: 0, amount: "0 / mo", iconId: "shopping-cart", type: "item", color: "orange" },
-  { id: "dining", category: "Dining & Food", monthly_target: 0, amount: "0 / mo", iconId: "utensils", type: "item", color: "amber" },
-  { id: "fuel", category: "Fuel & Transport", monthly_target: 0, amount: "0 / mo", iconId: "fuel", type: "item", color: "purple" },
-  { id: "healthcare", category: "Healthcare", monthly_target: 0, amount: "0 / mo", iconId: "activity", type: "item", color: "yellow" },
-  { id: "lifestyle", category: "Lifestyle", monthly_target: 0, amount: "0 / mo", iconId: "heart", type: "item", color: "rose" },
-  { id: "insurance", category: "Insurance", monthly_target: 0, amount: "0 / mo", iconId: "shield", type: "item", color: "blue" },
-  { id: "education", category: "Education", monthly_target: 0, amount: "0 / mo", iconId: "graduation-cap", type: "item", color: "violet" },
-  { id: "travel", category: "Travel", monthly_target: 0, amount: "0 / mo", iconId: "plane", type: "item", color: "cyan" },
-  { id: "shopping", category: "Shopping", monthly_target: 0, amount: "0 / mo", iconId: "shopping-bag", type: "item", color: "pink" },
-  { id: "gifts", category: "Gifts & Donations", monthly_target: 0, amount: "0 / mo", iconId: "gift", type: "item", color: "red" },
-  { id: "maintenance", category: "Maintenance", monthly_target: 0, amount: "0 / mo", iconId: "wrench", type: "item", color: "grey" },
-  { id: "uncategorized", category: "Uncategorized", monthly_target: 0, amount: "0 / mo", iconId: "circle", type: "item", color: "slate" }
-];
+import { CORE_CATEGORY_REGISTRY, resolveCanonicalCategory } from "@/utils/constants";
 
+// Map colors based on registry values
 const getColorClass = (color) => {
   return {
     emerald: "text-emerald-400",
@@ -76,12 +60,18 @@ const getColorClass = (color) => {
     purple: "text-purple-400",
     yellow: "text-yellow-300",
     rose: "text-rose-400",
-    slate: "text-slate-400"
+    slate: "text-slate-400",
+    blue: "text-blue-400",
+    violet: "text-violet-400",
+    cyan: "text-cyan-300",
+    pink: "text-pink-400",
+    red: "text-red-400",
+    grey: "text-slate-400"
   }[color || "slate"];
 };
 
 function BudgetRow({ item, onEdit, onDelete }) {
-  const { parseCurrency } = useFinancialParser();
+  const { parseCurrency, formatAmount } = useFinancialParser();
 
   return (
     <>
@@ -153,14 +143,16 @@ function BudgetRow({ item, onEdit, onDelete }) {
 
         {/* Amount Column */}
         <div className="w-48 px-6 text-right">
-          <span className={`text-[11px] font-bold ${(item.amount?.includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {item.amount || "0 / mo"}
-          </span>
+           <span className={`text-[11px] font-bold tabular-nums ${(String(item.amount || "").includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
+             {(() => {
+               const val = String(item.amount || "0").replace(/\s?\/\s?mo/g, '');
+               const num = parseFloat(val);
+               return isNaN(num) ? val : formatAmount(num, { useParentheses: false });
+             })()}
+           </span>
         </div>
 
-        {/* Roll Up Column (Removed) */}
-        <div className="w-24 px-4" />
-
+        {/* Actions Column (Settings / Trash) */}
         <div className="w-24 px-4 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
              onClick={() => onEdit && onEdit(item)}
@@ -210,18 +202,19 @@ export default function SetBudget() {
     return result;
   };
 
-
-
-  const [data, setData] = useState(INITIAL_BUDGET_DATA);
+  const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
-
+  const [expectedIncome, setExpectedIncome] = useState(0);
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
-  const leafCategories = useMemo(() => flattenCategories(INITIAL_BUDGET_DATA), []);
+  const leafCategories = useMemo(() => 
+    flattenCategories(CORE_CATEGORY_REGISTRY).filter(c => c.type !== 'income'), 
+    []
+  );
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const monthKey = useMemo(() => {
@@ -258,36 +251,33 @@ export default function SetBudget() {
           if (!isTemplate) setBudgetId(saved.id);
           else setBudgetId(null); // Fresh ID for a new month
 
+          // Handle global expected income baseline
+          if (saved.payload && saved.payload.expectedIncome !== undefined) {
+             setExpectedIncome(Number(saved.payload.expectedIncome));
+          } else if (saved.payload && saved.payload.incomes) {
+             // Fallback: sum legacy income rows if it's the first time converting
+             const legacySum = saved.payload.incomes.reduce((s, i) => s + Number(i.monthly_target || 0), 0);
+             setExpectedIncome(legacySum);
+          }
+
           // Support both strategic 'visualData' and raw 'incomes'/'expenses' payloads
           let dataToLoad = [];
           if (saved.payload) {
-            if (saved.payload.visualData) {
-              dataToLoad = saved.payload.visualData;
-            } else if (saved.payload.incomes || saved.payload.expenses) {
-              // Reconstruct flat data from relational legacy payload
-              dataToLoad = [
-                ...(saved.payload.incomes || []),
-                ...(saved.payload.expenses || [])
-              ];
-            }
+            dataToLoad = [
+              ...(saved.payload.visualData || []),
+              ...(saved.payload.expenses || [])
+            ];
           }
           
           if (dataToLoad.length > 0) {
-            // 3. SANITIZATION: If it's a carryover template, clear the spent status
-            if (isTemplate) {
-              dataToLoad = dataToLoad.map(item => ({
-                ...item,
-                budget: item.type === 'income' ? "$0 earned" : "$0 spent",
-                status: item.type === 'income' ? "Calculating..." : `${item.amount || '0'} left`,
-                progress: 0
-              }));
-            }
+            // Filter out any leaked income categories from the Table
+            dataToLoad = dataToLoad.filter(item => item.type !== 'income');
             
             setData(normalizeStructure(dataToLoad));
           }
         } else {
           // 4. Default if absolute zero budgets in DB
-          setData(INITIAL_BUDGET_DATA);
+          setData(normalizeStructure([])); // Seed from registry
           setBudgetId(null);
         }
       } catch (err) {
@@ -298,6 +288,48 @@ export default function SetBudget() {
     };
     init();
   }, [monthKey]);
+
+  const handleCopyFromPreviousMonth = async () => {
+    const prevDate = new Date(selectedDate);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonthKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    if (!window.confirm(`Copy budget from ${prevMonthKey}? This will overwrite your current targets for ${monthKey}.`)) return;
+    
+    setIsSaving(true);
+    try {
+      const results = await base44.db.query("budgets", {
+        filters: [{ column: 'month', op: 'eq', value: prevMonthKey }]
+      });
+
+      if (results && results.length > 0) {
+        const prevBudget = results[0];
+        let prevData = [];
+        if (prevBudget.payload) {
+          prevData = prevBudget.payload.visualData || [...(prevBudget.payload.incomes || []), ...(prevBudget.payload.expenses || [])];
+        }
+
+        // Sanitize: carry over targets but clear actuals
+        const clonedData = prevData.map(item => ({
+          ...item,
+          budget: item.type === 'income' ? "$0 earned" : "$0 spent",
+          status: item.type === 'income' ? `${formatAmount(item.monthly_target || 0, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(item.monthly_target || 0, { decimals: 0 })} left`,
+          progress: 0
+        }));
+
+        setData(normalizeStructure(clonedData));
+        setHasChanges(true);
+        toast.success(`Leads from ${prevMonthKey} synchronized successfully.`);
+      } else {
+        toast.error(`No previous budget found for ${prevMonthKey}`);
+      }
+    } catch (err) {
+      console.error("Copy budget failed:", err);
+      toast.error("Failed to clone budget");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSaveBudget = async () => {
     setIsSaving(true);
@@ -322,7 +354,7 @@ export default function SetBudget() {
         month: monthKey, 
         payload: { 
           visualData: flatItems,
-          incomes: incomesToSave.map(i => ({ ...i, icon: null })),
+          expectedIncome: expectedIncome, 
           expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
       });
@@ -345,8 +377,7 @@ export default function SetBudget() {
   useEffect(() => {
     if (!categoriesLoading && categories.length === 0) {
       console.log("[SetBudget] Category registry empty. Seeding defaults...");
-      const flatDefaults = flattenCategories(INITIAL_BUDGET_DATA).filter(c => c.type !== 'group');
-      seedCategories(flatDefaults);
+      seedCategories(CORE_CATEGORY_REGISTRY);
     }
   }, [categoriesLoading, categories.length, seedCategories]);
 
@@ -371,23 +402,36 @@ export default function SetBudget() {
     }
   }, [isNewBudgetOpen]);
   
-   const normalizeStructure = (savedItems) => {
-    // Since we are now strictly flat, normalizeStructure simply merges 
-    // saved data with our standard template categories (if missing).
-    
-    const template = JSON.parse(JSON.stringify(INITIAL_BUDGET_DATA));
-    const savedLeaves = flattenCategories(savedItems);
-    
-    // Use a map to merge based on category name/id
+  const normalizeStructure = (savedItems) => {
+    // 1. Start with the Core Category Registry (Single Source of Truth)
+    // Filter out income as "budget is always for expenses"
+    const template = CORE_CATEGORY_REGISTRY
+      .filter(cat => cat.type !== 'income')
+      .map(cat => ({
+        ...cat,
+        category: cat.name,
+        monthly_target: 0,
+        amount: "0",
+        budget: "$0 spent",
+        status: "0.00 left"
+      }));
+
+    // 2. Normalize and merge saved items using Canonical Aliasing
     const finalMap = new Map();
-    
-    // Start with template
-    template.forEach(t => finalMap.set(t.category.toLowerCase(), t));
-    
-    // Overwrite with saved data
-    savedLeaves.forEach(s => {
-      const key = (s.category || "").toLowerCase();
-      if (key) finalMap.set(key, { ...(finalMap.get(key) || {}), ...s });
+    template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
+
+    savedItems.forEach(s => {
+      const canonicalName = resolveCanonicalCategory(s.category || s.name);
+      const key = canonicalName.toLowerCase();
+      
+      const existing = finalMap.get(key);
+      if (existing) {
+        // Merge saved data into existing canonical row
+        finalMap.set(key, { ...existing, ...s, category: canonicalName });
+      } else {
+        // standalone custom category
+        finalMap.set(key, { ...s, category: s.category || s.name });
+      }
     });
 
     return Array.from(finalMap.values());
@@ -398,19 +442,20 @@ export default function SetBudget() {
   
   const totals = useMemo(() => {
     let expense = 0;
-    let income = 0;
     
     flatItems.forEach(item => {
       const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
-      if (item.type === "income") {
-        income += val;
-      } else {
-        expense += val;
-      }
+      // Items here are guaranteed to be expenses based on our new system
+      expense += val;
     });
     
-    return { expense, income, net: income - expense };
-  }, [flatItems, parseCurrency]);
+    return {
+      income: expectedIncome,
+      expense,
+      net: expectedIncome - expense,
+      pieData: [] // can be derived later if needed
+    };
+  }, [flatItems, expectedIncome, parseCurrency]);
 
 
   const handleEditItem = (item) => {
@@ -596,6 +641,14 @@ export default function SetBudget() {
                         Command Center
                      </Link>
 
+                      <Button 
+                        variant="ghost" 
+                        onClick={handleCopyFromPreviousMonth}
+                        className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
+                      >
+                         <Upload className="w-3.5 h-3.5" /> Copy Last Month
+                      </Button>
+
                      <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
                       <DialogTrigger asChild>
                         <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
@@ -693,20 +746,7 @@ export default function SetBudget() {
                                   className="w-full bg-white border-none border-b border-slate-300 rounded-none px-0 h-10 text-lg font-medium text-slate-700 shadow-none focus-visible:ring-0 focus:border-slate-800 transition-all tabular-nums"
                                 />
                               </div>
-                              <RadioGroup 
-                                value={newBudget.type} 
-                                onValueChange={(val) => setNewBudget({ ...newBudget, type: val })}
-                                className="flex items-center gap-4"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="expense" id="expense" className="text-[#3b4754] border-[#3b4754]" />
-                                  <Label htmlFor="expense" className="text-sm font-medium text-slate-600">Expense</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="income" id="income" className="text-[#3b4754] border-[#3b4754]" />
-                                  <Label htmlFor="income" className="text-sm font-medium text-slate-600">Income</Label>
-                                </div>
-                              </RadioGroup>
+                              {/* Type is now effectively hardcoded to expense for the planner list */}
                             </div>
                           </div>
 
@@ -793,11 +833,9 @@ export default function SetBudget() {
                   Budget <ChevronDown className="w-3.5 h-3.5" />
                </div>
                <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right flex items-center justify-end gap-2">
-                  Amount <ChevronDown className="w-3.5 h-3.5 text-slate-200" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-200" /> Amount
                </div>
-               <div className="w-24 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-center">
-                  Roll Up
-               </div>
+               <div className="w-24" />
                <div className="w-16" />
             </div>
 
@@ -805,11 +843,10 @@ export default function SetBudget() {
             <div>
               {data.map((item) => (
                 <BudgetRow 
-                  key={item.id} 
-                  item={item} 
-                  onToggle={toggleGroup}
-                  onEdit={handleEditItem}
-                  onDelete={handleDeleteItem}
+                   item={item} 
+                   key={item.id} 
+                   onEdit={setEditingItem}
+                   onDelete={handleDeleteItem}
                 />
               ))}
             </div>
@@ -831,10 +868,19 @@ export default function SetBudget() {
                   <div className="h-10 w-px bg-slate-100" />
                   
                   <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Income Stream</p>
-                     <p className="text-xl font-black text-emerald-600 tabular-nums tracking-tighter">
-                        {formatAmount(totals.income)}
-                     </p>
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Planned Monthly Income</p>
+                     <div className="flex items-center gap-2">
+                        <span className="text-xl font-medium text-emerald-600 tracking-tight">$</span>
+                        <input 
+                           type="number"
+                           value={expectedIncome}
+                           onChange={(e) => {
+                              setExpectedIncome(Number(e.target.value));
+                              setHasChanges(true);
+                           }}
+                           className="bg-emerald-50/30 border-none border-b border-emerald-100 focus:border-emerald-400 focus:ring-0 text-xl font-black text-emerald-600 tabular-nums tracking-tighter w-24 p-0"
+                        />
+                     </div>
                   </div>
 
                   <div className="h-10 w-px bg-slate-100" />

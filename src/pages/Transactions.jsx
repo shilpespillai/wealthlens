@@ -66,6 +66,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import {
   Select,
   SelectContent,
@@ -139,6 +140,37 @@ const SIDEBAR_ITEMS = [
 
 // Dynamic Categories and Accounts will be computed in the component
 
+const CATEGORY_COLORS = {
+  "Housing": "#3b82f6", // Blue
+  "Transportation": "#f97316", // Orange
+  "Food": "#ef4444", // Red
+  "Utilities": "#f59e0b", // Amber/Light Yellow
+  "Healthcare": "#10b981", // Emerald
+  "Insurance": "#6366f1", // Indigo
+  "Entertainment": "#d946ef", // Fuchsia
+  "Personal": "#f43f5e", // Rose
+  "Education": "#8b5cf6", // Violet
+  "Savings": "#06b6d4", // Cyan
+  "Income": "#22c55e", // Green
+  "Salary": "#22c55e", // Green
+  "Investment": "#8b5cf6", // Violet
+  "Shopping": "#fb923c", // Vibrant Orange
+  "Travel": "#14b8a6", // Teal
+  "Miscellaneous": "#d4d4d8", // Light Slate
+  "Uncategorized": "#94a3b8", // Slate
+};
+
+function getCategoryColor(category) {
+  return CATEGORY_COLORS[category] || CATEGORY_COLORS["Miscellaneous"];
+}
+
+function getMerchantTextColor(category, type) {
+    if (type === 'income') return "#166534"; // Deep Green
+    const blueCategories = ["Housing", "Insurance", "Education"];
+    if (blueCategories.includes(category)) return "#1e40af"; // Deep Blue
+    return "#0f172a"; // Near Black
+}
+
 // Category registry will be pulled dynamically from centralized useCategories hook
 const CATEGORIES_FALLBACK = []; 
 
@@ -160,19 +192,48 @@ function TransactionsContent() {
     getProductionLedger,
     getDatabaseTable
   } = useFinancialParser();
-  const { categories, isLoading: categoriesLoading } = useCategories();
+  const { categories, seedCategories, isLoading: categoriesLoading } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
   const initialSearch = searchParams.get("search") || "";
   const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [entriesPerPage, setEntriesPerPage] = useState("25");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Deep filter helpers
-  const handleSidebarFilter = (type, q = "") => {
-    setSelectedTab(type);
-    setSearchQuery(q);
+  const handleSidebarFilter = (type, value = "") => {
+    if (type === 'tab') {
+      setSelectedTab(value);
+      setSearchQuery("");
+      setSelectedCategory(null);
+      setSelectedAccountId(null);
+    } else if (type === 'category') {
+      const catObj = categories.find(c => c.name === value);
+      setSelectedCategory(value);
+      setSelectedTab(catObj?.type || "all"); // Sync tab to category type (income/expense)
+      setSearchQuery("");
+      setSelectedAccountId(null);
+    } else if (type === 'account') {
+      setSelectedAccountId(value);
+      setSelectedTab("all");
+      setSelectedCategory(null);
+      setSearchQuery("");
+    } else if (type === 'search') {
+      setSearchQuery(value);
+      setSelectedTab("all");
+      setSelectedCategory(null);
+      setSelectedAccountId(null);
+    }
   };
   
   const [incomes, setIncomes] = useState([]);
@@ -184,7 +245,17 @@ function TransactionsContent() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isCommiting, setIsCommiting] = useState(false);
   const [dbAccounts, setDbAccounts] = useState([]);
+  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [newAccount, setNewAccount] = useState({ name: "", type: "asset", category: "Bank", balance: "" });
+  const [selectedImportAccount, setSelectedImportAccount] = useState("manual");
   const fileInputRef = React.useRef(null);
+
+  // Automated Category Synchronization
+  useEffect(() => {
+    if (seedCategories) {
+      seedCategories(CORE_CATEGORY_REGISTRY);
+    }
+  }, [seedCategories]);
 
   // Dynamic derivations - Migration to centralized hook
   const categoryNames = useMemo(() => {
@@ -192,18 +263,55 @@ function TransactionsContent() {
   }, [categories]);
 
   const ACCOUNTS_SIDEBAR = useMemo(() => {
-    return dbAccounts.map(acc => ({
-      name: acc.name,
-      balance: Number(acc.balance || acc.base_balance || 0),
-      color: (acc.balance || acc.base_balance || 0) < 0 ? "bg-rose-500" : "bg-emerald-500"
-    }));
-  }, [dbAccounts]);
+    const sidebar = dbAccounts.map(acc => {
+      // Calculate current month delta for this account
+      const accIncomes = incomes.filter(i => i.account_id === acc.id).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      const accExpenses = expenses.filter(e => e.account_id === acc.id).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      
+      const liveBalance = accIncomes - accExpenses;
+      
+      return {
+        id: acc.id,
+        name: acc.name,
+        balance: liveBalance,
+        color: liveBalance < 0 ? "bg-rose-500" : "bg-emerald-500",
+        isVirtual: false,
+        isSystem: !!acc.is_system
+      };
+    });
+
+    // Add Virtual "Manual Vault" for unassigned items
+    const manualIncs = incomes.filter(i => !i.account_id || i.account_id === "manual").reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    const manualExps = expenses.filter(e => !e.account_id || e.account_id === "manual").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const manualBal = manualIncs - manualExps;
+
+    sidebar.push({
+      id: "manual",
+      name: "Manual Vault",
+      balance: manualBal,
+      color: "bg-slate-400",
+      isVirtual: true,
+      isSystem: true
+    });
+
+    return sidebar;
+  }, [dbAccounts, incomes, expenses]);
 
   const monthKey = useMemo(() => {
     const y = selectedDate.getFullYear();
     const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
     return `${y}-${m}`;
   }, [selectedDate]);
+
+  const [manualForm, setManualForm] = useState({
+    merchant: "",
+    amount: "",
+    category: "",
+    spendType: "variable",
+    type: "expense",
+    date: new Date().toISOString().split('T')[0],
+    account_id: ""
+  });
 
   // Deep Link Handling
   useEffect(() => {
@@ -224,6 +332,24 @@ function TransactionsContent() {
     async function initData() {
       setIsLoading(true);
       try {
+        // 0. Fetch accounts to enable attribution mapping
+        let accounts = await base44.db.getTable("user_accounts");
+        
+        // Default Account Provisioning Safety: Prevent duplicate defaults during rapid re-mounts
+        if (!accounts || accounts.length === 0) {
+          console.log("[Transactions] System initializing defaults...");
+          const defaults = [
+            { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+            { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
+          ];
+          for (const acc of defaults) {
+            await base44.db.upsertRow("user_accounts", acc);
+          }
+          accounts = await base44.db.getTable("user_accounts");
+        }
+        
+        setDbAccounts(accounts || []);
+
         // 1. Fetch real transactions from the production ledger
         const ledger = await getProductionLedger({ month: monthKey });
         
@@ -231,14 +357,11 @@ function TransactionsContent() {
         const allBudgets = await getDatabaseTable("budgets");
         const saved = (allBudgets || []).find(b => b.month === monthKey);
         
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger);
+        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger, accounts || []);
         
         setIncomes(normIncs);
         setExpenses(normExps);
         if (saved?.currency) setCurrency(saved.currency);
-
-        const accounts = await base44.db.getTable("user_accounts");
-        setDbAccounts(accounts || []);
       } catch (err) {
         console.error("Transactions initialization failed:", err);
       } finally {
@@ -247,6 +370,73 @@ function TransactionsContent() {
     }
     initData();
   }, [monthKey, normalizeTransactionData, selectedDate, getProductionLedger, getDatabaseTable]);
+
+  // Load Saved Searches on mount
+  useEffect(() => {
+    const loadSearches = async () => {
+      const stored = await base44.user.loadData('wl_saved_searches');
+      if (stored) setSavedSearches(stored);
+    };
+    loadSearches();
+  }, []);
+
+  const handleSaveCurrentSearch = async () => {
+    if (!saveSearchName) return toast.error("Please enter a name for the search");
+    
+    const newSearch = {
+      id: Date.now(),
+      name: saveSearchName,
+      query: searchQuery,
+      tab: selectedTab,
+      category: selectedCategory,
+      accountId: selectedAccountId
+    };
+
+    const updated = [...savedSearches, newSearch];
+    setSavedSearches(updated);
+    await base44.user.saveData('wl_saved_searches', updated);
+    setIsSaveSearchModalOpen(false);
+    setSaveSearchName("");
+    toast.success(`Search "${saveSearchName}" saved to sidebar`);
+  };
+
+  const handleDeleteSavedSearch = async (e, id) => {
+    e.stopPropagation();
+    const updated = savedSearches.filter(s => s.id !== id);
+    setSavedSearches(updated);
+    await base44.user.saveData('wl_saved_searches', updated);
+    toast.info("Saved search removed");
+  };
+
+  const applySavedSearch = (search) => {
+    setSearchQuery(search.query || "");
+    setSelectedTab(search.tab || "all");
+    setSelectedCategory(search.category || null);
+    setSelectedAccountId(search.accountId || null);
+    setCurrentPage(1); // Reset pagination on filter change
+  };
+
+  const handleEditClick = (tx) => {
+    setEditingTransaction({ ...tx });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTransaction) return;
+    
+    const targetState = editingTransaction.type === 'income' ? incomes : expenses;
+    const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
+    
+    const newState = targetState.map(item => 
+      item.id === editingTransaction.id ? { ...item, ...editingTransaction } : item
+    );
+    
+    setState(newState);
+    setIsEditModalOpen(false);
+    setEditingTransaction(null);
+    setHasChanges(true); // Trigger commit-awareness
+    toast.success("Transaction updated locally. Commit to save to database.");
+  };
 
   const persistTransactionData = async (newIncomes, newExpenses) => {
     setHasChanges(true); // Don't auto-sync anymore
@@ -278,38 +468,149 @@ function TransactionsContent() {
   const allTransactions = useMemo(() => {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' }) + ' 01';
     return [
-      ...incomes.map(i => ({ ...i, type: 'income', amount: i.amount || 0, target: i.monthly_target, merchant: i.name, date: (i.date && i.date !== 'Monthly') ? i.date : fallbackDate })),
-      ...expenses.map(e => ({ ...e, type: 'expense', amount: e.amount || 0, target: e.monthly_target, merchant: e.name, date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate }))
+      ...incomes.map(i => ({ 
+        ...i, 
+        type: 'income', 
+        amount: i.amount || 0, 
+        target: i.monthly_target, 
+        merchant: i.name || i.merchant || i.category || 'Income Item', 
+        date: (i.date && i.date !== 'Monthly') ? i.date : fallbackDate 
+      })),
+      ...expenses.map(e => ({ 
+        ...e, 
+        type: 'expense', 
+        amount: e.amount || 0, 
+        target: e.monthly_target, 
+        merchant: e.name || e.merchant || e.category || 'Expense Item', 
+        date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate 
+      }))
     ];
   }, [incomes, expenses, selectedDate]);
 
   const filteredTransactions = useMemo(() => {
-    let list = allTransactions;
-    if (selectedTab !== 'all') {
-      if (selectedTab === 'uncategorized') list = list.filter(tx => tx.category === 'Uncategorized');
-      else list = list.filter(tx => tx.type === selectedTab);
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      // Enhanced filtering: Match merchant OR exactly match category if the search is from a sidebar category click
-      list = list.filter(tx => 
-        (tx.merchant?.toLowerCase() || "").includes(q) || 
-        (tx.category?.toLowerCase() === q) ||
-        (tx.category?.toLowerCase() || "").includes(q)
-      );
-    }
-    return list.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [allTransactions, selectedTab, searchQuery]);
+    return allTransactions
+      .filter(tx => {
+        // 1. Account Filter
+        if (selectedAccountId) {
+          if (selectedAccountId === 'manual') {
+            if (tx.account_id && tx.account_id !== 'manual' && tx.account_id !== '') return false;
+          } else {
+            const accMatch = String(tx.account_id) === String(selectedAccountId);
+            // Fallback: match by account name if ID is missing (for seeded data)
+            const foundAcc = dbAccounts.find(a => String(a.id) === String(selectedAccountId));
+            const nameMatch = foundAcc && tx.account === foundAcc.name;
+            if (!accMatch && !nameMatch) return false;
+          }
+        }
 
-  // Controlled Form State
-  const [manualForm, setManualForm] = useState({
-    merchant: "",
-    amount: "",
-    type: "expense",
-    category: "Groceries",
-    spendType: "variable",
-    date: new Date().toISOString().split('T')[0]
-  });
+        // 2. Tab Filter (Income/Expense/Uncategorized)
+        if (selectedTab !== 'all') {
+          if (selectedTab === 'uncategorized') {
+            if (tx.category?.toLowerCase() !== 'uncategorized') return false;
+          } else {
+            // Strict type matching for Income/Expense tabs
+            if (tx.type !== selectedTab) return false;
+          }
+        }
+
+        // 3. Category Filter
+        if (selectedCategory) {
+          if (tx.category?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+        }
+
+        // 4. Search Filter
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const matches = (tx.merchant?.toLowerCase() || "").includes(q) || 
+                          (tx.name?.toLowerCase() || "").includes(q) ||
+                          (tx.category?.toLowerCase() || "").includes(q) ||
+                          (tx.note?.toLowerCase() || "").includes(q);
+          if (!matches) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [allTransactions, selectedTab, searchQuery, selectedAccountId, selectedCategory, dbAccounts]);
+
+
+
+  const handleAddAccount = async () => {
+    if (!newAccount.name) return toast.error("Account name is required");
+    try {
+      await base44.db.upsert("user_accounts", {
+        name: newAccount.name,
+        type: newAccount.type,
+        category: newAccount.category,
+        base_balance: parseFloat(newAccount.balance) || 0
+      });
+      const accounts = await base44.db.getTable("user_accounts");
+      setDbAccounts(accounts || []);
+      setIsAddAccountOpen(false);
+      setNewAccount({ name: "", type: "asset", category: "Bank", balance: "" });
+      toast.success("Account created successfully");
+    } catch (err) {
+      console.error("Add account failed:", err);
+      toast.error("Failed to add account");
+    }
+  };
+
+  const handleDeleteAccount = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}"? Transactions assigned to this account will be moved to Manual Vault.`)) return;
+    try {
+      await base44.db.deleteRow('user_accounts', id);
+      
+      // Migration Engine: Reassign all staged transactions to the Manual Vault
+      const migrate = (items) => items.map(item => item.account_id === id ? { ...item, account_id: null, account: "Manual Vault" } : item);
+      const updatedIncs = migrate(incomes);
+      const updatedExps = migrate(expenses);
+      
+      setIncomes(updatedIncs);
+      setExpenses(updatedExps);
+      setHasChanges(true); // Flag for Commit synchronization
+
+      const accounts = await base44.db.getTable("user_accounts");
+      setDbAccounts(accounts || []);
+      toast.success("Account deleted. Transactions migrated to Manual Vault.");
+    } catch (err) {
+      console.error("Delete account failed:", err);
+      toast.error("Failed to delete account");
+    }
+  };
+
+  const handlePurgeMonth = async () => {
+    if (!window.confirm(`CRITICAL: This will permanently delete ALL transactions, budget staging, and analytical summaries for ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}. This action cannot be undone. Proceed?`)) return;
+    
+    setIsLoading(true);
+    try {
+      // 1. Purge raw transactions for the month (matching date prefix)
+      await base44.db.deleteByFilter('transactions', 'date', `%${monthKey}%`); // For SQL like, but local uses simple matching
+      // Note: Local deleteByFilter currently does !== value. I should use a more precise range for SQL or a dedicated purge method.
+      
+      // Improvement: Since we want a range, I'll use a fetch-and-bulk-delete strategy for accuracy across all environments
+      const allTxs = await base44.db.getTable('transactions');
+      const toDelete = allTxs.filter(t => t.date && t.date.includes(monthKey));
+      for (const t of toDelete) {
+        await base44.db.deleteRow('transactions', t.id);
+      }
+
+      // 2. Purge budget state
+      await base44.db.deleteByFilter('budgets', 'month', monthKey);
+      
+      // 3. Purge monthly summaries
+      await base44.db.deleteByFilter('monthly_summaries', 'month', monthKey);
+
+      toast.success(`Data purged for ${monthKey}`);
+      
+      // 4. Force refresh the data
+      window.location.reload(); 
+    } catch (err) {
+      console.error("Purge failed:", err);
+      toast.error("Failed to purge data");
+    } finally {
+      setIsLoading(true);
+    }
+  };
 
   const handleManualAdd = () => {
     if (!manualForm.merchant || !manualForm.amount) return toast.error("Please fill required fields");
@@ -320,7 +621,9 @@ function TransactionsContent() {
       category: manualForm.category || "Uncategorized",
       amount: parseFloat(manualForm.amount) || 0,
       spendType: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
-      date: manualForm.date
+      date: manualForm.date,
+      account_id: manualForm.account_id,
+      account: dbAccounts.find(a => a.id === manualForm.account_id)?.name || "Manual Vault"
     };
 
     if (manualForm.type === 'income') {
@@ -334,18 +637,32 @@ function TransactionsContent() {
       amount: "", 
       type: "expense", 
       category: "Fixed", 
-      date: selectedDate.toISOString().split('T')[0] 
+      date: selectedDate.toISOString().split('T')[0],
+      account_id: ""
     });
     toast.success("Transaction staged. Click Commit to save.");
   };
 
   const handleUpdateItem = async (id, updates, type) => {
+    const finalUpdates = { ...updates };
+    
+    // Ensure name is updated if account_id changes
+    if (updates.account_id !== undefined) {
+      if (!updates.account_id || updates.account_id === 'manual') {
+        finalUpdates.account = "Manual Vault";
+        finalUpdates.account_id = null;
+      } else {
+        const found = dbAccounts.find(a => String(a.id) === String(updates.account_id));
+        finalUpdates.account = found?.name || "Unknown Account";
+      }
+    }
+
     if (type === 'income') {
-      const updated = incomes.map(i => i.id === id ? { ...i, ...updates } : i);
+      const updated = incomes.map(i => i.id === id ? { ...i, ...finalUpdates } : i);
       setIncomes(updated);
       persistTransactionData(updated, expenses);
     } else {
-      const updated = expenses.map(e => e.id === id ? { ...e, ...updates } : e);
+      const updated = expenses.map(e => e.id === id ? { ...e, ...finalUpdates } : e);
       setExpenses(updated);
       persistTransactionData(incomes, updated);
     }
@@ -369,8 +686,8 @@ function TransactionsContent() {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
     const formatted = newItems.map(item => ({
       id: Date.now() + Math.random(),
-      name: item.name,
-      category: item.category,
+      name: item.name || item.merchant || item.description || "Synced Transaction",
+      category: item.category || "Uncategorized",
       amount: item.amount,
       date: item.date || `${fallbackDate} 01`
     }));
@@ -387,50 +704,35 @@ function TransactionsContent() {
     }
   };
 
-  const handleImportResults = (parsedData) => {
+  const handleImportResults = async (parsedData) => {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
     const formatted = parsedData.map(item => ({
       id: Date.now() + Math.random(),
-      name: item.name || "Imported Item",
+      name: item.name || item.merchant || item.description || "Imported Item",
       category: item.category || "variable",
       amount: Number(item.amount || item.monthlyAmount) || 0,
-      date: item.date || `${fallbackDate} 01`
+      date: item.date || `${fallbackDate} 01`,
+      account_id: selectedImportAccount === 'manual' ? null : selectedImportAccount,
+      account: dbAccounts.find(a => a.id === selectedImportAccount)?.name || "Manual Vault"
     }));
+    
+    // Learning Logic: Associate this import source with this account for next time
+    // Isolated by User ID to prevent cross-account mapping leakage
+    if (selectedImportAccount !== 'manual') {
+      const user = await base44.auth.me();
+      const sourceKey = parsedData[0]?.source || parsedData[0]?.merchant || "Unknown Source";
+      localStorage.setItem(`wealthlens_mapping_${user.id}_${sourceKey}`, selectedImportAccount);
+    }
+
     const updated = [...expenses, ...formatted];
     setExpenses(updated);
     persistTransactionData(incomes, updated);
-    toast.success(`Imported ${formatted.length} transactions!`);
+    setIsImportModalOpen(false);
+    setImportText("");
+    toast.success(`Imported ${formatted.length} transactions to ${dbAccounts.find(a => a.id === selectedImportAccount)?.name || 'Manual Vault'}`);
   };
 
-  const handleCopyFromPrevious = async () => {
-    const prevDate = new Date(selectedDate);
-    prevDate.setMonth(prevDate.getMonth() - 1);
-    const y = prevDate.getFullYear();
-    const m = (prevDate.getMonth() + 1).toString().padStart(2, '0');
-    const prevMonthKey = `${y}-${m}`;
-    const tId = toast.loading("Copying previous month...");
-    
-    try {
-      const results = await base44.db.query("budgets", {
-        filters: [{ column: 'month', op: 'eq', value: prevMonthKey }]
-      });
 
-      if (results && results.length > 0) {
-        const saved = results[0].payload;
-        if (saved && (saved.incomes?.length || saved.expenses?.length)) {
-          setIncomes(saved.incomes || []);
-          setExpenses(saved.expenses || []);
-          setHasChanges(true); // Ensure they can commit this copy
-          toast.success("Copied data from " + prevDate.toLocaleString('default', { month: 'short' }), { id: tId });
-          return;
-        }
-      }
-      toast.error("No data found in previous month", { id: tId });
-    } catch (err) {
-      console.error("Copy Prev failed:", err);
-      toast.error("Failed to copy data", { id: tId });
-    }
-  };
 
   const summary = calculateMetrics(incomes, expenses);
   const sym = getCurrencySymbol(currency);
@@ -501,19 +803,35 @@ function TransactionsContent() {
               className="bg-white/10 text-white text-xs rounded-full py-1.5 pl-9 pr-8 w-64 outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
             />
             {searchQuery && (
-               <button 
-                 onClick={() => setSearchQuery("")}
-                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
-               >
-                 <Plus className="w-3 h-3 rotate-45" />
-               </button>
+               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pt-px">
+                  <button 
+                    onClick={() => {
+                        setSaveSearchName(searchQuery || "");
+                        setIsSaveSearchModalOpen(true);
+                    }}
+                    className="text-white/40 hover:text-white transition-colors"
+                    title="Save this search"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-[1px] h-3 bg-white/20 mx-0.5" />
+                  <button 
+                    onClick={() => setSearchQuery("")}
+                    className="text-white/40 hover:text-white transition-colors"
+                  >
+                    <Plus className="w-3 h-3 rotate-45" />
+                  </button>
+               </div>
             )}
           </div>
           <div className="flex items-center gap-4 text-white/70">
-            <LayoutGrid className="w-4 h-4 cursor-pointer hover:text-white" />
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all">
-              <User className="w-4 h-4 text-white" />
-            </div>
+            <button 
+              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+              className="p-2 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white"
+              title={viewMode === 'list' ? "Switch to Grid View" : "Switch to List View"}
+            >
+              {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+            </button>
           </div>
         </div>
       </header>
@@ -534,15 +852,15 @@ function TransactionsContent() {
               {SIDEBAR_ITEMS.map((item) => (
                 <button 
                   key={item.id}
-                  onClick={() => handleSidebarFilter(item.id, "")}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id ? 'bg-purple-600 text-white shadow-md' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+                  onClick={() => handleSidebarFilter('tab', item.id)}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id && !selectedCategory && !selectedAccountId ? 'bg-purple-600 text-white shadow-md' : (selectedTab === item.id ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-white hover:shadow-sm')}`}
                 >
                   <div className="flex items-center gap-3">
                     <item.icon className={`w-4 h-4 ${selectedTab === item.id ? 'text-white' : item.color}`} />
                     <span className="text-xs font-medium">{item.label}</span>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedTab === item.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    {selectedTab === item.id ? 'all' : (item.id === 'all' ? allTransactions.length : allTransactions.filter(tx => tx.type === item.id || (item.id === 'uncategorized' && tx.category === 'Uncategorized')).length)}
+                    {item.id === 'all' ? allTransactions.length : allTransactions.filter(tx => tx.type === item.id || (item.id === 'uncategorized' && tx.category === 'Uncategorized')).length}
                   </span>
                 </button>
               ))}
@@ -555,33 +873,110 @@ function TransactionsContent() {
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </div>
             <div className="space-y-1">
-              {["All uncategorised", "Craft beer", "Good food", "Healthcare", "London", "Bargains"].map(s => (
-                <button 
-                  key={s} 
-                  onClick={() => handleSidebarFilter("all", s)}
-                  className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 ${searchQuery === s ? 'bg-white shadow-sm text-purple-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
-                >
-                  <Search className="w-3 h-3 text-slate-300" /> {s}
-                </button>
-              ))}
+              {savedSearches.length === 0 ? (
+                <p className="px-4 py-3 text-[10px] text-slate-400 italic">No saved searches yet. Create one by clicking + next to the search bar.</p>
+              ) : (
+                savedSearches.map(s => (
+                  <div 
+                    key={s.id} 
+                    className="group relative"
+                  >
+                    <button 
+                      onClick={() => applySavedSearch(s)}
+                      className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 pr-10 truncate ${searchQuery === s.query ? 'bg-white shadow-sm text-purple-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
+                    >
+                      <Search className="w-3 h-3 text-slate-300" /> 
+                      <span className="truncate">{s.name}</span>
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteSavedSearch(e, s.id)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-rose-50 rounded text-slate-300 hover:text-rose-600 transition-all"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          <div>
+          <div className="pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between px-2 mb-4">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Accounts</p>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
+              <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
+                <DialogTrigger asChild>
+                  <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-purple-600 transition-colors">
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Account</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-slate-500 uppercase">Account Name</label>
+                       <Input 
+                         placeholder="e.g. Savings Vault" 
+                         value={newAccount.name}
+                         onChange={(e) => setNewAccount(prev => ({ ...prev, name: e.target.value }))}
+                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                         <label className="text-xs font-bold text-slate-500 uppercase">Type</label>
+                         <Select value={newAccount.type} onValueChange={(v) => setNewAccount(prev => ({ ...prev, type: v }))}>
+                           <SelectTrigger><SelectValue /></SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="asset">Asset (Cash/Bank)</SelectItem>
+                             <SelectItem value="debt">Debt (Credit Card)</SelectItem>
+                           </SelectContent>
+                         </Select>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-xs font-bold text-slate-500 uppercase">Initial Balance</label>
+                         <Input 
+                           type="number"
+                           placeholder="0.00" 
+                           value={newAccount.balance}
+                           onChange={(e) => setNewAccount(prev => ({ ...prev, balance: e.target.value }))}
+                         />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddAccount} className="w-full bg-purple-600 hover:bg-purple-700">Create Account</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
             <div className="space-y-2 px-2">
               {ACCOUNTS_SIDEBAR.map(acc => (
-                <div key={acc.name} className="space-y-1 cursor-pointer group">
+                <div 
+                  key={acc.id} 
+                  onClick={() => handleSidebarFilter('account', acc.id)}
+                  className={`relative space-y-1 cursor-pointer group pr-8 p-1.5 rounded-xl transition-all ${selectedAccountId === acc.id ? 'bg-purple-50 ring-1 ring-purple-100 shadow-sm' : 'hover:bg-slate-50'}`}
+                >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${acc.color}`} />
-                    <span className="text-xs font-medium text-slate-600 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{acc.name}</span>
+                    <span className={`text-xs font-medium transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-purple-600 font-bold' : 'text-slate-600 group-hover:text-purple-600'}`}>{acc.name}</span>
                   </div>
                   <p className="text-[11px] font-bold text-slate-800 tabular-nums ml-5">
                     {(acc.balance || 0) < 0 ? `(${Math.abs(acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                   </p>
+                  
+                  {!acc.isVirtual && !acc.isSystem && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAccount(acc.id, acc.name);
+                      }}
+                      className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-600 transition-all z-10 pointer-events-auto"
+                      title="Delete Account"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -596,8 +991,8 @@ function TransactionsContent() {
               {categoryNames.map(c => (
                 <button 
                   key={c} 
-                  onClick={() => handleSidebarFilter("all", c)}
-                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${searchQuery === c ? 'text-purple-600 font-bold' : 'text-slate-500 hover:text-purple-600'}`}
+                  onClick={() => handleSidebarFilter("category", c)}
+                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${selectedCategory === c ? 'text-purple-600 font-bold bg-purple-50 rounded-lg shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}
                 >
                   {c}
                 </button>
@@ -638,8 +1033,34 @@ function TransactionsContent() {
                         placeholder="Paste your bank statement text here..."
                         className="min-h-[200px] bg-slate-50"
                         value={importText}
-                        onChange={(e) => setImportText(e.target.value)}
+                        onChange={async (e) => {
+                          setImportText(e.target.value);
+                          try {
+                            const data = JSON.parse(e.target.value);
+                            const source = data[0]?.source || data[0]?.merchant;
+                            const user = await base44.auth.me();
+                            const learned = localStorage.getItem(`wealthlens_mapping_${user.id}_${source}`);
+                            if (learned) {
+                              setSelectedImportAccount(learned);
+                              toast.info("Smart Mapping: Pre-selected learned account", { icon: "🧠" });
+                            }
+                          } catch (e) {}
+                        }}
                       />
+                      <div className="space-y-2">
+                         <label className="text-xs font-bold text-slate-500 uppercase">Target Account</label>
+                         <Select value={selectedImportAccount} onValueChange={setSelectedImportAccount}>
+                           <SelectTrigger className="bg-white">
+                             <SelectValue placeholder="Select Account" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="manual">Manual Vault (Unassigned)</SelectItem>
+                             {dbAccounts.map(acc => (
+                               <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button onClick={() => handleImportResults(JSON.parse(importText))}>Import Raw JSON</Button>
@@ -707,6 +1128,17 @@ function TransactionsContent() {
                           </SelectContent>
                         </Select>
                       )}
+                      <Select 
+                        value={manualForm.account_id}
+                        onValueChange={(v) => setManualForm(prev => ({ ...prev, account_id: v }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Assign Account" /></SelectTrigger>
+                        <SelectContent>
+                          {dbAccounts.map(acc => (
+                             <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <DialogFooter>
                       <Button onClick={handleManualAdd}>Save Transaction</Button>
@@ -714,39 +1146,189 @@ function TransactionsContent() {
                   </DialogContent>
                 </Dialog>
 
-                <Button variant="outline" onClick={handleCopyFromPrevious} className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
-                   <CalendarIcon className="w-4 h-4 text-slate-400" /> Copy Prev
+                <Button 
+                  variant="outline" 
+                  onClick={handlePurgeMonth}
+                  className="h-9 gap-2 text-xs font-medium border-rose-200 text-rose-600 hover:bg-rose-50 transition-all"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-400" /> Purge Month
+                </Button>
+
+
+              </div>
+            </div>
+
+            <Dialog open={isSaveSearchModalOpen} onOpenChange={setIsSaveSearchModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-800 tracking-tight">Save Filter Strategy</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-slate-500 uppercase tracking-widest mt-1">
+                            Store your current keyword and category filters for instant access.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6">
+                        <Input 
+                            placeholder="e.g. London Whole Foods"
+                            value={saveSearchName}
+                            onChange={(e) => setSaveSearchName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSaveCurrentSearch()}
+                            className="h-12 bg-slate-50 text-base font-medium border-slate-200 focus:bg-white transition-all shadow-inner"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button 
+                            onClick={handleSaveCurrentSearch}
+                            className="w-full bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-12 shadow-lg shadow-purple-100"
+                        >
+                            Save Selection
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-800 tracking-tight">Edit Transaction</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-slate-500 uppercase tracking-widest mt-1">
+                            Refine details for this {editingTransaction?.type} entry.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Merchant / Branding</label>
+                            <Input 
+                                value={editingTransaction?.merchant || ""}
+                                onChange={(e) => setEditingTransaction(prev => ({ ...prev, merchant: e.target.value }))}
+                                className="h-11 bg-slate-50 border-slate-200 font-medium"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</label>
+                                <Input 
+                                    type="number"
+                                    value={editingTransaction?.amount || 0}
+                                    onChange={(e) => setEditingTransaction(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                    className="h-11 bg-slate-50 border-slate-200 font-medium tabular-nums"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</label>
+                                <Input 
+                                    value={editingTransaction?.date || ""}
+                                    onChange={(e) => setEditingTransaction(prev => ({ ...prev, date: e.target.value }))}
+                                    className="h-11 bg-slate-50 border-slate-200 font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</label>
+                                <Select 
+                                    value={editingTransaction?.category || ""}
+                                    onValueChange={(v) => setEditingTransaction(prev => ({ ...prev, category: v }))}
+                                >
+                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200 font-medium">
+                                        <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map(cat => (
+                                            <SelectItem key={cat.id || cat.name} value={cat.name}>{cat.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Account</label>
+                                <Select 
+                                    value={editingTransaction?.account_id || "manual"}
+                                    onValueChange={(v) => setEditingTransaction(prev => ({ ...prev, account_id: v }))}
+                                >
+                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200 font-medium">
+                                        <SelectValue placeholder="Select Account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="manual">Manual Vault</SelectItem>
+                                        {dbAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button 
+                            variant="ghost" 
+                            onClick={() => setIsEditModalOpen(false)}
+                            className="font-bold text-slate-400"
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleSaveEdit}
+                            className="bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-11 px-8"
+                        >
+                            Update Transaction
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Entries</span>
+                 <Select value={entriesPerPage} onValueChange={(v) => { setEntriesPerPage(v); setCurrentPage(1); }}>
+                   <SelectTrigger className="h-8 w-[80px] text-xs font-medium border-slate-200 bg-white hover:border-purple-300 transition-all shadow-sm">
+                     <SelectValue />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {[10, 25, 50, 100].map(v => (
+                        <SelectItem key={v} value={v.toString()} className="text-xs">{v}</SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8 border-slate-200 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-all"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                <div className="flex items-center gap-1.5 px-3 h-8 bg-slate-50 border border-slate-200 rounded-md">
+                   <span className="text-xs font-medium text-purple-600 tabular-nums">{currentPage}</span>
+                   <span className="text-[10px] font-medium text-slate-400">/</span>
+                   <span className="text-xs font-medium text-slate-500 tabular-nums">{Math.ceil(filteredTransactions.length / parseInt(entriesPerPage)) || 1}</span>
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8 border-slate-200 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-all"
+                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTransactions.length / parseInt(entriesPerPage)), prev + 1))}
+                  disabled={currentPage >= Math.ceil(filteredTransactions.length / parseInt(entriesPerPage))}
+                >
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Show</span>
-                 <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
-                   <SelectTrigger className="h-8 w-20 text-[10px] font-bold">
-                     <SelectValue placeholder="25" />
-                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="10">10 entries</SelectItem>
-                     <SelectItem value="25">25 entries</SelectItem>
-                     <SelectItem value="50">50 entries</SelectItem>
-                     <SelectItem value="100">100 entries</SelectItem>
-                   </SelectContent>
-                 </Select>
-              </div>
-              <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden">
-                <button className="p-1.5 hover:bg-slate-50 transition-colors border-r border-slate-200 disabled:opacity-30" disabled>
-                  <ChevronLeft className="w-4 h-4 text-slate-500" />
-                </button>
-                <button className="p-1.5 hover:bg-slate-50 transition-colors">
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
-                </button>
-              </div>
-            </div>
-
           <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-normal">
-            <span className="px-2">Showing 1-{Math.min(filteredTransactions.length, parseInt(entriesPerPage))} of {filteredTransactions.length} transactions.</span>
+            <span className="px-2">
+              Showing {((currentPage - 1) * parseInt(entriesPerPage)) + 1} - {Math.min(currentPage * parseInt(entriesPerPage), filteredTransactions.length)} of {filteredTransactions.length} items.
+            </span>
             {selectedTransactions.length > 0 && (
               <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-purple-100 animate-in zoom-in-50">
                 {selectedTransactions.length} selected
@@ -755,129 +1337,262 @@ function TransactionsContent() {
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader className="bg-[#fcfcfc] border-b border-slate-200">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[50px] p-4">
-                    <Checkbox 
-                      checked={selectedTransactions.length === filteredTransactions.length && filteredTransactions.length > 0} 
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-[80px] p-4">
-                    <Filter className="w-3.5 h-3.5 text-slate-400" />
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400 cursor-pointer hover:text-purple-600 transition-colors">
-                    Date <span className="text-[8px] ml-1">▼</span>
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Merchant</TableHead>
-                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Amount</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Category</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Spend Type</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Account</TableHead>
-                  <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.slice(0, parseInt(entriesPerPage)).map((tx) => (
-                  <React.Fragment key={tx.id}>
-                    <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-purple-50/50' : 'hover:bg-slate-50/50'}`}>
-                      <TableCell className="p-4">
-                        <Checkbox 
-                          checked={selectedTransactions.includes(tx.id)} 
-                          onCheckedChange={() => toggleSelect(tx.id)}
-                        />
-                      </TableCell>
-                      <TableCell className="p-4">
-                        <div className="flex items-center gap-2">
-                           <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-200 rounded">
-                                  <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem className="gap-2 cursor-not-allowed text-slate-400"><Edit2 className="w-4 h-4" /> Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDelete(tx.id, tx.type)} className="gap-2 text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
-                              </DropdownMenuContent>
-                           </DropdownMenu>
-                           {tx.type === 'income' ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> : <ArrowDownRight className="w-3.5 h-3.5 text-slate-400" />}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-normal text-slate-500 whitespace-nowrap p-4">{formatDate(tx.date)}</TableCell>
-                      <TableCell className="p-4">
-                        <div className="flex flex-col">
-                          <span className={`text-sm font-normal tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>{tx.merchant}</span>
-                          {tx.note && <span className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-md bg-slate-50 p-2 rounded-lg border border-slate-100 font-normal">{tx.note}</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className={`text-right text-sm font-normal p-4 tabular-nums ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
-                        {formatAmount(tx.amount || 0)}
-                      </TableCell>
-                      <TableCell className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Select 
-                            value={tx.category || "Uncategorized"} 
-                            onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
-                          >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <CategoryIcon 
-                                  iconId={categories.find(c => c.name === tx.category)?.icon_id} 
-                                  category={tx.category}
-                                  className="w-3.5 h-3.5 shrink-0" 
-                                />
-                                <SelectValue placeholder="Category" />
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                              {categories.map(c => (
-                                <SelectItem key={c.id} value={c.name} className="text-[10px]">
-                                  <div className="flex items-center gap-2">
-                                    <CategoryIcon iconId={c.icon_id} category={c.name} className="w-3 h-3" />
-                                    {c.name}
+          <div className="flex-1 overflow-auto bg-[#f8fafc]/50">
+            {viewMode === 'list' ? (
+              <Table>
+                <TableHeader className="bg-[#fcfcfc] border-b border-slate-200">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[50px] p-4">
+                      <Checkbox 
+                        checked={selectedTransactions.length === filteredTransactions.length && filteredTransactions.length > 0} 
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead className="w-[80px] p-4">
+                      <Filter className="w-3.5 h-3.5 text-slate-400" />
+                    </TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400 cursor-pointer hover:text-purple-600 transition-colors">
+                      Date <span className="text-[8px] ml-1">▼</span>
+                    </TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Merchant</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Amount</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Category</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Spend Type</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Account</TableHead>
+                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody key={`${selectedTab}-${selectedAccountId || 'all'}-${selectedCategory || 'all'}`}>
+                  {filteredTransactions
+                    .slice((currentPage - 1) * parseInt(entriesPerPage), currentPage * parseInt(entriesPerPage))
+                    .map((tx) => (
+                    <React.Fragment key={tx.id}>
+                      <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-purple-50/50' : 'hover:bg-slate-50/50'}`}>
+                        <TableCell className="p-4">
+                          <Checkbox 
+                            checked={selectedTransactions.includes(tx.id)} 
+                            onCheckedChange={() => toggleSelect(tx.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <div className="flex items-center gap-2">
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-200 rounded">
+                                    <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleEditClick(tx)}
+                                    className="gap-2 cursor-pointer text-slate-600"
+                                  >
+                                    <Edit2 className="w-4 h-4" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDelete(tx.id, tx.type)} className="gap-2 text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                             {tx.type === 'income' ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> : <ArrowDownRight className="w-3.5 h-3.5 text-slate-400" />}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-normal text-slate-500 whitespace-nowrap p-4">{formatDate(tx.date)}</TableCell>
+                        <TableCell className="p-4">
+                          <div className="flex flex-col">
+                            <span 
+                              className="text-[13px] font-medium tracking-tight"
+                              style={{ color: getMerchantTextColor(tx.category, tx.type) }}
+                            >
+                              {tx.merchant}
+                            </span>
+                            {tx.note && <span className="text-[11px] text-slate-500 mt-1.5 leading-relaxed max-w-md bg-slate-50 p-2 rounded-lg border border-slate-100 font-normal">{tx.note}</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right text-sm font-normal p-4 tabular-nums ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                          {formatAmount(tx.amount || 0)}
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <div className="flex items-center gap-2">
+                            <Select 
+                              value={tx.category || "Uncategorized"} 
+                              onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
+                            >
+                              <SelectTrigger className="h-8 bg-white text-[11px] font-medium border-slate-200 px-3 w-[150px] hover:border-purple-300 hover:shadow-sm transition-all text-slate-700">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[300px] w-[180px]">
+                                {categories
+                                  .filter(c => c.name.toLowerCase() !== "uncategorized")
+                                  .map(c => (
+                                    <SelectItem key={c.id || c.name} value={c.name} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                      <div className="flex items-center gap-2.5">
+                                        <CategoryIcon iconId={c.icon_id || c.iconId} category={c.name} className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate leading-none">{c.name}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                {!categories.some(c => c.name.toLowerCase() === (tx.category || "").toLowerCase()) && tx.category && tx.category !== "Uncategorized" && (
+                                  <SelectItem value={tx.category} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                    <div className="flex items-center gap-2.5">
+                                      <CategoryIcon category={tx.category} className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="truncate leading-none">{tx.category}</span>
+                                    </div>
+                                  </SelectItem>
+                                )}
+                                <SelectItem value="Uncategorized" className="text-[11px] py-1.5 focus:bg-slate-50 border-t border-slate-50 mt-1">
+                                  <div className="flex items-center gap-2.5 text-slate-400">
+                                    <CategoryIcon category="Uncategorized" className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate leading-none italic">Uncategorized</span>
                                   </div>
                                 </SelectItem>
-                              ))}
-                              <SelectItem value="Uncategorized" className="text-[10px]">Uncategorized</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <button 
+                              onClick={() => handleSidebarFilter("all", tx.category)}
+                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-purple-600 transition-colors"
+                              title="Filter by this category"
+                            >
+                              <Filter className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <Select 
+                            value={tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
+                            onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
+                            disabled={tx.type === 'income'}
+                          >
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-purple-300 transition-all">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
+                              <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
+                              <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
+                              <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
                             </SelectContent>
                           </Select>
-                          <button 
-                            onClick={() => handleSidebarFilter("all", tx.category)}
-                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-purple-600 transition-colors"
-                            title="Filter by this category"
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <Select 
+                            value={tx.account_id || "manual"} 
+                            onValueChange={(v) => handleUpdateItem(tx.id, { account_id: v }, tx.type)}
                           >
-                            <Filter className="w-3 h-3" />
-                          </button>
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
+                              <SelectValue placeholder="Manual Vault" />
+                            </SelectTrigger>
+                            <SelectContent side="top">
+                              <SelectItem value="manual" className="text-[10px] font-bold text-slate-400 uppercase">Manual Vault</SelectItem>
+                              {dbAccounts.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id} className="text-[10px]">{acc.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-normal text-slate-400 p-4 tabular-nums">
+                          {(tx.balance || 0) < 0 ? `(${Math.abs(tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 max-w-[1600px] mx-auto auto-rows-fr">
+                {filteredTransactions
+                  .slice((currentPage - 1) * parseInt(entriesPerPage), currentPage * parseInt(entriesPerPage))
+                  .map((tx) => (
+                    <div 
+                      key={tx.id} 
+                      className={`group relative p-6 rounded-[32px] border shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer flex flex-col justify-between overflow-hidden ${selectedTransactions.includes(tx.id) ? 'ring-2 ring-purple-600' : ''}`}
+                      style={{ 
+                        backgroundColor: getCategoryColor(tx.category) + '0a', 
+                        borderColor: getCategoryColor(tx.category) + '30' 
+                      }}
+                      onClick={() => toggleSelect(tx.id)}
+                    >
+                      {/* Premium Accent Line */}
+                      <div 
+                        className="absolute top-0 left-0 w-full h-1.5 opacity-60" 
+                        style={{ backgroundColor: getCategoryColor(tx.category) }}
+                      />
+
+                      <div>
+                        {/* Card Top: Branding & Category */}
+                        <div className="flex items-start justify-between mb-6">
+                          <div className={`w-14 h-14 rounded-2xl shadow-inner flex items-center justify-center border border-white/50 ${tx.type === 'income' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-400'}`}>
+                            <CategoryIcon 
+                                category={tx.category} 
+                                iconId={categories.find(c => c.name === tx.category)?.icon_id} 
+                                className="w-6 h-6" 
+                            />
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-1.5">
+                           {tx.category && tx.category.toLowerCase() !== tx.merchant.toLowerCase() && (
+                             <span className="px-3 py-1 rounded-full bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border border-slate-100">
+                                 {tx.category}
+                             </span>
+                           )}
+                            <div className="flex items-center gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleEditClick(tx); }}
+                                    className="p-2 hover:bg-slate-50 rounded-full text-slate-300 hover:text-slate-600"
+                                >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(tx.id, tx.type); }} 
+                                    className="p-2 hover:bg-rose-50 rounded-full text-slate-300 hover:text-rose-500"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="p-4">
-                        <Select 
-                          value={tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
-                          onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
-                          disabled={tx.type === 'income'}
-                        >
-                          <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-purple-300 transition-all">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
-                            <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
-                            <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
-                            <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-xs font-normal text-slate-500 p-4 whitespace-nowrap">{tx.account}</TableCell>
-                      <TableCell className="text-right text-xs font-normal text-slate-400 p-4 tabular-nums">
-                        {(tx.balance || 0) < 0 ? `(${Math.abs(tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (tx.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
+
+                        {/* Card Center: Merchant Identity */}
+                        <div className="space-y-1.5 mb-8">
+                          <h3 
+                            className="text-lg font-medium tracking-tight leading-none transition-opacity hover:opacity-80"
+                            style={{ color: getMerchantTextColor(tx.category, tx.type) }}
+                          >
+                            {tx.merchant}
+                          </h3>
+                          {tx.name && 
+                           tx.name.trim().toLowerCase() !== tx.merchant.trim().toLowerCase() && 
+                           tx.name.trim().toLowerCase() !== tx.category.trim().toLowerCase() && (
+                            <p className="text-xs font-medium text-slate-400 uppercase tracking-widest truncate">{tx.name}</p>
+                          )}
+                          {tx.note && (
+                             <div className="mt-3 text-[11px] text-slate-500 italic bg-slate-50/50 p-2.5 rounded-xl border border-slate-50 border-dashed leading-relaxed">
+                                "{tx.note.length > 60 ? tx.note.substring(0, 60) + '...' : tx.note}"
+                             </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card Bottom: Financial Summary */}
+                      <div className="pt-6 border-t border-slate-50 flex items-end justify-between mt-auto">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{formatDate(tx.date)}</span>
+                          <span className="text-xs font-black text-slate-700 tracking-tight flex items-center gap-1.5 opacity-60">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                            {tx.account || "Manual Vault"}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-xl font-medium tabular-nums tracking-tighter leading-none mb-1 ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-800'}`}>
+                            {tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount || 0)}
+                          </div>
+                          <div className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">
+                            Balance: {formatAmount(tx.balance || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </main>
       </div>

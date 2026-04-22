@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { format } from "date-fns";
+import { resolveCanonicalCategory } from '@/utils/constants';
 
 /**
  * useFinancialParser
@@ -177,18 +178,32 @@ export const useFinancialParser = () => {
    * Aligned with DB Schema: Uses 'amount' for actuals and 'monthly_target' for targets.
    * Performs category-based aggregation of raw transactions.
    */
-  const normalizeTransactionData = useCallback((saved, selectedDate, transactions) => {
+  const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
     const rawTransactions = transactions || [];
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
     
+    // Account Resolution Helper
+    const resolveAccountId = (tx) => {
+      if (tx.account_id) return tx.account_id;
+      if (!tx.account || tx.account === 'Manual Vault') return null;
+      // Try to find ID by name
+      const found = accounts.find(a => a.name === tx.account);
+      return found ? found.id : null;
+    };
+
     // Aggregation Helper
     const aggregateByCategory = (categoryName, type) => {
-      const filtered = rawTransactions.filter(t => 
-        t.type === type && 
-        t.category?.toLowerCase() === categoryName.toLowerCase()
-      );
+      const canonicalTarget = resolveCanonicalCategory(categoryName);
+      
+      const filtered = rawTransactions.filter(t => {
+        const transactionCategory = resolveCanonicalCategory(t.category);
+        const amount = Number(t.amount) || 0;
+        // Heuristic: If amount is positive and type is expense, or vice versa, trust the amount?
+        // Actually, let's just use the explicit type but be aware of mismatches.
+        return t.type === type && transactionCategory === canonicalTarget;
+      });
       
       return {
         amount: filtered.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
@@ -200,44 +215,69 @@ export const useFinancialParser = () => {
     // Normalize Incomes
     const baseIncs = (data.incomes || []).map(i => {
       const agg = aggregateByCategory(i.category || i.name || 'Salary', 'income');
+      const resolvedAccId = resolveAccountId(i);
       return { 
         ...i, 
         amount: agg.amount, // Realized income
         date: agg.lastDate || i.date,
-        category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category 
+        name: i.name || i.merchant || i.category || 'Salary',
+        category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category,
+        type: 'income',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
       };
     });
 
     const presentIncCats = new Set(baseIncs.map(i => (i.category || "").toLowerCase()));
-    const missingIncs = rawTransactions.filter(m => 
-      m.type === 'income' && 
-      !presentIncCats.has((m.category || "").toLowerCase())
-    ).map(t => ({ 
-      ...t,
-      name: t.merchant,
-      spendType: 'income' 
-    }));
+    const missingIncs = rawTransactions.filter(m => {
+      const amount = Number(m.amount) || 0;
+      // Trust explicit type first, but fallback to amount if type is ambiguous
+      const isIncome = m.type === 'income' || (m.type !== 'expense' && amount > 0);
+      return isIncome && !presentIncCats.has((m.category || "").toLowerCase());
+    }).map(t => {
+      const resolvedAccId = resolveAccountId(t);
+      return { 
+        ...t,
+        name: t.merchant || t.name || t.category || 'Income Item',
+        type: 'income',
+        spendType: 'income',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
     
     // Normalize Expenses
     const baseExps = (data.expenses || []).map(e => {
       const agg = aggregateByCategory(e.category || e.name || 'Misc', 'expense');
+      const resolvedAccId = resolveAccountId(e);
       return { 
         ...e, 
-        amount: Math.abs(agg.amount), // Realized spend
+        amount: Math.abs(agg.amount || 0), // Realized spend
         date: agg.lastDate || e.date,
-        category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category 
+        name: e.name || e.merchant || e.category || 'Misc Expense',
+        category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category,
+        type: 'expense',
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
       };
     });
 
     const presentExpCats = new Set(baseExps.map(e => (e.category || "").toLowerCase()));
-    const missingExps = rawTransactions.filter(m => 
-      m.type === 'expense' && 
-      !presentExpCats.has((m.category || "").toLowerCase())
-    ).map(t => ({ 
-      ...t,
-      name: t.merchant,
-      amount: Math.abs(t.amount)
-    }));
+    const missingExps = rawTransactions.filter(m => {
+      const amount = Number(m.amount) || 0;
+      const isExpense = m.type === 'expense' || (m.type !== 'income' && amount < 0);
+      return isExpense && !presentExpCats.has((m.category || "").toLowerCase());
+    }).map(t => {
+      const resolvedAccId = resolveAccountId(t);
+      return { 
+        ...t,
+        name: t.merchant || t.name || t.category || 'Expense Item',
+        type: 'expense',
+        amount: Math.abs(t.amount || 0),
+        account_id: resolvedAccId,
+        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+      };
+    });
 
     return {
       incomes: [...baseIncs, ...missingIncs],
@@ -304,12 +344,15 @@ export const useFinancialParser = () => {
   const purgeProductionLedger = useCallback(async () => {
     const tId = toast.loading("Purging production ledger...");
     try {
+      // Nuclear Purge: Resets all user-specific data to enable fresh provisioning/seeding
       const success = await base44.db.execute("DELETE FROM transactions;");
       await base44.db.execute("DELETE FROM budgets;");
       await base44.db.execute("DELETE FROM portfolio_holdings;");
+      await base44.db.execute("DELETE FROM user_accounts;");
+      await base44.db.execute("DELETE FROM monthly_summaries;");
       
       if (success) {
-        toast.success("Ledger purged successfully", { id: tId });
+        toast.success("Identity ledger purged successfully", { id: tId });
         return true;
       }
       throw new Error("Purge failed");

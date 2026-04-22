@@ -60,8 +60,8 @@ export default function DigestReport() {
   }, [allTransactions, selectedDate, selectedAccountId]);
 
   const metrics = useMemo(() => {
-    const earned = filteredMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
-    const spent = filteredMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
+    const earned = filteredMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const spent = filteredMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
     return { earned, spent, loss: spent > earned ? spent - earned : 0 };
   }, [filteredMonthTxs]);
 
@@ -82,8 +82,8 @@ export default function DigestReport() {
       });
       return {
         month: format(m, "MMM"),
-        inflow: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0),
-        outflow: monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0),
+        inflow: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
+        outflow: monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
       };
     });
   }, [allTransactions, selectedDate, selectedAccountId]);
@@ -96,7 +96,7 @@ export default function DigestReport() {
     const catTotals = {};
     expTxs.forEach(t => {
       const cat = t.category || 'Uncategorized';
-      catTotals[cat] = (catTotals[cat] || 0) + Math.abs(t.amount || t.monthlyAmount || 0);
+      catTotals[cat] = (catTotals[cat] || 0) + Math.abs(Number(t.amount || 0));
     });
     
     const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
@@ -110,8 +110,8 @@ export default function DigestReport() {
       return dateMatch && accountMatch;
     });
 
-    const prevExp = prevMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
-    const prevInc = prevMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(t.amount || t.monthlyAmount || 0), 0);
+    const prevExp = prevMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const prevInc = prevMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
 
     const highlights = [];
     const lows = [];
@@ -257,45 +257,37 @@ export default function DigestReport() {
               </div>
            </div>
 
-            <div className="space-y-4">
-               <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Linked Accounts</p>
-               <div className="space-y-3">
-                  <button 
-                    onClick={() => setSelectedAccountId("all")}
-                    className={cn(
-                      "w-full text-left bg-slate-50 border p-4 rounded-2xl transition-all group",
-                      selectedAccountId === "all" ? "border-[#C5A059] bg-[#C5A059]/5" : "border-slate-100 hover:border-slate-300"
-                    )}
-                  >
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                        <p className="text-[10px] font-medium text-slate-700 truncate">All Consolidated Accounts</p>
-                     </div>
-                     <p className="text-sm font-medium tracking-tight text-slate-900">
-                        {formatCurrency(accounts.reduce((s, a) => s + (a.type === 'asset' ? Number(a.value || a.base_balance || 0) : -Number(a.value || a.base_balance || 0)), 0))}
-                     </p>
-                  </button>
+             <div className="space-y-4">
+                <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Linked Accounts (Consolidated)</p>
+                <div className="space-y-3 opacity-60 grayscale cursor-default pointer-events-none">
+                   <div 
+                     className="w-full text-left bg-slate-50 border border-[#C5A059] p-4 rounded-2xl bg-[#C5A059]/5"
+                   >
+                      <div className="flex items-center gap-3 mb-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                         <p className="text-[10px] font-medium text-slate-700 truncate">Total Consolidated Balance</p>
+                      </div>
+                      <p className="text-sm font-medium tracking-tight text-slate-900">
+                         {formatCurrency(accounts.reduce((s, a) => s + (a.type === 'asset' ? Number(a.base_balance || 0) : -Number(a.base_balance || 0)), 0))}
+                      </p>
+                   </div>
 
-                  {accounts.map((acc) => (
-                     <button 
-                       key={acc.id} 
-                       onClick={() => setSelectedAccountId(acc.id)}
-                       className={cn(
-                         "w-full text-left bg-slate-50 border p-4 rounded-2xl transition-all group",
-                         selectedAccountId === acc.id ? "border-[#C5A059] bg-[#C5A059]/5" : "border-slate-100 hover:border-slate-300"
-                       )}
-                     >
-                        <div className="flex items-center gap-3 mb-2">
-                           <div className={cn("w-1.5 h-1.5 rounded-full", acc.type === 'asset' ? "bg-teal-500" : "bg-rose-500")} />
-                           <p className="text-[10px] font-medium text-slate-700 truncate">{acc.name}</p>
-                        </div>
-                        <p className={cn("text-sm font-medium tracking-tight", acc.type === 'asset' ? "text-slate-900" : "text-rose-500")}>
-                           {formatCurrency(Number(acc.value || acc.base_balance || 0))}
-                        </p>
-                     </button>
-                  ))}
-               </div>
-            </div>
+                   {accounts.map((acc) => (
+                      <div 
+                        key={acc.id} 
+                        className="w-full text-left bg-slate-50 border border-slate-100 p-4 rounded-2xl"
+                      >
+                         <div className="flex items-center gap-3 mb-2">
+                            <div className={cn("w-1.5 h-1.5 rounded-full", acc.type === 'asset' ? "bg-teal-500" : "bg-rose-500")} />
+                            <p className="text-[10px] font-medium text-slate-700 truncate">{acc.name}</p>
+                         </div>
+                         <p className={cn("text-sm font-medium tracking-tight", acc.type === 'asset' ? "text-slate-900" : "text-rose-500")}>
+                            {formatCurrency(Number(acc.base_balance || 0))}
+                         </p>
+                      </div>
+                   ))}
+                </div>
+             </div>
         </aside>
 
         {/* Main Content Area */}

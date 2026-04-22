@@ -51,7 +51,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import { INITIAL_BUDGET_DATA } from "./SetBudget";
+
 
 
 const EXPENSE_CATEGORIES = [
