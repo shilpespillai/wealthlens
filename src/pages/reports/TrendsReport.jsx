@@ -118,7 +118,7 @@ export default function TrendsReport() {
             (String(b.id || "")).toLowerCase() === String(selectedCategory || "").toLowerCase()
           );
           if (found) {
-            budgeted = parseFloat(found.amount?.replace(/[^\d.]/g, '')) || 0;
+            budgeted = parseFloat(String(found.amount || "").replace(/[^\d.]/g, '')) || 0;
           }
         }
       }
