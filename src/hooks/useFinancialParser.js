@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
-import { format, isSameMonth } from "date-fns";
+import { format } from "date-fns";
 import { resolveCanonicalCategory } from '@/utils/constants';
+import { getYearMonth, isSameMonthYear } from "@/utils/dateParser";
 
 /**
  * useFinancialParser
@@ -185,52 +186,9 @@ export const useFinancialParser = () => {
     const targetMonth = targetDate.getMonth() + 1; // 1-12
     const targetYear = targetDate.getFullYear();
 
-    const rawTransactions = (transactions || []).filter(t => {
-      const rawDate = t.date || t.actualDate;
-      if (!rawDate) return false;
-      
-      let txYear, txMonth;
-      
-      // Type 1: Numeric Timestamp
-      if (typeof rawDate === 'number' || (!isNaN(rawDate) && !isNaN(parseFloat(rawDate)) && !String(rawDate).includes('-') && !String(rawDate).includes('/'))) {
-        const d = new Date(Number(rawDate));
-        txYear = d.getFullYear();
-        txMonth = d.getMonth() + 1;
-      } 
-      // Type 2: String parsing (Manual extraction to avoid regional quirks)
-      else {
-        const dateStr = String(rawDate);
-        const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
-        
-        if (parts.length >= 3) {
-          if (parts[0].length === 4) { // ISO YYYY-MM-DD
-            txYear = parseInt(parts[0]);
-            txMonth = parseInt(parts[1]);
-          } else if (parts[2].length === 4) { // DD/MM/YYYY or MM/DD/YYYY
-            txYear = parseInt(parts[2]);
-            const p0 = parseInt(parts[0]);
-            const p1 = parseInt(parts[1]);
-            
-            // Resolve ambiguity: If only one part matches the target month, use it.
-            // If both could be the month, default to the middle part (UK/Indian standard for this user).
-            if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
-            else if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
-            else txMonth = p1;
-          }
-        }
-        
-        // Final Fallback: Native parsing
-        if (!txYear || !txMonth) {
-          const d = new Date(dateStr);
-          if (!isNaN(d.getTime())) {
-            txYear = d.getFullYear();
-            txMonth = d.getMonth() + 1;
-          }
-        }
-      }
-      
-      return txMonth === targetMonth && txYear === targetYear;
-    });
+    const rawTransactions = (transactions || []).filter(t => 
+      isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear)
+    );
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
@@ -380,42 +338,32 @@ export const useFinancialParser = () => {
    * Fetches the real historical ledger from the indexed 'transactions' table.
    */
   const getProductionLedger = useCallback(async (filter = {}) => {
-    const queryOptions = {
-      filters: [],
-      orderBy: { column: 'date', ascending: false }
-    };
-
-    if (filter.month) {
-      // Postgres DATE type doesn't support LIKE. Use range queries instead.
-      const start = `${filter.month}-01`;
-      const [year, month] = filter.month.split('-').map(Number);
-      const endDay = new Date(year, month, 0).getDate();
-      const end = `${filter.month}-${endDay}`;
-      
-      queryOptions.filters.push({ column: 'date', op: 'gte', value: start });
-      queryOptions.filters.push({ column: 'date', op: 'lte', value: end });
-    }
+    // Discovery: DB-level range queries fail for non-ISO string dates (e.g., 01/04/2026).
+    // To ensure 100% parity with reports, we fetch the table and apply the polymorphic parser logic.
+    const allData = await base44.db.getTable('transactions');
     
-    // Support direct timestamp/date ranges (used by Dashboard)
-    if (filter.startDate) {
-      const startVal = typeof filter.startDate === 'number' ? format(new Date(filter.startDate), 'yyyy-MM-dd') : filter.startDate;
-      queryOptions.filters.push({ column: 'date', op: 'gte', value: startVal });
-    }
-    if (filter.endDate) {
-      const endVal = typeof filter.endDate === 'number' ? format(new Date(filter.endDate), 'yyyy-MM-dd') : filter.endDate;
-      queryOptions.filters.push({ column: 'date', op: 'lte', value: endVal });
+    if (!filter.month && !filter.startDate && !filter.endDate && !filter.accountId && !filter.category) {
+      return allData || [];
     }
 
-    if (filter.accountId) {
-      queryOptions.filters.push({ column: 'account_id', op: 'eq', value: filter.accountId });
-    }
+    // Apply the same robust logic as normalizeTransactionData
+    return (allData || []).filter(t => {
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
 
-    if (filter.category) {
-      queryOptions.filters.push({ column: 'category', op: 'eq', value: filter.category });
-    }
+      // accountId filter
+      if (filter.accountId && String(t.account_id) !== String(filter.accountId)) return false;
+      // category filter
+      if (filter.category && t.category !== filter.category) return false;
 
-    const data = await base44.db.query('transactions', queryOptions);
-    return data || [];
+      // Month/Range Filtering
+      if (filter.month) {
+        const [targetYear, targetMonth] = filter.month.split('-').map(Number);
+        return isSameMonthYear(rawDate, targetMonth, targetYear);
+      }
+
+      return true;
+    });
   }, []);
 
   /**

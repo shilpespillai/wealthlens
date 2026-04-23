@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { isSameMonthYear } from "@/utils/dateParser";
 import { base44 } from "@/api/base44Client";
 import { addMonths, subMonths, format } from "date-fns";
 import { generateIncomeExpensePdf } from "@/components/reports/generateIncomeExpensePdf";
@@ -44,12 +45,15 @@ export default function IncomeExpenseReport() {
   const [nestCategories, setNestCategories] = useState(false);
   const [showPercentages, setShowPercentages] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
 
   const monthKey = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}`;
   const [dbAccounts, setDbAccounts] = useState([]);
 
   useEffect(() => {
     async function load() {
+      setIncomes([]);
+      setExpenses([]);
       // 1. Load accounts first as they are needed for normalization
       const rawAccounts = await getDatabaseTable("user_accounts");
       const seen = new Set();
@@ -58,7 +62,9 @@ export default function IncomeExpenseReport() {
         seen.add(a.id);
         return true;
       });
-      setDbAccounts(unique);
+      // Add Virtual "Manual Vault" for unassigned items
+      const virtualManual = { id: "manual", name: "Manual Vault", is_system: true };
+      setDbAccounts([virtualManual, ...unique]);
 
       // 2. Load budgets and ledger
       const allBudgets = await getDatabaseTable("budgets");
@@ -89,8 +95,20 @@ export default function IncomeExpenseReport() {
       return Object.values(cats);
     };
 
-    const rawIncs = processGroup(incomes);
-    const rawExps = processGroup(expenses);
+    const filteredIncs = incomes.filter(i => {
+      if (!selectedAccountId) return true;
+      if (selectedAccountId === 'manual') return !i.account_id || String(i.account_id) === 'manual' || String(i.account_id) === 'null' || i.account_id === '';
+      return String(i.account_id) === String(selectedAccountId);
+    });
+    
+    const filteredExps = expenses.filter(e => {
+      if (!selectedAccountId) return true;
+      if (selectedAccountId === 'manual') return !e.account_id || String(e.account_id) === 'manual' || String(e.account_id) === 'null' || e.account_id === '';
+      return String(e.account_id) === String(selectedAccountId);
+    });
+
+    const rawIncs = processGroup(filteredIncs);
+    const rawExps = processGroup(filteredExps);
 
     if (!nestCategories) return { incomes: rawIncs, expenses: rawExps };
 
@@ -123,10 +141,10 @@ export default function IncomeExpenseReport() {
     };
 
     return { incomes: rawIncs, expenses: nest(rawExps) };
-  }, [incomes, expenses, nestCategories]);
+  }, [incomes, expenses, nestCategories, selectedAccountId]);
 
-  const totalActualIncome = incomes.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const totalActualExpense = expenses.reduce((s, e) => s + Math.abs(Number(e.amount || 0)), 0);
+  const totalActualIncome = reportData.incomes.reduce((s, i) => s + Number(i.actual || 0), 0);
+  const totalActualExpense = reportData.expenses.reduce((s, e) => s + Math.abs(Number(e.actual || 0)), 0);
 
   const handleExport = () => {
     const loadingToast = toast.loading("Generating professional PDF report...");
@@ -204,12 +222,16 @@ export default function IncomeExpenseReport() {
                <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Accounts</p>
                <div className="space-y-2">
                 {dbAccounts.map((acc, i) => (
-                  <div key={i} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between group hover:border-[#C5A059]/30 transition-all">
+                  <div 
+                    key={i} 
+                    onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
+                    className={`p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer border ${selectedAccountId === acc.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-[#C5A059]/30'}`}
+                  >
                     <div className="flex items-center gap-3">
-                      <Checkbox checked />
-                      <span className="text-[10px] font-medium text-slate-500 uppercase">{acc.name}</span>
+                      <Checkbox checked={selectedAccountId === acc.id || !selectedAccountId} />
+                      <span className={`text-[10px] font-medium uppercase transition-colors ${selectedAccountId === acc.id ? 'text-indigo-600' : 'text-slate-500'}`}>{acc.name}</span>
                     </div>
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {(selectedAccountId === acc.id || !selectedAccountId) && <CheckCircle2 className="w-4 h-4 text-teal-400" />}
                   </div>
                 ))}
                 {dbAccounts.length === 0 && (

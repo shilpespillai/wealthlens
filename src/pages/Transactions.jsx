@@ -284,8 +284,8 @@ function TransactionsContent() {
     });
 
     // Add Virtual "Manual Vault" for unassigned items
-    const manualIncs = incomes.filter(i => !i.account_id || i.account_id === "manual").reduce((s, i) => s + (Number(i.amount) || 0), 0);
-    const manualExps = expenses.filter(e => !e.account_id || e.account_id === "manual").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const manualBal = manualIncs - manualExps;
 
     sidebar.push({
@@ -367,7 +367,11 @@ function TransactionsContent() {
       };
 
       const rawIncs = (ledger || [])
-        .filter(t => t.type === 'income')
+        .filter(t => {
+          const rawType = (t.type || t.spend_type || "").toLowerCase();
+          const amount = Number(t.amount) || 0;
+          return rawType === 'income' || (rawType !== 'expense' && amount > 0);
+        })
         .map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Income Item',
@@ -380,7 +384,11 @@ function TransactionsContent() {
         }));
 
       const rawExps = (ledger || [])
-        .filter(t => t.type === 'expense')
+        .filter(t => {
+          const rawType = (t.type || t.spend_type || "").toLowerCase();
+          const amount = Number(t.amount) || 0;
+          return rawType === 'expense' || (rawType !== 'income' && amount < 0);
+        })
         .map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Expense Item',
@@ -1155,9 +1163,28 @@ function TransactionsContent() {
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Action Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
+          {/* Premium Header Metrics */}
+          <div className="px-6 py-4 bg-[#fcfcfc] border-b border-slate-100 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-10">
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</span>
+                 <span className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
+               </div>
+               <div className="w-[1px] h-8 bg-slate-100" />
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</span>
+                 <span className="text-lg font-bold text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
+               </div>
+               <div className="w-[1px] h-8 bg-slate-100" />
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Balance</span>
+                 <span className={`text-lg font-bold tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   {formatAmount(summary.balance)}
+                 </span>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
                 <Button
                   onClick={handleCommit}
                   disabled={!hasChanges || isCommiting}

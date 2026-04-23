@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { isSameMonthYear } from "@/utils/dateParser";
 import { useCategories } from "@/hooks/useCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -285,10 +286,11 @@ export default function SetBudget() {
 
       // 2. Fetch actual transactions for this month to calculate consumption
       const txResults = await base44.db.getTable("transactions");
-      const monthTransactions = txResults.filter(tx => {
-        const txDate = tx.date || "";
-        return txDate.startsWith(monthKey);
-      });
+      const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+
+      const monthTransactions = (txResults || []).filter(tx => 
+        isSameMonthYear(tx.date || tx.actualDate, targetMonth, targetYear)
+      );
 
       // Aggregate spent amounts by canonical category name
       const actualsMap = {};
