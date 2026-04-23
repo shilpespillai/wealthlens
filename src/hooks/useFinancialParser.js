@@ -180,17 +180,7 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Physical Deduplication: Ensure each database ID is only processed once.
-    const uniqueTxMap = new Map();
-    (transactions || []).forEach(tx => {
-      if (tx.id && !uniqueTxMap.has(tx.id)) {
-        uniqueTxMap.set(tx.id, tx);
-      } else if (!tx.id) {
-        // Fallback for items without IDs (shouldn't happen in production)
-        uniqueTxMap.set(Math.random(), tx);
-      }
-    });
-    const rawTransactions = Array.from(uniqueTxMap.values());
+    const rawTransactions = transactions || [];
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
@@ -213,9 +203,12 @@ export const useFinancialParser = () => {
       const filtered = rawTransactions.filter(t => {
         const transactionCategory = resolveCanonicalCategory(t.category);
         const amount = Number(t.amount) || 0;
-        // Heuristic: If amount is positive and type is expense, or vice versa, trust the amount?
-        // Actually, let's just use the explicit type but be aware of mismatches.
-        return t.type === type && transactionCategory === canonicalTarget;
+        
+        // Robust Type Detection: Check 'type', 'spend_type', and fall back to amount polarity
+        const rawType = (t.type || t.spend_type || "").toLowerCase();
+        const detectedType = rawType === 'income' ? 'income' : (rawType === 'expense' ? 'expense' : (amount > 0 ? 'income' : 'expense'));
+        
+        return detectedType === type && transactionCategory === canonicalTarget;
       });
       
       return {

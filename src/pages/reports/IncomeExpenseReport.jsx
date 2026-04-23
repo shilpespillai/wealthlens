@@ -50,15 +50,7 @@ export default function IncomeExpenseReport() {
 
   useEffect(() => {
     async function load() {
-      const allBudgets = await getDatabaseTable("budgets");
-      const saved = (allBudgets || []).find((b) => b.month === monthKey);
-
-      const productionLedger = await getProductionLedger({ month: monthKey });
-      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, unique);
-      setIncomes(normIncs);
-      setExpenses(normExps);
-
-      // Use correct table name 'user_accounts' and deduplicate by id
+      // 1. Load accounts first as they are needed for normalization
       const rawAccounts = await getDatabaseTable("user_accounts");
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
@@ -67,6 +59,15 @@ export default function IncomeExpenseReport() {
         return true;
       });
       setDbAccounts(unique);
+
+      // 2. Load budgets and ledger
+      const allBudgets = await getDatabaseTable("budgets");
+      const saved = (allBudgets || []).find((b) => b.month === monthKey);
+
+      const productionLedger = await getProductionLedger({ month: monthKey });
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, unique);
+      setIncomes(normIncs);
+      setExpenses(normExps);
     }
     load();
   }, [monthKey, normalizeTransactionData, selectedDate, getProductionLedger, getDatabaseTable]);
