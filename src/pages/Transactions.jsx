@@ -1150,22 +1150,6 @@ function TransactionsContent() {
                 <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={async () => {
-                  toast.promise(seedCategories(CORE_CATEGORY_REGISTRY), {
-                    loading: 'Synchronizing Registry...',
-                    success: 'Registry Synchronized',
-                    error: 'Sync Failed'
-                  });
-                }}
-                className="h-9 px-4 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 rounded-xl transition-all font-medium flex items-center gap-2 group"
-              >
-                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-                <span>Sync Registry</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
                 onClick={handlePurgeMonth}
                 className="h-9 px-4 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
               >

@@ -100,19 +100,21 @@ function BudgetRow({ item, onEdit, onDelete }) {
 
         {/* Budget Column */}
         <div className="w-80 flex items-center px-6">
-          <div className="w-full bg-slate-100 rounded-xl h-10 flex items-center px-4 relative overflow-hidden">
-             {/* Progress Fill Indicator */}
+          <div className="w-full bg-slate-100/50 border border-slate-200/40 rounded-lg h-9 flex items-center px-4 relative overflow-hidden shadow-inner">
+             {/* Progress Fill Indicator (Vibrant Slider Style) */}
              {(() => {
-                const target = parseCurrency(item.amount || "0");
+                const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
                 const spent = parseCurrency(item.budget || "0");
                 const progress = target > 0 ? Math.min((spent / target) * 100, 100) : 0;
                 const isOverspent = spent > target && target > 0;
                 
                 return (
                   <div 
-                    className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out ${isOverspent ? 'bg-rose-100/60' : 'bg-emerald-100/80'}`} 
+                    className={`absolute left-0 top-0 bottom-0 transition-all duration-1000 ease-out ${isOverspent ? 'bg-rose-500/20' : 'bg-emerald-500/20'}`} 
                     style={{ width: `${progress}%` }} 
-                  />
+                  >
+                    <div className={`absolute right-0 top-0 bottom-0 w-[3px] ${isOverspent ? 'bg-rose-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.6)]`} />
+                  </div>
                 );
              })()}
              
@@ -124,15 +126,15 @@ function BudgetRow({ item, onEdit, onDelete }) {
                    </div>
                 ) : (
                    <>
-                      <span className="text-[11px] font-bold text-slate-700">{item.budget}</span>
+                      <span className="text-[11px] font-black text-slate-800 tracking-tight">{item.budget}</span>
                       {item.status && (
                          <div className="flex items-center gap-1.5">
-                            {item.type === "income" ? (
-                               <Minus className="w-3.5 h-3.5 text-rose-400" />
+                            {item.status.includes('over') ? (
+                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                             ) : (
-                               <Check className="w-3.5 h-3.5 text-emerald-400" />
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             )}
-                            <span className="text-[11px] font-bold text-slate-500">{item.status}</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{item.status}</span>
                          </div>
                       )}
                    </>
@@ -181,26 +183,62 @@ function BudgetRow({ item, onEdit, onDelete }) {
   );
 }
 
+// Utility: Flatten nested categories for processing
+const flattenCategories = (items) => {
+  let result = [];
+  if (!items) return result;
+  items.forEach(item => {
+    // Force all items into a flat structure
+    const flatItem = { ...item, type: item.type === 'income' ? 'income' : 'item' };
+    delete flatItem.children;
+    result.push(flatItem);
+    
+    if (item.children && item.children.length > 0) {
+      result = [...result, ...flattenCategories(item.children)];
+    }
+  });
+  return result;
+};
+
+// Utility: Normalize structure against the core registry
+const normalizeStructure = (savedItems) => {
+  // 1. Start with the Core Category Registry (Single Source of Truth)
+  // Filter out income as "budget is always for expenses"
+  const template = CORE_CATEGORY_REGISTRY
+    .filter(cat => cat.type !== 'income')
+    .map(cat => ({
+      ...cat,
+      category: cat.name,
+      monthly_target: 0,
+      amount: "0",
+      budget: "$0 spent",
+      status: "0.00 left"
+    }));
+
+  // 2. Normalize and merge saved items using Canonical Aliasing
+  const finalMap = new Map();
+  template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
+
+  savedItems.forEach(s => {
+    const canonicalName = resolveCanonicalCategory(s.category || s.name);
+    const key = canonicalName.toLowerCase();
+    
+    const existing = finalMap.get(key);
+    if (existing) {
+      // Merge saved data into existing canonical row
+      finalMap.set(key, { ...existing, ...s, category: canonicalName });
+    } else {
+      // standalone custom category
+      finalMap.set(key, { ...s, category: s.category || s.name });
+    }
+  });
+
+  return Array.from(finalMap.values());
+};
+
 export default function SetBudget() {
   const { parseCurrency, formatAmount } = useFinancialParser();
   const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories();
-
-  // Integrated Flat Hierarchy Engine
-  const flattenCategories = (items) => {
-    let result = [];
-    if (!items) return result;
-    items.forEach(item => {
-      // Force all items into a flat structure
-      const flatItem = { ...item, type: item.type === 'income' ? 'income' : 'item' };
-      delete flatItem.children;
-      result.push(flatItem);
-      
-      if (item.children && item.children.length > 0) {
-        result = [...result, ...flattenCategories(item.children)];
-      }
-    });
-    return result;
-  };
 
   const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
@@ -223,71 +261,107 @@ export default function SetBudget() {
     return `${y}-${m}`;
   }, [selectedDate]);
 
-   useEffect(() => {
-    const init = async () => {
-      try {
-        setIsInitialLoading(true);
-        // 1. Fetch specifically from the relational budgets table
-        let results = await base44.db.query("budgets", {
-          filters: [{ column: 'month', op: 'eq', value: monthKey }]
-        });
-        
-        let saved;
-        let isTemplate = false;
+  const loadBudgetAndActuals = useCallback(async () => {
+    try {
+      setIsInitialLoading(true);
+      
+      // 1. Fetch budget definition
+      let results = await base44.db.query("budgets", {
+        filters: [{ column: 'month', op: 'eq', value: monthKey }]
+      });
+      
+      let saved;
+      let isTemplate = false;
 
-        if (results && results.length > 0) {
-          saved = results[0];
-        } else {
-          // 2. CARRYOVER logic: If current month empty, fetch the absolute latest budget as a template
-          const allBudgets = await base44.db.getTable("budgets");
-          if (allBudgets && allBudgets.length > 0) {
-            const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
-            saved = sorted[0];
-            isTemplate = true;
-          }
+      if (results && results.length > 0) {
+        saved = results[0];
+      } else {
+        const allBudgets = await base44.db.getTable("budgets");
+        if (allBudgets && allBudgets.length > 0) {
+          const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
+          saved = sorted[0];
+          isTemplate = true;
         }
-
-          if (saved) {
-          if (!isTemplate) setBudgetId(saved.id);
-          else setBudgetId(null); // Fresh ID for a new month
-
-          // Handle global expected income baseline
-          if (saved.payload && saved.payload.expectedIncome !== undefined) {
-             setExpectedIncome(Number(saved.payload.expectedIncome));
-          } else if (saved.payload && saved.payload.incomes) {
-             // Fallback: sum legacy income rows if it's the first time converting
-             const legacySum = saved.payload.incomes.reduce((s, i) => s + Number(i.monthly_target || 0), 0);
-             setExpectedIncome(legacySum);
-          }
-
-          // Support both strategic 'visualData' and raw 'incomes'/'expenses' payloads
-          let dataToLoad = [];
-          if (saved.payload) {
-            dataToLoad = [
-              ...(saved.payload.visualData || []),
-              ...(saved.payload.expenses || [])
-            ];
-          }
-          
-          if (dataToLoad.length > 0) {
-            // Filter out any leaked income categories from the Table
-            dataToLoad = dataToLoad.filter(item => item.type !== 'income');
-            
-            setData(normalizeStructure(dataToLoad));
-          }
-        } else {
-          // 4. Default if absolute zero budgets in DB
-          setData(normalizeStructure([])); // Seed from registry
-          setBudgetId(null);
-        }
-      } catch (err) {
-        console.error("Failed to load budget:", err);
-      } finally {
-        setIsInitialLoading(false);
       }
-    };
-    init();
-  }, [monthKey]);
+
+      // 2. Fetch actual transactions for this month to calculate consumption
+      const txResults = await base44.db.getTable("transactions");
+      const monthTransactions = txResults.filter(tx => {
+        const txDate = tx.date || "";
+        return txDate.startsWith(monthKey);
+      });
+
+      // Aggregate spent amounts by canonical category name
+      const actualsMap = {};
+      monthTransactions.forEach(tx => {
+        const canonical = resolveCanonicalCategory(tx.category);
+        const amount = Math.abs(parseFloat(tx.amount) || 0);
+        actualsMap[canonical.toLowerCase()] = (actualsMap[canonical.toLowerCase()] || 0) + amount;
+      });
+
+      if (saved) {
+        if (!isTemplate) setBudgetId(saved.id);
+        else setBudgetId(null);
+
+        if (saved.payload && saved.payload.expectedIncome !== undefined) {
+           setExpectedIncome(Number(saved.payload.expectedIncome));
+        } else if (saved.payload && saved.payload.incomes) {
+           const legacySum = saved.payload.incomes.reduce((s, i) => s + Number(i.monthly_target || 0), 0);
+           setExpectedIncome(legacySum);
+        }
+
+        let dataToLoad = [];
+        if (saved.payload) {
+          dataToLoad = [
+            ...(saved.payload.visualData || []),
+            ...(saved.payload.expenses || [])
+          ];
+        }
+        
+        if (dataToLoad.length > 0) {
+          dataToLoad = dataToLoad.filter(item => item.type !== 'income');
+          
+          // Inject actuals into the loaded data
+          const enrichedData = dataToLoad.map(item => {
+            const canonical = resolveCanonicalCategory(item.category || item.name);
+            const spent = actualsMap[canonical.toLowerCase()] || 0;
+            const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
+            
+            return {
+              ...item,
+              budget: formatAmount(spent),
+              status: target > 0 
+                ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
+                : "No target set"
+            };
+          });
+
+          setData(normalizeStructure(enrichedData));
+        }
+      } else {
+        const defaults = normalizeStructure([]);
+        const enrichedDefaults = defaults.map(item => {
+           const canonical = resolveCanonicalCategory(item.category || item.name);
+           const spent = actualsMap[canonical.toLowerCase()] || 0;
+           return {
+              ...item,
+              budget: formatAmount(spent),
+              status: `${formatAmount(0)} left`
+           };
+        });
+        setData(enrichedDefaults);
+        setBudgetId(null);
+      }
+    } catch (err) {
+      console.error("Failed to load budget and actuals:", err);
+    } finally {
+      setIsInitialLoading(false);
+    }
+  }, [monthKey, parseCurrency, formatAmount, normalizeStructure]);
+
+  useEffect(() => {
+    loadBudgetAndActuals();
+  }, [loadBudgetAndActuals]);
 
   const handleCopyFromPreviousMonth = async () => {
     const prevDate = new Date(selectedDate);
@@ -402,42 +476,6 @@ export default function SetBudget() {
     }
   }, [isNewBudgetOpen]);
   
-  const normalizeStructure = (savedItems) => {
-    // 1. Start with the Core Category Registry (Single Source of Truth)
-    // Filter out income as "budget is always for expenses"
-    const template = CORE_CATEGORY_REGISTRY
-      .filter(cat => cat.type !== 'income')
-      .map(cat => ({
-        ...cat,
-        category: cat.name,
-        monthly_target: 0,
-        amount: "0",
-        budget: "$0 spent",
-        status: "0.00 left"
-      }));
-
-    // 2. Normalize and merge saved items using Canonical Aliasing
-    const finalMap = new Map();
-    template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
-
-    savedItems.forEach(s => {
-      const canonicalName = resolveCanonicalCategory(s.category || s.name);
-      const key = canonicalName.toLowerCase();
-      
-      const existing = finalMap.get(key);
-      if (existing) {
-        // Merge saved data into existing canonical row
-        finalMap.set(key, { ...existing, ...s, category: canonicalName });
-      } else {
-        // standalone custom category
-        finalMap.set(key, { ...s, category: s.category || s.name });
-      }
-    });
-
-    return Array.from(finalMap.values());
-  };
-
-
   const flatItems = useMemo(() => flattenCategories(data), [data]);
   
   const totals = useMemo(() => {
@@ -853,38 +891,7 @@ export default function SetBudget() {
 
             {/* Institutional Signature Summary */}
             <div className="mx-0 my-0 p-8 pt-10 pb-12 bg-white border-t border-slate-100 flex items-center relative overflow-hidden">
-               {/* Left: Branding & Integrity Badge */}
                <div className="flex-1 flex items-center gap-10 px-12">
-                  <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Ledger Integrity</p>
-                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
-                           <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Plan Verified</span>
-                     </div>
-                  </div>
-                  
-                  <div className="h-10 w-px bg-slate-100" />
-                  
-                  <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Planned Monthly Income</p>
-                     <div className="flex items-center gap-2">
-                        <span className="text-xl font-medium text-emerald-600 tracking-tight">$</span>
-                        <input 
-                           type="number"
-                           value={expectedIncome}
-                           onChange={(e) => {
-                              setExpectedIncome(Number(e.target.value));
-                              setHasChanges(true);
-                           }}
-                           className="bg-emerald-50/30 border-none border-b border-emerald-100 focus:border-emerald-400 focus:ring-0 text-xl font-black text-emerald-600 tabular-nums tracking-tighter w-24 p-0"
-                        />
-                     </div>
-                  </div>
-
-                  <div className="h-10 w-px bg-slate-100" />
-
                   <div className="flex flex-col gap-1">
                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Target Surplus</p>
                      <p className={`text-xl font-black tabular-nums tracking-tighter ${totals.net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>

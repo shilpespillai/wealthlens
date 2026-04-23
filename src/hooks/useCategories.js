@@ -15,25 +15,58 @@ export const useCategories = () => {
   const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log("[useCategories] Fetching categories from table...");
-      const data = await base44.db.getTable('categories');
+      console.log("[useCategories] Fetching unified catalog (Registry + Latest Budget)...");
       
-      if (data && data.length > 0) {
-        console.log(`[useCategories] Found ${data.length} categories in database.`);
-        // Sort alphabetically for a high-density, professional UI feel
-        const sorted = data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      // 1. Fetch from the dedicated categories registry
+      const dbCategories = await base44.db.getTable('categories');
+      
+      // 2. Proactively pull categories from the latest Budget Planner entry 
+      // to ensure Transactions matches 'Set Budget' exactly as requested.
+      const allBudgets = await base44.db.getTable('budgets');
+      let budgetCategories = [];
+      
+      if (allBudgets && allBudgets.length > 0) {
+        // Find the absolute latest budget payload
+        const latestBudget = allBudgets.sort((a, b) => b.month.localeCompare(a.month))[0];
+        const payload = latestBudget.payload || {};
+        
+        // Extract flat categories from visualData or standard buckets
+        const sourceList = payload.visualData || [...(payload.incomes || []), ...(payload.expenses || [])];
+        budgetCategories = sourceList.map(item => ({
+          name: item.category || item.name,
+          type: item.type === 'income' ? 'income' : 'expense',
+          icon_id: item.iconId || item.icon_id || 'circle',
+          color: item.color || 'slate'
+        }));
+      }
+
+      // 3. Merge and Deduplicate (Preferring Budget names and icons)
+      const unifiedMap = new Map();
+      
+      // Load registry first
+      dbCategories.forEach(c => unifiedMap.set((c.name || "").toLowerCase().trim(), c));
+      
+      // Overwrite/Extend with Budget items (the authoritative source)
+      budgetCategories.forEach(c => {
+        const key = (c.name || "").toLowerCase().trim();
+        if (key) unifiedMap.set(key, c);
+      });
+
+      const finalData = Array.from(unifiedMap.values());
+      
+      if (finalData.length > 0) {
+        const sorted = finalData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setCategories(sorted);
       } else {
-        console.warn("[useCategories] Database table 'categories' is empty. Falling back to CORE_CATEGORY_REGISTRY.");
         setCategories(CORE_CATEGORY_REGISTRY);
       }
     } catch (err) {
-      console.error("[useCategories] Critical fetch failure:", err);
+      console.error("[useCategories] Catalog fetch failure:", err);
       setCategories(CORE_CATEGORY_REGISTRY);
     } finally {
       setIsLoading(false);
     }
-    return await base44.db.getTable('categories'); // Ensure we return the actual data for seeding check
+    return await base44.db.getTable('categories');
   }, []);
 
   const addCategory = useCallback(async (name, type = 'expense') => {
@@ -110,8 +143,9 @@ export const useCategories = () => {
     let mounted = true;
 
     const runSeeding = async (currentCount) => {
-      if (currentCount < CORE_CATEGORY_REGISTRY.length) {
-        console.warn("[useCategories] Incomplete category registry detected. Synchronizing...");
+      // Automatic baseline synchronization: Ensures the core registry exists 
+      // but allows the budget planner to extend it dynamically.
+      if (currentCount < 5) { // Only force seed if catalog is nearly empty
         await seedCategories(CORE_CATEGORY_REGISTRY);
         if (mounted) fetchCategories();
       }
@@ -120,10 +154,7 @@ export const useCategories = () => {
     fetchCategories().then((data) => {
       if (mounted) {
         const count = Array.isArray(data) ? data.length : 0;
-        console.log(`[useCategories] Init complete. Catalog count: ${count}`);
-        if (count < CORE_CATEGORY_REGISTRY.length) {
-          runSeeding(count);
-        }
+        runSeeding(count);
       }
     });
 
