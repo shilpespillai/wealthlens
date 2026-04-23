@@ -48,26 +48,37 @@ export default function CashflowsReport() {
   }, [dateRange]);
 
   const reportGrid = useMemo(() => {
-    const INCOME_BASE = ["Salary", "Bonus"];
-    const EXPENSE_BASE = ["Housing", "Groceries", "Dining Out", "Transport", "Utilities", "Healthcare", "Entertainment", "Shopping", "Savings", "Investments"];
+    // Discovery: Get all unique categories across the entire interval for a complete grid
+    const allIncomes = new Set();
+    const allExpenses = new Set();
     
-    const getMonthValue = (month, category) => {
-      return allTransactions
-        .filter(t => {
-          const tDate = t.date || t.actualDate;
-          return t.category === category && isSameMonth(new Date(tDate), month);
-        })
-        .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-    };
+    const monthlyData = intervalMonths.map(m => {
+      const monthKey = format(m, "yyyy-MM");
+      const budgetRow = { month: monthKey, payload: { incomes: [], expenses: [] } };
+      const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions);
+      
+      incomes.forEach(i => allIncomes.add(i.category || i.name));
+      expenses.forEach(e => allExpenses.add(e.category || e.name));
+      
+      return { month: m, incomes, expenses };
+    });
 
-    const incomeRows = INCOME_BASE.map(cat => ({
+    const incomeRows = Array.from(allIncomes).sort().map(cat => ({
       label: cat,
-      values: intervalMonths.map(m => getMonthValue(m, cat))
+      values: monthlyData.map(d => {
+        return d.incomes
+          .filter(i => (i.category || i.name) === cat)
+          .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      })
     }));
 
-    const expenseRows = EXPENSE_BASE.map(cat => ({
+    const expenseRows = Array.from(allExpenses).sort().map(cat => ({
       label: cat,
-      values: intervalMonths.map(m => getMonthValue(m, cat))
+      values: monthlyData.map(d => {
+        return d.expenses
+          .filter(e => (e.category || e.name) === cat)
+          .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      })
     }));
 
     const monthlySurplus = intervalMonths.map((m, i) => {
@@ -76,7 +87,7 @@ export default function CashflowsReport() {
       return inc - exp;
     });
 
-    const initialBalance = 5240.50; 
+    const initialBalance = 0; // Standardized to ledger start
     const closingBalances = monthlySurplus.reduce((acc, surplus, i) => {
       const prev = i === 0 ? initialBalance : acc[i - 1];
       acc.push(prev + surplus);
@@ -84,7 +95,7 @@ export default function CashflowsReport() {
     }, []);
 
     return { incomeRows, expenseRows, monthlySurplus, closingBalances };
-  }, [allTransactions, intervalMonths]);
+  }, [allTransactions, intervalMonths, normalizeTransactionData]);
 
   return (
     <div className="flex flex-col min-h-screen bg-white font-sans">

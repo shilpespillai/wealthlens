@@ -24,20 +24,9 @@ import { toast } from "react-hot-toast";
 // Mock generation removed for production data integrity.
 
 // Budget Targets based on INITIAL_BUDGET_DATA in SetBudget.jsx
-const BUDGET_TARGETS = {
-  "Salary": 3188.36,
-  "Bonus": 0,
-  "Housing": -1028.57,
-  "Utilities": -281.89,
-  "Groceries": -535.71,
-  "Dining Out": -200.00,
-  "Entertainment": -321.43,
-  "Healthcare": -41.10,
-  "Transport": -100.00,
-  "Shopping": -150.00,
-  "Savings": -500.00,
-  "Investments": -500.00
-};
+// Budget targets are now dynamically resolved from the 'budgets' table via the normalizeTransactionData helper.
+// Hardcoded BUDGET_TARGETS removed to ensure production data integrity.
+
 
 const NESTING_GROUPS = {
   "Household": ["Housing", "Utilities"],
@@ -86,8 +75,15 @@ export default function IncomeExpenseReport() {
     const processGroup = (txs) => {
       const cats = {};
       txs.forEach(t => {
-        if (!cats[t.category]) cats[t.category] = { category: t.category, actual: 0, budgeted: BUDGET_TARGETS[t.category] || 0 };
-        cats[t.category].actual += Math.abs(Number(t.amount || 0));
+        const catName = t.category || 'Uncategorized';
+        if (!cats[catName]) {
+          cats[catName] = { 
+            category: catName, 
+            actual: 0, 
+            budgeted: Number(t.monthly_target || 0) 
+          };
+        }
+        cats[catName].actual += (Number(t.amount) || 0);
       });
       return Object.values(cats);
     };
