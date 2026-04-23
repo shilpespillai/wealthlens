@@ -181,12 +181,18 @@ export const useFinancialParser = () => {
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
     // 0. Temporal Filtering: Ensure we only process transactions for the target month
-    // Use timezone-agnostic string comparison to prevent off-by-one date shifts
-    const targetMonthKey = format(selectedDate || new Date(), "yyyy-MM");
+    // Support both ISO (YYYY-MM-DD) and legacy slash formats (MM/DD/YYYY)
+    const targetDate = selectedDate || new Date();
+    const isoKey = format(targetDate, "yyyy-MM");
+    const slashKey = format(targetDate, "MM/");
+    const slashKeyAlt = format(targetDate, "/yyyy"); // for DD/MM/YYYY match
+
     const rawTransactions = (transactions || []).filter(t => {
       const dateStr = t.date || t.actualDate;
       if (!dateStr) return false;
-      return dateStr.startsWith(targetMonthKey);
+      return dateStr.startsWith(isoKey) || 
+             (dateStr.startsWith(slashKey) && dateStr.endsWith(slashKeyAlt)) ||
+             dateStr.includes(`/${format(targetDate, "MM")}/`);
     });
     
     // Support both legacy flat structure and new relational payload structure
@@ -343,14 +349,8 @@ export const useFinancialParser = () => {
     };
 
     if (filter.month) {
-      // Postgres DATE type doesn't support LIKE. Use range queries instead.
-      const start = `${filter.month}-01`;
-      const [year, month] = filter.month.split('-').map(Number);
-      const endDay = new Date(year, month, 0).getDate();
-      const end = `${filter.month}-${endDay}`;
-      
-      queryOptions.filters.push({ column: 'date', op: 'gte', value: start });
-      queryOptions.filters.push({ column: 'date', op: 'lte', value: end });
+      // Use LIKE for robust monthly matching across both SQL and LocalStorage
+      queryOptions.filters.push({ column: 'date', op: 'like', value: `${filter.month}%` });
     }
     
     // Support direct timestamp/date ranges (used by Dashboard)
