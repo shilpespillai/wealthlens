@@ -180,7 +180,17 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    const rawTransactions = transactions || [];
+    // 0. Physical Deduplication: Ensure each database ID is only processed once.
+    const uniqueTxMap = new Map();
+    (transactions || []).forEach(tx => {
+      if (tx.id && !uniqueTxMap.has(tx.id)) {
+        uniqueTxMap.set(tx.id, tx);
+      } else if (!tx.id) {
+        // Fallback for items without IDs (shouldn't happen in production)
+        uniqueTxMap.set(Math.random(), tx);
+      }
+    });
+    const rawTransactions = Array.from(uniqueTxMap.values());
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};

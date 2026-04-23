@@ -30,8 +30,8 @@ import { toast } from "react-hot-toast";
 
 const NESTING_GROUPS = {
   "Household": ["Housing", "Utilities"],
-  "Living": ["Groceries", "Dining Out", "Shopping", "Transport"],
-  "Lifestyle": ["Entertainment", "Healthcare"]
+  "Living": ["Groceries", "Dining & Food", "Shopping", "Fuel & Transport"],
+  "Lifestyle": ["Entertainment", "Healthcare", "Travel", "Lifestyle"]
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -41,9 +41,9 @@ export default function IncomeExpenseReport() {
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [nestCategories, setNestCategories] = useState(true);
+  const [nestCategories, setNestCategories] = useState(false);
   const [showPercentages, setShowPercentages] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(["Household", "Living", "Lifestyle"]);
+  const [expandedGroups, setExpandedGroups] = useState([]);
 
   const monthKey = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}`;
   const [dbAccounts, setDbAccounts] = useState([]);
@@ -54,7 +54,7 @@ export default function IncomeExpenseReport() {
       const saved = (allBudgets || []).find((b) => b.month === monthKey);
 
       const productionLedger = await getProductionLedger({ month: monthKey });
-      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger);
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, unique);
       setIncomes(normIncs);
       setExpenses(normExps);
 
