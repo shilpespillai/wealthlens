@@ -181,10 +181,12 @@ export const useFinancialParser = () => {
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
     // 0. Temporal Filtering: Ensure we only process transactions for the target month
-    const targetMonthDate = selectedDate || new Date();
+    // Use timezone-agnostic string comparison to prevent off-by-one date shifts
+    const targetMonthKey = format(selectedDate || new Date(), "yyyy-MM");
     const rawTransactions = (transactions || []).filter(t => {
-      const tDate = new Date(t.date || t.actualDate);
-      return !isNaN(tDate.getTime()) && isSameMonth(tDate, targetMonthDate);
+      const dateStr = t.date || t.actualDate;
+      if (!dateStr) return false;
+      return dateStr.startsWith(targetMonthKey);
     });
     
     // Support both legacy flat structure and new relational payload structure
