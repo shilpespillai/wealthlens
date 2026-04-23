@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 // Mock generation removed for production data integrity.
 
 export default function CashflowsReport() {
-  const { formatAmount, getProductionLedger } = useFinancialParser();
+  const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
+  const [accounts, setAccounts] = useState([]);
   
   // Date Range State (Unified Calendar Selection)
   const [dateRange, setDateRange] = useState({
@@ -31,12 +32,22 @@ export default function CashflowsReport() {
 
   useEffect(() => {
     async function load() {
-      // Fetch the full production ledger
+      // 1. Load accounts first
+      const rawAccounts = await getDatabaseTable("user_accounts");
+      const seen = new Set();
+      const unique = (rawAccounts || []).filter(a => {
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        return true;
+      });
+      setAccounts(unique);
+
+      // 2. Fetch the full production ledger
       const productionLedger = await getProductionLedger();
       setAllTransactions(productionLedger);
     }
     load();
-  }, [getProductionLedger]);
+  }, [getProductionLedger, getDatabaseTable]);
 
   const intervalMonths = useMemo(() => {
     try {
@@ -55,7 +66,7 @@ export default function CashflowsReport() {
     const monthlyData = intervalMonths.map(m => {
       const monthKey = format(m, "yyyy-MM");
       const budgetRow = { month: monthKey, payload: { incomes: [], expenses: [] } };
-      const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions);
+      const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions, accounts);
       
       incomes.forEach(i => allIncomes.add(i.category || i.name));
       expenses.forEach(e => allExpenses.add(e.category || e.name));
