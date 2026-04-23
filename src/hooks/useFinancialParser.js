@@ -180,54 +180,8 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Temporal Filtering: Ensure we only process transactions for the target month
-    // Use hyper-robust manual parsing to handle DD/MM/YYYY vs MM/DD/YYYY ambiguity
-    const targetDate = selectedDate || new Date();
-    const targetMonth = targetDate.getMonth() + 1; // 1-12
-    const targetYear = targetDate.getFullYear();
-
-    const rawTransactions = (transactions || []).filter(t => {
-      const dateStr = t.date || t.actualDate;
-      if (!dateStr) return false;
-      
-      let txYear, txMonth;
-      
-      // ISO Format: YYYY-MM-DD
-      if (dateStr.includes('-') && dateStr.indexOf('-') === 4) {
-        const parts = dateStr.split('-');
-        txYear = parseInt(parts[0]);
-        txMonth = parseInt(parts[1]);
-      } 
-      // Slash Format: DD/MM/YYYY or MM/DD/YYYY
-      else if (dateStr.includes('/')) {
-        const parts = dateStr.split('/');
-        // If first part is 4 digits, it's YYYY/MM/DD
-        if (parts[0].length === 4) {
-          txYear = parseInt(parts[0]);
-          txMonth = parseInt(parts[1]);
-        } else {
-          // Ambiguous: Assume DD/MM/YYYY if middle part <= 12 and first part > 12
-          // Or just check if either part matches the target month.
-          // Safer: Try to find which part is the year (usually 4 digits)
-          const yearIdx = parts.findIndex(p => p.length === 4);
-          if (yearIdx !== -1) {
-            txYear = parseInt(parts[yearIdx]);
-            // If year is last, assume DD/MM/YYYY or MM/DD/YYYY
-            if (yearIdx === 2) {
-              const p0 = parseInt(parts[0]);
-              const p1 = parseInt(parts[1]);
-              // This is the core fix: if we are looking for April (4), 
-              // and the string is "01/04/2026", txMonth becomes 4.
-              txMonth = (p1 === targetMonth) ? p1 : p0; 
-            } else {
-              txMonth = parseInt(parts[1]);
-            }
-          }
-        }
-      }
-      
-      return txMonth === targetMonth && txYear === targetYear;
-    });
+    // 0. Temporal Filtering: TEMPORARILY DISABLED FOR DIAGNOSIS
+    const rawTransactions = (transactions || []);
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
@@ -382,10 +336,13 @@ export const useFinancialParser = () => {
       orderBy: { column: 'date', ascending: false }
     };
 
+    // Temporal Filtering TEMPORARILY DISABLED
+    /*
     if (filter.month) {
       // Use LIKE for robust monthly matching across both SQL and LocalStorage
       queryOptions.filters.push({ column: 'date', op: 'like', value: `${filter.month}%` });
     }
+    */
     
     // Support direct timestamp/date ranges (used by Dashboard)
     if (filter.startDate) {
