@@ -180,11 +180,55 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Simple Temporal Filtering (Matches SetBudget.jsx logic)
-    const monthKey = format(selectedDate || new Date(), "yyyy-MM");
+    // 0. Polymorphic Temporal Filtering (ISO, US, UK, and Timestamp support)
+    const targetDate = selectedDate || new Date();
+    const targetMonth = targetDate.getMonth() + 1;
+    const targetYear = targetDate.getFullYear();
+    const monthKey = format(targetDate, "yyyy-MM");
+
     const rawTransactions = (transactions || []).filter(t => {
-      const dateStr = String(t.date || t.actualDate || "");
-      return dateStr.startsWith(monthKey);
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
+      
+      let txYear, txMonth;
+      
+      // Type 1: Numeric Timestamp
+      if (typeof rawDate === 'number' || (!isNaN(rawDate) && !isNaN(parseFloat(rawDate)) && !String(rawDate).includes('-') && !String(rawDate).includes('/'))) {
+        const d = new Date(Number(rawDate));
+        txYear = d.getFullYear();
+        txMonth = d.getMonth() + 1;
+      } 
+      // Type 2: Delimited String (Greedy Split)
+      else {
+        const dateStr = String(rawDate);
+        const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+        
+        if (parts.length >= 3) {
+          if (parts[0].length === 4) {
+            txYear = parseInt(parts[0]);
+            txMonth = parseInt(parts[1]);
+          } else if (parts[2].length === 4) {
+            txYear = parseInt(parts[2]);
+            const p0 = parseInt(parts[0]);
+            const p1 = parseInt(parts[1]);
+            txMonth = (p1 === targetMonth && p0 !== targetMonth) ? p1 : ((p0 === targetMonth && p1 !== targetMonth) ? p0 : p1);
+          }
+        }
+        
+        // Final Fallback: If greedy split failed to identify month/year, try native parsing or string search
+        if (!txYear || !txMonth) {
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) {
+            txYear = d.getFullYear();
+            txMonth = d.getMonth() + 1;
+          } else {
+            // Absolute last resort: does the string contain the month key?
+            return dateStr.includes(monthKey);
+          }
+        }
+      }
+      
+      return txMonth === targetMonth && txYear === targetYear;
     });
     
     // Support both legacy flat structure and new relational payload structure
