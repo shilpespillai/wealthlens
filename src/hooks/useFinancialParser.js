@@ -227,23 +227,33 @@ export const useFinancialParser = () => {
     // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
     const consumedTransactionIds = new Set();
 
-    // Normalize Incomes
-    const baseIncs = (budgetData.incomes || []).map(i => {
+    // Deduplicate Incomes by Category
+    const incomeMap = new Map();
+    (budgetData.incomes || []).forEach(i => {
       const agg = aggregateByCategory(i.category || i.name || 'Income', 'income');
       agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       
       const resolvedAccId = resolveAccountId(i);
-      return { 
-        ...i, 
-        amount: agg.amount, // Realized income
-        date: agg.lastDate || i.date,
-        name: i.name || i.merchant || i.category || 'Income',
-        category: resolveCanonicalCategory(i.category || i.name || 'Income'),
-        type: 'income',
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
+      const cat = resolveCanonicalCategory(i.category || i.name || 'Income');
+      
+      const existing = incomeMap.get(cat);
+      if (existing) {
+        // Merge with existing row (for aliases)
+        existing.amount = Math.max(existing.amount, agg.amount); // Avoid doubling if agg is same
+      } else {
+        incomeMap.set(cat, { 
+          ...i, 
+          amount: agg.amount,
+          date: agg.lastDate || i.date,
+          name: i.name || i.merchant || i.category || 'Income',
+          category: cat,
+          type: 'income',
+          account_id: resolvedAccId,
+          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+        });
+      }
     });
+    const baseIncs = Array.from(incomeMap.values());
 
     const missingIncs = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
@@ -262,23 +272,33 @@ export const useFinancialParser = () => {
       };
     });
     
-    // Normalize Expenses
-    const baseExps = (budgetData.expenses || []).map(e => {
-      const agg = aggregateByCategory(e.category || e.name || 'Misc', 'expense');
+    // Deduplicate Expenses by Category
+    const expenseMap = new Map();
+    (budgetData.expenses || []).forEach(e => {
+      const agg = aggregateByCategory(e.category || e.name || 'Expense', 'expense');
       agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
-
+      
       const resolvedAccId = resolveAccountId(e);
-      return { 
-        ...e, 
-        amount: Math.abs(agg.amount || 0), // Realized spend
-        date: agg.lastDate || e.date,
-        name: e.name || e.merchant || e.category || 'Misc Expense',
-        category: resolveCanonicalCategory(e.category || e.name || 'Misc'),
-        type: 'expense',
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
+      const cat = resolveCanonicalCategory(e.category || e.name || 'Expense');
+      
+      const existing = expenseMap.get(cat);
+      if (existing) {
+        // Merge with existing row (avoid doubling)
+        existing.amount = Math.max(existing.amount, agg.amount); 
+      } else {
+        expenseMap.set(cat, { 
+          ...e, 
+          amount: agg.amount,
+          date: agg.lastDate || e.date,
+          name: e.name || e.merchant || e.category || 'Expense',
+          category: cat,
+          type: 'expense',
+          account_id: resolvedAccId,
+          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+        });
+      }
     });
+    const baseExps = Array.from(expenseMap.values());
 
     const missingExps = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
