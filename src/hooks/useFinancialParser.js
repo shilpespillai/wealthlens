@@ -262,7 +262,7 @@ export const useFinancialParser = () => {
       });
       
       return {
-        amount: filtered.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
+        amount: Math.abs(filtered.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)),
         count: filtered.length,
         lastDate: filtered.length > 0 ? filtered[0].date : null,
         transactionIds: new Set(filtered.map(t => t.id))
