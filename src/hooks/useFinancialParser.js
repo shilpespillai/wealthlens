@@ -180,51 +180,11 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Temporal Filtering: Greedy parser to handle ISO, US, and UK date formats
-    const targetDate = selectedDate || new Date();
-    const targetMonth = targetDate.getMonth() + 1; // 1-12
-    const targetYear = targetDate.getFullYear();
-
+    // 0. Simple Temporal Filtering (Matches SetBudget.jsx logic)
+    const monthKey = format(selectedDate || new Date(), "yyyy-MM");
     const rawTransactions = (transactions || []).filter(t => {
-      const rawDate = t.date || t.actualDate;
-      if (!rawDate) return false;
-      
-      let txYear, txMonth;
-      
-      // Handle Numeric Timestamps
-      if (typeof rawDate === 'number' || (!isNaN(rawDate) && !isNaN(parseFloat(rawDate)) && !String(rawDate).includes('-') && !String(rawDate).includes('/'))) {
-        const d = new Date(Number(rawDate));
-        txYear = d.getFullYear();
-        txMonth = d.getMonth() + 1;
-      } else {
-        const dateStr = String(rawDate);
-        // Greedy Extraction: Split by any non-digit character
-        const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
-        if (parts.length < 3) {
-          // Fallback to standard Date parser if greedy fails
-          const d = new Date(dateStr);
-          if (isNaN(d.getTime())) return false;
-          txYear = d.getFullYear();
-          txMonth = d.getMonth() + 1;
-        } else {
-          // Pattern 1: YYYY is first (ISO)
-          if (parts[0].length === 4) {
-            txYear = parseInt(parts[0]);
-            txMonth = parseInt(parts[1]);
-          } 
-          // Pattern 2: YYYY is last (US/UK)
-          else if (parts[2].length === 4) {
-            txYear = parseInt(parts[2]);
-            const p0 = parseInt(parts[0]);
-            const p1 = parseInt(parts[1]);
-            if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
-            else if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
-            else txMonth = p1; 
-          }
-        }
-      }
-      
-      return txMonth === targetMonth && txYear === targetYear;
+      const dateStr = String(t.date || t.actualDate || "");
+      return dateStr.startsWith(monthKey);
     });
     
     // Support both legacy flat structure and new relational payload structure
@@ -249,7 +209,7 @@ export const useFinancialParser = () => {
         const transactionCategory = resolveCanonicalCategory(t.category);
         const amount = Number(t.amount) || 0;
         
-        // Robust Type Detection: Check 'type', 'spend_type', and fall back to amount polarity
+        // Robust Type Detection
         const rawType = (t.type || t.spend_type || "").toLowerCase();
         const detectedType = rawType === 'income' ? 'income' : (rawType === 'expense' ? 'expense' : (amount > 0 ? 'income' : 'expense'));
         
@@ -264,102 +224,60 @@ export const useFinancialParser = () => {
       };
     };
 
-    // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
     const consumedTransactionIds = new Set();
 
-    // Deduplicate Incomes by Category
+    // 1. Process Incomes
     const incomeMap = new Map();
     (budgetData.incomes || []).forEach(i => {
       const agg = aggregateByCategory(i.category || i.name || 'Income', 'income');
       agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
-      
-      const resolvedAccId = resolveAccountId(i);
       const cat = resolveCanonicalCategory(i.category || i.name || 'Income');
       
-      const existing = incomeMap.get(cat);
-      if (existing) {
-        // Merge with existing row (for aliases)
-        existing.amount = Math.max(existing.amount, agg.amount); // Avoid doubling if agg is same
-      } else {
-        incomeMap.set(cat, { 
-          ...i, 
-          amount: agg.amount,
-          date: agg.lastDate || i.date,
-          name: i.name || i.merchant || i.category || 'Income',
-          category: cat,
-          type: 'income',
-          account_id: resolvedAccId,
-          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-        });
+      if (!incomeMap.has(cat)) {
+        incomeMap.set(cat, { ...i, amount: agg.amount, category: cat, type: 'income' });
       }
     });
-    const baseIncs = Array.from(incomeMap.values());
 
     const missingIncs = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
       const isIncome = m.type === 'income' || resolveCanonicalCategory(m.category) === 'Income' || amount > 0;
       return isIncome && !consumedTransactionIds.has(m.id);
-    }).map(t => {
-      const resolvedAccId = resolveAccountId(t);
-      return { 
-        ...t,
-        name: t.merchant || t.name || t.category || 'Income Item',
-        category: 'Income', // Standardize to unified category
-        type: 'income',
-        spendType: 'income',
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
-    });
-    
-    // Deduplicate Expenses by Category
+    }).map(t => ({ 
+      ...t, 
+      category: 'Income', 
+      type: 'income',
+      amount: Number(t.amount) || 0
+    }));
+
+    // 2. Process Expenses
     const expenseMap = new Map();
     (budgetData.expenses || []).forEach(e => {
       const agg = aggregateByCategory(e.category || e.name || 'Expense', 'expense');
       agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
-      
-      const resolvedAccId = resolveAccountId(e);
       const cat = resolveCanonicalCategory(e.category || e.name || 'Expense');
       
-      const existing = expenseMap.get(cat);
-      if (existing) {
-        // Merge with existing row (avoid doubling)
-        existing.amount = Math.max(existing.amount, agg.amount); 
+      if (!expenseMap.has(cat)) {
+        expenseMap.set(cat, { ...e, amount: agg.amount, category: cat, type: 'expense' });
       } else {
-        expenseMap.set(cat, { 
-          ...e, 
-          amount: agg.amount,
-          date: agg.lastDate || e.date,
-          name: e.name || e.merchant || e.category || 'Expense',
-          category: cat,
-          type: 'expense',
-          account_id: resolvedAccId,
-          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-        });
+        const existing = expenseMap.get(cat);
+        existing.amount += agg.amount; // Safe merging
       }
     });
-    const baseExps = Array.from(expenseMap.values());
 
     const missingExps = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
       const isExpense = m.type === 'expense' || (m.type !== 'income' && amount < 0);
       return isExpense && !consumedTransactionIds.has(m.id);
-    }).map(t => {
-      const resolvedAccId = resolveAccountId(t);
-      return { 
-        ...t,
-        name: t.merchant || t.name || t.category || 'Expense Item',
-        category: resolveCanonicalCategory(t.category || 'Expense'),
-        type: 'expense',
-        amount: Math.abs(t.amount || 0),
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
-    });
+    }).map(t => ({ 
+      ...t, 
+      category: resolveCanonicalCategory(t.category || 'Expense'), 
+      type: 'expense',
+      amount: Math.abs(Number(t.amount) || 0)
+    }));
 
     return {
-      incomes: [...baseIncs, ...missingIncs],
-      expenses: [...baseExps, ...missingExps]
+      incomes: [...Array.from(incomeMap.values()), ...missingIncs],
+      expenses: [...Array.from(expenseMap.values()), ...missingExps]
     };
   }, []);
 
