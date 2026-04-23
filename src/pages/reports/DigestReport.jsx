@@ -29,7 +29,7 @@ const COLORS = ['#10B981', '#F43F5E'];
 // Mock generation removed for production data integrity.
 
 export default function DigestReport() {
-  const { formatAmount, getProductionLedger, getDatabaseTable } = useFinancialParser();
+  const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [allTransactions, setAllTransactions] = useState([]);
