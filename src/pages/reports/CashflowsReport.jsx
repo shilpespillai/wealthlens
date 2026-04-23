@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
-import { format, addMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 
 // Mock generation removed for production data integrity.
@@ -120,7 +120,7 @@ export default function CashflowsReport() {
             </div>
             <div className="flex items-center gap-6">
                
-               {/* Unified Calendar Range Selector */}
+               {/* High-Fidelity Range Selector with Presets */}
                <Popover>
                   <PopoverTrigger asChild>
                     <Button 
@@ -131,30 +131,66 @@ export default function CashflowsReport() {
                       )}
                     >
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "MMM dd, yyyy")
-                        )
+                      {dateRange?.from && dateRange?.to ? (
+                        <>{format(dateRange.from, "MMMM yyyy")} — {format(dateRange.to, "MMMM yyyy")}</>
                       ) : (
                         <span>Pick a date range</span>
                       )}
                       <ChevronDown className="w-4 h-4 ml-auto text-slate-500" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl" align="end">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={2}
-                      className="text-white"
-                    />
+                  <PopoverContent className="w-80 p-4 bg-[#1E293B] border-slate-700 shadow-2xl rounded-2xl" align="end">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-2">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Quick Selection</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: "Last 3 Months", months: 3 },
+                            { label: "Last 6 Months", months: 6 },
+                            { label: "Last 12 Months", months: 12 },
+                            { label: "Year to Date", months: new Date().getMonth() + 1 }
+                          ].map((preset) => (
+                            <button
+                              key={preset.label}
+                              onClick={() => setDateRange({
+                                from: subMonths(startOfMonth(new Date()), preset.months - 1),
+                                to: endOfMonth(new Date())
+                              })}
+                              className="py-2.5 rounded-xl text-[11px] font-semibold bg-slate-800/50 text-slate-300 border border-slate-700 hover:bg-[#C5A059] hover:text-white hover:border-[#C5A059] transition-all"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-700/50">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Fiscal Years</label>
+                        <div className="flex gap-2">
+                          {[2024, 2025, 2026].map(year => (
+                            <button
+                              key={year}
+                              onClick={() => setDateRange({
+                                from: new Date(year, 0, 1),
+                                to: new Date(year, 11, 31)
+                              })}
+                              className={cn(
+                                "flex-1 py-2 rounded-xl text-[11px] font-bold border transition-all",
+                                dateRange.from?.getFullYear() === year && dateRange.to?.getFullYear() === year
+                                  ? "bg-[#C5A059] border-[#C5A059] text-white"
+                                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700"
+                              )}
+                            >
+                              {year}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 text-center">
+                        <p className="text-[9px] text-slate-500 italic">Select a preset to automatically refresh the grid.</p>
+                      </div>
+                    </div>
                   </PopoverContent>
                </Popover>
 
