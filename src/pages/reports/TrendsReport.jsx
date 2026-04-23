@@ -113,7 +113,10 @@ export default function TrendsReport() {
           }
         } else {
           const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-          const found = flatBudgets.find(b => (b.category || "").toLowerCase() === selectedCategory.toLowerCase() || (b.id || "").toLowerCase() === selectedCategory.toLowerCase());
+          const found = flatBudgets.find(b => 
+            (String(b.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase() || 
+            (String(b.id || "")).toLowerCase() === String(selectedCategory || "").toLowerCase()
+          );
           if (found) {
             budgeted = parseFloat(found.amount?.replace(/[^\d.]/g, '')) || 0;
           }
@@ -188,7 +191,10 @@ export default function TrendsReport() {
         }
       } else {
         const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-        const found = flatBudgets.find(b => b.category === selectedCategory || b.id === selectedCategory);
+        const found = flatBudgets.find(b => 
+          String(b.category || "") === String(selectedCategory || "") || 
+          String(b.id || "") === String(selectedCategory || "")
+        );
         if (found) {
           budget = Number(found.monthly_target) || 0;
         }
@@ -200,7 +206,7 @@ export default function TrendsReport() {
       const d = new Date(t.date || t.actualDate);
       const categoryMatch = selectedCategory === "All categories" 
         ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
-        : (t.category || "").toLowerCase() === selectedCategory.toLowerCase();
+        : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
       return isSameMonth(d, start) && categoryMatch;
     });
 
