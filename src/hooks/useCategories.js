@@ -43,10 +43,20 @@ export const useCategories = () => {
       // 3. Merge and Deduplicate (Preferring Budget names and icons)
       const unifiedMap = new Map();
       
-      // Load registry first
+      // 1. Load Registry as baseline (Ensures 'Income' and others always exist)
+      CORE_CATEGORY_REGISTRY.forEach(c => {
+        unifiedMap.set((c.name || "").toLowerCase().trim(), {
+          name: c.name,
+          type: c.type,
+          icon_id: c.iconId || 'circle',
+          color: c.color || 'slate'
+        });
+      });
+      
+      // 2. Extend with dedicated categories registry
       dbCategories.forEach(c => unifiedMap.set((c.name || "").toLowerCase().trim(), c));
       
-      // Overwrite/Extend with Budget items (the authoritative source)
+      // 3. Overwrite/Extend with Budget items (the authoritative source)
       budgetCategories.forEach(c => {
         const key = (c.name || "").toLowerCase().trim();
         if (key) unifiedMap.set(key, c);

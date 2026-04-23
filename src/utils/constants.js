@@ -4,7 +4,7 @@
  */
 
 export const CORE_CATEGORY_REGISTRY = [
-  { name: "Income", type: "income", iconId: "trending-up", color: "emerald", aliases: ["salary", "wages", "income", "payroll", "dividend", "interest"] },
+  { name: "Income", type: "income", iconId: "trending-up", color: "emerald", aliases: ["salary", "wages", "income", "payroll", "dividend", "interest", "monthly salary", "salary and wages", "rent income", "rental income", "investment income"] },
   { name: "Housing", type: "expense", iconId: "home", color: "indigo", aliases: ["rent", "mortgage", "housing", "accommodation"] },
   { name: "Utilities", type: "expense", iconId: "zap", color: "sky", aliases: ["bills", "electricity", "water", "utilities", "energy", "gas bill", "phone", "internet"] },
   { name: "Financial", type: "expense", iconId: "banknote", color: "slate", aliases: ["bank fees", "interest", "financial", "taxes", "superannuation"] },

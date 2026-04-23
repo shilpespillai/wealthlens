@@ -336,32 +336,97 @@ export const base44 = {
       const data = await base44.user.loadData(key);
       return Array.isArray(data) ? data : [];
     },
+    // ── insertRow ───────────────────────────────────────────────────────────
+    // Pure INSERT — never updates an existing record.
+    // Use this for new transactions, new accounts, etc.
+    insertRow: async (tableName, row) => {
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const cleanRow = { ...row };
+          delete cleanRow.id; // Always let DB generate the UUID
+
+          const { data, error } = await supabase
+            .from(sqlTable)
+            .insert({ ...cleanRow, user_id: session.user.id, created_at: new Date(), updated_at: new Date() })
+            .select();
+
+          if (!error) {
+            console.log(`[base44] INSERT OK → ${sqlTable}:`, data?.[0]);
+            return data?.[0] || { success: true };
+          }
+
+          if (error.code === 'PGRST205') {
+            console.warn(`[base44] Table '${sqlTable}' not found. Falling back to local vault.`);
+          } else {
+            console.error(`[base44] Insert failed for ${tableName}:`, error);
+            return { error };
+          }
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const rows = await base44.db.getTable(tableName);
+      const newRow = { ...row, id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() };
+      return base44.user.saveData(key, [...rows, newRow]);
+    },
+
+    // ── insertRows ──────────────────────────────────────────────────────────
+    // Bulk INSERT — for CSV imports, bank syncs, etc.
+    insertRows: async (tableName, rows) => {
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const cleanRows = rows.map(r => {
+            const clean = { ...r, user_id: session.user.id, created_at: new Date(), updated_at: new Date() };
+            delete clean.id;
+            return clean;
+          });
+
+          const { data, error } = await supabase
+            .from(sqlTable)
+            .insert(cleanRows)
+            .select();
+
+          if (!error) return data || { success: true };
+          console.error(`[base44] Bulk insert failed for ${tableName}:`, error);
+          return { error };
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const existing = await base44.db.getTable(tableName);
+      const newRows = rows.map(r => ({ ...r, id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() }));
+      return base44.user.saveData(key, [...existing, ...newRows]);
+    },
+
+    // ── upsertRow ───────────────────────────────────────────────────────────
+    // INSERT or UPDATE based on conflict key.
+    // Use this for edits to existing records (e.g. inline transaction edits,
+    // budget planning rows, user settings).
     upsertRow: async (tableName, row, options = {}) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          // Optimized for WealthLens: Automatically handle composite unique constraints for planning tables
-          // Detect shorthand string options (e.g., "month") and map to onConflict
           const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           
-          // Safety: Strip null or undefined ID to allow DB-generated defaults (UUIDs)
           const cleanRow = { ...row };
           if (cleanRow.id === null || cleanRow.id === undefined) {
             delete cleanRow.id;
           }
 
-          // Use the table's composite key or primary key for onConflict if not provided
           if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
-            upsertOptions.onConflict = 'user_id,month'; // WealthLens standard for planning tables
+            upsertOptions.onConflict = 'user_id,month';
           } else if (upsertOptions.onConflict === 'month') {
-            upsertOptions.onConflict = 'user_id,month'; // Map shorthand to composite key
+            upsertOptions.onConflict = 'user_id,month';
           }
 
           const { data, error } = await supabase.from(sqlTable).upsert({ ...cleanRow, user_id: session.user.id, updated_at: new Date() }, upsertOptions).select();
           if (!error) return data?.[0] || { success: true };
           
-          // Catch 'missing table' error and allow local fallback
           if (error && error.code === 'PGRST205') {
              console.warn(`[base44] Table '${sqlTable}' not found for upsert. Falling back to local vault.`);
           } else {
@@ -374,7 +439,6 @@ export const base44 = {
       const rows = await base44.db.getTable(tableName);
       let targetId = row.id;
       
-      // Local Fallback: Find by logical keys if ID is missing
       if (!targetId) {
         if (tableName === 'budgets' || tableName === 'monthly_summaries') {
           const match = rows.find(r => r.month === row.month);

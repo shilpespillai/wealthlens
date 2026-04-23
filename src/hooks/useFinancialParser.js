@@ -114,8 +114,9 @@ export const useFinancialParser = () => {
    * Consolidates complex budget reduction logic based on raw DB fields.
    */
   const calculateMetrics = useCallback((incomes = [], expenses = []) => {
-    const totalIncome = incomes.reduce((sum, i) => sum + (Number(i.amount || i.monthly_target || 0)), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount || e.monthly_target || 0)), 0);
+    // Priority: Actual Amount (realized) > Monthly Target (planned)
+    const totalIncome = incomes.reduce((sum, i) => sum + (Number(i.amount !== undefined && i.amount !== null ? i.amount : (i.monthly_target || 0))), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount !== undefined && e.amount !== null ? e.amount : (e.monthly_target || 0))), 0);
     const savings = expenses
       .filter(e => e.spendType === 'savings' || (e.name && e.name.toLowerCase().includes('save')))
       .reduce((sum, e) => sum + (Number(e.amount || e.monthly_target || 0)), 0);
@@ -183,6 +184,8 @@ export const useFinancialParser = () => {
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
+    // FORCE IGNORE incomes from budget records - income is a ledger-only funding source.
+    const budgetData = { ...data, incomes: [] };
     
     // Account Resolution Helper
     const resolveAccountId = (tx) => {
@@ -208,37 +211,42 @@ export const useFinancialParser = () => {
       return {
         amount: filtered.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
         count: filtered.length,
-        lastDate: filtered.length > 0 ? filtered[0].date : null
+        lastDate: filtered.length > 0 ? filtered[0].date : null,
+        transactionIds: new Set(filtered.map(t => t.id))
       };
     };
 
+    // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
+    const consumedTransactionIds = new Set();
+
     // Normalize Incomes
-    const baseIncs = (data.incomes || []).map(i => {
-      const agg = aggregateByCategory(i.category || i.name || 'Salary', 'income');
+    const baseIncs = (budgetData.incomes || []).map(i => {
+      const agg = aggregateByCategory(i.category || i.name || 'Income', 'income');
+      agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
+      
       const resolvedAccId = resolveAccountId(i);
       return { 
         ...i, 
         amount: agg.amount, // Realized income
         date: agg.lastDate || i.date,
-        name: i.name || i.merchant || i.category || 'Salary',
-        category: (!i.category || ['income', 'Salary and Wages'].includes(i.category)) ? (i.name || 'Salary') : i.category,
+        name: i.name || i.merchant || i.category || 'Income',
+        category: resolveCanonicalCategory(i.category || i.name || 'Income'),
         type: 'income',
         account_id: resolvedAccId,
         account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
       };
     });
 
-    const presentIncCats = new Set(baseIncs.map(i => (i.category || "").toLowerCase()));
     const missingIncs = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
-      // Trust explicit type first, but fallback to amount if type is ambiguous
-      const isIncome = m.type === 'income' || (m.type !== 'expense' && amount > 0);
-      return isIncome && !presentIncCats.has((m.category || "").toLowerCase());
+      const isIncome = m.type === 'income' || resolveCanonicalCategory(m.category) === 'Income' || amount > 0;
+      return isIncome && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
       return { 
         ...t,
         name: t.merchant || t.name || t.category || 'Income Item',
+        category: 'Income', // Standardize to unified category
         type: 'income',
         spendType: 'income',
         account_id: resolvedAccId,
@@ -247,26 +255,27 @@ export const useFinancialParser = () => {
     });
     
     // Normalize Expenses
-    const baseExps = (data.expenses || []).map(e => {
+    const baseExps = (budgetData.expenses || []).map(e => {
       const agg = aggregateByCategory(e.category || e.name || 'Misc', 'expense');
+      agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
+
       const resolvedAccId = resolveAccountId(e);
       return { 
         ...e, 
         amount: Math.abs(agg.amount || 0), // Realized spend
         date: agg.lastDate || e.date,
         name: e.name || e.merchant || e.category || 'Misc Expense',
-        category: (!e.category || ['fixed', 'variable', 'savings', 'expense'].includes(e.category.toLowerCase())) ? (e.name || 'Misc') : e.category,
+        category: resolveCanonicalCategory(e.category || e.name || 'Misc'),
         type: 'expense',
         account_id: resolvedAccId,
         account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
       };
     });
 
-    const presentExpCats = new Set(baseExps.map(e => (e.category || "").toLowerCase()));
     const missingExps = rawTransactions.filter(m => {
       const amount = Number(m.amount) || 0;
       const isExpense = m.type === 'expense' || (m.type !== 'income' && amount < 0);
-      return isExpense && !presentExpCats.has((m.category || "").toLowerCase());
+      return isExpense && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
       return { 

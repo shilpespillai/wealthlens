@@ -157,7 +157,7 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
-      const catName = curr.category || "Salary";
+      const catName = curr.category || "Income";
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'income').toLowerCase();
       if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, spendType: st };

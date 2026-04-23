@@ -93,7 +93,7 @@ export function DashboardContent() {
 
   const [columns, setColumns] = useState({
     col1: ["accounts", "networth_card"],
-    col2: ["transactions"],
+    col2: ["transactions", "recent_activity"],
     col3: ["bills"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
   });
@@ -299,8 +299,8 @@ export function DashboardContent() {
     const budgetRow = { 
       month: periodInfo.focusMonthKey,
       payload: {
-        // We need to re-structure the flattened budgets back into incomes/expenses if they were partitioned
-        incomes: (liveData.currentMonthBudgets || []).filter(b => b.type === 'income'),
+        // Income is no longer a 'budgetable' category, it's a 'realized' funding source.
+        incomes: [], 
         expenses: (liveData.currentMonthBudgets || []).filter(b => b.type !== 'income')
       }
     };
@@ -826,6 +826,51 @@ export function DashboardContent() {
                 </div>
               </div>
               
+            </div>
+          </div>
+        );
+    case "recent_activity":
+        const recentTxs = [...liveData.transactions]
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 8);
+
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-1 bg-indigo-600 w-full" />
+            <div className="p-7">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2 mb-6">
+                <Receipt className="w-3.5 h-3.5 text-indigo-600" />
+                Strategic Activity
+              </h3>
+              
+              <div className="space-y-4">
+                {recentTxs.length > 0 ? recentTxs.map((tx, i) => (
+                  <div key={i} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                        <CategoryIcon category={tx.category} className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 leading-none mb-1">{tx.merchant || tx.name || tx.category}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          {format(new Date(tx.date), 'MMM dd')} · {tx.category}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-black tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(tx.amount))}
+                    </span>
+                  </div>
+                )) : (
+                  <div className="py-12 flex flex-col items-center justify-center opacity-40">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No recent activity</p>
+                  </div>
+                )}
+              </div>
+
+              <Link to="/Transactions" className="block mt-6 pt-6 border-t border-slate-50 text-center text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors">
+                View Full Ledger
+              </Link>
             </div>
           </div>
         );

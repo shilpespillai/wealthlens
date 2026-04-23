@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { 
   Plus, 
@@ -86,6 +86,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
 // --- Mock Data ---
@@ -95,8 +96,8 @@ const MOCK_TRANSACTIONS = (() => {
   const transactions = [];
   
   const CATEGORY_MAP = [
-    { name: "Salary", type: "income", spendType: "income", amount: 5500, merchant: "Global Corp Salary" },
-    { name: "Bonus", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
+    { name: "Income", type: "income", spendType: "income", amount: 5500, merchant: "Monthly Salary" },
+    { name: "Income", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
     { name: "Housing", type: "expense", spendType: "fixed", amount: -1850, merchant: "Metropolis Housing" },
     { name: "Groceries", type: "expense", spendType: "variable", amount: -150, merchant: "Whole Foods Market" },
     { name: "Dining Out", type: "expense", spendType: "variable", amount: -45, merchant: "Local Bistro" },
@@ -210,6 +211,7 @@ function TransactionsContent() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Deep filter helpers
   const handleSidebarFilter = (type, value = "") => {
@@ -310,7 +312,7 @@ function TransactionsContent() {
     category: "",
     spendType: "variable",
     type: "expense",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
     account_id: ""
   });
 
@@ -329,48 +331,99 @@ function TransactionsContent() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    async function initData() {
-      setIsLoading(true);
-      try {
-        // 0. Fetch accounts to enable attribution mapping
-        let accounts = await base44.db.getTable("user_accounts");
-        
-        // Default Account Provisioning Safety: Prevent duplicate defaults during rapid re-mounts
-        if (!accounts || accounts.length === 0) {
-          console.log("[Transactions] System initializing defaults...");
-          const defaults = [
-            { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
-            { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
-          ];
-          for (const acc of defaults) {
-            await base44.db.upsertRow("user_accounts", acc);
-          }
-          accounts = await base44.db.getTable("user_accounts");
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 0. Fetch accounts to enable attribution mapping
+      let accounts = await base44.db.getTable("user_accounts");
+      
+      // Default Account Provisioning Safety
+      if (!accounts || accounts.length === 0) {
+        const defaults = [
+          { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+          { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
+        ];
+        for (const acc of defaults) {
+          await base44.db.upsertRow("user_accounts", acc);
         }
-        
-        setDbAccounts(accounts || []);
-
-        // 1. Fetch real transactions from the production ledger
-        const ledger = await getProductionLedger({ month: monthKey });
-        
-        // 2. Load the current month's budget/saved state from relativistic budgets table
-        const allBudgets = await getDatabaseTable("budgets");
-        const saved = (allBudgets || []).find(b => b.month === monthKey);
-        
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger, accounts || []);
-        
-        setIncomes(normIncs);
-        setExpenses(normExps);
-        if (saved?.currency) setCurrency(saved.currency);
-      } catch (err) {
-        console.error("Transactions initialization failed:", err);
-      } finally {
-        setIsLoading(false);
+        accounts = await base44.db.getTable("user_accounts");
       }
+      
+      setDbAccounts(accounts || []);
+
+      // 1. Fetch raw transactions directly from the production ledger.
+      //    The Transactions page is a ledger view — it must show each
+      //    individual transaction record, NOT budget-aggregated totals.
+      //    Using normalizeTransactionData here caused every budget income
+      //    item (Salary, Monthly Salary, Salary & Wages) to display the
+      //    same canonical-category aggregate, creating duplicate rows.
+      const ledger = await getProductionLedger({ month: monthKey });
+
+      const resolveAccount = (tx) => {
+        if (tx.account_id) {
+          return accounts.find(a => String(a.id) === String(tx.account_id))?.name || 'Manual Vault';
+        }
+        return tx.account || 'Manual Vault';
+      };
+
+      const rawIncs = (ledger || [])
+        .filter(t => t.type === 'income')
+        .map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Income Item',
+          merchant:   t.merchant || t.name || t.category || 'Income Item',
+          amount:     Math.abs(Number(t.amount) || 0),
+          account_id: t.account_id || null,
+          account:    resolveAccount(t),
+          type:       'income',
+          spendType:  t.spendType || t.spend_type || 'income'
+        }));
+
+      const rawExps = (ledger || [])
+        .filter(t => t.type === 'expense')
+        .map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Expense Item',
+          merchant:   t.merchant || t.name || t.category || 'Expense Item',
+          amount:     Math.abs(Number(t.amount) || 0),
+          account_id: t.account_id || null,
+          account:    resolveAccount(t),
+          type:       'expense',
+          spendType:  t.spendType || t.spend_type || 'variable'
+        }));
+
+      setIncomes(rawIncs);
+      setExpenses(rawExps);
+
+      // Preserve currency preference from budget if set
+      const allBudgets = await getDatabaseTable("budgets");
+      const saved = (allBudgets || []).find(b => b.month === monthKey);
+      if (saved?.currency) setCurrency(saved.currency);
+
+    } catch (err) {
+      console.error("Transactions fetch failure:", err);
+    } finally {
+      setIsLoading(false);
     }
-    initData();
-  }, [monthKey, normalizeTransactionData, selectedDate, getProductionLedger, getDatabaseTable]);
+  }, [monthKey, selectedDate, getProductionLedger, getDatabaseTable]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Re-fetch once Supabase auth session is confirmed ready.
+  // Without this, fetchData fires before the PKCE session resolves,
+  // falls through to the empty localStorage fallback, and shows $0.
+  useEffect(() => {
+    const { data: { subscription } } = supabase?.auth?.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        fetchData();
+      }
+    }) || { data: { subscription: null } };
+
+    return () => subscription?.unsubscribe();
+  }, [fetchData]);
+
 
   // Load Saved Searches on mount
   useEffect(() => {
@@ -425,18 +478,40 @@ function TransactionsContent() {
   const handleSaveEdit = async () => {
     if (!editingTransaction) return;
     
-    const targetState = editingTransaction.type === 'income' ? incomes : expenses;
-    const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
-    
-    const newState = targetState.map(item => 
-      item.id === editingTransaction.id ? { ...item, ...editingTransaction } : item
-    );
-    
-    setState(newState);
-    setIsEditModalOpen(false);
-    setEditingTransaction(null);
-    setHasChanges(true); // Trigger commit-awareness
-    toast.success("Transaction updated locally. Commit to save to database.");
+    try {
+      // 1. Map fields to DB schema (merchant, spend_type)
+      const dbRecord = {
+        ...editingTransaction,
+        merchant:   editingTransaction.merchant || editingTransaction.name,
+        spend_type: editingTransaction.spendType || editingTransaction.spend_type,
+      };
+      // Clean up UI-only fields
+      delete dbRecord.spendType;
+      delete dbRecord.name;
+      delete dbRecord.account; // Account name is derived from account_id in DB
+
+      // 2. Perform real individual UPSERT
+      await base44.db.upsertRow('transactions', dbRecord);
+
+      // 3. Update local state
+      const targetState = editingTransaction.type === 'income' ? incomes : expenses;
+      const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
+      
+      const newState = targetState.map(item => 
+        item.id === editingTransaction.id ? { ...editingTransaction } : item
+      );
+      
+      setState(newState);
+      setIsEditModalOpen(false);
+      setEditingTransaction(null);
+      toast.success("Transaction updated successfully");
+      
+      // Refresh to ensure everything is in sync
+      fetchData();
+    } catch (err) {
+      console.error("Failed to save edit:", err);
+      toast.error("Failed to update transaction");
+    }
   };
 
   const persistTransactionData = async (newIncomes, newExpenses) => {
@@ -446,18 +521,16 @@ function TransactionsContent() {
   const handleCommit = async () => {
     setIsCommiting(true);
     try {
-      // Upsert into relational budgets table to maintain single source of truth
+      // Save budget-level settings (like currency)
+      // Transactions are now handled individually via insertRow/upsertRow
       await base44.db.upsert("budgets", {
         month: monthKey,
         currency,
-        payload: {
-          incomes,
-          expenses
-        }
+        updated_at: new Date()
       }, "month");
       
       setHasChanges(false);
-      toast.success("Ledger committed to production database");
+      toast.success("Budget settings committed to production");
     } catch (err) {
       console.error("Commit failed:", err);
       toast.error("Commit failed");
@@ -613,64 +686,105 @@ function TransactionsContent() {
     }
   };
 
-  const handleManualAdd = () => {
-    if (!manualForm.merchant || !manualForm.amount) return toast.error("Please fill required fields");
+  const handleManualAdd = async () => {
+    const parsedAmount = Number(manualForm.amount);
+    if (!manualForm.merchant) return toast.error("Please enter a merchant/label");
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) return toast.error("Please enter a valid amount greater than 0");
 
     const newItem = {
-      id: Date.now() + Math.random(),
-      name: manualForm.merchant,
-      category: manualForm.category || "Uncategorized",
-      amount: parseFloat(manualForm.amount) || 0,
-      spendType: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
-      date: manualForm.date,
-      account_id: manualForm.account_id,
-      account: dbAccounts.find(a => a.id === manualForm.account_id)?.name || "Manual Vault"
+      // DB schema columns: merchant, amount, category, type, spend_type, date, account_id
+      merchant:   manualForm.merchant.trim(),
+      category:   manualForm.type === 'income' ? 'Income' : (manualForm.category || "Uncategorized"),
+      amount:     parsedAmount,
+      type:       manualForm.type,
+      spend_type: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
+      date:       manualForm.date,
+      account_id: manualForm.account_id || null,
     };
+    console.log('[handleManualAdd] Saving transaction:', newItem);
 
-    if (manualForm.type === 'income') {
-      setIncomes(prev => [...prev, newItem]);
-    } else {
-      setExpenses(prev => [...prev, newItem]);
+    try {
+      // 1. Persist as a brand-new record (pure INSERT — no conflict/update)
+      const savedItem = await base44.db.insertRow('transactions', newItem);
+      
+      // 2. Update local state for immediate feedback
+      if (manualForm.type === 'income') {
+        setIncomes(prev => [...prev, { ...newItem, id: savedItem.id || Date.now() }]);
+      } else {
+        setExpenses(prev => [...prev, { ...newItem, id: savedItem.id || Date.now() }]);
+      }
+
+      toast.success("Transaction saved permanently to ledger.");
+      
+      // 3. Fully refresh all component states from the database
+      await fetchData();
+
+      // 4. Reset form and close modal
+      setManualForm({ 
+        merchant: "", 
+        amount: "", 
+        type: "expense", 
+        category: "Fixed", 
+        date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
+        account_id: ""
+      });
+      setIsAddModalOpen(false);
+
+    } catch (err) {
+      console.error("[Transactions] Manual add failed:", err);
+      toast.error(`Persistence Error: ${err.message || 'Failed to save to ledger'}`);
     }
-    setHasChanges(true);
-    setManualForm({ 
-      merchant: "", 
-      amount: "", 
-      type: "expense", 
-      category: "Fixed", 
-      date: selectedDate.toISOString().split('T')[0],
-      account_id: ""
-    });
-    toast.success("Transaction staged. Click Commit to save.");
   };
 
   const handleUpdateItem = async (id, updates, type) => {
-    const finalUpdates = { ...updates };
+    const targetState = type === 'income' ? incomes : expenses;
+    const item = targetState.find(i => i.id === id);
+    if (!item) return;
+
+    const updatedItem = { ...item, ...updates };
     
-    // Ensure name is updated if account_id changes
-    if (updates.account_id !== undefined) {
-      if (!updates.account_id || updates.account_id === 'manual') {
-        finalUpdates.account = "Manual Vault";
-        finalUpdates.account_id = null;
+    try {
+      // 1. Map fields to DB schema
+      const dbRecord = {
+        ...updatedItem,
+        merchant:   updatedItem.merchant || updatedItem.name,
+        spend_type: updatedItem.spendType || updatedItem.spend_type,
+      };
+      delete dbRecord.spendType;
+      delete dbRecord.name;
+      delete dbRecord.account;
+
+      // 2. Immediate individual UPSERT
+      await base44.db.upsertRow('transactions', dbRecord);
+
+      // 3. Update local state
+      if (type === 'income') {
+        setIncomes(incomes.map(i => i.id === id ? updatedItem : i));
       } else {
-        const found = dbAccounts.find(a => String(a.id) === String(updates.account_id));
-        finalUpdates.account = found?.name || "Unknown Account";
+        setExpenses(expenses.map(e => e.id === id ? updatedItem : e));
+      }
+      toast.success("Transaction updated");
+    } catch (err) {
+      console.error("Inline update failed:", err);
+      toast.error("Update failed");
+    }
+  };
+
+  const handleDelete = async (id, type) => {
+    // 1. Permanent Purge from Production Ledger
+    // If the ID is a real database record (UUID or system-assigned long string), we must purge it from the ledger.
+    // Mock IDs in this system are typically numbers or short strings.
+    const isRealRecord = (typeof id === 'string' && id.length > 10);
+    
+    if (isRealRecord) {
+      try {
+        await base44.db.deleteRow('transactions', id);
+      } catch (err) {
+        console.error("[Transactions] Failed to purge record from ledger:", err);
       }
     }
 
-    if (type === 'income') {
-      const updated = incomes.map(i => i.id === id ? { ...i, ...finalUpdates } : i);
-      setIncomes(updated);
-      persistTransactionData(updated, expenses);
-    } else {
-      const updated = expenses.map(e => e.id === id ? { ...e, ...finalUpdates } : e);
-      setExpenses(updated);
-      persistTransactionData(incomes, updated);
-    }
-    toast.success("Transaction updated");
-  };
-
-  const handleDelete = (id, type) => {
+    // 2. Update local state
     if (type === 'income') {
       const updated = incomes.filter(i => i.id !== id);
       setIncomes(updated);
@@ -680,10 +794,10 @@ function TransactionsContent() {
       setExpenses(updated);
       persistTransactionData(incomes, updated);
     }
-    toast.info("Transaction removed");
+    toast.info("Transaction removed and purged from ledger");
   };
 
-  const handleBankSync = (newItems) => {
+  const handleBankSync = async (newItems) => {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
     const formatted = newItems.map(item => ({
       id: Date.now() + Math.random(),
@@ -696,10 +810,28 @@ function TransactionsContent() {
     const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.amount}`));
     
     if (uniqueNew.length > 0) {
-      const updated = [...expenses, ...uniqueNew];
-      setExpenses(updated);
-      persistTransactionData(incomes, updated);
-      toast.success(`Synced ${uniqueNew.length} new transactions!`);
+      try {
+        // Map to DB schema
+        const toInsert = uniqueNew.map(item => ({
+          merchant: item.name,
+          amount: item.amount,
+          category: item.category,
+          date: item.date,
+          spend_type: 'variable', // Default for bank sync
+          type: 'expense'
+        }));
+        
+        // Bulk insert to production ledger
+        await base44.db.insertRows('transactions', toInsert);
+        
+        const updated = [...expenses, ...uniqueNew];
+        setExpenses(updated);
+        toast.success(`Synced ${uniqueNew.length} new transactions to ledger!`);
+        fetchData(); // Refresh to get DB IDs
+      } catch (err) {
+        console.error("Bank sync persistence failed:", err);
+        toast.error("Failed to save synced transactions");
+      }
     } else {
       toast.info("No new transactions found.");
     }
@@ -725,12 +857,31 @@ function TransactionsContent() {
       localStorage.setItem(`wealthlens_mapping_${user.id}_${sourceKey}`, selectedImportAccount);
     }
 
-    const updated = [...expenses, ...formatted];
-    setExpenses(updated);
-    persistTransactionData(incomes, updated);
-    setIsImportModalOpen(false);
-    setImportText("");
-    toast.success(`Imported ${formatted.length} transactions to ${dbAccounts.find(a => a.id === selectedImportAccount)?.name || 'Manual Vault'}`);
+    try {
+      // 1. Map to DB schema
+      const toInsert = formatted.map(item => ({
+        merchant:   item.name,
+        amount:     item.amount,
+        category:   item.category,
+        date:       item.date,
+        account_id: item.account_id,
+        spend_type: item.type === 'income' ? 'income' : 'variable',
+        type:       item.type || 'expense'
+      }));
+
+      // 2. Bulk insert to production ledger
+      await base44.db.insertRows('transactions', toInsert);
+
+      const updated = [...expenses, ...formatted];
+      setExpenses(updated);
+      setIsImportModalOpen(false);
+      setImportText("");
+      toast.success(`Imported ${formatted.length} transactions to ${dbAccounts.find(a => a.id === selectedImportAccount)?.name || 'Manual Vault'}`);
+      fetchData(); // Refresh to get real DB IDs
+    } catch (err) {
+      console.error("Import persistence failed:", err);
+      toast.error("Failed to save imported transactions");
+    }
   };
 
 
@@ -1069,7 +1220,7 @@ function TransactionsContent() {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog>
+                <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
                       <Plus className="w-4 h-4 text-slate-400" /> Add Manually
@@ -1088,9 +1239,10 @@ function TransactionsContent() {
                       <Input 
                         type="number" 
                         placeholder="Amount" 
-                        step="0.01" 
+                        step="0.01"
+                        min="0.01"
                         value={manualForm.amount}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, amount: e.target.value }))}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, amount: e.target.valueAsNumber || '' }))}
                       />
                       <Input 
                         type="date"
@@ -1099,7 +1251,11 @@ function TransactionsContent() {
                       />
                       <Select 
                         value={manualForm.type}
-                        onValueChange={(v) => setManualForm(prev => ({ ...prev, type: v }))}
+                        onValueChange={(v) => setManualForm(prev => ({ 
+                          ...prev, 
+                          type: v,
+                          category: v === 'income' ? 'Income' : (prev.category === 'Income' ? 'Uncategorized' : prev.category)
+                        }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>

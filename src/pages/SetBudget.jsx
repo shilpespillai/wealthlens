@@ -147,9 +147,8 @@ function BudgetRow({ item, onEdit, onDelete }) {
         <div className="w-48 px-6 text-right">
            <span className={`text-[11px] font-bold tabular-nums ${(String(item.amount || "").includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
              {(() => {
-               const val = String(item.amount || "0").replace(/\s?\/\s?mo/g, '');
-               const num = parseFloat(val);
-               return isNaN(num) ? val : formatAmount(num, { useParentheses: false });
+               const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
+               return formatAmount(target, { useParentheses: false });
              })()}
            </span>
         </div>
@@ -329,6 +328,7 @@ export default function SetBudget() {
             
             return {
               ...item,
+              // Always use the live calculated 'spent' from the ledger actualsMap
               budget: formatAmount(spent),
               status: target > 0 
                 ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
@@ -423,12 +423,12 @@ export default function SetBudget() {
       })));
 
       // Commit to the relational budgets table with the structured payload
+      // EXCLUDES income as budgets are strictly for consumption control (expenses)
       const result = await base44.db.upsertRow("budgets", { 
         id: budgetId,
         month: monthKey, 
         payload: { 
-          visualData: flatItems,
-          expectedIncome: expectedIncome, 
+          visualData: expensesToSave,
           expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
       });
@@ -631,9 +631,23 @@ export default function SetBudget() {
         {/* Header Area */}
         <div className="w-full px-6 pt-6 pb-4 border-b border-slate-100">
            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+              <div className="flex items-center justify-end w-full gap-4">
+                  {/* Institutional Premium Date Navigator */}
+                  <div className="flex items-center gap-1.5 bg-slate-50/80 border border-slate-200/60 rounded-2xl p-1 shadow-sm backdrop-blur-sm">
+                     <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all"
+                        onClick={() => {
+                           const newDate = new Date(selectedDate);
+                           newDate.setMonth(selectedDate.getMonth() - 1);
+                           setSelectedDate(newDate);
+                        }}
+                     >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                     </Button>
+
+                     <div className="flex items-center gap-0 px-1">
                         <Select 
                           value={selectedDate.getMonth().toString()} 
                           onValueChange={(val) => {
@@ -642,18 +656,20 @@ export default function SetBudget() {
                             setSelectedDate(newDate);
                           }}
                         >
-                          <SelectTrigger className="w-28 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                          <SelectTrigger className="w-auto min-w-[75px] border-none bg-transparent h-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-800 focus:ring-0 p-0 shadow-none hover:text-indigo-600 transition-colors">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl p-1">
                             {Array.from({ length: 12 }).map((_, i) => (
-                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest rounded-lg">
                                 {format(new Date(2026, i, 1), 'MMMM')}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <div className="w-[1px] h-4 bg-slate-200" />
+                        
+                        <div className="w-4 flex justify-center text-[11px] font-black text-slate-300">/</div>
+
                         <Select 
                           value={selectedDate.getFullYear().toString()} 
                           onValueChange={(val) => {
@@ -662,12 +678,12 @@ export default function SetBudget() {
                             setSelectedDate(newDate);
                           }}
                         >
-                          <SelectTrigger className="w-20 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                          <SelectTrigger className="w-auto min-w-[45px] border-none bg-transparent h-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 focus:ring-0 p-0 shadow-none hover:text-indigo-600 transition-colors">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl p-1">
                             {[2025, 2026, 2027, 2028].map(y => (
-                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest rounded-lg">
                                 {y}
                               </SelectItem>
                             ))}
@@ -675,32 +691,42 @@ export default function SetBudget() {
                         </Select>
                      </div>
 
-                     <Link to="/Dashboard" className="h-9 px-4 flex items-center text-xs font-bold text-slate-400 hover:text-slate-900 gap-2 transition-colors">
-                        Command Center
-                     </Link>
-
-                      <Button 
+                     <Button 
                         variant="ghost" 
-                        onClick={handleCopyFromPreviousMonth}
-                        className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
-                      >
-                         <Upload className="w-3.5 h-3.5" /> Copy Last Month
-                      </Button>
+                        size="icon" 
+                        className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all"
+                        onClick={() => {
+                           const newDate = new Date(selectedDate);
+                           newDate.setMonth(selectedDate.getMonth() + 1);
+                           setSelectedDate(newDate);
+                        }}
+                     >
+                        <ChevronRight className="w-4 h-4" />
+                     </Button>
+                  </div>
 
-                     <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
-                           <Plus className="w-3.5 h-3.5" /> New budget
-                        </Button>
-                      </DialogTrigger>
- 
-                      <Button
-                        onClick={handleSaveBudget}
-                        disabled={!hasChanges || isSaving}
-                        className={`h-9 px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border-0 shadow-lg ${hasChanges ? 'bg-[#0f846a] hover:bg-[#0c6b56] text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-200 text-slate-400 cursor-default'}`}
-                      >
-                        {isSaving ? "Saving..." : "Save Budget Changes"}
-                      </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleCopyFromPreviousMonth}
+                    className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
+                  >
+                     <Upload className="w-3.5 h-3.5" /> Copy Last Month
+                  </Button>
+
+                  <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
+                   <DialogTrigger asChild>
+                     <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
+                        <Plus className="w-3.5 h-3.5" /> New budget
+                     </Button>
+                   </DialogTrigger>
+
+                   <Button
+                     onClick={handleSaveBudget}
+                     disabled={!hasChanges || isSaving}
+                     className={`h-9 px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border-0 shadow-lg ${hasChanges ? 'bg-[#0f846a] hover:bg-[#0c6b56] text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-200 text-slate-400 cursor-default'}`}
+                   >
+                     {isSaving ? "Saving..." : "Save Budget Changes"}
+                   </Button>
                       <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
                         <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
                           <div className="space-y-0.5">
@@ -838,7 +864,6 @@ export default function SetBudget() {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                 </div>
                  
                   <div className="flex items-center gap-2">
                     {hasGroups && (
@@ -849,12 +874,7 @@ export default function SetBudget() {
                   </div>
               </div>
 
-              <div className="flex items-center gap-2 px-1">
-                 <Checkbox id="use-date-range" checked />
-                 <label htmlFor="use-date-range" className="text-[10px] font-bold text-slate-400 uppercase tracking-tight cursor-pointer">
-                    Use total budget summary date range for budget amount analysis
-                 </label>
-              </div>
+
            </div>
         </div>
 
@@ -865,13 +885,13 @@ export default function SetBudget() {
             <div className="flex items-center h-16 border-b border-slate-100 bg-slate-50/30 px-0">
                <div className="w-12" />
                <div className="flex-1 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2 min-w-[300px]">
-                  Category <ChevronDown className="w-3.5 h-3.5" />
+                  Category
                </div>
                <div className="w-80 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  Budget <ChevronDown className="w-3.5 h-3.5" />
+                  Money flow
                </div>
                <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right flex items-center justify-end gap-2">
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-200" /> Amount
+                  Amount
                </div>
                <div className="w-24" />
                <div className="w-16" />
@@ -883,7 +903,7 @@ export default function SetBudget() {
                 <BudgetRow 
                    item={item} 
                    key={item.id} 
-                   onEdit={setEditingItem}
+                   onEdit={handleEditItem}
                    onDelete={handleDeleteItem}
                 />
               ))}
