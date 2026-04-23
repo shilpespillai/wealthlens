@@ -186,29 +186,42 @@ export const useFinancialParser = () => {
     const targetYear = targetDate.getFullYear();
 
     const rawTransactions = (transactions || []).filter(t => {
-      const dateStr = String(t.date || t.actualDate || "");
-      if (!dateStr) return false;
-      
-      // Greedy Extraction: Split by any non-digit character
-      const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
-      if (parts.length < 3) return false;
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
       
       let txYear, txMonth;
       
-      // Pattern 1: YYYY is first (ISO)
-      if (parts[0].length === 4) {
-        txYear = parseInt(parts[0]);
-        txMonth = parseInt(parts[1]);
-      } 
-      // Pattern 2: YYYY is last (US/UK)
-      else if (parts[2].length === 4) {
-        txYear = parseInt(parts[2]);
-        // Ambiguity check: If one part matches targetMonth and the other doesn't
-        const p0 = parseInt(parts[0]);
-        const p1 = parseInt(parts[1]);
-        if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
-        else if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
-        else txMonth = p1; // Fallback to middle part (UK standard)
+      // Handle Numeric Timestamps
+      if (typeof rawDate === 'number' || (!isNaN(rawDate) && !isNaN(parseFloat(rawDate)) && !String(rawDate).includes('-') && !String(rawDate).includes('/'))) {
+        const d = new Date(Number(rawDate));
+        txYear = d.getFullYear();
+        txMonth = d.getMonth() + 1;
+      } else {
+        const dateStr = String(rawDate);
+        // Greedy Extraction: Split by any non-digit character
+        const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+        if (parts.length < 3) {
+          // Fallback to standard Date parser if greedy fails
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return false;
+          txYear = d.getFullYear();
+          txMonth = d.getMonth() + 1;
+        } else {
+          // Pattern 1: YYYY is first (ISO)
+          if (parts[0].length === 4) {
+            txYear = parseInt(parts[0]);
+            txMonth = parseInt(parts[1]);
+          } 
+          // Pattern 2: YYYY is last (US/UK)
+          else if (parts[2].length === 4) {
+            txYear = parseInt(parts[2]);
+            const p0 = parseInt(parts[0]);
+            const p1 = parseInt(parts[1]);
+            if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
+            else if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
+            else txMonth = p1; 
+          }
+        }
       }
       
       return txMonth === targetMonth && txYear === targetYear;
