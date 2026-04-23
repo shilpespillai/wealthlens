@@ -29,6 +29,7 @@ export default function CashflowsReport() {
   });
 
   const [allTransactions, setAllTransactions] = useState([]);
+  const [allBudgets, setAllBudgets] = useState([]);
 
   useEffect(() => {
     async function load() {
@@ -42,9 +43,13 @@ export default function CashflowsReport() {
       });
       setAccounts(unique);
 
-      // 2. Fetch the full production ledger
-      const productionLedger = await getProductionLedger();
+      // 2. Fetch the full production ledger and budgets
+      const [productionLedger, budgets] = await Promise.all([
+        getProductionLedger(),
+        getDatabaseTable("budgets")
+      ]);
       setAllTransactions(productionLedger);
+      setAllBudgets(budgets || []);
     }
     load();
   }, [getProductionLedger, getDatabaseTable]);
@@ -65,7 +70,10 @@ export default function CashflowsReport() {
     
     const monthlyData = intervalMonths.map(m => {
       const monthKey = format(m, "yyyy-MM");
-      const budgetRow = { month: monthKey, payload: { incomes: [], expenses: [] } };
+      // Use REAL budget data if available for this month to discover categories
+      const savedBudget = (allBudgets || []).find(b => b.month === monthKey);
+      const budgetRow = savedBudget || { month: monthKey, payload: { incomes: [], expenses: [] } };
+      
       const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions, accounts);
       
       incomes.forEach(i => allIncomes.add(i.category));
