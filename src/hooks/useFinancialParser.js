@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
-import { format } from "date-fns";
+import { format, isSameMonth } from "date-fns";
 import { resolveCanonicalCategory } from '@/utils/constants';
 
 /**
@@ -180,7 +180,12 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    const rawTransactions = transactions || [];
+    // 0. Temporal Filtering: Ensure we only process transactions for the target month
+    const targetMonthDate = selectedDate || new Date();
+    const rawTransactions = (transactions || []).filter(t => {
+      const tDate = new Date(t.date || t.actualDate);
+      return !isNaN(tDate.getTime()) && isSameMonth(tDate, targetMonthDate);
+    });
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
