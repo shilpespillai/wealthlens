@@ -180,11 +180,56 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Temporal Filtering: Ensure we only process transactions for the target month
-    const targetMonthDate = selectedDate || new Date();
+    // 0. Temporal Filtering: Format-agnostic parser to prevent DD/MM vs MM/DD leakage
+    const targetDate = selectedDate || new Date();
+    const targetMonth = targetDate.getMonth() + 1; // 1-12
+    const targetYear = targetDate.getFullYear();
+
     const rawTransactions = (transactions || []).filter(t => {
-      const tDate = new Date(t.date || t.actualDate);
-      return !isNaN(tDate.getTime()) && isSameMonth(tDate, targetMonthDate);
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
+      
+      let txYear, txMonth;
+      
+      // Type 1: Numeric Timestamp
+      if (typeof rawDate === 'number' || (!isNaN(rawDate) && !isNaN(parseFloat(rawDate)) && !String(rawDate).includes('-') && !String(rawDate).includes('/'))) {
+        const d = new Date(Number(rawDate));
+        txYear = d.getFullYear();
+        txMonth = d.getMonth() + 1;
+      } 
+      // Type 2: String parsing (Manual extraction to avoid regional quirks)
+      else {
+        const dateStr = String(rawDate);
+        const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+        
+        if (parts.length >= 3) {
+          if (parts[0].length === 4) { // ISO YYYY-MM-DD
+            txYear = parseInt(parts[0]);
+            txMonth = parseInt(parts[1]);
+          } else if (parts[2].length === 4) { // DD/MM/YYYY or MM/DD/YYYY
+            txYear = parseInt(parts[2]);
+            const p0 = parseInt(parts[0]);
+            const p1 = parseInt(parts[1]);
+            
+            // Resolve ambiguity: If only one part matches the target month, use it.
+            // If both could be the month, default to the middle part (UK/Indian standard for this user).
+            if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
+            else if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
+            else txMonth = p1;
+          }
+        }
+        
+        // Final Fallback: Native parsing
+        if (!txYear || !txMonth) {
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) {
+            txYear = d.getFullYear();
+            txMonth = d.getMonth() + 1;
+          }
+        }
+      }
+      
+      return txMonth === targetMonth && txYear === targetYear;
     });
     
     // Support both legacy flat structure and new relational payload structure
@@ -227,19 +272,18 @@ export const useFinancialParser = () => {
     // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
     const consumedTransactionIds = new Set();
 
-    // Deduplicate Incomes by Category
+    // 1. Process Incomes
     const incomeMap = new Map();
     (budgetData.incomes || []).forEach(i => {
       const agg = aggregateByCategory(i.category || i.name || 'Income', 'income');
-      agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
-      
       const resolvedAccId = resolveAccountId(i);
       const cat = resolveCanonicalCategory(i.category || i.name || 'Income');
       
       const existing = incomeMap.get(cat);
       if (existing) {
-        // Merge with existing row (for aliases)
-        existing.amount = Math.max(existing.amount, agg.amount); // Avoid doubling if agg is same
+        // Merge with existing row (aggregate totals for aliases)
+        existing.amount = (Number(existing.amount) || 0) + agg.amount;
+        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       } else {
         incomeMap.set(cat, { 
           ...i, 
@@ -251,6 +295,7 @@ export const useFinancialParser = () => {
           account_id: resolvedAccId,
           account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
         });
+        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       }
     });
     const baseIncs = Array.from(incomeMap.values());
@@ -272,19 +317,18 @@ export const useFinancialParser = () => {
       };
     });
     
-    // Deduplicate Expenses by Category
+    // 2. Process Expenses
     const expenseMap = new Map();
     (budgetData.expenses || []).forEach(e => {
       const agg = aggregateByCategory(e.category || e.name || 'Expense', 'expense');
-      agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
-      
       const resolvedAccId = resolveAccountId(e);
       const cat = resolveCanonicalCategory(e.category || e.name || 'Expense');
       
       const existing = expenseMap.get(cat);
       if (existing) {
-        // Merge with existing row (avoid doubling)
-        existing.amount = Math.max(existing.amount, agg.amount); 
+        // Merge with existing row (aggregate totals for aliases)
+        existing.amount = (Number(existing.amount) || 0) + agg.amount; 
+        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       } else {
         expenseMap.set(cat, { 
           ...e, 
@@ -296,6 +340,7 @@ export const useFinancialParser = () => {
           account_id: resolvedAccId,
           account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
         });
+        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       }
     });
     const baseExps = Array.from(expenseMap.values());

@@ -45,7 +45,7 @@ export default function CashflowsReport() {
 
       // 2. Fetch the full production ledger and budgets
       const [productionLedger, budgets] = await Promise.all([
-        getProductionLedger(),
+        getDatabaseTable("transactions"),
         getDatabaseTable("budgets")
       ]);
       setAllTransactions(productionLedger);
