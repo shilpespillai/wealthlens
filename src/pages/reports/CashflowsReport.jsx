@@ -68,8 +68,8 @@ export default function CashflowsReport() {
       const budgetRow = { month: monthKey, payload: { incomes: [], expenses: [] } };
       const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions, accounts);
       
-      incomes.forEach(i => allIncomes.add(i.category || i.name));
-      expenses.forEach(e => allExpenses.add(e.category || e.name));
+      incomes.forEach(i => allIncomes.add(i.category));
+      expenses.forEach(e => allExpenses.add(e.category));
       
       return { month: m, incomes, expenses };
     });
@@ -78,7 +78,7 @@ export default function CashflowsReport() {
       label: cat,
       values: monthlyData.map(d => {
         return d.incomes
-          .filter(i => (i.category || i.name) === cat)
+          .filter(i => i.category === cat)
           .reduce((s, t) => s + (Number(t.amount) || 0), 0);
       })
     }));
@@ -87,7 +87,7 @@ export default function CashflowsReport() {
       label: cat,
       values: monthlyData.map(d => {
         return d.expenses
-          .filter(e => (e.category || e.name) === cat)
+          .filter(e => e.category === cat)
           .reduce((s, t) => s + (Number(t.amount) || 0), 0);
       })
     }));

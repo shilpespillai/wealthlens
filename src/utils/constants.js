@@ -9,7 +9,7 @@ export const CORE_CATEGORY_REGISTRY = [
   { name: "Utilities", type: "expense", iconId: "zap", color: "sky", aliases: ["bills", "electricity", "water", "utilities", "energy", "gas bill", "phone", "internet"] },
   { name: "Financial", type: "expense", iconId: "banknote", color: "slate", aliases: ["bank fees", "interest", "financial", "taxes", "superannuation"] },
   { name: "Groceries", type: "expense", iconId: "shopping-cart", color: "orange", aliases: ["food", "groceries", "supermarket", "woolworths", "coles", "aldi"] },
-  { name: "Dining & Food", type: "expense", iconId: "utensils", color: "amber", aliases: ["dining", "restaurants", "dining & food", "eating out", "takeaway", "cafe"] },
+  { name: "Dining & Food", type: "expense", iconId: "utensils", color: "amber", aliases: ["dining", "restaurants", "dining & food", "eating out", "takeaway", "cafe", "dining & social"] },
   { name: "Fuel & Transport", type: "expense", iconId: "fuel", color: "purple", aliases: ["fuel", "gas", "petrol", "transport", "fuel & gas", "fuel & transport", "uber", "train", "bus", "parking"] },
   { name: "Healthcare", type: "expense", iconId: "activity", color: "yellow", aliases: ["medical", "health", "doctor", "pharmacy", "dentist"] },
   { name: "Lifestyle", type: "expense", iconId: "heart", color: "rose", aliases: ["fun", "entertainment", "lifestyle", "gym", "hobbies", "netflix", "spotify"] },
@@ -40,7 +40,9 @@ export const resolveCanonicalCategory = (inputName) => {
   );
   if (aliasMatch) return aliasMatch.name;
   
-  return "Uncategorized";
+  // 3. Passthrough: Return original name instead of "Uncategorized" 
+  // to allow user-defined categories to flow through the system.
+  return inputName;
 };
 
 export const MOCK_USER_ID = "5178b5ca-b1cb-4baf-b307-aa3ae92941cb"; // Active Google Session
