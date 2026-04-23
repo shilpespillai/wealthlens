@@ -181,18 +181,26 @@ export const useFinancialParser = () => {
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
     // 0. Temporal Filtering: Ensure we only process transactions for the target month
-    // Support both ISO (YYYY-MM-DD) and legacy slash formats (MM/DD/YYYY)
+    // Use robust Date object comparison to handle inconsistent string formats (e.g. 2026-4-1 vs 2026-04-01)
     const targetDate = selectedDate || new Date();
-    const isoKey = format(targetDate, "yyyy-MM");
-    const slashKey = format(targetDate, "MM/");
-    const slashKeyAlt = format(targetDate, "/yyyy"); // for DD/MM/YYYY match
+    const targetMonth = targetDate.getMonth();
+    const targetYear = targetDate.getFullYear();
 
     const rawTransactions = (transactions || []).filter(t => {
       const dateStr = t.date || t.actualDate;
       if (!dateStr) return false;
-      return dateStr.startsWith(isoKey) || 
-             (dateStr.startsWith(slashKey) && dateStr.endsWith(slashKeyAlt)) ||
-             dateStr.includes(`/${format(targetDate, "MM")}/`);
+      
+      // Parse with fallback for various formats
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return false;
+      
+      // Check month and year (0-indexed month)
+      // We use getUTCMonth if the string looks like an ISO date to avoid timezone shifts
+      const isISO = dateStr.includes('-') && dateStr.indexOf('-') === 4;
+      const month = isISO ? d.getUTCMonth() : d.getMonth();
+      const year = isISO ? d.getUTCFullYear() : d.getFullYear();
+      
+      return month === targetMonth && year === targetYear;
     });
     
     // Support both legacy flat structure and new relational payload structure
