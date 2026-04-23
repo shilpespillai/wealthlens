@@ -180,8 +180,39 @@ export const useFinancialParser = () => {
    * Performs category-based aggregation of raw transactions.
    */
   const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
-    // 0. Temporal Filtering: TEMPORARILY DISABLED FOR DIAGNOSIS
-    const rawTransactions = (transactions || []);
+    // 0. Temporal Filtering: Greedy parser to handle ISO, US, and UK date formats
+    const targetDate = selectedDate || new Date();
+    const targetMonth = targetDate.getMonth() + 1; // 1-12
+    const targetYear = targetDate.getFullYear();
+
+    const rawTransactions = (transactions || []).filter(t => {
+      const dateStr = String(t.date || t.actualDate || "");
+      if (!dateStr) return false;
+      
+      // Greedy Extraction: Split by any non-digit character
+      const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+      if (parts.length < 3) return false;
+      
+      let txYear, txMonth;
+      
+      // Pattern 1: YYYY is first (ISO)
+      if (parts[0].length === 4) {
+        txYear = parseInt(parts[0]);
+        txMonth = parseInt(parts[1]);
+      } 
+      // Pattern 2: YYYY is last (US/UK)
+      else if (parts[2].length === 4) {
+        txYear = parseInt(parts[2]);
+        // Ambiguity check: If one part matches targetMonth and the other doesn't
+        const p0 = parseInt(parts[0]);
+        const p1 = parseInt(parts[1]);
+        if (p1 === targetMonth && p0 !== targetMonth) txMonth = p1;
+        else if (p0 === targetMonth && p1 !== targetMonth) txMonth = p0;
+        else txMonth = p1; // Fallback to middle part (UK standard)
+      }
+      
+      return txMonth === targetMonth && txYear === targetYear;
+    });
     
     // Support both legacy flat structure and new relational payload structure
     const data = saved?.payload || saved || {};
@@ -305,6 +336,7 @@ export const useFinancialParser = () => {
       return { 
         ...t,
         name: t.merchant || t.name || t.category || 'Expense Item',
+        category: resolveCanonicalCategory(t.category || 'Expense'),
         type: 'expense',
         amount: Math.abs(t.amount || 0),
         account_id: resolvedAccId,
@@ -336,13 +368,10 @@ export const useFinancialParser = () => {
       orderBy: { column: 'date', ascending: false }
     };
 
-    // Temporal Filtering TEMPORARILY DISABLED
-    /*
     if (filter.month) {
       // Use LIKE for robust monthly matching across both SQL and LocalStorage
       queryOptions.filters.push({ column: 'date', op: 'like', value: `${filter.month}%` });
     }
-    */
     
     // Support direct timestamp/date ranges (used by Dashboard)
     if (filter.startDate) {
