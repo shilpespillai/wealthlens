@@ -44,7 +44,7 @@ const INITIAL_ACCOUNTS = [];
 export default function NetWorthReport() {
   const { getProductionLedger, getDatabaseTable } = useFinancialParser();
   const { user: authUser } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Jan 2026
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [viewMode, setViewMode] = useState('networth'); // networth, assets, debt
   const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
   const [addMode, setAddMode] = useState(null); 

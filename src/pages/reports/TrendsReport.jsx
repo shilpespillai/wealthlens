@@ -49,8 +49,8 @@ export default function TrendsReport() {
   const [isBurndownOpen, setIsBurndownOpen] = useState(false);
   
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 10, 1), // Nov 2025
-    to: new Date(2026, 3, 30)   // Apr 2026
+    from: subMonths(new Date(), 6),
+    to: new Date()
   });
 
   const [allTransactions, setAllTransactions] = useState([]);

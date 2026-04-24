@@ -30,7 +30,7 @@ const COLORS = ['#10B981', '#F43F5E'];
 
 export default function DigestReport() {
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [allTransactions, setAllTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -213,7 +213,7 @@ export default function DigestReport() {
                       <div className="flex flex-col gap-2 pt-2 border-t border-slate-700/50">
                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Select year</label>
                         <div className="flex items-center justify-between gap-2">
-                          {[2024, 2025, 2026].map((y) => (
+                          {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map((y) => (
                             <button
                               key={y}
                               onClick={() => setSelectedDate(new Date(y, selectedDate.getMonth(), 1))}

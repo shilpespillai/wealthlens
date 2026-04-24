@@ -24,8 +24,8 @@ export default function CashflowsReport() {
   
   // Date Range State (Unified Calendar Selection)
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 10, 1), // Nov 2025
-    to: new Date(2026, 3, 30)   // Apr 2026
+    from: subMonths(new Date(), 6),
+    to: new Date()
   });
 
   const [allTransactions, setAllTransactions] = useState([]);
@@ -175,7 +175,7 @@ export default function CashflowsReport() {
                       <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-700/50">
                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Fiscal Years</label>
                         <div className="flex gap-2">
-                          {[2024, 2025, 2026].map(year => (
+                          {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map(year => (
                             <button
                               key={year}
                               onClick={() => setDateRange({

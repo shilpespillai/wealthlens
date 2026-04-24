@@ -39,7 +39,7 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 
 export default function IncomeExpenseReport() {
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [nestCategories, setNestCategories] = useState(false);
@@ -265,7 +265,7 @@ export default function IncomeExpenseReport() {
                             <SelectValue placeholder="Year" />
                           </SelectTrigger>
                           <SelectContent>
-                            {[2024, 2025, 2026].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                            {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
                           </SelectContent>
                         </Select>
                     </div>
