@@ -185,7 +185,10 @@ function FamilyBudgetContent() {
 
   const unifiedFlow = useMemo(() => {
     const incomesList = aggregatedIncomes.map(i => ({ ...i, flow: 'income', color: 'emerald' }));
-    const expensesList = aggregatedExpenses.map(e => ({ ...e, flow: 'expense', color: 'rose' }));
+    // Only show non-zero expenses to prevent empty chart segments
+    const expensesList = aggregatedExpenses
+      .filter(e => (Number(e.amount) || 0) > 0)
+      .map(e => ({ ...e, flow: 'expense', color: 'rose' }));
     return [...incomesList, ...expensesList].sort((a, b) => b.amount - a.amount);
   }, [aggregatedIncomes, aggregatedExpenses]);
 
@@ -276,10 +279,7 @@ function FamilyBudgetContent() {
       return "#94a3b8"; // Slate for unknown
     };
 
-    const safeVal = (v) => {
-      const num = Number(v) || 0;
-      return Math.max(0.1, num); // Ensure minimal flow for Sankey to render links
-    };
+    const safeVal = (v) => Math.max(0.01, Number(v) || 0);
 
     const nodeNames = new Set();
     const safeNodePush = (node) => {
@@ -299,7 +299,7 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
 
-    Object.values(groupedIncomes).forEach(inc => {
+    Object.values(groupedIncomes).filter(inc => inc.amount > 0).forEach(inc => {
       safeNodePush({ name: inc.name, color: colors.income, value: inc.amount });
     });
 
@@ -308,33 +308,37 @@ function FamilyBudgetContent() {
     safeNodePush({ name: "Gross Income", color: colors.gross, value: totalInc });
 
     // Link Incomes to Gross
-    Object.values(groupedIncomes).forEach((inc, i) => {
-      links.push({ source: i, target: grossIncomeIndex, value: safeVal(inc.amount) });
+    nodes.slice(0, nodes.length - 1).forEach((_, i) => {
+      links.push({ source: i, target: grossIncomeIndex, value: safeVal(nodes[i].value) });
     });
 
     // 2. Gross Income to Categories
-    const fixedIndex = nodes.length;
-    safeNodePush({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
+    let fixedIndex = -1;
     if (metrics.fixedExpenses > 0) {
+      fixedIndex = nodes.length;
+      safeNodePush({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
       links.push({ source: grossIncomeIndex, target: fixedIndex, value: safeVal(metrics.fixedExpenses) });
     }
 
-    const variableIndex = nodes.length;
-    safeNodePush({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
+    let variableIndex = -1;
     if (metrics.variableWants > 0) {
+      variableIndex = nodes.length;
+      safeNodePush({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
       links.push({ source: grossIncomeIndex, target: variableIndex, value: safeVal(metrics.variableWants) });
     }
 
-    const savingsIndex = nodes.length;
-    safeNodePush({ name: "Savings", color: colors.savings, value: metrics.savings });
+    let savingsIndex = -1;
     if (metrics.savings > 0) {
+      savingsIndex = nodes.length;
+      safeNodePush({ name: "Savings", color: colors.savings, value: metrics.savings });
       links.push({ source: grossIncomeIndex, target: savingsIndex, value: safeVal(metrics.savings) });
     }
 
-    const surplusIndex = nodes.length;
+    let surplusIndex = -1;
     const bal = metrics.balance > 0 ? metrics.balance : 0;
-    safeNodePush({ name: "Monthly Surplus", color: colors.surplus, value: bal });
     if (bal > 0) {
+      surplusIndex = nodes.length;
+      safeNodePush({ name: "Monthly Surplus", color: colors.surplus, value: bal });
       links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
     }
 
@@ -348,7 +352,9 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
 
-    const sortedGroupedExpenses = Object.values(groupedExpensesMap).sort((a, b) => b.amount - a.amount);
+    const sortedGroupedExpenses = Object.values(groupedExpensesMap)
+      .filter(exp => exp.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
     
     // Aggregation Logic: Keep top 15, group others
     const topCount = 15;
@@ -362,15 +368,16 @@ function FamilyBudgetContent() {
       safeNodePush({ name: exp.name, color, value: exp.amount });
       
       let targetCatIndex = variableIndex;
-      if (exp.st === "fixed") targetCatIndex = fixedIndex;
-      if (exp.st === "savings") targetCatIndex = savingsIndex;
+      if (exp.st === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
+      if (exp.st === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
       
-      links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
+      if (targetCatIndex !== -1) {
+        links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
+      }
     });
 
     // Add "Other" node if needed
     if (otherExpenses.length > 0) {
-      // Group by spendType for "Other Fixed", "Other Variable", "Other Savings"
       const otherBySt = otherExpenses.reduce((acc, exp) => {
         if (!acc[exp.st]) acc[exp.st] = 0;
         acc[exp.st] += exp.amount;
@@ -384,10 +391,12 @@ function FamilyBudgetContent() {
         safeNodePush({ name, color: "#94a3b8", value: amount });
         
         let targetCatIndex = variableIndex;
-        if (st === "fixed") targetCatIndex = fixedIndex;
-        if (st === "savings") targetCatIndex = savingsIndex;
+        if (st === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
+        if (st === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
         
-        links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(amount) });
+        if (targetCatIndex !== -1) {
+          links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(amount) });
+        }
       });
     }
 
@@ -688,7 +697,7 @@ function FamilyBudgetContent() {
                     data={sankeyData}
                     node={<CustomSankeyNode />}
                     link={<CustomSankeyLink />}
-                    nodePadding={45}
+                    nodePadding={15}
                     margin={{ left: 100, right: 200, top: 40, bottom: 40 }}
                     sort={false}
                   >
@@ -999,8 +1008,18 @@ function FamilyBudgetContent() {
                      </>
                   )}
                </div>
+            </div>
 
-          </div>
+            {/* Guides & Tips (Relocated beneath Cash Flow) */}
+            <div className="bg-[#1E293B] border border-slate-700 rounded-[32px] p-8 shadow-xl">
+              <h4 className="font-medium text-white/95 mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                <Bot className="w-4 h-4 text-[#E5C48B]" />
+                Portfolio Guidance
+              </h4>
+              <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                The <strong className="font-medium text-white">50/30/20 rule</strong> is an institutional-grade framework for capital allocation. We recommend deploying <span className="text-white">50% to essentials</span>, <span className="text-white">30% to living luxuries</span>, and scaling <span className="text-white">20% into wealth-building assets</span>.
+              </p>
+            </div>
 
           </div>
 
@@ -1015,191 +1034,146 @@ function FamilyBudgetContent() {
                 The 50/30/20 Analysis
               </h3>
               
-              <div className="space-y-6">
-                {metrics.breakdown.map((b) => (
-                  <div key={b.id} className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-white/90 text-sm tracking-tight">{b.label}</span>
-                          <span className="text-[9px] font-medium text-[#2D3748] px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
-                            Target {b.targetPct}%
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-2xl font-medium tracking-tighter" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
-                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Live Flow</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{formatAmount(b.targetAmount)} Goal</span>
-                        {b.isOver ? (
-                          <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Variance
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Savings
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Bullet Chart for 50/30/20 */}
-                    <div className="relative h-3 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
-                      <div 
-                        className="absolute h-full rounded-full transition-all duration-700 opacity-90 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
-                        style={{ backgroundColor: b.color, width: `${b.actualPct}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Budget Integrity Radar */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Budget Integrity Radar</h4>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-[#C5A059]" />
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">Actual</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                      <PolarGrid stroke="#334155" />
-                      <PolarAngleAxis 
-                        dataKey="subject" 
-                        tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }}
-                      />
-                      <PolarRadiusAxis 
-                        angle={30} 
-                        domain={[0, 100]} 
-                        tick={false}
-                        axisLine={false}
-                      />
-                      <Radar
-                        name="Target"
-                        dataKey="B"
-                        stroke="#C5A059"
-                        fill="#C5A059"
-                        fillOpacity={0.1}
-                      />
-                      <Radar
-                        name="Actual"
-                        dataKey="A"
-                        stroke="#10b981"
-                        fill="#10b981"
-                        fillOpacity={0.5}
-                      />
-                      <RechartsTooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                             return (
-                               <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-2">{payload[0].payload.subject}</p>
-                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-emerald-400">Actual: {payload[0].value.toFixed(1)}%</p>
-                                    <p className="text-[10px] font-bold text-[#C5A059]">Target: {payload[1].value}%</p>
-                                 </div>
-                               </div>
-                             );
-                          }
-                          return null;
-                        }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Summary Pie Chart */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-6 text-center">Relative Distribution</h4>
-                {metrics.pieData.length > 0 ? (
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={metrics.pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={75}
-                          paddingAngle={8}
-                          dataKey="value"
-                          stroke="none"
-                          labelLine={false}
-                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                        >
-                          {metrics.pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip 
-                          formatter={(value) => sym + value.toLocaleString()}
-                          itemStyle={{ fontSize: 13, fontWeight: 'medium', color: '#111827' }}
-                          contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '20px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-500 text-xs py-8 font-medium">Add inputs to generate flow analysis</p>
-                )}
-              </div>
-              {/* Family Savings Pillars */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Savings Velocity Pillars</h4>
-                  <TrendingUp className="w-4 h-4 text-[#E5C48B]" />
-                </div>
+              <div className="grid grid-cols-1 gap-8">
+                {/* 1. The Bars (Full Width) */}
                 <div className="space-y-6">
-                  {goals.map((g) => {
-                    const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
-                    return (
-                      <div key={g.id} className="space-y-2.5">
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-[11px] font-medium text-white/90 uppercase tracking-tight">{g.name}</p>
-                            <p className="text-[10px] font-medium text-slate-400">
-                              {sym}{g.current.toLocaleString()} / {sym}{g.target.toLocaleString()}
-                            </p>
+                  {metrics.breakdown.map((b) => (
+                    <div key={b.id} className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white/90 text-sm tracking-tight">{b.label}</span>
+                            <span className="text-[9px] font-medium text-[#2D3748] px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
+                              Target {b.targetPct}%
+                            </span>
                           </div>
-                          <span className="text-xs font-medium text-[#B8D8BA]">{pct.toFixed(0)}%</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-2xl font-medium tracking-tighter" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
+                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Live Flow</span>
+                          </div>
                         </div>
-                        {/* High-Precision Bullet Chart */}
-                        <div className="relative h-2.5 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            className="h-full bg-emerald-500/80 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-700"
-                          />
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{formatAmount(b.targetAmount)} Goal</span>
+                          {b.isOver ? (
+                            <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                              <AlertCircle className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Variance
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                              <CheckCircle2 className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Savings
+                            </span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
+                      <div className="relative h-3 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className="absolute h-full rounded-full transition-all duration-700 opacity-90 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
+                          style={{ backgroundColor: b.color, width: `${b.actualPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 2. Charts (2 Columns) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
+                  {/* Budget Integrity Radar */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Integrity Radar</h4>
+                      <div className="flex gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#C5A059]" title="Target" />
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" title="Actual" />
+                      </div>
+                    </div>
+                    <div className="h-56 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                          <PolarGrid stroke="#334155" />
+                          <PolarAngleAxis 
+                            dataKey="subject" 
+                            tick={{ fill: '#94a3b8', fontSize: 7, fontWeight: 700 }}
+                          />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                          <Radar name="Target" dataKey="B" stroke="#C5A059" fill="#C5A059" fillOpacity={0.1} />
+                          <Radar name="Actual" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.5} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Summary Pie Chart */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest text-center mb-2">Distribution</h4>
+                    {metrics.pieData.length > 0 ? (
+                      <div className="h-56 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={metrics.pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={45}
+                              outerRadius={65}
+                              paddingAngle={8}
+                              dataKey="value"
+                              stroke="none"
+                              labelLine={false}
+                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                              {metrics.pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              formatter={(value) => sym + value.toLocaleString()}
+                              contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#F3F4F6', fontSize: '10px' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-center text-slate-500 text-[10px] py-12 font-medium">No flow analysis</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Savings Pillars (2 Columns) */}
+                <div className="border-t border-white/5 pt-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Savings Velocity</h4>
+                    <TrendingUp className="w-4 h-4 text-[#E5C48B]" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    {goals.map((g) => {
+                      const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
+                      return (
+                        <div key={g.id} className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-[10px] font-medium text-white/90 uppercase tracking-tight truncate max-w-[120px]">{g.name}</p>
+                              <p className="text-[9px] font-medium text-slate-400">
+                                {sym}{g.current.toLocaleString()} / {sym}{g.target.toLocaleString()}
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-medium text-[#B8D8BA]">{pct.toFixed(0)}%</span>
+                          </div>
+                          <div className="relative h-2 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              className="h-full bg-emerald-500/80 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-700"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Guides & Tips */}
-            <div className="bg-[#1E293B] border border-slate-700 rounded-[32px] p-8 shadow-xl">
-              <h4 className="font-medium text-white/95 mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
-                <Bot className="w-4 h-4 text-[#E5C48B]" />
-                Portfolio Guidance
-              </h4>
-              <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                The <strong className="font-medium text-white">50/30/20 rule</strong> is an institutional-grade framework for capital allocation. We recommend deploying <span className="text-white">50% to essentials</span>, <span className="text-white">30% to living luxuries</span>, and scaling <span className="text-white">20% into wealth-building assets</span>.
-              </p>
-            </div>
+
 
 
           </div>
