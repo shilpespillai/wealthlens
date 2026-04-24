@@ -700,32 +700,7 @@ function FamilyBudgetContent() {
                     nodePadding={15}
                     margin={{ left: 100, right: 200, top: 40, bottom: 40 }}
                     sort={false}
-                  >
-                    <RechartsTooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          const isLink = data.source && data.target;
-                          const name = isLink 
-                            ? `${data.source.name} → ${data.target.name}` 
-                            : (data.name || 'Financial Flow');
-                          const value = data.value || 0;
-                          const color = isLink ? data.source.color : (data.color || "#6366f1");
-
-                          return (
-                            <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
-                                <p className="text-xl font-black text-slate-800">{sym}{(Number(value) || 0).toLocaleString()}</p>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </Sankey>
+                  />
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
