@@ -200,35 +200,56 @@ const flattenCategories = (items) => {
   return result;
 };
 
-// Utility: Normalize structure against the core registry
-const normalizeStructure = (savedItems) => {
-  // 1. Start with the Core Category Registry (Single Source of Truth)
-  // Filter out income as "budget is always for expenses"
-  const template = CORE_CATEGORY_REGISTRY
-    .filter(cat => cat.type !== 'income')
-    .map(cat => ({
-      ...cat,
-      category: cat.name,
-      monthly_target: 0,
-      amount: "0",
-      budget: "$0 spent",
-      status: "0.00 left"
-    }));
-
-  // 2. Normalize and merge saved items using Canonical Aliasing
+// Utility: Normalize structure against the core registry AND user's personal registry
+const normalizeStructure = (savedItems, userCategories = []) => {
+  // 1. Build the baseline from BOTH Core Registry and User's DB Categories
+  // This ensures newly added categories persist across all months even before targets are set.
   const finalMap = new Map();
-  template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
+  
+  // A. Start with Core Categories (Filtered for Expenses)
+  CORE_CATEGORY_REGISTRY
+    .filter(cat => cat.type !== 'income')
+    .forEach(cat => {
+      finalMap.set(cat.name.toLowerCase(), {
+        ...cat,
+        category: cat.name,
+        monthly_target: 0,
+        amount: "0",
+        budget: "$0 spent",
+        status: "0.00 left"
+      });
+    });
 
+  // B. Merge User DB Categories (Override core if exists, or add as new)
+  // This is the key for persistence: it pulls from the 'user_categories' table.
+  userCategories
+    .filter(cat => cat.type !== 'income')
+    .forEach(cat => {
+      const name = cat.name || cat.category;
+      const key = name.toLowerCase();
+      const existing = finalMap.get(key);
+      
+      finalMap.set(key, {
+        ...(existing || { id: `cat-${cat.id || Date.now()}` }),
+        ...cat,
+        iconId: cat.iconId || cat.icon_id || existing?.iconId || 'circle',
+        category: name,
+        monthly_target: existing?.monthly_target || 0,
+        amount: existing?.amount || "0",
+        budget: existing?.budget || "$0 spent",
+        status: existing?.status || "0.00 left"
+      });
+    });
+
+  // 2. Overlay specific saved items for THIS month (carrying the targets/actuals)
   savedItems.forEach(s => {
     const canonicalName = resolveCanonicalCategory(s.category || s.name);
     const key = canonicalName.toLowerCase();
     
     const existing = finalMap.get(key);
     if (existing) {
-      // Merge saved data into existing canonical row
       finalMap.set(key, { ...existing, ...s, category: canonicalName });
     } else {
-      // standalone custom category
       finalMap.set(key, { ...s, category: s.category || s.name });
     }
   });
@@ -338,10 +359,10 @@ export default function SetBudget() {
             };
           });
 
-          setData(normalizeStructure(enrichedData));
+          setData(normalizeStructure(enrichedData, categories));
         }
       } else {
-        const defaults = normalizeStructure([]);
+        const defaults = normalizeStructure([], categories);
         const enrichedDefaults = defaults.map(item => {
            const canonical = resolveCanonicalCategory(item.category || item.name);
            const spent = actualsMap[canonical.toLowerCase()] || 0;
@@ -359,7 +380,7 @@ export default function SetBudget() {
     } finally {
       setIsInitialLoading(false);
     }
-  }, [monthKey, parseCurrency, formatAmount, normalizeStructure]);
+  }, [monthKey, parseCurrency, formatAmount, categories]);
 
   useEffect(() => {
     loadBudgetAndActuals();
@@ -393,7 +414,7 @@ export default function SetBudget() {
           progress: 0
         }));
 
-        setData(normalizeStructure(clonedData));
+        setData(normalizeStructure(clonedData, categories));
         setHasChanges(true);
         toast.success(`Leads from ${prevMonthKey} synchronized successfully.`);
       } else {

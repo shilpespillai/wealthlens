@@ -44,7 +44,7 @@ const SYMBOL_REGISTRY = {
 // Helper: Call Gemini Directly from Frontend in Development
 // Universal Intelligence Bridge (Local-Only Provider Support)
 const invokeUniversalAI = async (prompt, type, params = {}) => {
-  const config = JSON.parse(localStorage.getItem('wl_ai_config') || '{}');
+  const config = await base44.user.loadData('wl_ai_config') || {};
   const userProvider = config.provider || 'gemini';
   
   // Extract key from siloed structure or legacy field
@@ -128,7 +128,7 @@ const invokeUniversalAI = async (prompt, type, params = {}) => {
     if (err.message && err.message.includes('404')) {
         console.warn("[Intelligence Hub] Detected retired model (404). Triggering discovery sync...");
     }
-    return runSmartHeuristics(type, params);
+    return await runSmartHeuristics(type, params);
   }
 };
 
@@ -179,7 +179,7 @@ const syncModels = async (provider, key) => {
 };
 
 // Smart Heuristics Engine (Logic-based fallback)
-const runSmartHeuristics = (type, params) => {
+const runSmartHeuristics = async (type, params) => {
   if (type === 'coach') {
     const savingsRate = params.savingsRate || 0;
     const runway = params.cashRunway || 3;
@@ -203,7 +203,7 @@ const runSmartHeuristics = (type, params) => {
   }
 
   if (type === 'pillar') {
-    const config = JSON.parse(localStorage.getItem('wl_ai_config') || '{}');
+    const config = await base44.user.loadData('wl_ai_config') || {};
     const pName = config.provider || 'gemini';
     return {
       stockName: (params.symbol || 'STOCK').toUpperCase(),
@@ -291,25 +291,41 @@ export const base44 = {
   
   user: {
     loadData: async (key) => {
-      if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', session.user.id).eq('key', key).maybeSingle();
-          if (!error && data) return data.payload;
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || 'anonymous';
+      const storageKey = `${key}_${userId}`;
+
+      // SECURITY: AI Configuration must remain local and NOT sync to DB
+      if (key === 'wl_ai_config') {
+        const stored = localStorage.getItem(storageKey);
+        return stored ? JSON.parse(stored) : null;
       }
-      const stored = localStorage.getItem(key);
+
+      if (isSupabaseEnabled && session?.user) {
+        const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', userId).eq('key', key).maybeSingle();
+        if (!error && data) return data.payload;
+      }
+      
+      const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : null;
     },
     saveData: async (key, data) => {
-      if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await supabase.from('user_data').upsert({ user_id: session.user.id, key: key, payload: data, updated_at: new Date() });
-          return { success: true };
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || 'anonymous';
+      const storageKey = `${key}_${userId}`;
+
+      // SECURITY: AI Configuration must remain local and NOT sync to DB
+      if (key === 'wl_ai_config') {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        return { success: true };
       }
-      localStorage.setItem(key, JSON.stringify(data));
+
+      if (isSupabaseEnabled && session?.user) {
+        await supabase.from('user_data').upsert({ user_id: userId, key: key, payload: data, updated_at: new Date() });
+        return { success: true };
+      }
+      
+      localStorage.setItem(storageKey, JSON.stringify(data));
       return { success: true };
     }
   },

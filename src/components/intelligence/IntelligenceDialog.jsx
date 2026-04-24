@@ -29,6 +29,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { base44 } from "@/api/base44Client";
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -73,23 +74,26 @@ export default function IntelligenceDialog({ open, onOpenChange }) {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('wl_ai_config');
-    if (saved) {
-      try { 
-        const parsed = JSON.parse(saved);
-        // Migration: If they have the old format, migrate 'key' to the current provider
-        if (parsed.key !== undefined && !parsed.keys) {
-            parsed.keys = { gemini: '', openai: '', anthropic: '' };
-            parsed.keys[parsed.provider || 'gemini'] = parsed.key;
-            delete parsed.key;
-        }
-        setConfig(prev => ({ ...prev, ...parsed })); 
-      } catch (e) { console.error(e); }
+    async function load() {
+      const saved = await base44.user.loadData('wl_ai_config');
+      if (saved) {
+        try { 
+          const parsed = saved;
+          // Migration: If they have the old format, migrate 'key' to the current provider
+          if (parsed.key !== undefined && !parsed.keys) {
+              parsed.keys = { gemini: '', openai: '', anthropic: '' };
+              parsed.keys[parsed.provider || 'gemini'] = parsed.key;
+              delete parsed.key;
+          }
+          setConfig(prev => ({ ...prev, ...parsed })); 
+        } catch (e) { console.error(e); }
+      }
     }
+    load();
   }, [open]);
 
-  const handleSave = () => {
-    localStorage.setItem('wl_ai_config', JSON.stringify(config));
+  const handleSave = async () => {
+    await base44.user.saveData('wl_ai_config', config);
     setIsSaved(true);
     
     // Broadcast update for other components to refresh
