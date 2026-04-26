@@ -21,6 +21,8 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, isSameMonth, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -29,6 +31,7 @@ const COLORS = ['#10B981', '#F43F5E'];
 // Mock generation removed for production data integrity.
 
 export default function DigestReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [selectedAccountId, setSelectedAccountId] = useState("all");
@@ -170,7 +173,8 @@ export default function DigestReport() {
   }, [normIncs, normExps, allTransactions, selectedDate, selectedAccountId, metrics, normalizeTransactionData, accounts]);
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-slate-900">
+    <div className="flex flex-col h-full bg-white font-sans text-slate-900 relative">
+      {!isPaidUser && <PremiumOverlay featureName="Monthly Intelligence Digest" />}
       {/* Container for Navbar Area — purely white background */}
       <div className="w-full px-6 pt-4 pb-2 bg-white">
         <div className="bg-[#1E293B] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">

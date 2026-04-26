@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -42,6 +43,7 @@ const NW_COLORS    = ['#C5A059', '#1E293B'];
 const INITIAL_ACCOUNTS = [];
 
 export default function NetWorthReport() {
+  const { isPaidUser } = useAuth();
   const { getProductionLedger, getDatabaseTable } = useFinancialParser();
   const { user: authUser } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
@@ -173,7 +175,8 @@ export default function NetWorthReport() {
   const displayValue = viewMode === 'assets' ? totalAssets : viewMode === 'debt' ? totalDebts : netWorth;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
+      {!isPaidUser && <PremiumOverlay featureName="Net Worth Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
         <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">

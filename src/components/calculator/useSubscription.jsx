@@ -1,13 +1,19 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 
 // Checks if the current user has an active premium subscription
 export function useSubscription() {
-  const [isPremium, setIsPremium] = useState(false);
+  const { isPaidUser, user } = useAuth();
+  const [isPremiumFallback, setIsPremiumFallback] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function checkSubscription() {
+      if (isPaidUser) {
+        setLoading(false);
+        return;
+      }
       try {
         const user = await base44.auth.me();
         
@@ -16,7 +22,7 @@ export function useSubscription() {
           const isAdmin = user.email === 'admin@wealthlens.com';
           
           if (isAdmin) {
-            setIsPremium(true);
+            setIsPremiumFallback(true);
             setLoading(false);
             return;
           }
@@ -25,17 +31,17 @@ export function useSubscription() {
             email: user.email,
           });
 
-          setIsPremium(response.data.isActive);
+          setIsPremiumFallback(response.data.isActive);
         }
       } catch (error) {
         console.error("Subscription check failed:", error);
-        setIsPremium(false);
+        setIsPremiumFallback(false);
       } finally {
         setLoading(false);
       }
     }
     checkSubscription();
-  }, []);
+  }, [isPaidUser, user]);
 
-  return { isPremium, loading };
+  return { isPremium: isPaidUser || isPremiumFallback, loading };
 }

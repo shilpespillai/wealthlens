@@ -15,10 +15,13 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 // Mock generation removed for production data integrity.
 
 export default function CashflowsReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
   const [accounts, setAccounts] = useState([]);
   
@@ -117,7 +120,8 @@ export default function CashflowsReport() {
   }, [allTransactions, intervalMonths, normalizeTransactionData]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans">
+    <div className="flex flex-col min-h-screen bg-white font-sans relative">
+      {!isPaidUser && <PremiumOverlay featureName="Institutional Cashflow Analysis" />}
       {/* Premium Header - Moves up with scroll */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
         <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">

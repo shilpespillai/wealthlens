@@ -21,6 +21,8 @@ import { base44 } from "@/api/base44Client";
 import { addMonths, subMonths, format } from "date-fns";
 import { generateIncomeExpensePdf } from "@/components/reports/generateIncomeExpensePdf";
 import { toast } from "react-hot-toast";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 // Mock generation removed for production data integrity.
 
@@ -38,6 +40,7 @@ const NESTING_GROUPS = {
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function IncomeExpenseReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [incomes, setIncomes] = useState([]);
@@ -200,7 +203,8 @@ export default function IncomeExpenseReport() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans">
+    <div className="flex flex-col h-full bg-white font-sans relative">
+      {!isPaidUser && <PremiumOverlay featureName="Income & Expense Report" />}
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
         {/* Unified Analysis Sidebar */}
         <aside className="w-80 bg-white border-r border-slate-100 p-8 space-y-10 overflow-y-auto">

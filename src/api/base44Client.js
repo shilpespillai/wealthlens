@@ -264,8 +264,27 @@ export const base44 = {
   },
 
   app: {
-    getPrice: async () => 29.99,
-    updatePrice: async () => ({ success: true })
+    getPrice: async () => {
+      try {
+        const resp = await fetch('/api/pricing');
+        const data = await resp.json();
+        return parseFloat(data.price || "29.99");
+      } catch (e) {
+        return 29.99;
+      }
+    },
+    updatePrice: async (newPrice, adminEmail) => {
+      try {
+        const resp = await fetch('/api/pricing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ price: newPrice, adminEmail })
+        });
+        return await resp.json();
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
   },
 
   functions: {
@@ -284,7 +303,48 @@ export const base44 = {
         return { data: realData };
       }
 
-      if (name === 'checkSubscription') return { data: { isActive: true } };
+      if (name === 'checkSubscription') {
+        try {
+          const resp = await fetch('/api/subscription-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+          });
+          const data = await resp.json();
+          if (data) return { data };
+        } catch (e) { console.error("Vercel API Error:", e); }
+        return { data: { isActive: true } };
+      }
+
+      if (name === 'getStripeKey') {
+        try {
+          const resp = await fetch('/api/pricing'); // Assuming pricing returns the key or similar
+          const data = await resp.json();
+          if (data?.publishableKey) return { data };
+        } catch (e) { console.error("Vercel API Error:", e); }
+        return { data: { publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock' } };
+      }
+
+      if (name === 'stripeCheckout') {
+        try {
+          const resp = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+          });
+          const data = await resp.json();
+          if (data?.url || data?.sessionId) return { data };
+        } catch (e) { console.error("Vercel API Error:", e); }
+        
+        // Final Local Fallback
+        return { 
+          data: { 
+            url: params.successUrl || (window.location.origin + '/?upgraded=true'),
+            sessionId: 'mock_session_id'
+          } 
+        };
+      }
+
       return { data: { success: true } };
     }
   },

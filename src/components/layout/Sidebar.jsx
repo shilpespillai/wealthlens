@@ -22,7 +22,9 @@ import {
   Layers,
   Table2,
   TrendingUp,
-  BookOpen
+  BookOpen,
+  Lock,
+  Crown
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import IntelligenceDialog from "../intelligence/IntelligenceDialog";
@@ -32,7 +34,7 @@ export default function Sidebar() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const currentTab = searchParams.get('tab');
-  const { logout, isAuthenticated, user } = useAuth();
+  const { logout, isAuthenticated, user, isPaidUser } = useAuth();
 
   const isActive = (path, tab) => {
     if (tab) return location.pathname === path && currentTab === tab;
@@ -112,11 +114,20 @@ export default function Sidebar() {
                 return (
                   <Link 
                     key={item.id}
-                    to={`/Calculator?tab=${item.id}`} 
+                    to={isPaidUser ? `/Calculator?tab=${item.id}` : "#"} 
                     className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Calculator', item.id) ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    onClick={(e) => {
+                      if (!isPaidUser) {
+                        e.preventDefault();
+                        // We can optionally show a toast here, but the page overlay will handle it if we let them click.
+                        // However, the user said "only able to use it", so maybe they can click but get blocked.
+                        // I'll actually allow the click but the page will have the overlay.
+                      }
+                    }}
                   >
                     <Icon className="w-3 h-3" />
                     {item.label}
+                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
                   </Link>
                 );
               })}
@@ -183,6 +194,7 @@ export default function Sidebar() {
             >
               <BarChart3 className={`w-3.5 h-3.5 ${isActive('/reports/IncomeExpense') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
               <span className="text-[10px] font-medium uppercase tracking-widest">Income & Expense</span>
+              {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
             </Link>
 
             <Link 
@@ -191,6 +203,7 @@ export default function Sidebar() {
             >
               <ArrowRightLeft className={`w-3.5 h-3.5 ${isActive('/reports/Cashflows') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
               <span className="text-[10px] font-medium uppercase tracking-widest">Cashflows</span>
+              {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
             </Link>
 
             <Link 
@@ -199,6 +212,7 @@ export default function Sidebar() {
             >
               <Building2 className={`w-3.5 h-3.5 ${isActive('/reports/NetWorth') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
               <span className="text-[10px] font-medium uppercase tracking-widest">Net Worth</span>
+              {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
             </Link>
 
             <Link 
@@ -207,15 +221,17 @@ export default function Sidebar() {
             >
               <TrendsIcon className={`w-3.5 h-3.5 ${isActive('/reports/Trends') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
               <span className="text-[10px] font-medium uppercase tracking-widest">Trends</span>
+              {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
             </Link>
 
-            <Link 
-              to="/reports/Digest" 
-              className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/Digest') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <FileText className={`w-3.5 h-3.5 ${isActive('/reports/Digest') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-              <span className="text-[10px] font-medium uppercase tracking-widest">Digest</span>
-            </Link>
+              <Link 
+                to="/reports/Digest" 
+                className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/Digest') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              >
+                <FileText className={`w-3.5 h-3.5 ${isActive('/reports/Digest') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                <span className="text-[10px] font-medium uppercase tracking-widest">Digest</span>
+                {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
+              </Link>
           </div>
         </div>
 
@@ -255,6 +271,16 @@ export default function Sidebar() {
                 <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
              </div>
              
+             {user?.email === 'admin@wealthlens.com' && (
+                <Link 
+                   to="/AdminSettings"
+                   className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/AdminSettings') ? 'bg-indigo-500/10 text-indigo-400' : ''}`}
+                >
+                   <Settings className={`w-4 h-4 ${isActive('/AdminSettings') ? 'text-indigo-400' : 'text-gray-600 group-hover:text-gray-400'}`} />
+                   <span className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Control</span>
+                </Link>
+             )}
+
              {isAuthenticated && (
                 <div 
                   onClick={() => logout()}
@@ -275,11 +301,12 @@ export default function Sidebar() {
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}
           </div>
           <div>
-            <p className="text-[10px] font-medium text-white uppercase tracking-widest truncate max-w-[120px]">
+            <p className="text-[10px] font-medium text-white uppercase tracking-widest truncate max-w-[120px] flex items-center gap-1.5">
               {user?.full_name || user?.email?.split('@')[0] || "User"}
+              {isPaidUser && <Crown className="w-2.5 h-2.5 text-[#C5A059] fill-[#C5A059]/20" />}
             </p>
             <p className="text-[9px] text-[#C5A059] uppercase tracking-tighter">
-              {user?.provider === 'google' ? 'Verified Member' : 'Member'}
+              {isPaidUser ? 'Pro Member' : (user?.provider === 'google' ? 'Verified Member' : 'Member')}
             </p>
           </div>
         </div>

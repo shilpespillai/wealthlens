@@ -20,20 +20,34 @@ export const AuthProvider = ({ children }) => {
     // Listen for Supabase auth changes
     let authSubscription = null;
     if (isSupabaseEnabled) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
+          // Check public.users for premium status even on auth state change
+          let dbIsPremium = false;
+          try {
+            const { data: dbUser } = await supabase
+              .from('users')
+              .select('is_premium')
+              .or(`id.eq.${session.user.id},email.eq.${session.user.email}`)
+              .maybeSingle();
+            dbIsPremium = !!dbUser?.is_premium;
+          } catch (e) {
+            console.warn("Auth change premium check failed:", e);
+          }
+
           const mappedUser = {
             id: session.user.id,
             email: session.user.email,
             full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
             provider: session.user.app_metadata?.provider || 'supabase',
             avatar: session.user.user_metadata?.avatar_url,
+            subscription_tier: dbIsPremium ? 'pro' : (session.user.user_metadata?.subscription_tier || 'free'),
+            is_premium: dbIsPremium,
             ...session.user.user_metadata,
           };
           setUser(mappedUser);
           setIsAuthenticated(true);
-          setAuthError(null);
+          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
 
           // If we are on the home page and a session is detected, redirect to the dashboard
           // This catches cases where the OAuth redirect lands on / instead of /auth/callback
@@ -79,15 +93,32 @@ export const AuthProvider = ({ children }) => {
     setIsLoadingAuth(true);
     try {
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const { data: { user: freshUser } } = await supabase.auth.getUser();
+        if (freshUser) {
+          // 2. Secondary Check: public.users table (Source of Truth for Premium)
+          let dbIsPremium = false;
+          try {
+            const { data: dbUser, error: dbError } = await supabase
+              .from('users')
+              .select('is_premium')
+              .or(`id.eq.${freshUser.id},email.eq.${freshUser.email}`)
+              .maybeSingle();
+            
+            if (dbError) console.error("Premium check error:", dbError);
+            dbIsPremium = !!dbUser?.is_premium;
+          } catch (e) {
+            console.warn("Could not fetch premium status from public.users:", e);
+          }
+
           const mappedUser = {
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
-            provider: session.user.app_metadata?.provider || 'supabase',
-            avatar: session.user.user_metadata?.avatar_url,
-            ...session.user.user_metadata,
+            id: freshUser.id,
+            email: freshUser.email,
+            full_name: freshUser.user_metadata?.full_name || freshUser.user_metadata?.name || freshUser.email?.split('@')[0],
+            provider: freshUser.app_metadata?.provider || 'supabase',
+            avatar: freshUser.user_metadata?.avatar_url,
+            subscription_tier: dbIsPremium ? 'pro' : (freshUser.user_metadata?.subscription_tier || 'free'),
+            is_premium: dbIsPremium,
+            ...freshUser.user_metadata,
           };
           setUser(mappedUser);
           setIsAuthenticated(true);
@@ -189,6 +220,12 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
+      isPaidUser: (
+        user?.subscription_tier === 'pro' || 
+        user?.subscription_tier === 'premium' || 
+        user?.is_premium === true ||
+        user?.email === 'admin@wealthlens.com'
+      ),
       logout,
       navigateToLogin,
       checkAppState

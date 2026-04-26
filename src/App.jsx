@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -9,6 +10,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AuthCallback from '@/pages/AuthCallback';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useToast } from '@/components/ui/use-toast';
+import { Sparkles } from 'lucide-react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -20,8 +23,44 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 import { ReportProvider } from '@/lib/ReportContext';
 
-const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+function App() {
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <NavigationTracker />
+          <ErrorBoundary>
+            <MainContent />
+          </ErrorBoundary>
+        </Router>
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
+  )
+}
+
+const MainContent = () => {
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkAppState } = useAuth();
+  const { toast } = useToast();
+
+  // Listen for successful upgrade redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgraded') === 'true') {
+      // Remove the param from URL without refreshing
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Show success toast
+      toast({
+        title: "Upgrade Successful",
+        description: "Welcome to WealthLens Pro! All institutional reports and tools are now unlocked.",
+        className: "bg-slate-900 text-white border-slate-800",
+      });
+
+      // Refresh auth state to pick up the new tier
+      checkAppState();
+    }
+  }, [checkAppState, toast]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -60,7 +99,6 @@ const AuthenticatedApp = () => {
           </LayoutWrapper>
         } />
         
-
         {Object.entries(Pages).map(([path, Page]) => (
           <Route
             key={path}
@@ -78,26 +116,4 @@ const AuthenticatedApp = () => {
   );
 };
 
-const AppWithErrorBoundary = () => (
-  <ErrorBoundary>
-    <AuthenticatedApp />
-  </ErrorBoundary>
-);
-
-
-function App() {
-
-  return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <NavigationTracker />
-          <AppWithErrorBoundary />
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
-    </AuthProvider>
-  )
-}
-
-export default App
+export default App;

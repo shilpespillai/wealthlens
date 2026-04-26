@@ -12,16 +12,23 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Safety Check: Missing Config
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.warn('[Pricing API] Missing Supabase Configuration. Using defaults.');
+    if (req.method === 'GET') return res.status(200).json({ price: "29.99" });
+    return res.status(500).json({ error: 'System configuration missing' });
+  }
+
   try {
     if (req.method === 'GET') {
+      // Per User instruction, public.users is the source of truth
       const { data, error } = await supabase
         .from('users')
         .select('stripe_customer_id')
         .eq('email', 'system_price@wealthlens.com')
-        .single();
+        .maybeSingle();
 
-      // Default to 10 if not set
-      const price = data?.stripe_customer_id || "10";
+      const price = data?.stripe_customer_id || "29.99";
       return res.status(200).json({ price });
     }
 
@@ -37,7 +44,7 @@ export default async function handler(req, res) {
         .upsert({ 
           email: 'system_price@wealthlens.com', 
           stripe_customer_id: price.toString(),
-          is_premium: false // ensure it's not counted as a real user
+          is_premium: false 
         }, { onConflict: 'email' });
 
       if (error) throw error;
@@ -47,8 +54,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[Pricing API Error]', err);
-    // If table doesn't exist, just return default for GET, but error for POST
-    if (req.method === 'GET') return res.status(200).json({ price: "10" });
+    if (req.method === 'GET') return res.status(200).json({ price: "29.99" });
     return res.status(500).json({ error: err.message });
   }
 }

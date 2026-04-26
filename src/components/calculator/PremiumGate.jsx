@@ -61,9 +61,14 @@ export default function PremiumGate({ children, featureName, isPremium, compact 
         throw new Error("User not authenticated");
       }
 
-      // Fetch publishable key from backend
-      const keyResponse = await base44.functions.invoke("getStripeKey");
-      const publishableKey = keyResponse.data.publishableKey;
+      // Try environment variable first (Vercel/Local .env)
+      let publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+      // Fallback to backend function if env var is missing
+      if (!publishableKey) {
+        const keyResponse = await base44.functions.invoke("getStripeKey");
+        publishableKey = keyResponse.data?.publishableKey;
+      }
       
       if (!publishableKey) {
         throw new Error("Stripe publishable key not available");

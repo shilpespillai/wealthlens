@@ -25,6 +25,8 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth, subMonths, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -42,6 +44,7 @@ const CATEGORY_BUDGETS = {
 // Mock generation removed per user request for production data integrity.
 
 export default function TrendsReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, getProductionLedger } = useFinancialParser();
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState("All categories");
@@ -227,7 +230,8 @@ export default function TrendsReport() {
   }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900">
+    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
+      {!isPaidUser && <PremiumOverlay featureName="Historical Trend Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
         <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">

@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "../layout/PremiumOverlay";
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -62,6 +64,7 @@ const PRICING_DATA = {
 };
 
 export default function IntelligenceDialog({ open, onOpenChange }) {
+  const { isPaidUser } = useAuth();
   const [config, setConfig] = useState({ 
     provider: 'gemini', 
     models: { gemini: 'gemini-2.5-flash', openai: 'gpt-5.3-instant', anthropic: 'claude-4.7-sonnet' },
@@ -140,7 +143,9 @@ export default function IntelligenceDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[850px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)]">
+      <DialogContent className="max-w-[850px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] min-h-[520px]">
+        {!isPaidUser && <PremiumOverlay featureName="Institutional Intelligence Hub" />}
+        
         <div className="flex flex-col md:flex-row min-h-[520px] relative">
           
           {/* Subtle Institutional Background */}
