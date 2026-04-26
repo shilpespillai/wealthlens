@@ -13,51 +13,46 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
 
-  useEffect(() => {
-    // Initial state check
-    checkAppState();
+  // Unified user mapping with premium check
+  const mapUserWithPremium = React.useCallback(async (supabaseUser) => {
+    if (!supabaseUser) return null;
+    
+    let dbIsPremium = false;
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('is_premium')
+        .or(`id.eq.${supabaseUser.id},email.eq.${supabaseUser.email}`)
+        .maybeSingle();
+      dbIsPremium = !!dbUser?.is_premium;
+    } catch (e) {
+      console.warn("Premium check failed:", e);
+    }
 
-    // Listen for Supabase auth changes
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      full_name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
+      provider: supabaseUser.app_metadata?.provider || 'supabase',
+      avatar: supabaseUser.user_metadata?.avatar_url,
+      subscription_tier: dbIsPremium ? 'pro' : (supabaseUser.user_metadata?.subscription_tier || 'free'),
+      is_premium: dbIsPremium,
+      ...supabaseUser.user_metadata,
+    };
+  }, []);
+
+  useEffect(() => {
+    checkAppState();
     let authSubscription = null;
+    
     if (isSupabaseEnabled) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
-          // Check public.users for premium status even on auth state change
-          let dbIsPremium = false;
-          try {
-            const { data: dbUser } = await supabase
-              .from('users')
-              .select('is_premium')
-              .or(`id.eq.${session.user.id},email.eq.${session.user.email}`)
-              .maybeSingle();
-            dbIsPremium = !!dbUser?.is_premium;
-          } catch (e) {
-            console.warn("Auth change premium check failed:", e);
-          }
-
-          const mappedUser = {
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
-            provider: session.user.app_metadata?.provider || 'supabase',
-            avatar: session.user.user_metadata?.avatar_url,
-            subscription_tier: dbIsPremium ? 'pro' : (session.user.user_metadata?.subscription_tier || 'free'),
-            is_premium: dbIsPremium,
-            ...session.user.user_metadata,
-          };
+          const mappedUser = await mapUserWithPremium(session.user);
           setUser(mappedUser);
           setIsAuthenticated(true);
           localStorage.setItem('mockUser', JSON.stringify(mappedUser));
-
-          // If we are on the home page and a session is detected, redirect to the dashboard
-          // This catches cases where the OAuth redirect lands on / instead of /auth/callback
-          if (window.location.pathname === '/' || window.location.pathname === '' || window.location.hash.includes('access_token=')) {
-            console.log('Detected session on home page, pushing to Dashboard...');
-            setTimeout(() => {
-               // Use origin to ensure we strip codes/hashes from the URL
-               window.location.href = window.location.origin + '/Dashboard';
-            }, 300);
-          }
+          setAuthError(null);
         } else {
           setUser(null);
           setIsAuthenticated(false);
@@ -69,79 +64,49 @@ export const AuthProvider = ({ children }) => {
         setIsLoadingAuth(false);
       });
       authSubscription = subscription;
+    } else {
+      setIsLoadingAuth(false);
     }
 
     return () => {
       if (authSubscription) authSubscription.unsubscribe();
     };
-  }, []);
+  }, [mapUserWithPremium]);
 
   const checkUserAuth = React.useCallback(async () => {
-    setIsLoadingAuth(true);
-    try {
-      if (isSupabaseEnabled) {
-        const { data: { user: freshUser } } = await supabase.auth.getUser();
-        if (freshUser) {
-          // 2. Secondary Check: public.users table (Source of Truth for Premium)
-          let dbIsPremium = false;
-          try {
-            const { data: dbUser, error: dbError } = await supabase
-              .from('users')
-              .select('is_premium')
-              .or(`id.eq.${freshUser.id},email.eq.${freshUser.email}`)
-              .maybeSingle();
-            
-            if (dbError) console.error("Premium check error:", dbError);
-            dbIsPremium = !!dbUser?.is_premium;
-          } catch (e) {
-            console.warn("Could not fetch premium status from public.users:", e);
-          }
+    if (!isSupabaseEnabled) {
+      setIsLoadingAuth(false);
+      return;
+    }
 
-          const mappedUser = {
-            id: freshUser.id,
-            email: freshUser.email,
-            full_name: freshUser.user_metadata?.full_name || freshUser.user_metadata?.name || freshUser.email?.split('@')[0],
-            provider: freshUser.app_metadata?.provider || 'supabase',
-            avatar: freshUser.user_metadata?.avatar_url,
-            subscription_tier: dbIsPremium ? 'pro' : (freshUser.user_metadata?.subscription_tier || 'free'),
-            is_premium: dbIsPremium,
-            ...freshUser.user_metadata,
-          };
-          setUser(mappedUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-          setAuthError({ type: 'auth_required', message: 'Authentication required' });
-        }
+    try {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      if (freshUser) {
+        const mappedUser = await mapUserWithPremium(freshUser);
+        setUser(mappedUser);
+        setIsAuthenticated(true);
       } else {
         setUser(null);
         setIsAuthenticated(false);
-        setAuthError({ 
-          type: 'auth_required', 
-          message: 'Production Authentication Error: Supabase is not properly configured. Please check your .env file.' 
-        });
       }
     } catch (error) {
       console.error('Auth check error:', error);
     } finally {
       setIsLoadingAuth(false);
     }
-  }, []);
+  }, [mapUserWithPremium]);
 
   const checkAppState = React.useCallback(async () => {
     try {
       setIsLoadingPublicSettings(true);
       setAppPublicSettings({ id: appParams.appId, public_settings: {} });
-      await checkUserAuth();
+      // We rely on the onAuthStateChange listener to handle the user session
       setIsLoadingPublicSettings(false);
     } catch (error) {
       console.error('AppState error:', error);
       setIsLoadingPublicSettings(false);
-      setIsLoadingAuth(false);
     }
-  }, [checkUserAuth]);
+  }, []);
 
   const logout = async () => {
     console.log('--- NUKE LOGOUT INITIATED ---');

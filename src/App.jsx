@@ -40,27 +40,44 @@ function App() {
 }
 
 const MainContent = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkAppState } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkAppState } = useAuth();
   const { toast } = useToast();
 
   // Listen for successful upgrade redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('upgraded') === 'true') {
-      // Remove the param from URL without refreshing
       window.history.replaceState({}, '', window.location.pathname);
-      
-      // Show success toast
       toast({
         title: "Upgrade Successful",
         description: "Welcome to WealthLens Pro! All institutional reports and tools are now unlocked.",
         className: "bg-slate-900 text-white border-slate-800",
       });
-
-      // Refresh auth state to pick up the new tier
       checkAppState();
     }
   }, [checkAppState, toast]);
+
+  // Redirect authenticated users from landing pages to dashboard
+  useEffect(() => {
+    if (!isLoadingAuth && isAuthenticated && user) {
+        const currentPath = window.location.pathname.toLowerCase();
+        const hash = window.location.hash;
+        
+        // Only redirect if we are on the landing page or login page
+        const isLandingPage = currentPath === '/' || currentPath === '' || currentPath === '/login';
+        const hasAuthHash = hash.includes('access_token=') || hash.includes('id_token=');
+
+        if (isLandingPage || hasAuthHash) {
+            // Clean the URL hash first to prevent the next render from seeing it as a new login
+            if (hash) {
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            
+            // Perform the redirect
+            window.location.href = '/Dashboard';
+        }
+    }
+  }, [isAuthenticated, user, isLoadingAuth]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
