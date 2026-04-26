@@ -403,10 +403,29 @@ export const base44 = {
   
   db: {
     TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets", categories: "user_categories" },
+    
+    // Internal session cache to prevent auth-storming during loops/navigation
+    _sessionCache: null,
+    _sessionCacheTime: 0,
+    
+    _getSession: async () => {
+      if (!isSupabaseEnabled) return { session: null };
+      
+      const now = Date.now();
+      if (base44.db._sessionCache && (now - base44.db._sessionCacheTime < 5000)) {
+        return base44.db._sessionCache;
+      }
+      
+      const sessionData = await supabase.auth.getSession();
+      base44.db._sessionCache = sessionData.data;
+      base44.db._sessionCacheTime = now;
+      return sessionData.data;
+    },
+
     getTable: async (tableName) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const { data, error } = await supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
           if (!error && data) return data;
@@ -429,7 +448,7 @@ export const base44 = {
     insertRow: async (tableName, row) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const cleanRow = { ...row };
           delete cleanRow.id; // Always let DB generate the UUID
@@ -464,7 +483,7 @@ export const base44 = {
     insertRows: async (tableName, rows) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const cleanRows = rows.map(r => {
             const clean = { ...r, user_id: session.user.id, created_at: new Date(), updated_at: new Date() };
@@ -496,7 +515,7 @@ export const base44 = {
     upsertRow: async (tableName, row, options = {}) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           
@@ -545,7 +564,7 @@ export const base44 = {
     upsertRows: async (tableName, rows, options = {}) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
@@ -600,7 +619,7 @@ export const base44 = {
     deleteRow: async (tableName, id) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const { error } = await supabase.from(sqlTable).delete().eq('id', id).eq('user_id', session.user.id);
           if (!error) return { success: true };
@@ -613,7 +632,7 @@ export const base44 = {
     deleteByFilter: async (tableName, column, value) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const { error } = await supabase.from(sqlTable).delete().eq(column, value).eq('user_id', session.user.id);
           if (!error) return { success: true };
@@ -638,7 +657,7 @@ export const base44 = {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       const { filters = [], orderBy = null, limit = null } = options;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           let q = supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
           filters.forEach(f => {

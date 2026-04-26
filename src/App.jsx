@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -42,6 +42,7 @@ function App() {
 const MainContent = () => {
   const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkAppState } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Listen for successful upgrade redirect
   useEffect(() => {
@@ -59,39 +60,60 @@ const MainContent = () => {
 
   // Redirect authenticated users from landing pages to dashboard
   useEffect(() => {
+    console.log("[App] Auth State Check:", { isLoadingAuth, isAuthenticated, hasUser: !!user, path: window.location.pathname });
     if (!isLoadingAuth && isAuthenticated && user) {
-        const currentPath = window.location.pathname.toLowerCase();
-        const hash = window.location.hash;
+        const path = window.location.pathname;
+        const currentPath = path.toLowerCase();
         
-        // Only redirect if we are on the landing page or login page
+        // Only redirect if we are strictly on the landing page or login page
+        // AND not already on a path that starts with /dashboard
         const isLandingPage = currentPath === '/' || currentPath === '' || currentPath === '/login';
-        const hasAuthHash = hash.includes('access_token=') || hash.includes('id_token=');
-
-        if (isLandingPage || hasAuthHash) {
-            // Clean the URL hash first to prevent the next render from seeing it as a new login
-            if (hash) {
-                window.history.replaceState(null, null, window.location.pathname);
+        
+        if (isLandingPage) {
+            // Self-Healing Loop Protector: If we redirect too many times, clear storage
+            const redirectCount = parseInt(sessionStorage.getItem('wl_redirect_count') || '0');
+            if (redirectCount > 5) {
+                console.error("[Auth] Critical Loop Detected. Performing hard reset.");
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/';
+                return;
             }
+            sessionStorage.setItem('wl_redirect_count', (redirectCount + 1).toString());
+
+            // Check if we've already redirected in this specific session window to prevent loops
+            const hasRedirected = sessionStorage.getItem('wl_init_redirect');
+            if (hasRedirected === 'true' && currentPath !== '/login') {
+                console.log("[App] Blocked redundant redirect to Dashboard");
+                return;
+            }
+
+            console.log("[App] Executing redirect to Dashboard from", path);
+            sessionStorage.setItem('wl_init_redirect', 'true');
             
-            // Perform the redirect
-            window.location.href = '/Dashboard';
+            // Final safety: Only navigate if we aren't already there
+            if (window.location.pathname.toLowerCase() !== '/dashboard') {
+              navigate('/Dashboard', { replace: true });
+            }
         }
     }
-  }, [isAuthenticated, user, isLoadingAuth]);
+  }, [isAuthenticated, user, isLoadingAuth, navigate]);
+
+  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy', '/'].includes(window.location.pathname.toLowerCase());
 
   // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if ((isLoadingPublicSettings || isLoadingAuth) && isPublicPage && !isAuthenticated) {
+    console.log("[App] Showing Spinner (Public Page + Loading)");
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-50 z-50">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   // Handle authentication errors
-  const path = window.location.pathname.toLowerCase();
-  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy'].includes(path);
-  const isHomePage = path === '/' || path === '';
+  const currentPath = window.location.pathname.toLowerCase();
+  const isHomePage = currentPath === '/' || currentPath === '';
 
   if (authError) {
     if (authError.type === 'user_not_registered') {
@@ -99,7 +121,10 @@ const MainContent = () => {
     } else if (authError.type === 'auth_required') {
       // Only redirect if it's not a public page or home page
       if (!isPublicPage && !isHomePage) {
-        navigateToLogin();
+        if (window.location.pathname.toLowerCase() !== '/login') {
+          console.log("[App] Redirecting to Login due to auth_required");
+          navigateToLogin();
+        }
         return null;
       }
     }

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
+import { robustParseDate } from "@/utils/dateParser";
 
 // Accessing the shared mock generator logic
 const CATEGORY_MAP = [
@@ -57,13 +58,26 @@ export default function BudgetCalendar() {
   }, [currentDate]);
 
   // Load and Normalize Categorical Data
+  const [rawTransactions, setRawTransactions] = useState([]);
+
   useEffect(() => {
     async function initData() {
       const allBudgets = await getDatabaseTable("budgets");
       const saved = (allBudgets || []).find((b) => b.month === monthKey);
 
-      const productionLedger = await getProductionLedger({ month: monthKey });
-      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, currentDate, productionLedger);
+      const start = startOfWeek(startOfMonth(currentDate));
+      const end = endOfWeek(endOfMonth(currentDate));
+      
+      const productionLedger = await getProductionLedger({ 
+        startDate: start.getTime(), 
+        endDate: end.getTime() 
+      });
+      
+      // Store raw transactions for individual calendar rendering
+      setRawTransactions(productionLedger || []);
+
+      // Still compute aggregated data if needed for summary purposes
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, currentDate, productionLedger, [], { ignoreMonthFilter: true });
       setIncomes(normIncs);
       setExpenses(normExps);
 
@@ -71,7 +85,7 @@ export default function BudgetCalendar() {
       const fullLedger = await getProductionLedger();
       const startOfThisMonth = startOfMonth(currentDate);
       const totalPastSurplus = fullLedger
-        .filter((t) => new Date(t.date || t.actualDate) < startOfThisMonth)
+        .filter((t) => robustParseDate(t.date || t.actualDate) < startOfThisMonth)
         .reduce((sum, t) => {
           const val = Math.abs(t.amount || 0);
           return t.type === "income" ? sum + val : sum - val;
@@ -95,21 +109,28 @@ export default function BudgetCalendar() {
   const handleMonthChange = (val) => setCurrentDate(new Date(currentDate.getFullYear(), parseInt(val), 1));
   const handleYearChange = (val) => setCurrentDate(new Date(parseInt(val), currentDate.getMonth(), 1));
 
-  // Dynamic Transaction Parser
+  // Dynamic Transaction Parser - Now uses RAW transactions to prevent aggregation loss
   const getTransactionsForDay = (day) => {
     const isMatchingDay = (itemDate) => {
       if (!itemDate) return false;
-      const d = new Date(itemDate);
-      return !isNaN(d.getTime()) && isSameDay(d, day);
+      const d = robustParseDate(itemDate);
+      return d && isSameDay(d, day);
     };
 
-    const incs = incomes.filter(i => isMatchingDay(i.date)).map(i => ({ ...i, type: 'income', label: i.category }));
-    const exps = expenses.filter(e => isMatchingDay(e.date)).map(e => ({ ...e, type: 'expense', label: e.category }));
-    
-    return [...incs, ...exps].map(tx => {
-      const catInfo = CATEGORY_MAP.find(c => c.name === tx.category);
-      return { ...tx, color: catInfo ? catInfo.color : (tx.type === 'income' ? 'bg-teal-400' : 'bg-slate-500') };
-    });
+    return rawTransactions
+      .filter(t => isMatchingDay(t.date || t.actualDate))
+      .map(tx => {
+        const catInfo = CATEGORY_MAP.find(c => c.name === tx.category);
+        const amount = Number(tx.amount) || 0;
+        const type = (tx.type || "").toLowerCase() === 'income' ? 'income' : (amount > 0 ? 'income' : 'expense');
+        
+        return { 
+          ...tx, 
+          type,
+          label: tx.merchant || tx.name || tx.category || 'Transaction',
+          color: catInfo ? catInfo.color : (type === 'income' ? 'bg-teal-400' : 'bg-slate-500') 
+        };
+      });
   };
 
   const getRunningBalance = (day) => {
@@ -118,8 +139,8 @@ export default function BudgetCalendar() {
     
     const isBeforeOrSame = (itemDate) => {
       if (!itemDate) return false;
-      const d = new Date(itemDate);
-      return !isNaN(d.getTime()) && startOfDay(d) <= currentDay;
+      const d = robustParseDate(itemDate);
+      return d && startOfDay(d) <= currentDay;
     };
 
     incomes.forEach(i => {
@@ -222,11 +243,7 @@ export default function BudgetCalendar() {
                 ))}
               </div>
 
-              <div className="mt-auto flex justify-center pt-2 border-t border-slate-50 group-hover:bg-slate-50/50 transition-colors">
-                 <span className="text-[10px] font-bold text-slate-400 font-mono tracking-tight">
-                    {formatAmount(balance)}
-                 </span>
-              </div>
+              {/* Balance removed per user request */}
             </div>
           );
         })}

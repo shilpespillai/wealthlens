@@ -55,7 +55,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let authSubscription = null;
     
-    async function initAuth() {
+    const safeTimeout = setTimeout(() => {
+      console.warn("[Auth] Safe-load timeout triggered. Resolving loading state.");
+      setIsLoadingAuth(false);
+      setIsLoadingPublicSettings(false);
+    }, 5000);
+
+    const initAuth = async () => {
       try {
         await checkAppState();
         
@@ -71,13 +77,25 @@ export const AuthProvider = ({ children }) => {
 
           // 2. Setup listener for future changes
           const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("[Auth] Supabase Event:", event, { hasSession: !!session });
             if (session?.user) {
               const mappedUser = await mapUserWithPremium(session.user);
-              setUser(mappedUser);
+              
+              // Only update if the user identity has actually changed to prevent render loops
+              setUser(prev => {
+                if (prev && prev.id === mappedUser.id && prev.email === mappedUser.email) {
+                  console.log("[Auth] Skipping redundant user update");
+                  return prev;
+                }
+                console.log("[Auth] Updating User state");
+                return mappedUser;
+              });
+              
               setIsAuthenticated(true);
               localStorage.setItem('mockUser', JSON.stringify(mappedUser));
               setAuthError(null);
             } else {
+              console.log("[Auth] No session, clearing user");
               setUser(null);
               setIsAuthenticated(false);
               localStorage.removeItem('mockUser');
@@ -88,6 +106,14 @@ export const AuthProvider = ({ children }) => {
             setIsLoadingAuth(false);
           });
           authSubscription = subscription;
+        } else {
+          // MOCK FALLBACK: Use local storage if production auth is disabled
+          const stored = localStorage.getItem('mockUser');
+          if (stored) {
+            setUser(JSON.parse(stored));
+            setIsAuthenticated(true);
+          }
+          setIsLoadingAuth(false);
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -99,6 +125,7 @@ export const AuthProvider = ({ children }) => {
     initAuth();
 
     return () => {
+      clearTimeout(safeTimeout);
       if (authSubscription) authSubscription.unsubscribe();
     };
   }, [mapUserWithPremium, checkAppState]);
@@ -132,24 +159,26 @@ export const AuthProvider = ({ children }) => {
     window.location.href = url.toString();
   };
 
+  const contextValue = React.useMemo(() => ({ 
+    user, 
+    isAuthenticated, 
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    authError,
+    appPublicSettings,
+    isPaidUser: (
+      user?.subscription_tier === 'pro' || 
+      user?.subscription_tier === 'premium' || 
+      user?.is_premium === true ||
+      user?.email === 'admin@wealthlens.com'
+    ),
+    logout,
+    navigateToLogin,
+    checkAppState
+  }), [user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, appPublicSettings, checkAppState]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings,
-      isPaidUser: (
-        user?.subscription_tier === 'pro' || 
-        user?.subscription_tier === 'premium' || 
-        user?.is_premium === true ||
-        user?.email === 'admin@wealthlens.com'
-      ),
-      logout,
-      navigateToLogin,
-      checkAppState
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

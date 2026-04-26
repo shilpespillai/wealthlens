@@ -180,14 +180,16 @@ export const useFinancialParser = () => {
    * Aligned with DB Schema: Uses 'amount' for actuals and 'monthly_target' for targets.
    * Performs category-based aggregation of raw transactions.
    */
-  const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = []) => {
+  const normalizeTransactionData = useCallback((saved, selectedDate, transactions, accounts = [], options = {}) => {
     // 0. Temporal Filtering: Format-agnostic parser to prevent DD/MM vs MM/DD leakage
     const targetDate = selectedDate || new Date();
     const targetMonth = targetDate.getMonth() + 1; // 1-12
     const targetYear = targetDate.getFullYear();
 
+    const { ignoreMonthFilter = false } = options;
+
     const rawTransactions = (transactions || []).filter(t => 
-      isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear)
+      ignoreMonthFilter || isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear)
     );
     
     // Support both legacy flat structure and new relational payload structure
