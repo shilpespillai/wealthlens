@@ -513,7 +513,7 @@ export function DashboardContent() {
 
         const currentMonthFocus = format(new Date(), 'yyyy-MM');
         const currentMonthRow = dbBudgets?.find(b => b.month === currentMonthFocus) || 
-                                [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0];
+                                (dbBudgets?.length > 0 ? [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0] : null);
         
         const currentMonthTx = await getProductionLedger({ month: currentMonthFocus });
 
@@ -547,7 +547,7 @@ export function DashboardContent() {
 
         const dbBudgets = await base44.db.getTable('budgets');
         const horizonRow = dbBudgets?.find(b => b.month === periodInfo.focusMonthKey) || 
-                           [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0];
+                           (dbBudgets?.length > 0 ? [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0] : null);
 
         setLiveData(prev => ({
           ...prev,
@@ -559,7 +559,7 @@ export function DashboardContent() {
       }
     }
     syncHorizon();
-  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey]);
+  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading]);
 
   const saveLayout = async (newColumns) => {
     try {
