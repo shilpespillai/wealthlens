@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { format } from "date-fns";
 import { resolveCanonicalCategory } from '@/utils/constants';
-import { getYearMonth, isSameMonthYear } from "@/utils/dateParser";
+import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/dateParser";
 
 /**
  * useFinancialParser
@@ -360,6 +360,15 @@ export const useFinancialParser = () => {
       if (filter.month) {
         const [targetYear, targetMonth] = filter.month.split('-').map(Number);
         return isSameMonthYear(rawDate, targetMonth, targetYear);
+      }
+
+      // Strict Range Filtering (if provided)
+      if (filter.startDate || filter.endDate) {
+        const d = robustParseDate(rawDate);
+        if (!d) return false;
+        const txTime = d.getTime();
+        if (filter.startDate && txTime < filter.startDate) return false;
+        if (filter.endDate && txTime > filter.endDate) return false;
       }
 
       return true;

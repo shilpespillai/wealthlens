@@ -38,9 +38,10 @@ import {
 import { CategoryIcon } from "@/utils/iconMap";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import { subDays, subMonths, startOfWeek, endOfWeek, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { subDays, subMonths, startOfWeek, endOfWeek, endOfDay, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { calculatePortfolioHoldings, getPortfolioMetrics } from "@/api/portfolioEngine";
 import { cn } from "@/lib/utils";
+import { robustParseDate } from "@/utils/dateParser";
 
 
 // Institutional Flattening Engine
@@ -277,13 +278,16 @@ export function DashboardContent() {
   const ledgerTrend = useMemo(() => {
     const txs = liveData.transactions || [];
     const filtered = txs.filter(t => {
-      const d = new Date(t.date).getTime();
+      const dObj = robustParseDate(t.date);
+      if (!dObj) return false;
+      const d = dObj.getTime();
       return d >= periodInfo.startDate && d <= periodInfo.endDate;
     });
 
     const daily = {};
     filtered.forEach(t => {
-      const dLabel = format(new Date(t.date), 'MMM dd');
+      const dObj = robustParseDate(t.date);
+      const dLabel = format(dObj, 'MMM dd');
       if (!daily[dLabel]) daily[dLabel] = { name: dLabel, income: 0, expense: 0 };
       const amt = Math.abs(Number(t.amount || 0));
       if (t.type === 'income') daily[dLabel].income += amt;
@@ -349,7 +353,7 @@ export function DashboardContent() {
 
     let intervals;
     let formatStr = 'MMM dd';
-    if (diffDays <= 14) {
+    if (diffDays <= 31) {
       intervals = eachDayOfInterval({ start, end });
       formatStr = 'MMM dd';
     } else if (diffDays <= 120) {
@@ -368,13 +372,14 @@ export function DashboardContent() {
 
     const buckets = intervals.map((intStart, idx) => {
       let intEnd;
-      if (diffDays <= 14) intEnd = intStart; 
+      if (diffDays <= 31) intEnd = endOfDay(intStart); 
       else if (diffDays <= 120) intEnd = endOfWeek(intStart);
       else intEnd = endOfMonth(intStart);
 
       const periodTx = transactions.filter(t => {
-        const d = new Date(t.date);
-        return d >= intStart && d <= intEnd;
+        const d = robustParseDate(t.date);
+        if (!d) return false;
+        return d >= intStart && d <= intEnd && d >= start && d <= end;
       });
 
       const actualSpent = periodTx.reduce((sum, t) => {
@@ -387,10 +392,16 @@ export function DashboardContent() {
         return t.type === 'income' ? sum + amt : sum;
       }, 0);
 
-      // Scale Budgets into Bucket Interval: 
-      // If we're looking at a Month or more, we want the FULL Monthly target.
-      // 4.333 is for Weekly views (diffDays <= 31 is roughly one month).
-      const divisor = diffDays <= 7 ? 4.333 : (diffDays <= 31 ? 1 : (diffDays / 30));
+      // Scale Budgets into Bucket Interval:
+      // We calculate the fraction of a month this bucket represents to show an accurate target line.
+      let bucketFraction = 1;
+      if (diffDays <= 31) {
+        bucketFraction = 1 / intervals.length; // Daily portion
+      } else if (diffDays <= 120) {
+        bucketFraction = 7 / 30.42; // Weekly portion
+      } else {
+        bucketFraction = 1; // Monthly portion
+      }
       
       const totalMonthlyBudget = budgets
         .filter(b => b.type !== 'income' && !(b.children && b.children.length > 0)) // Only leaf nodes
@@ -398,7 +409,7 @@ export function DashboardContent() {
           const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
           return sum + val;
         }, 0);
-      const bucketBudgetTarget = totalMonthlyBudget / divisor;
+      const bucketBudgetTarget = totalMonthlyBudget * bucketFraction;
 
       const totalMonthlyIncomeTarget = budgets
         .filter(b => b.type === 'income')
@@ -406,10 +417,10 @@ export function DashboardContent() {
           const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
           return sum + val;
         }, 0);
-      const bucketIncomeTarget = totalMonthlyIncomeTarget / divisor;
+      const bucketIncomeTarget = totalMonthlyIncomeTarget * bucketFraction;
 
       return {
-        name: format(intStart, formatStr),
+        name: format(idx === 0 ? (intStart < start ? start : intStart) : intStart, formatStr),
         intStart,
         actualSpent,
         actualEarned,
@@ -441,8 +452,9 @@ export function DashboardContent() {
     const periodStart = new Date(periodInfo.startDate);
     const periodEnd   = new Date(periodInfo.endDate);
     const periodTxAll = (liveData.transactions || []).filter(t => {
-      const d = new Date(t.date);
-      return d >= periodStart && d <= periodEnd;
+      const dObj = robustParseDate(t.date);
+      if (!dObj) return false;
+      return dObj >= periodStart && dObj <= periodEnd;
     });
 
     // Spend & Income logic: Use budgetSummary totals if viewing the Current Month horizon
@@ -831,7 +843,7 @@ export function DashboardContent() {
         );
     case "recent_activity":
         const recentTxs = [...liveData.transactions]
-          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .sort((a, b) => (robustParseDate(b.date) || 0) - (robustParseDate(a.date) || 0))
           .slice(0, 8);
 
         return (
@@ -853,7 +865,7 @@ export function DashboardContent() {
                       <div>
                         <p className="text-xs font-bold text-slate-800 leading-none mb-1">{tx.merchant || tx.name || tx.category}</p>
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          {format(new Date(tx.date), 'MMM dd')} · {tx.category}
+                          {format(robustParseDate(tx.date), 'MMM dd')} · {tx.category}
                         </p>
                       </div>
                     </div>
@@ -1258,8 +1270,9 @@ export function DashboardContent() {
                     dataKey="name" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
+                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}
                     dy={10}
+                    minTickGap={20}
                   />
                   <YAxis 
                     axisLine={false}
@@ -1278,12 +1291,16 @@ export function DashboardContent() {
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Period: {label}</p>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-slate-400">Gross Income</span>
+                                <span className="text-sm font-black text-emerald-400">{formatAmount(data.actualEarned)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
                                 <span className="text-[11px] font-bold text-slate-400">Actual Spending</span>
                                 <span className="text-sm font-black text-red-500">{formatAmount(data.actualSpent)}</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] font-bold text-slate-400">Budget Target</span>
-                                <span className="text-sm font-black text-emerald-400">{formatAmount(data.budgetSpent)}</span>
+                                <span className="text-sm font-black text-[#8b5cf6]">{formatAmount(data.budgetSpent)}</span>
                               </div>
                               <div className="pt-2 border-t border-white/5 flex items-center justify-between">
                                 <span className="text-[11px] font-bold text-slate-400">Net Variance</span>

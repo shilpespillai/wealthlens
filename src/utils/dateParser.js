@@ -48,7 +48,28 @@ export const getYearMonth = (rawDate, targetMonth = null) => {
   return { year: txYear, month: txMonth };
 };
 
+export const robustParseDate = (rawDate) => {
+  if (!rawDate) return null;
+  
+  // Try custom parts-based parsing first (DD/MM/YYYY vs YYYY-MM-DD)
+  const dateStr = String(rawDate);
+  const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+  
+  if (parts.length >= 3) {
+    if (parts[0].length === 4) { // ISO YYYY-MM-DD
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else if (parts[2].length === 4) { // DD/MM/YYYY
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+  }
+
+  // Fallback to native parsing for timestamps or other formats
+  const d = new Date(rawDate);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 export const isSameMonthYear = (rawDate, targetMonth, targetYear) => {
-  const { year, month } = getYearMonth(rawDate, targetMonth);
-  return Number(year) === Number(targetYear) && Number(month) === Number(targetMonth);
+  const d = robustParseDate(rawDate);
+  if (!d) return false;
+  return d.getFullYear() === Number(targetYear) && (d.getMonth() + 1) === Number(targetMonth);
 };
