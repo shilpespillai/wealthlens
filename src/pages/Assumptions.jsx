@@ -103,7 +103,7 @@ export default function Assumptions() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#C5A059]/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-6">Heuristic Deviation Warning</h4>
               <p className="text-[11px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight mb-8">
-                If your customized return rates or inflation targets deviate significantly from our institutional baseline (e.g. >30% variance), the WealthLens Engine will trigger a "Mathematical Stress Awareness" warning on your dashboard to help prevent over-optimistic modeling.
+                If your customized return rates or inflation targets deviate significantly from our institutional baseline (e.g. &gt;30% variance), the WealthLens Engine will trigger a "Mathematical Stress Awareness" warning on your dashboard to help prevent over-optimistic modeling.
               </p>
               <div className="flex gap-4">
                  <div className="h-10 px-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">

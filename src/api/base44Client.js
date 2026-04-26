@@ -262,11 +262,12 @@ export const base44 = {
       return { success: true };
     }
   },
-
-  app: {
+  app: {
     getPrice: async () => {
       try {
-        const resp = await fetch('/api/pricing');
+        // Attempt fetch but catch 404s silently on localhost
+        const resp = await fetch('/api/pricing').catch(() => null);
+        if (!resp || resp.status === 404) return 29.99;
         const data = await resp.json();
         return parseFloat(data.price || "29.99");
       } catch (e) {
@@ -279,14 +280,15 @@ export const base44 = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ price: newPrice, adminEmail })
-        });
+        }).catch(() => ({ status: 404 }));
+        
+        if (resp.status === 404) return { success: true, mock: true };
         return await resp.json();
       } catch (e) {
         return { error: e.message };
       }
     }
   },
-
   functions: {
     invoke: async (name, params) => {
       if (name === 'getInvestmentCoachAdvice') {
@@ -309,19 +311,24 @@ export const base44 = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params)
-          });
-          const data = await resp.json();
-          if (data) return { data };
-        } catch (e) { console.error("Vercel API Error:", e); }
-        return { data: { isActive: true } };
+          }).catch(() => ({ status: 404 }));
+          
+          if (resp && resp.status !== 404) {
+             const data = await resp.json();
+             return { data };
+          }
+        } catch (e) {}
+        return { data: { isActive: false } };
       }
 
       if (name === 'getStripeKey') {
         try {
-          const resp = await fetch('/api/pricing'); // Assuming pricing returns the key or similar
-          const data = await resp.json();
-          if (data?.publishableKey) return { data };
-        } catch (e) { console.error("Vercel API Error:", e); }
+          const resp = await fetch('/api/pricing').catch(() => ({ status: 404 }));
+          if (resp && resp.status !== 404) {
+             const data = await resp.json();
+             if (data?.publishableKey) return { data };
+          }
+        } catch (e) {}
         return { data: { publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock' } };
       }
 
@@ -331,10 +338,13 @@ export const base44 = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params)
-          });
-          const data = await resp.json();
-          if (data?.url || data?.sessionId) return { data };
-        } catch (e) { console.error("Vercel API Error:", e); }
+          }).catch(() => ({ status: 404 }));
+
+          if (resp && resp.status !== 404) {
+             const data = await resp.json();
+             if (data?.url || data?.sessionId) return { data };
+          }
+        } catch (e) {}
         
         // Final Local Fallback
         return { 
@@ -348,6 +358,7 @@ export const base44 = {
       return { data: { success: true } };
     }
   },
+
   
   user: {
     loadData: async (key) => {

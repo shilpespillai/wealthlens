@@ -1386,9 +1386,5 @@ export function DashboardContent() {
 }
 
 export default function Dashboard() {
-  return (
-    <AuthGuard>
-      <DashboardContent />
-    </AuthGuard>
-  );
+  return <DashboardContent />;
 }

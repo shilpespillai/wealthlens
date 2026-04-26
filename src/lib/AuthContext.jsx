@@ -41,66 +41,10 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  useEffect(() => {
-    checkAppState();
-    let authSubscription = null;
-    
-    if (isSupabaseEnabled) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          const mappedUser = await mapUserWithPremium(session.user);
-          setUser(mappedUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('mockUser', JSON.stringify(mappedUser));
-          setAuthError(null);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-          localStorage.removeItem('mockUser');
-          if (event === 'SIGNED_OUT') {
-            setAuthError({ type: 'auth_required', message: 'Signed out successfully' });
-          }
-        }
-        setIsLoadingAuth(false);
-      });
-      authSubscription = subscription;
-    } else {
-      setIsLoadingAuth(false);
-    }
-
-    return () => {
-      if (authSubscription) authSubscription.unsubscribe();
-    };
-  }, [mapUserWithPremium]);
-
-  const checkUserAuth = React.useCallback(async () => {
-    if (!isSupabaseEnabled) {
-      setIsLoadingAuth(false);
-      return;
-    }
-
-    try {
-      const { data: { user: freshUser } } = await supabase.auth.getUser();
-      if (freshUser) {
-        const mappedUser = await mapUserWithPremium(freshUser);
-        setUser(mappedUser);
-        setIsAuthenticated(true);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-    } finally {
-      setIsLoadingAuth(false);
-    }
-  }, [mapUserWithPremium]);
-
   const checkAppState = React.useCallback(async () => {
     try {
       setIsLoadingPublicSettings(true);
       setAppPublicSettings({ id: appParams.appId, public_settings: {} });
-      // We rely on the onAuthStateChange listener to handle the user session
       setIsLoadingPublicSettings(false);
     } catch (error) {
       console.error('AppState error:', error);
@@ -108,60 +52,71 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = async () => {
-    console.log('--- NUKE LOGOUT INITIATED ---');
+  useEffect(() => {
+    let authSubscription = null;
     
+    async function initAuth() {
+      try {
+        await checkAppState();
+        
+        if (isSupabaseEnabled) {
+          // 1. Get initial session immediately
+          const { data: { session: initialSession } } = await supabase.auth.getSession();
+          if (initialSession?.user) {
+            const mappedUser = await mapUserWithPremium(initialSession.user);
+            setUser(mappedUser);
+            setIsAuthenticated(true);
+            localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+          }
+
+          // 2. Setup listener for future changes
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+              const mappedUser = await mapUserWithPremium(session.user);
+              setUser(mappedUser);
+              setIsAuthenticated(true);
+              localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+              setAuthError(null);
+            } else {
+              setUser(null);
+              setIsAuthenticated(false);
+              localStorage.removeItem('mockUser');
+              if (event === 'SIGNED_OUT') {
+                setAuthError({ type: 'auth_required', message: 'Signed out successfully' });
+              }
+            }
+            setIsLoadingAuth(false);
+          });
+          authSubscription = subscription;
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    }
+
+    initAuth();
+
+    return () => {
+      if (authSubscription) authSubscription.unsubscribe();
+    };
+  }, [mapUserWithPremium, checkAppState]);
+
+  const logout = async () => {
     if (isSupabaseEnabled) {
       try {
         await supabase.auth.signOut();
-        console.log('Supabase signOut() called');
       } catch (e) {
         console.error('Supabase signout error:', e);
       }
     }
 
-    // 1. Clear LocalStorage
-    const keysToRemove = [
-      'mockUser', 
-      'token', 
-      'base44_token', 
-      'base44_access_token', 
-      'base44_mock_user'
-    ];
-    
-    // Also clear all Supabase specific keys
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes('supabase.auth.token') || key.startsWith('sb-'))) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    keysToRemove.forEach(k => {
-      localStorage.removeItem(k);
-      console.log(`Cleared localStorage: ${k}`);
-    });
-
-    // 2. Clear SessionStorage
+    localStorage.removeItem('mockUser');
     sessionStorage.clear();
-    console.log('sessionStorage cleared');
-
-    // 3. Set Context State
     setUser(null);
     setIsAuthenticated(false);
-
-    // 4. Force Cookie Clearing (Best Effort)
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-    console.log('Cookies cleared');
-
-    // 5. Hard Refresh to absolute root to ensure all state is wiped
-    console.log('Redirecting to Home with hard refresh...');
     
-    // Small delay to allow state to settle before the browser kills the process
     setTimeout(() => {
         window.location.href = '/';
     }, 100);
