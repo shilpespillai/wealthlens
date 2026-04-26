@@ -76,20 +76,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const checkAppState = async () => {
-    try {
-      setIsLoadingPublicSettings(true);
-      setAppPublicSettings({ id: appParams.appId, public_settings: {} });
-      await checkUserAuth();
-      setIsLoadingPublicSettings(false);
-    } catch (error) {
-      console.error('AppState error:', error);
-      setIsLoadingPublicSettings(false);
-      setIsLoadingAuth(false);
-    }
-  };
-
-  const checkUserAuth = async () => {
+  const checkUserAuth = React.useCallback(async () => {
     setIsLoadingAuth(true);
     try {
       if (isSupabaseEnabled) {
@@ -141,7 +128,20 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoadingAuth(false);
     }
-  };
+  }, []);
+
+  const checkAppState = React.useCallback(async () => {
+    try {
+      setIsLoadingPublicSettings(true);
+      setAppPublicSettings({ id: appParams.appId, public_settings: {} });
+      await checkUserAuth();
+      setIsLoadingPublicSettings(false);
+    } catch (error) {
+      console.error('AppState error:', error);
+      setIsLoadingPublicSettings(false);
+      setIsLoadingAuth(false);
+    }
+  }, [checkUserAuth]);
 
   const logout = async () => {
     console.log('--- NUKE LOGOUT INITIATED ---');
