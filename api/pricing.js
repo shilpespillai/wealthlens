@@ -21,14 +21,14 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      // Per User instruction, public.users is the source of truth
+      // Use the generic user_data vault for global settings
       const { data, error } = await supabase
-        .from('users')
-        .select('stripe_customer_id')
-        .eq('email', 'system_price@wealthlens.com')
+        .from('user_data')
+        .select('payload')
+        .eq('key', 'global_app_pricing')
         .maybeSingle();
 
-      const price = data?.stripe_customer_id || "29.99";
+      const price = data?.payload?.price || "29.99";
       return res.status(200).json({ price });
     }
 
@@ -39,13 +39,13 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
+      // Store in the global app settings vault
       const { error } = await supabase
-        .from('users')
+        .from('user_data')
         .upsert({ 
-          email: 'system_price@wealthlens.com', 
-          stripe_customer_id: price.toString(),
-          is_premium: false 
-        }, { onConflict: 'email' });
+          key: 'global_app_pricing', 
+          payload: { price: price.toString(), updated_by: adminEmail }
+        }, { onConflict: 'key' });
 
       if (error) throw error;
       return res.status(200).json({ success: true });

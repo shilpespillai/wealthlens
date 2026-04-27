@@ -18,16 +18,21 @@ export const AuthProvider = ({ children }) => {
   const mapUserWithPremium = React.useCallback(async (supabaseUser) => {
     if (!supabaseUser) return null;
     
-    let dbIsPremium = false;
-    try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('is_premium')
-        .or(`id.eq.${supabaseUser.id},email.eq.${supabaseUser.email}`)
-        .maybeSingle();
-      dbIsPremium = !!dbUser?.is_premium;
-    } catch (e) {
-      console.warn("Premium check failed:", e);
+    // 1. FAST PATH: Check user_metadata first (Instant, zero DB query)
+    let dbIsPremium = !!supabaseUser.user_metadata?.is_premium;
+    
+    // 2. FALLBACK: Check public users table for legacy users who haven't migrated to metadata yet
+    if (!dbIsPremium) {
+      try {
+        const { data: dbUser } = await supabase
+          .from('users')
+          .select('is_premium')
+          .or(`id.eq.${supabaseUser.id},email.eq.${supabaseUser.email}`)
+          .maybeSingle();
+        dbIsPremium = !!dbUser?.is_premium;
+      } catch (e) {
+        console.warn("Premium legacy fallback check failed:", e);
+      }
     }
 
     return {
@@ -38,6 +43,7 @@ export const AuthProvider = ({ children }) => {
       avatar: supabaseUser.user_metadata?.avatar_url,
       subscription_tier: dbIsPremium ? 'pro' : (supabaseUser.user_metadata?.subscription_tier || 'free'),
       is_premium: dbIsPremium,
+      stripe_customer_id: supabaseUser.user_metadata?.stripe_customer_id,
       ...supabaseUser.user_metadata,
     };
   }, []);

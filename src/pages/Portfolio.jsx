@@ -90,7 +90,10 @@ function PortfolioContent() {
 
         // Use authUser metadata for currency if available
         let initCurrency = "AUD";
-        if (authUser?.user_metadata?.portfolio_currency) {
+        const vaultCurrency = await base44.user.loadData('wl_portfolio_currency');
+        if (vaultCurrency?.currency) {
+          initCurrency = vaultCurrency.currency;
+        } else if (authUser?.user_metadata?.portfolio_currency) {
           initCurrency = authUser.user_metadata.portfolio_currency;
         } else if (authUser?.portfolio_currency) {
           initCurrency = authUser.portfolio_currency;
@@ -170,9 +173,7 @@ function PortfolioContent() {
       // Clean up local state to remove purged ghost rows
       setHoldings(validHoldings);
 
-      await base44.auth.updateMe({
-        portfolio_currency: currency
-      });
+      await base44.user.saveData("wl_portfolio_currency", { currency });
       
       // Update signature so button goes back to idle
       setSavedSignature(JSON.stringify({ holdings: validHoldings, currency }));
@@ -181,7 +182,7 @@ function PortfolioContent() {
       toast.success(`Portfolio synchronized and purged for ${today}`);
     } catch (err) {
       console.error("[Portfolio] Save failed:", err);
-      toast.error(`Failed to save portfolio changes: ${err.message || 'Unknown error'}`);
+      toast.error("Failed to persist portfolio changes");
     } finally {
       setIsSaving(false);
     }

@@ -90,8 +90,7 @@ function CalculatorContent() {
           const user = await base44.auth.me();
           if (!user?.email) return;
           // Check if already subscribed — if so, stay on Calculator
-          const subCheck = await base44.functions.invoke("checkSubscription", { email: user.email });
-          if (subCheck.data?.isActive) return;
+          if (user.is_premium || user.subscription_tier === 'pro') return;
           // Not subscribed — proceed to Stripe checkout
           const price = await base44.app.getPrice();
           const response = await base44.functions.invoke("stripeCheckout", {

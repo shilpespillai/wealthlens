@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_monthly_summaries_user_month ON monthly_summaries
 -- 7. User Data (Generic Key-Value Store)
 CREATE TABLE IF NOT EXISTS user_data (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Nullable for global settings
     key TEXT NOT NULL,
     payload JSONB DEFAULT '{}',
     updated_at TIMESTAMPTZ DEFAULT now(),

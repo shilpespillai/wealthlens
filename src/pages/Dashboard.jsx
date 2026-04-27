@@ -517,8 +517,11 @@ export function DashboardContent() {
         const dbAccounts = await base44.db.getTable('user_accounts');
         const dbPortfolio = await base44.db.getTable('portfolio_holdings');
         const dbBudgets = await base44.db.getTable('budgets');
+        const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
 
-        if (user?.calc_params) {
+        if (vaultLayout?.dashboard_layout) {
+          setColumns(vaultLayout.dashboard_layout);
+        } else if (user?.calc_params) {
           const parsedParams = JSON.parse(user.calc_params);
           setParams(parsedParams);
           if (parsedParams.dashboard_layout) {
@@ -592,13 +595,7 @@ export function DashboardContent() {
 
   const saveLayout = async (newColumns) => {
     try {
-      const user = await base44.auth.me();
-      if (user) {
-        const currentParams = user.calc_params ? JSON.parse(user.calc_params) : {};
-        await base44.auth.updateMe({
-          calc_params: JSON.stringify({ ...currentParams, dashboard_layout: newColumns })
-        });
-      }
+      await base44.user.saveData("wl_dashboard_layout", { dashboard_layout: newColumns });
     } catch (err) {
       console.error("Failed to save layout:", err);
     }

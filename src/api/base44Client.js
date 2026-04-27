@@ -308,22 +308,6 @@ export const base44 = {
         return { data: realData };
       }
 
-      if (name === 'checkSubscription') {
-        try {
-          const resp = await fetch('/api/subscription-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params)
-          }).catch(() => ({ status: 404 }));
-          
-          if (resp && resp.status !== 404) {
-             const data = await resp.json();
-             return { data };
-          }
-        } catch (e) {}
-        return { data: { isActive: false } };
-      }
-
       if (name === 'getStripeKey') {
         try {
           const resp = await fetch('/api/pricing').catch(() => ({ status: 404 }));
