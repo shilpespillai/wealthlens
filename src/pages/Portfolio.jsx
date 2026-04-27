@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
-import { PieChart as PieChartIcon, TrendingUp, DollarSign, Plus, Trash2, BarChart3, Download, Lock } from "lucide-react";
+import { PieChart as PieChartIcon, TrendingUp, DollarSign, Plus, Trash2, BarChart3, Download, Lock, Crown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,6 +49,7 @@ function PortfolioContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [removedHoldings, setRemovedHoldings] = useState([]); // Track labels for hard deletion
   const [lastSaved, setLastSaved] = useState(null);
+  const [savedSignature, setSavedSignature] = useState("");
 
   // Load from Production DB
   useEffect(() => {
@@ -61,12 +62,13 @@ function PortfolioContent() {
         const allData = await base44.db.getTable("portfolio_holdings");
         console.log('DEBUG_PORTFOLIO_ROWS_FOUND:', allData?.length);
         
+        let mapped = [];
         if (allData && allData.length > 0) {
           // Use intelligent Engine to get latest snapshot per unique item
           const latestHoldings = calculatePortfolioHoldings(allData);
 
           // Filter for valid labeled holdings to prevent 'ghost rows'
-          const mapped = latestHoldings
+          mapped = latestHoldings
             .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0)
             .map(d => ({
               id: d.id,
@@ -87,11 +89,17 @@ function PortfolioContent() {
         }
 
         // Use authUser metadata for currency if available
+        let initCurrency = "AUD";
         if (authUser?.user_metadata?.portfolio_currency) {
-          setCurrency(authUser.user_metadata.portfolio_currency);
+          initCurrency = authUser.user_metadata.portfolio_currency;
         } else if (authUser?.portfolio_currency) {
-          setCurrency(authUser.portfolio_currency);
+          initCurrency = authUser.portfolio_currency;
         }
+        setCurrency(initCurrency);
+        
+        // Save initial signature to prevent ghost edits
+        setSavedSignature(JSON.stringify({ holdings: mapped, currency: initCurrency }));
+
       } catch (err) {
         console.error("Failed to load portfolio:", err);
         setLoadError(true);
@@ -100,12 +108,15 @@ function PortfolioContent() {
       }
     }
     loadFromDB();
-  }, [getDatabaseTable]);
+  }, [getDatabaseTable, authUser]);
 
-  // Track changes manually
+  // Track changes robustly via deep comparison
   useEffect(() => {
-    if (userLoaded) setHasChanges(true);
-  }, [holdings, currency]);
+    if (userLoaded) {
+      const currentSignature = JSON.stringify({ holdings, currency });
+      setHasChanges(currentSignature !== savedSignature);
+    }
+  }, [holdings, currency, savedSignature, userLoaded]);
 
    const handleSave = async () => {
     setIsSaving(true);
@@ -114,11 +125,6 @@ function PortfolioContent() {
       // 0. Garbage Collection: Filter out uninitialized rows (no label and zero value)
       const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0);
       
-      if (validHoldings.length === 0 && holdings.length > 0 && removedHoldings.length === 0) {
-        // If user manually cleared everything but didn't trigger 'trash', we should still treat it as a purge
-        // For efficiency, we rely on the specific 'removedHoldings' logic below.
-      }
-
       // 1. Permanent Purge: Delete records for items removed during this session
       if (removedHoldings.length > 0) {
         console.log('[Portfolio] Purging deleted labels:', removedHoldings);
@@ -135,8 +141,8 @@ function PortfolioContent() {
         setRemovedHoldings([]);
       }
 
-      // 2. Snapshot Update: Save each current holding as a snapshot entry
-      const savePromises = validHoldings.map(h => {
+      // 2. Snapshot Update: Save all valid holdings as a batch
+      const rowsToSave = validHoldings.map(h => {
         const row = {
           label: h.label,
           asset_class: h.asset,
@@ -145,10 +151,21 @@ function PortfolioContent() {
           snapshot_date: today,
           currency: currency
         };
-        return base44.db.upsertRow("portfolio_holdings", row);
+        // ONLY attach the ID if it's a valid string/UUID from the database.
+        // Local items have integer IDs (e.g., 1, 2) which will crash PostgreSQL UUID columns.
+        if (typeof h.id === 'string' && h.id.length > 10) {
+          row.id = h.id;
+        }
+        return row;
       });
 
-      await Promise.all(savePromises);
+      if (rowsToSave.length > 0) {
+        // Use batch upsert and enforce the unique constraint to update today's existing snapshots instead of duplicating
+        const result = await base44.db.upsertRows("portfolio_holdings", rowsToSave, 'user_id,label,snapshot_date');
+        if (result && result.error) {
+          throw new Error(result.error.message || "Database rejected the upsert operation");
+        }
+      }
 
       // Clean up local state to remove purged ghost rows
       setHoldings(validHoldings);
@@ -156,12 +173,15 @@ function PortfolioContent() {
       await base44.auth.updateMe({
         portfolio_currency: currency
       });
+      
+      // Update signature so button goes back to idle
+      setSavedSignature(JSON.stringify({ holdings: validHoldings, currency }));
       setHasChanges(false);
       setLastSaved(new Date());
       toast.success(`Portfolio synchronized and purged for ${today}`);
     } catch (err) {
       console.error("[Portfolio] Save failed:", err);
-      toast.error("Failed to save portfolio changes");
+      toast.error(`Failed to save portfolio changes: ${err.message || 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
@@ -315,7 +335,7 @@ function PortfolioContent() {
                   }
                 }}
               >
-                {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4 text-[#1A202C]/60" />}
+                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-[#1A202C]/60" />}
                 <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
                 {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
               </Button>

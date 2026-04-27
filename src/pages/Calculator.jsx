@@ -236,7 +236,7 @@ function CalculatorContent() {
                 }}
                 className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
               >
-                {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4 text-[#1A202C]/60" />}
+                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-[#1A202C]/60" />}
                 <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
                 {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
               </Button>
