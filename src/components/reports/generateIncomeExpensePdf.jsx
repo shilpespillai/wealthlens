@@ -15,7 +15,7 @@ const fmt = (n) => {
   return "$" + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-export function generateIncomeExpensePdf({ date, incomes, expenses, incomeTotal, expenseTotal, reportData }) {
+export async function generateIncomeExpensePdf({ date, incomes, expenses, incomeTotal, expenseTotal, reportData }) {
   const pdf = new jsPDF("p", "mm", "a4");
   const PW = pdf.internal.pageSize.getWidth();
   const PH = pdf.internal.pageSize.getHeight();
@@ -196,13 +196,32 @@ export function generateIncomeExpensePdf({ date, incomes, expenses, incomeTotal,
   pdf.text(fmt(incomeTotal - expenseTotal), PW - M - 6, y + 9, { align: "right" });
 
   const filename = `WealthLens_Income_Expense_${format(date, "MMM_yyyy")}.pdf`;
-  const blob = pdf.output("blob");
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+  const arrayBuffer = pdf.output("arraybuffer");
+  const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+  
+  try {
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'PDF Document', accept: {'application/pdf': ['.pdf']} }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+  } catch (err) {
+    console.warn("showSaveFilePicker failed or was cancelled by user:", err);
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 1000);
 }

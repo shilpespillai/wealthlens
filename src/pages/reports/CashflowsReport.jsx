@@ -17,8 +17,8 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachMonthOfInte
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
-
-// Mock generation removed for production data integrity.
+import { generateManualPdf } from "@/utils/generateManualPdf";
+import { toast } from "react-hot-toast";
 
 export default function CashflowsReport() {
   const { isPaidUser } = useAuth();
@@ -119,6 +119,22 @@ export default function CashflowsReport() {
     return { incomeRows, expenseRows, monthlySurplus, closingBalances };
   }, [allTransactions, intervalMonths, normalizeTransactionData]);
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById('cashflow-export-area');
+    if (!element) return;
+    
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { 
+        filename: `WealthLens-Cashflows-${format(new Date(), 'MMM-yyyy')}.pdf` 
+      });
+      toast.success("PDF exported successfully!", { id: loadingToast });
+    } catch (error) {
+      console.error("PDF Export Error:", error);
+      toast.error("Failed to generate PDF", { id: loadingToast });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white font-sans relative">
       {!isPaidUser && <PremiumOverlay featureName="Institutional Cashflow Analysis" />}
@@ -206,15 +222,15 @@ export default function CashflowsReport() {
                   </PopoverContent>
                </Popover>
 
-               <Button variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-medium uppercase tracking-widest gap-2">
-                  <Download className="w-4 h-4" /> Export CSV
+               <Button onClick={handleExportPDF} variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-medium uppercase tracking-widest gap-2">
+                  <Download className="w-4 h-4" /> Export PDF
                </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <main className="flex-1 p-12 pt-6 bg-[#F8F9FB]">
+      <main id="cashflow-export-area" className="flex-1 p-12 pt-6 bg-[#F8F9FB]">
         <div className="w-full mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1200px]">

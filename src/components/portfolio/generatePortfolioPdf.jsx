@@ -32,7 +32,7 @@ const fmtNum = (n, sym = "") => {
   return `${sym}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 };
 
-export function generatePortfolioPdf({ holdings, currency }) {
+export async function generatePortfolioPdf({ holdings, currency }) {
   const sym = getCurrencySymbol(currency);
   const fmt = (n) => fmtNum(n, sym);
   const pct = (n) => `${Number(n || 0).toFixed(1)}%`;
@@ -324,13 +324,32 @@ export function generatePortfolioPdf({ holdings, currency }) {
 
   drawFooter();
   const filename = `WealthLens-Portfolio-${new Date().toISOString().split("T")[0]}.pdf`;
-  const blob = pdf.output("blob");
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+  const arrayBuffer = pdf.output("arraybuffer");
+  const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+  
+  try {
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'PDF Document', accept: {'application/pdf': ['.pdf']} }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+  } catch (err) {
+    console.warn("showSaveFilePicker failed or was cancelled by user:", err);
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 1000);
 }

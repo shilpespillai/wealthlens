@@ -10,7 +10,8 @@ import {
   Info,
   ChevronDown,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -27,6 +28,8 @@ import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth, sub
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { toast } from "react-hot-toast";
+import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -97,6 +100,18 @@ export default function TrendsReport() {
     }
     load();
   }, [getProductionLedger, activeInterval]);
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById("trends-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-Trends-${selectedCategory.replace(/\s+/g, '-')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
 
   const chartData = useMemo(() => {
     return activeInterval.map((month, idx) => {
@@ -230,7 +245,7 @@ export default function TrendsReport() {
   }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
+    <div id="trends-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
       {!isPaidUser && <PremiumOverlay featureName="Historical Trend Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
@@ -293,6 +308,15 @@ export default function TrendsReport() {
                    Showing {showType.charAt(0).toUpperCase() + showType.slice(1)}
                  </Button>
                )}
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

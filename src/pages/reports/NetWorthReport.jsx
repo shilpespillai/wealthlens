@@ -11,7 +11,8 @@ import {
   CreditCard,
   Target,
   X,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -31,6 +32,7 @@ import { toast } from "react-hot-toast";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -151,6 +153,18 @@ export default function NetWorthReport() {
   const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0);
   const netWorth = totalAssets - totalDebts;
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById("networth-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-NetWorth-${format(selectedDate, 'MMM-yyyy')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
+
   const chartData = useMemo(() => {
     if (viewMode === 'assets') {
       const groups = assets.reduce((acc, a) => {
@@ -175,7 +189,7 @@ export default function NetWorthReport() {
   const displayValue = viewMode === 'assets' ? totalAssets : viewMode === 'debt' ? totalDebts : netWorth;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
+    <div id="networth-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
       {!isPaidUser && <PremiumOverlay featureName="Net Worth Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
@@ -209,6 +223,15 @@ export default function NetWorthReport() {
                   <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 border-r border-slate-700 transition-all"><ChevronLeft className="w-4 h-4" /></button>
                   <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ChevronRight className="w-4 h-4" /></button>
                </div>
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

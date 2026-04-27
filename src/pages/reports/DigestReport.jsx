@@ -9,7 +9,8 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  List
+  List,
+  Download
 } from "lucide-react";
 import { 
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip 
@@ -23,6 +24,8 @@ import { format, startOfMonth, endOfMonth, isSameMonth, subMonths } from "date-f
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { toast } from "react-hot-toast";
+import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -69,6 +72,18 @@ export default function DigestReport() {
       normExps: filterByAccount(expenses) 
     };
   }, [allTransactions, selectedDate, selectedAccountId, accounts, normalizeTransactionData]);
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById("digest-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-Digest-${format(selectedDate, 'MMM-yyyy')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
 
   const metrics = useMemo(() => {
     const earned = normIncs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
@@ -173,7 +188,7 @@ export default function DigestReport() {
   }, [normIncs, normExps, allTransactions, selectedDate, selectedAccountId, metrics, normalizeTransactionData, accounts]);
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-slate-900 relative">
+    <div id="digest-export-area" className="flex flex-col h-full bg-white font-sans text-slate-900 relative">
       {!isPaidUser && <PremiumOverlay featureName="Monthly Intelligence Digest" />}
       {/* Container for Navbar Area — purely white background */}
       <div className="w-full px-6 pt-4 pb-2 bg-white">
@@ -236,6 +251,15 @@ export default function DigestReport() {
                     </div>
                   </PopoverContent>
                </Popover>
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

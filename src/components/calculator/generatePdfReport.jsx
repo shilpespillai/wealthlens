@@ -22,7 +22,7 @@ const SLATE_200 = [226, 232, 240];
 const SLATE_50  = [248, 250, 252];
 const WHITE     = [255, 255, 255];
 
-export function generatePdfReport({ params, results, instrument, activeTab }) {
+export async function generatePdfReport({ params, results, instrument, activeTab }) {
   const sym = getCurrencySymbol(params.currency);
   const s = results.summary;
   const yearlyData = results.yearlyData;
@@ -450,15 +450,34 @@ export function generatePdfReport({ params, results, instrument, activeTab }) {
   drawFooter();
 
   const filename = `WealthLens-${instrName}-${new Date().toISOString().split("T")[0]}.pdf`;
-  const blob = pdf.output("blob");
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+  const arrayBuffer = pdf.output("arraybuffer");
+  const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+  
+  try {
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'PDF Document', accept: {'application/pdf': ['.pdf']} }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+  } catch (err) {
+    console.warn("showSaveFilePicker failed or was cancelled by user:", err);
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
   link.href = url;
-  link.download = filename;
+  link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 function calcFinalValue(params, returnRate) {
