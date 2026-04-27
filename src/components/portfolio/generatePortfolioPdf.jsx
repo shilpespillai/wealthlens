@@ -12,8 +12,8 @@ const ASSET_CLASSES = [
   { id: "gold",          label: "Gold",          color: [217, 119, 6] },
 ];
 
-const INDIGO  = [99, 102, 241];
-const VIOLET  = [139, 92, 246];
+const INDIGO  = [30, 41, 59]; // SLATE_800 style for header
+const GOLD    = [197, 160, 89];
 const EMERALD = [16, 185, 129];
 const AMBER   = [245, 158, 11];
 const ROSE    = [239, 68, 68];
@@ -96,10 +96,10 @@ export async function generatePortfolioPdf({ holdings, currency }) {
   const newPage = () => { pdf.addPage(); drawPageBg(); drawFooter(); };
 
   const sectionTitle = (title, y) => {
-    setFont(SLATE_900, 11, "bold");
+    setFont(SLATE_900, 10, "bold");
     pdf.text(title, M, y + 5);
-    setFill(INDIGO);
-    pdf.rect(M, y + 7, CW, 0.8, "F");
+    setFill(GOLD);
+    pdf.rect(M, y + 7, CW, 0.6, "F");
     return y + 14;
   };
 
@@ -118,21 +118,22 @@ export async function generatePortfolioPdf({ holdings, currency }) {
   drawPageBg();
 
   // Hero header
-  roundedRect(M, M, CW, 46, 6, INDIGO);
-  setFill(VIOLET);
-  pdf.triangle(PW - M - 50, M, PW - M, M, PW - M, M + 46, "F");
-  setFont(WHITE, 7, "bold");
-  pdf.text("WEALTHLENS  ·  PORTFOLIO REPORT", M + 8, M + 10);
-  setFont(WHITE, 16, "bold");
+  roundedRect(M, M, CW, 45, 6, INDIGO);
+  setFill(GOLD);
+  pdf.triangle(PW - M - 50, M, PW - M, M, PW - M, M + 45, "F");
+  
+  setFont(WHITE, 8, "bold");
+  pdf.text("WEALTHLENS FINANCIAL INTELLIGENCE", M + 8, M + 10);
+  setFont(GOLD, 16, "bold");
   pdf.text("Investment Portfolio Dashboard", M + 8, M + 24);
-  setFont([196, 181, 253], 8);
-  pdf.text(`${currency}  ·  ${new Date().toLocaleDateString()}`, M + 8, M + 34);
+  setFont(SLATE_500, 8);
+  pdf.text(`${currency}  ·  ${new Date().toLocaleDateString()}  •  Consolidated View`, M + 8, M + 34);
 
-  setFont([196, 181, 253], 7);
+  setFont(GOLD, 7);
   pdf.text("TOTAL PORTFOLIO VALUE", PW - M - 8, M + 14, { align: "right" });
   setFont(WHITE, 16, "bold");
   pdf.text(fmt(totalValue), PW - M - 8, M + 26, { align: "right" });
-  setFont([196, 181, 253], 8);
+  setFont(SLATE_200, 8);
   pdf.text(`${totalReturnPct >= 0 ? "+" : ""}${pct(totalReturnPct)} overall return`, PW - M - 8, M + 35, { align: "right" });
 
   let y = M + 56;
@@ -141,9 +142,9 @@ export async function generatePortfolioPdf({ holdings, currency }) {
   const cardW = (CW - 6) / 4;
   const gainColor = totalGain >= 0 ? EMERALD : ROSE;
   metricCard(M,                    y, cardW, "Total Value",    fmt(totalValue),    `${holdings.length} holdings`, INDIGO);
-  metricCard(M + cardW + 2,        y, cardW, "Total Invested", fmt(totalInvested), "Cost basis", VIOLET);
+  metricCard(M + cardW + 2,        y, cardW, "Total Invested", fmt(totalInvested), "Cost basis", GOLD);
   metricCard(M + (cardW + 2) * 2,  y, cardW, "Total Gain/Loss",fmt(totalGain),    `${totalGain >= 0 ? "+" : ""}${pct(totalReturnPct)} return`, gainColor);
-  metricCard(M + (cardW + 2) * 3,  y, cardW, "Asset Classes",  `${classSummary.length}`, "Active classes", AMBER);
+  metricCard(M + (cardW + 2) * 3,  y, cardW, "Asset Classes",  `${classSummary.length}`, "Active classes", SLATE_700);
   y += 32;
 
   // Asset Allocation horizontal stacked bar
