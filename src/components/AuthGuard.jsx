@@ -8,19 +8,21 @@ import { useAuth } from "@/lib/AuthContext";
  * Instead of aggressive redirection loops, this shows a high-fidelity
  * "Identity Required" state if the user session is missing or expired.
  */
-export default function AuthGuard({ children }) {
-  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+const Spinner = ({ label = "Verifying Security Protocol..." }) => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
+    </div>
+  </div>
+);
 
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Verifying Security Protocol...</p>
-        </div>
-      </div>
-    );
-  }
+export default function AuthGuard({ children }) {
+  const { isAuthenticated, isLoadingAuth, isLoggingOut, navigateToLogin } = useAuth();
+
+  // Show spinner while auth is loading OR during logout redirect
+  if (isLoadingAuth || isLoggingOut) return <Spinner />;
+
 
   if (!isAuthenticated) {
     return (

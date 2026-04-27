@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Unified user mapping with premium check
   const mapUserWithPremium = React.useCallback(async (supabaseUser) => {
@@ -109,6 +110,7 @@ export const AuthProvider = ({ children }) => {
   }, [mapUserWithPremium, checkAppState]);
 
   const logout = async () => {
+    setIsLoggingOut(true); // Flag immediately so AuthGuard shows spinner, not "Terminal Locked"
     if (isSupabaseEnabled) {
       try {
         await supabase.auth.signOut();
@@ -143,6 +145,7 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,
+      isLoggingOut,
       authError,
       appPublicSettings,
       isPaidUser: (

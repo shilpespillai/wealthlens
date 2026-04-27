@@ -271,6 +271,122 @@ export default function Home() {
       </section>
 
       <StatsBar />
+
+      {/* ═══════════════════════════════════════════════════
+          OWN YOUR FINANCIAL INTELLIGENCE — Hero Statement
+          ═══════════════════════════════════════════════════ */}
+      <section className="bg-softPeach py-24 sm:py-32 relative overflow-hidden">
+        {/* Subtle background accent */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-100/60 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-100/60 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-5xl mx-auto px-6 relative z-10">
+          {/* Pill badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex justify-center mb-8"
+          >
+            <span className="inline-flex items-center gap-2 bg-deepPurple/10 border border-deepPurple/20 text-deepPurple text-xs font-black uppercase tracking-[0.25em] px-5 py-2 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-deepPurple animate-pulse" />
+              A New Kind of Finance App
+            </span>
+          </motion.div>
+
+          {/* Main headline */}
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-5xl sm:text-7xl font-serif font-black text-gray-900 text-center leading-[1.1] mb-6"
+          >
+            Buy once.
+            <br />
+            <span className="text-deepPurple italic">
+              Own it forever.
+            </span>
+          </motion.h2>
+
+          {/* Sub-headline */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-xl sm:text-2xl text-gray-500 text-center max-w-3xl mx-auto leading-relaxed mb-16"
+          >
+            No monthly fees. No subscriptions. No data harvesting.
+            WealthLens is a <strong className="text-gray-900 font-bold">one-time purchase</strong> that
+            runs on <strong className="text-gray-900 font-bold">your own infrastructure</strong> —
+            powered by your own API keys.
+          </motion.p>
+
+          {/* 3-pillar grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            {[
+              {
+                icon: "🔑",
+                title: "Your Keys",
+                body: "Connect your own OpenAI, Supabase, or any API key. You control the intelligence engine — we just build the cockpit.",
+                accent: "from-violet-50 to-white",
+                border: "border-violet-200",
+                tag: "Bring Your Own API",
+                tagColor: "text-violet-600",
+              },
+              {
+                icon: "🏦",
+                title: "Your Data",
+                body: "Every transaction, every report, every insight lives in your own database. We never see your financial data. Ever.",
+                accent: "from-indigo-50 to-white",
+                border: "border-indigo-200",
+                tag: "Zero Data Harvesting",
+                tagColor: "text-indigo-600",
+              },
+              {
+                icon: "⚡",
+                title: "One Price",
+                body: "Pay once, use forever. No renewal reminders. No feature paywalls that reset. No surprise price hikes.",
+                accent: "from-cyan-50 to-white",
+                border: "border-cyan-200",
+                tag: "Lifetime Access",
+                tagColor: "text-cyan-600",
+              },
+            ].map((card, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 * i }}
+                className={`bg-gradient-to-b ${card.accent} border ${card.border} rounded-3xl p-8 flex flex-col gap-4`}
+              >
+                <div className="text-4xl">{card.icon}</div>
+                <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${card.tagColor}`}>{card.tag}</span>
+                <h3 className="text-2xl font-black text-gray-900">{card.title}</h3>
+                <p className="text-gray-500 leading-relaxed text-sm">{card.body}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Horizontal divider statement */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="flex items-center gap-6 justify-center"
+          >
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gray-300" />
+            <p className="text-gray-400 text-sm font-bold uppercase tracking-widest whitespace-nowrap text-center">
+              The finance app that belongs to <span className="text-gray-900">you</span>, not a VC firm
+            </p>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gray-300" />
+          </motion.div>
+        </div>
+      </section>
+
       <HowItWorks />
       <AssetShowcase />
 
