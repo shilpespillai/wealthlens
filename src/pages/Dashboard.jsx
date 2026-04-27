@@ -504,9 +504,12 @@ export function DashboardContent() {
     return [];
   };
 
-  // Effect 1: Static Profile Initialization (Mount Only)
+  // Effect 1: Static Profile Initialization (Mount/Auth Change)
   useEffect(() => {
     async function initProfile() {
+      if (!isAuthenticated) return;
+      if (document.visibilityState !== 'visible') return;
+
       try {
         console.log("[Dashboard] Initializing Static Profile...");
         const user = await base44.auth.me();
@@ -543,12 +546,20 @@ export function DashboardContent() {
       }
     }
     initProfile();
-  }, []);
+
+    const handleVisibility = () => {
+        if (document.visibilityState === 'visible' && isLoading) initProfile();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated, getProductionLedger]);
 
   // Effect 2: Dynamic Horizon Synchronization
   useEffect(() => {
     async function syncHorizon() {
-      if (isLoading) return; // Wait for profile
+      if (isLoading || !isAuthenticated) return; 
+      if (document.visibilityState !== 'visible') return;
+
       try {
         console.log("[Dashboard] Syncing Horizon Data...", periodInfo.startDate, periodInfo.endDate);
         
@@ -571,7 +582,13 @@ export function DashboardContent() {
       }
     }
     syncHorizon();
-  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading]);
+
+    const handleVisibility = () => {
+        if (document.visibilityState === 'visible') syncHorizon();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading, isAuthenticated, getProductionLedger]);
 
   const saveLayout = async (newColumns) => {
     try {

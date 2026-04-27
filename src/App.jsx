@@ -11,7 +11,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AuthCallback from '@/pages/AuthCallback';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useToast } from '@/components/ui/use-toast';
-import { Sparkles } from 'lucide-react';
+import AuthGuard from '@/components/AuthGuard';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -24,6 +24,8 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 import { ReportProvider } from '@/lib/ReportContext';
 
 function App() {
+  console.log("[PHASE 0] App Component Initializing");
+  
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
@@ -40,11 +42,11 @@ function App() {
 }
 
 const MainContent = () => {
-  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkAppState } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Listen for successful upgrade redirect
+  // 1. Handle Successful Upgrade
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('upgraded') === 'true') {
@@ -58,40 +60,19 @@ const MainContent = () => {
     }
   }, [checkAppState, toast]);
 
-  // Redirect authenticated users from landing pages to dashboard
+  // 2. Redirect Authenticated Users from Landing Pages to Dashboard
+  // This is the ONLY top-level redirect allowed. It is guarded by sessionStorage to prevent loops.
   useEffect(() => {
-    console.log("[App] Auth State Check:", { isLoadingAuth, isAuthenticated, hasUser: !!user, path: window.location.pathname });
     if (!isLoadingAuth && isAuthenticated && user) {
-        const path = window.location.pathname;
-        const currentPath = path.toLowerCase();
-        
-        // Only redirect if we are strictly on the landing page or login page
-        // AND not already on a path that starts with /dashboard
-        const isLandingPage = currentPath === '/' || currentPath === '' || currentPath === '/login';
+        const path = window.location.pathname.toLowerCase();
+        const isLandingPage = path === '/' || path === '' || path === '/login';
         
         if (isLandingPage) {
-            // Self-Healing Loop Protector: If we redirect too many times, clear storage
-            const redirectCount = parseInt(sessionStorage.getItem('wl_redirect_count') || '0');
-            if (redirectCount > 5) {
-                console.error("[Auth] Critical Loop Detected. Performing hard reset.");
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.href = '/';
-                return;
-            }
-            sessionStorage.setItem('wl_redirect_count', (redirectCount + 1).toString());
-
-            // Check if we've already redirected in this specific session window to prevent loops
             const hasRedirected = sessionStorage.getItem('wl_init_redirect');
-            if (hasRedirected === 'true' && currentPath !== '/login') {
-                console.log("[App] Blocked redundant redirect to Dashboard");
-                return;
-            }
+            if (hasRedirected === 'true' && path !== '/login') return;
 
-            console.log("[App] Executing redirect to Dashboard from", path);
+            console.log("[App] Guarded Redirect to Dashboard from", path);
             sessionStorage.setItem('wl_init_redirect', 'true');
-            
-            // Final safety: Only navigate if we aren't already there
             if (window.location.pathname.toLowerCase() !== '/dashboard') {
               navigate('/Dashboard', { replace: true });
             }
@@ -99,11 +80,14 @@ const MainContent = () => {
     }
   }, [isAuthenticated, user, isLoadingAuth, navigate]);
 
-  const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy', '/'].includes(window.location.pathname.toLowerCase());
+  const isPublicPage = (path) => [
+    '/login', '/auth/callback', '/about', '/methodology', '/contact', 
+    '/privacy-policy', '/terms', '/disclaimer', '/assumptions', 
+    '/cookie-policy', '/security-policy', '/'
+  ].includes(path.toLowerCase());
 
-  // Show loading spinner while checking app public settings or auth
-  if ((isLoadingPublicSettings || isLoadingAuth) && isPublicPage && !isAuthenticated) {
-    console.log("[App] Showing Spinner (Public Page + Loading)");
+  // 3. Global Loading State (Public Pages only)
+  if ((isLoadingPublicSettings || isLoadingAuth) && isPublicPage(window.location.pathname) && !isAuthenticated) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-50 z-50">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -111,47 +95,49 @@ const MainContent = () => {
     );
   }
 
-  // Handle authentication errors
-  const currentPath = window.location.pathname.toLowerCase();
-  const isHomePage = currentPath === '/' || currentPath === '';
-
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Only redirect if it's not a public page or home page
-      if (!isPublicPage && !isHomePage) {
-        if (window.location.pathname.toLowerCase() !== '/login') {
-          console.log("[App] Redirecting to Login due to auth_required");
-          navigateToLogin();
-        }
-        return null;
-      }
-    }
+  // 4. Critical Errors
+  if (authError?.type === 'user_not_registered') {
+    return <UserNotRegisteredError />;
   }
 
-  // Render the main app
   return (
     <ReportProvider>
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
+        
+        {/* Landing Page Route */}
         <Route path="/" element={
           <LayoutWrapper currentPageName={mainPageKey}>
             <MainPage />
           </LayoutWrapper>
         } />
         
-        {Object.entries(Pages).map(([path, Page]) => (
-          <Route
-            key={path}
-            path={`/${path}`}
-            element={
-              <LayoutWrapper currentPageName={path}>
-                <Page />
-              </LayoutWrapper>
-            }
-          />
-        ))}
+        {/* Dynamically Generated Routes */}
+        {Object.entries(Pages).map(([path, Page]) => {
+            const pathLower = path.toLowerCase();
+            const needsAuth = !isPublicPage(`/${pathLower}`);
+            
+            return (
+              <Route
+                key={path}
+                path={`/${path}`}
+                element={
+                  needsAuth ? (
+                    <AuthGuard>
+                      <LayoutWrapper currentPageName={path}>
+                        <Page />
+                      </LayoutWrapper>
+                    </AuthGuard>
+                  ) : (
+                    <LayoutWrapper currentPageName={path}>
+                      <Page />
+                    </LayoutWrapper>
+                  )
+                }
+              />
+            );
+        })}
+        
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </ReportProvider>

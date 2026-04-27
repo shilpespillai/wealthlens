@@ -62,6 +62,12 @@ export default function BudgetCalendar() {
 
   useEffect(() => {
     async function initData() {
+      // Optimized: Only fetch ledger data if the tab is visible
+      if (document.visibilityState !== 'visible') {
+        console.log("[Calendar] Data sync paused (Tab hidden).");
+        return;
+      }
+
       const allBudgets = await getDatabaseTable("budgets");
       const saved = (allBudgets || []).find((b) => b.month === monthKey);
 
@@ -94,6 +100,13 @@ export default function BudgetCalendar() {
       setHistoricalSurplus(12450 + totalPastSurplus); // Base seed + cumulative
     }
     initData();
+
+    // Resume when tab returns to focus
+    const handleVisibility = () => {
+        if (document.visibilityState === 'visible') initData();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [monthKey, normalizeTransactionData, currentDate, getProductionLedger, getDatabaseTable]);
 
   const days = useMemo(() => {

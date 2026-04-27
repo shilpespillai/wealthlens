@@ -227,8 +227,11 @@ export const base44 = {
   auth: {
     me: async () => {
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) return { ...session.user, ...session.user.user_metadata };
+        try {
+          const result = await supabase.auth.getSession();
+          const session = result?.data?.session;
+          if (session?.user) return { ...session.user, ...session.user.user_metadata };
+        } catch (e) {}
       }
       const stored = localStorage.getItem('mockUser');
       if (stored) return JSON.parse(stored);
@@ -362,7 +365,7 @@ export const base44 = {
   
   user: {
     loadData: async (key) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { session } = await base44.db._getSession();
       const userId = session?.user?.id || 'anonymous';
       const storageKey = `${key}_${userId}`;
 
@@ -381,7 +384,7 @@ export const base44 = {
       return stored ? JSON.parse(stored) : null;
     },
     saveData: async (key, data) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { session } = await base44.db._getSession();
       const userId = session?.user?.id || 'anonymous';
       const storageKey = `${key}_${userId}`;
 
@@ -408,25 +411,46 @@ export const base44 = {
     _sessionCache: null,
     _sessionCacheTime: 0,
     
+    // Synchronous session tracker to bypass async getSession hangs
+    _activeSession: null,
+    _isInitialized: false,
     _getSession: async () => {
       if (!isSupabaseEnabled) return { session: null };
       
-      const now = Date.now();
-      if (base44.db._sessionCache && (now - base44.db._sessionCacheTime < 5000)) {
-        return base44.db._sessionCache;
-      }
-      
-      const sessionData = await supabase.auth.getSession();
-      base44.db._sessionCache = sessionData.data;
-      base44.db._sessionCacheTime = now;
-      return sessionData.data;
+      // 1. Return cached session instantly if available
+      if (base44.db._activeSession) return { session: base44.db._activeSession };
+
+      // 2. Fast Synchronous Recovery from disk
+      try {
+        const stored = localStorage.getItem('sb-wealthlens-auth-token');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.user) {
+            base44.db._activeSession = parsed;
+            return { session: parsed };
+          }
+        }
+      } catch (e) {}
+
+      // 3. Fallback to Supabase but with total safety
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data && data.session) {
+          base44.db._activeSession = data.session;
+          return { session: data.session };
+        }
+      } catch (e) {}
+
+      return { session: null };
     },
 
     getTable: async (tableName) => {
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { session } = await base44.db._getSession();
-        if (session?.user) {
+        const sessionResult = await base44.db._getSession();
+        const session = sessionResult ? sessionResult.session : null;
+        
+        if (session && session.user) {
           const { data, error } = await supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
           if (!error && data) return data;
           
@@ -644,11 +668,14 @@ export const base44 = {
     },
     getSummary: async (month) => {
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data, error } = await supabase.from('monthly_summaries').select('*').eq('user_id', session.user.id).eq('month', month).single();
-          if (!error && data) return data;
-        }
+        try {
+          const result = await supabase.auth.getSession();
+          const session = result?.data?.session;
+          if (session?.user) {
+            const { data, error } = await supabase.from('monthly_summaries').select('*').eq('user_id', session.user.id).eq('month', month).single();
+            if (!error && data) return data;
+          }
+        } catch (e) {}
       }
       const summaries = await base44.user.loadData('wl_summaries') || {};
       return summaries[month] || null;
