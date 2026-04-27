@@ -144,29 +144,24 @@ function PortfolioContent() {
         setRemovedHoldings([]);
       }
 
-      // 2. Snapshot Update: Save all valid holdings as a batch
-      const rowsToSave = validHoldings.map(h => {
-        const row = {
-          label: h.label,
-          asset_class: h.asset,
-          current_value: h.currentValue,
-          invested_amount: h.invested,
+      // 2. Snapshot Update: Save all valid holdings as a single daily snapshot
+      if (validHoldings.length > 0) {
+        const payload = {
           snapshot_date: today,
-          currency: currency
+          currency: currency,
+          holdings: validHoldings.map(h => ({
+            label: h.label,
+            asset_class: h.asset,
+            current_value: h.currentValue,
+            invested_amount: h.invested
+          }))
         };
-        // ONLY attach the ID if it's a valid string/UUID from the database.
-        // Local items have integer IDs (e.g., 1, 2) which will crash PostgreSQL UUID columns.
-        if (typeof h.id === 'string' && h.id.length > 10) {
-          row.id = h.id;
-        }
-        return row;
-      });
 
-      if (rowsToSave.length > 0) {
-        // Use batch upsert and enforce the unique constraint to update today's existing snapshots instead of duplicating
-        const result = await base44.db.upsertRows("portfolio_holdings", rowsToSave, 'user_id,label,snapshot_date');
+        // Use upsertRow to ensure we only have ONE row per user per day
+        const result = await base44.db.upsertRow("portfolio_holdings", payload, "user_id,snapshot_date");
+        
         if (result && result.error) {
-          throw new Error(result.error.message || "Database rejected the upsert operation");
+          throw new Error(result.error.message || "Database rejected the snapshot update");
         }
       }
 

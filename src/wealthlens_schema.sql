@@ -43,19 +43,16 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_id_date ON transactions (user_i
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id_category ON transactions (user_id, category);
 CREATE INDEX IF NOT EXISTS idx_transactions_account_id_date ON transactions (account_id, date DESC);
 
--- 4. Portfolio Holdings (Historical Snapshots)
+-- 4. Portfolio Holdings (Aggregated Historical Snapshots)
 CREATE TABLE IF NOT EXISTS portfolio_holdings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    label TEXT NOT NULL,
-    asset_class TEXT NOT NULL,
-    current_value NUMERIC NOT NULL,
-    invested_amount NUMERIC NOT NULL,
+    holdings JSONB DEFAULT '[]', -- List of assets: [{label, asset_class, current_value, invested_amount}]
     currency TEXT DEFAULT 'AUD',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE(user_id, label, snapshot_date)
+    UNIQUE(user_id, snapshot_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user_date ON portfolio_holdings (user_id, snapshot_date DESC);

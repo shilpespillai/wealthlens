@@ -33,6 +33,7 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
 import { generateManualPdf } from "@/utils/generateManualPdf";
+import { calculatePortfolioHoldings } from "@/api/portfolioEngine";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -78,13 +79,12 @@ export default function NetWorthReport() {
       }));
       
       if (portfolioSnapshots && portfolioSnapshots.length > 0) {
-        // Only merge the latest snapshot for NW calculation
-        const latestDate = portfolioSnapshots.reduce((latest, item) => !latest || item.snapshot_date > latest ? item.snapshot_date : latest, null);
-        const latest = portfolioSnapshots.filter(s => s.snapshot_date === latestDate);
+        // Use intelligent Engine to get latest snapshot (handles JSONB flattening automatically)
+        const latest = calculatePortfolioHoldings(portfolioSnapshots);
         
         const converted = latest.map(s => ({
           id: s.id,
-          name: s.label,
+          name: s.label || s.name,
           category: s.asset_class === 'property' ? 'Property' : 'Investments',
           type: 'asset',
           value: Number(s.current_value)

@@ -48,9 +48,23 @@ export default function DevSeeder() {
         successCount.budgets++;
       }
       
-      // 4. Seed Portfolio Holdings (Historical Snapshots)
-      for (const h of wealthLensSeed.portfolioHoldings) {
-        await base44.db.upsertRow('portfolio_holdings', h);
+      // 4. Seed Portfolio Holdings (Aggregated Historical Snapshots)
+      const groupedHoldings = wealthLensSeed.portfolioHoldings.reduce((acc, h) => {
+        if (!acc[h.snapshot_date]) acc[h.snapshot_date] = [];
+        acc[h.snapshot_date].push(h);
+        return acc;
+      }, {});
+
+      for (const [date, holdings] of Object.entries(groupedHoldings)) {
+        await base44.db.upsertRow('portfolio_holdings', {
+          snapshot_date: date,
+          holdings: holdings.map(h => ({
+            label: h.label,
+            asset_class: h.asset_class,
+            current_value: h.current_value,
+            invested_amount: h.invested_amount
+          }))
+        }, 'user_id,snapshot_date');
         successCount.holdings++;
       }
 
