@@ -378,6 +378,23 @@ export const base44 = {
         return { success: true };
       }
 
+      // DATA INTEGRITY: Prevent "Double-Writing" relational data to the vault
+      // These keys are legacy leftovers from when the app used JSON blobs for everything.
+      const legacyBlocklist = [
+        'wl_table_transactions', 
+        'wl_table_accounts', 
+        'wl_table_user_accounts',
+        'wl_table_portfolio_holdings',
+        'wl_table_budgets',
+        'wl_table_monthly_summaries'
+      ];
+      
+      if (legacyBlocklist.some(k => key === k || key.startsWith('wealthlens-budget-'))) {
+        if (!isProd) console.log(`[base44] Blocked double-write of relational key to vault: ${key}`);
+        localStorage.setItem(storageKey, JSON.stringify(data)); // Keep local but don't sync to DB
+        return { success: true };
+      }
+
       if (isSupabaseEnabled && session?.user) {
         await supabase.from('user_data').upsert({ user_id: userId, key: key, payload: data, updated_at: new Date() });
         return { success: true };
@@ -389,7 +406,7 @@ export const base44 = {
   },
   
   db: {
-    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets", categories: "user_categories" },
+    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets" },
     
     // Internal session cache to prevent auth-storming during loops/navigation
     _sessionCache: null,
@@ -429,6 +446,12 @@ export const base44 = {
     },
 
     getTable: async (tableName) => {
+      // REDIRECT: Categories now live in the JSON Vault
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const data = await base44.user.loadData('wl_categories');
+        return Array.isArray(data) ? data : [];
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const sessionResult = await base44.db._getSession();
@@ -454,6 +477,19 @@ export const base44 = {
     // Pure INSERT — never updates an existing record.
     // Use this for new transactions, new accounts, etc.
     insertRow: async (tableName, row) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const newRow = { 
+          ...row, 
+          id: row.id || `cat_${Date.now()}`, 
+          created_at: new Date().toISOString() 
+        };
+        const updated = [...current, newRow];
+        await base44.user.saveData('wl_categories', updated);
+        return newRow;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();
@@ -521,6 +557,23 @@ export const base44 = {
     // Use this for edits to existing records (e.g. inline transaction edits,
     // budget planning rows, user settings).
     upsertRow: async (tableName, row, options = {}) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const targetId = row.id;
+        const index = current.findIndex(r => String(r.id) === String(targetId) || r.name === row.name);
+        
+        let updated;
+        if (index >= 0) {
+          updated = current.map((r, i) => i === index ? { ...r, ...row, updated_at: new Date().toISOString() } : r);
+        } else {
+          updated = [...current, { ...row, id: row.id || `cat_${Date.now()}`, created_at: new Date().toISOString() }];
+        }
+        
+        await base44.user.saveData('wl_categories', updated);
+        return row;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();
@@ -625,6 +678,14 @@ export const base44 = {
       return base44.user.saveData(key, finalRows);
     },
     deleteRow: async (tableName, id) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const updated = current.filter(r => String(r.id) !== String(id));
+        await base44.user.saveData('wl_categories', updated);
+        return { success: true };
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();

@@ -103,24 +103,35 @@ export default function NetWorthReport() {
   // Unified Save
   const saveAccounts = async (updated) => {
     setAccounts(updated);
-    await base44.user.saveData("wl_table_accounts", updated);
+    // Note: We don't save to the vault anymore. 
+    // Individual adds are handled in handleAddAccount via db.insertRow
   };
 
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (!newAccount.name || !newAccount.value) {
       toast.error("Please fill in all fields");
       return;
     }
-    const updated = [...accounts, { 
-      ...newAccount, 
-      id: Date.now().toString(), 
-      value: parseFloat(newAccount.value), 
-      type: addMode 
-    }];
-    saveAccounts(updated);
-    setNewAccount({ name: '', category: 'Bank', value: '' });
-    setAddMode(null);
-    toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`);
+    
+    const accountData = {
+      name: newAccount.name,
+      category: newAccount.category,
+      base_balance: parseFloat(newAccount.value),
+      type: addMode,
+      currency: 'AUD'
+    };
+
+    const loadingToast = toast.loading("Saving account...");
+    const result = await base44.db.insertRow("user_accounts", accountData);
+
+    if (result && !result.error) {
+      setAccounts([...accounts, { ...result, value: Number(result.base_balance) }]);
+      setNewAccount({ name: '', category: 'Bank', value: '' });
+      setAddMode(null);
+      toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`, { id: loadingToast });
+    } else {
+      toast.error("Failed to save account to database", { id: loadingToast });
+    }
   };
 
   // Temporal Logic: Calculate Cumulative Surplus up to Selected Month
