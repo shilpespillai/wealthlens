@@ -76,6 +76,7 @@ import SetBudget from './pages/SetBudget';
 import Transactions from './pages/Transactions';
 import DevSeeder from './pages/DevSeeder';
 import AdminSettings from './pages/AdminSettings';
+import AdminDashboard from './pages/AdminDashboard';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -108,6 +109,7 @@ export const PAGES = {
     "Transactions": Transactions,
     "DevSeeder": DevSeeder,
     "AdminSettings": AdminSettings,
+    "AdminDashboard": AdminDashboard,
 }
 
 export const pagesConfig = {

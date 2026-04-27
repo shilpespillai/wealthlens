@@ -160,6 +160,7 @@ export const AuthProvider = ({ children }) => {
         user?.is_premium === true ||
         user?.email === 'admin@wealthlens.com'
       ),
+      isAdmin: user?.email === 'admin@wealthlens.com',
       logout,
       navigateToLogin,
       checkAppState

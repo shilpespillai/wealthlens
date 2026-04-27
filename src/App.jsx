@@ -42,7 +42,7 @@ function App() {
 }
 
 const MainContent = () => {
-  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -71,14 +71,16 @@ const MainContent = () => {
             const hasRedirected = sessionStorage.getItem('wl_init_redirect');
             if (hasRedirected === 'true' && path !== '/login') return;
 
-            console.log("[App] Guarded Redirect to Dashboard from", path);
+            console.log("[App] Guarded Redirect for", isAdmin ? "Admin" : "User", "from", path);
             sessionStorage.setItem('wl_init_redirect', 'true');
-            if (window.location.pathname.toLowerCase() !== '/dashboard') {
-              navigate('/Dashboard', { replace: true });
+            
+            const targetPath = isAdmin ? '/AdminDashboard' : '/Dashboard';
+            if (window.location.pathname.toLowerCase() !== targetPath.toLowerCase()) {
+              navigate(targetPath, { replace: true });
             }
         }
     }
-  }, [isAuthenticated, user, isLoadingAuth, navigate]);
+  }, [isAuthenticated, user, isLoadingAuth, navigate, isAdmin]);
 
   const isPublicPage = (path) => [
     '/login', '/auth/callback', '/about', '/methodology', '/contact', 
