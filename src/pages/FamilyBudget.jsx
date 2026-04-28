@@ -356,63 +356,25 @@ function FamilyBudgetContent() {
       links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
     }
 
-    // 3. Group Expenses by Name and Category
-    const groupedExpensesMap = expenses.reduce((acc, exp) => {
-      const name = exp.name || "Item";
-      const st = exp.spendType || "variable";
-      const key = `${name}-${st}`;
-      if (!acc[key]) acc[key] = { name, st, amount: 0, category: exp.category };
-      acc[key].amount += Number(exp.amount) || 0;
-      return acc;
-    }, {});
-
-    const sortedGroupedExpenses = Object.values(groupedExpensesMap)
+    // 3. Aggregated Expenses by Category
+    const sortedGroupedExpenses = [...aggregatedExpenses]
       .filter(exp => exp.amount > 0)
       .sort((a, b) => b.amount - a.amount);
     
-    // Aggregation Logic: Keep top 15, group others
-    const topCount = 15;
-    const displayedExpenses = sortedGroupedExpenses.slice(0, topCount);
-    const otherExpenses = sortedGroupedExpenses.slice(topCount);
-
-    // Add Top Expenses
-    displayedExpenses.forEach((exp) => {
-      const color = getSectionColor(exp.name, exp.category, exp.st);
+    // Add Category Nodes
+    sortedGroupedExpenses.forEach((exp) => {
+      const color = getSectionColor(exp.name, exp.category, exp.spendType);
       const itemIndex = nodes.length;
       safeNodePush({ name: exp.name, color, value: exp.amount });
       
       let targetCatIndex = variableIndex;
-      if (exp.st === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
-      if (exp.st === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
+      if (exp.spendType === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
+      if (exp.spendType === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
       
       if (targetCatIndex !== -1) {
         links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
       }
     });
-
-    // Add "Other" node if needed
-    if (otherExpenses.length > 0) {
-      const otherBySt = otherExpenses.reduce((acc, exp) => {
-        if (!acc[exp.st]) acc[exp.st] = 0;
-        acc[exp.st] += exp.amount;
-        return acc;
-      }, {});
-
-      Object.entries(otherBySt).forEach(([st, amount]) => {
-        if (amount <= 0) return;
-        const name = `Diversified ${st === 'fixed' ? 'Needs' : (st === 'savings' ? 'Savings' : 'Outflows')}`;
-        const itemIndex = nodes.length;
-        safeNodePush({ name, color: "#94a3b8", value: amount });
-        
-        let targetCatIndex = variableIndex;
-        if (st === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
-        if (st === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
-        
-        if (targetCatIndex !== -1) {
-          links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(amount) });
-        }
-      });
-    }
 
     return { nodes, links };
   }, [incomes, expenses, metrics]);
