@@ -441,8 +441,19 @@ export const base44 = {
       }
 
       if (isSupabaseEnabled && session?.user) {
-        await supabase.from('user_data').upsert({ user_id: userId, key: key, payload: data, updated_at: new Date() });
-        return { success: true };
+        const { error } = await supabase
+          .from('user_data')
+          .upsert(
+            { user_id: userId, key: key, payload: data, updated_at: new Date() }, 
+            { onConflict: 'user_id,key' }
+          );
+        
+        if (error) {
+          console.error(`[base44] saveData failed for ${key}:`, error);
+          // Fallback to local storage on error to prevent data loss
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+        return { success: !error };
       }
       
       localStorage.setItem(storageKey, JSON.stringify(data));

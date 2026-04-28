@@ -15,7 +15,16 @@ import {
   ShieldAlert,
   Activity,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Settings,
+  GripVertical, 
+  Bot, 
+  CheckCircle2, 
+  AlertCircle, 
+  Calendar, 
+  ChevronDown, 
+  BarChart3, 
+  Sparkles 
 } from "lucide-react";
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -29,17 +38,6 @@ import { Button } from "@/components/ui/button";
 import { calculateInvestment } from "@/components/calculator/calculationEngine";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { 
-  GripVertical, 
-  Bot, 
-  CheckCircle2, 
-  AlertCircle, 
-  Calendar, 
-  ChevronDown, 
-  Settings, 
-  BarChart3, 
-  Sparkles 
-} from "lucide-react";
 import { CategoryIcon } from "@/utils/iconMap";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
@@ -81,14 +79,16 @@ export function DashboardContent() {
   const [viewMode, setViewMode] = useState("spending");
   const [selectedPeriod, setSelectedPeriod] = useState("This Month");
   
-  // Live Data States
+  const hasInitializedLayout = React.useRef(false);
+  
   const [liveData, setLiveData] = useState({
     accounts: [],
     transactions: [],
     currentMonthTransactions: [],
     portfolio: [],
     budgets: [],
-    currentMonthBudgets: []
+    currentMonthBudgets: [],
+    vaultBuckets: []
   });
 
   const ASSET_THEMES = {
@@ -543,25 +543,12 @@ export function DashboardContent() {
         const dbAccounts = await base44.db.getTable('user_accounts');
         const dbPortfolio = await base44.db.getTable('portfolio_holdings');
         const dbBudgets = await base44.db.getTable('budgets');
-        const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
-
-        if (vaultLayout?.dashboard_layout) {
-          const layout = vaultLayout.dashboard_layout;
-          if (!Object.values(layout).flat().includes("fire_gauge")) {
-            layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
-          }
-          if (!Object.values(layout).flat().includes("subscription_audit")) {
-            layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
-          }
-          if (!Object.values(layout).flat().includes("vault_allocation")) {
-            layout.col1 = [...(layout.col1 || []), "vault_allocation"];
-          }
-          setColumns(layout);
-        } else if (user?.calc_params) {
-          const parsedParams = JSON.parse(user.calc_params);
-          setParams(parsedParams);
-          if (parsedParams.dashboard_layout) {
-            const layout = parsedParams.dashboard_layout;
+        // ── LAYOUT PERSISTENCE ENGINE (One-time Load) ──────────────────────
+        if (!hasInitializedLayout.current) {
+          const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
+          
+          if (vaultLayout?.dashboard_layout) {
+            const layout = vaultLayout.dashboard_layout;
             if (!Object.values(layout).flat().includes("fire_gauge")) {
               layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
             }
@@ -572,7 +559,24 @@ export function DashboardContent() {
               layout.col1 = [...(layout.col1 || []), "vault_allocation"];
             }
             setColumns(layout);
+          } else if (user?.calc_params) {
+            const parsedParams = JSON.parse(user.calc_params);
+            setParams(parsedParams);
+            if (parsedParams.dashboard_layout) {
+              const layout = parsedParams.dashboard_layout;
+              if (!Object.values(layout).flat().includes("fire_gauge")) {
+                layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
+              }
+              if (!Object.values(layout).flat().includes("subscription_audit")) {
+                layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
+              }
+              if (!Object.values(layout).flat().includes("vault_allocation")) {
+                layout.col1 = [...(layout.col1 || []), "vault_allocation"];
+              }
+              setColumns(layout);
+            }
           }
+          hasInitializedLayout.current = true;
         }
 
         const currentMonthFocus = format(new Date(), 'yyyy-MM');
@@ -616,13 +620,18 @@ export function DashboardContent() {
         const totalOut = allExps.reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
         const cumulativeSurplus = totalIn - totalOut;
 
-        // 2. Load Virtual Allocations from Vault
-        const allocations = await base44.user.loadData('wl_capital_allocation') || { 
-          emergency_fund: 0,
-          travel_fund: 0,
-          education_fund: 0,
-          medical_fund: 0
-        };
+        // 2. Load Virtual Allocations and Bucket Config from Vault
+        const [allocations, bucketConfig] = await Promise.all([
+          base44.user.loadData('wl_capital_allocation'),
+          base44.user.loadData('wl_vault_config')
+        ]);
+
+        const defaultBuckets = [
+          { id: 'emergency_fund', label: 'Emergency Fund', target: 10000, icon: 'ShieldCheck', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+          { id: 'travel_fund', label: 'Family Travel', target: 5000, icon: 'Plane', color: 'bg-blue-500', textColor: 'text-blue-600' },
+          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: 'Target', color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+          { id: 'medical_fund', label: 'Medical Fund', target: 5000, icon: 'Zap', color: 'bg-rose-500', textColor: 'text-rose-600' }
+        ];
 
         setLiveData(prev => ({
           ...prev,
@@ -632,7 +641,8 @@ export function DashboardContent() {
           currentMonthTransactions: currentMonthTx,
           currentMonthBudgets: extractBudgetData(currentMonthRow?.payload),
           cumulativeSurplus,
-          allocations
+          allocations: allocations || { emergency_fund: 0, travel_fund: 0, education_fund: 0, medical_fund: 0 },
+          vaultBuckets: bucketConfig || defaultBuckets
         }));
       } catch (err) {
         console.error("Profile initialization error:", err);
@@ -1344,61 +1354,88 @@ export function DashboardContent() {
 
       case "vault_allocation":
         const totalCap = liveData.cumulativeSurplus || 0;
-        const currentAllocations = liveData.allocations || { emergency_fund: 0, travel_fund: 0, education_fund: 0, medical_fund: 0 };
+        const currentAllocations = liveData.allocations || {};
         const totalAllocated = Object.values(currentAllocations).reduce((s, v) => s + (Number(v) || 0), 0);
         const unallocated = totalCap - totalAllocated;
-        
-        const buckets = [
-          { id: 'emergency_fund', label: 'Emergency Fund', target: 10000, icon: <ShieldCheck className="w-3 h-3" />, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
-          { id: 'travel_fund', label: 'Family Travel', target: 5000, icon: <ArrowUpRight className="w-3 h-3" />, color: 'bg-blue-500', textColor: 'text-blue-600' },
-          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: <Target className="w-3 h-3" />, color: 'bg-indigo-500', textColor: 'text-indigo-600' },
-          { id: 'medical_fund', label: 'Medical Fund', target: 5000, icon: <Zap className="w-3 h-3" />, color: 'bg-rose-500', textColor: 'text-rose-600' }
-        ];
+        const [isEditingBuckets, setIsEditingBuckets] = useState(false);
 
         const handleAllocate = async (id, val) => {
           const newAlloc = { ...currentAllocations, [id]: val };
           setLiveData(prev => ({ ...prev, allocations: newAlloc }));
           await base44.user.saveData('wl_capital_allocation', newAlloc);
+          toast.success("Allocation updated.");
+        };
+
+        const updateBucket = async (id, field, value) => {
+          const newBuckets = liveData.vaultBuckets.map(b => b.id === id ? { ...b, [field]: value } : b);
+          setLiveData(prev => ({ ...prev, vaultBuckets: newBuckets }));
+          await base44.user.saveData('wl_vault_config', newBuckets);
         };
 
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="h-1 bg-emerald-500 w-full" />
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="space-y-1">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    Strategic Vault Allocation
+                    Vault Allocation
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Capital Distribution Hub</p>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Strategic Distribution Hub</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Available Vault</p>
-                  <p className="text-sm font-black text-slate-900 tracking-tighter">{formatAmount(unallocated)}</p>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Available</p>
+                    <p className="text-xs font-black text-slate-900 tracking-tighter">{formatAmount(unallocated)}</p>
+                  </div>
+                  <button onClick={() => setIsEditingBuckets(!isEditingBuckets)} className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                    <Settings className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {buckets.map((b) => {
+              <div className="grid grid-cols-2 gap-4">
+                {liveData.vaultBuckets.map((b) => {
                   const val = currentAllocations[b.id] || 0;
                   const perc = Math.min(100, (val / b.target) * 100);
+                  const Icon = b.id === 'emergency_fund' ? ShieldCheck : (b.id === 'travel_fund' ? ArrowUpRight : (b.id === 'education_fund' ? Target : Zap));
+
                   return (
-                    <div key={b.id} className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-2">
-                          <div className={cn("p-1.5 rounded-lg bg-slate-50", b.textColor.replace('text-', 'bg-').replace('-600', '-50'))}>
-                            <div className={b.textColor}>{b.icon}</div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{b.label}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{formatAmount(val)} / {formatAmount(b.target)}</p>
+                    <div key={b.id} className="p-3 rounded-xl bg-slate-50/50 border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1 w-full">
+                          {isEditingBuckets ? (
+                            <input 
+                              value={b.label} 
+                              onChange={(e) => updateBucket(b.id, 'label', e.target.value)}
+                              className="text-[9px] font-black text-slate-800 uppercase tracking-tight bg-white border border-slate-200 rounded px-1 w-full"
+                            />
+                          ) : (
+                            <p className="text-[9px] font-black text-slate-800 uppercase tracking-tight truncate">{b.label}</p>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("text-[8px] font-bold uppercase tracking-tighter", b.textColor)}>{formatAmount(val)}</span>
+                            <span className="text-[7px] text-slate-300 font-bold uppercase">of</span>
+                            {isEditingBuckets ? (
+                              <input 
+                                type="number"
+                                value={b.target} 
+                                onChange={(e) => updateBucket(b.id, 'target', Number(e.target.value))}
+                                className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter bg-white border border-slate-200 rounded px-1 w-12"
+                              />
+                            ) : (
+                              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{formatAmount(b.target)}</span>
+                            )}
                           </div>
                         </div>
-                        <span className={cn("text-[10px] font-black tracking-widest", b.textColor)}>{perc.toFixed(0)}%</span>
+                        <div className={cn("p-1 rounded-lg shrink-0", b.textColor.replace('text-', 'bg-').replace('-600', '-50'))}>
+                          <Icon className="w-3 h-3" />
+                        </div>
                       </div>
+
                       <div className="space-y-2">
-                        <div className="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-white rounded-full overflow-hidden border border-slate-100">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${perc}%` }}
@@ -1411,24 +1448,24 @@ export function DashboardContent() {
                           max={Math.min(b.target, val + unallocated)}
                           value={val}
                           onChange={(e) => handleAllocate(b.id, Number(e.target.value))}
-                          className="w-full h-1 bg-transparent appearance-none cursor-pointer accent-slate-300"
+                          className="w-full h-0.5 bg-transparent appearance-none cursor-pointer accent-slate-300"
                         />
                       </div>
                     </div>
                   );
                 })}
+              </div>
 
-                <div className="p-4 bg-slate-900 rounded-xl mt-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Wealth Extracted</p>
-                    <p className="text-xs font-black text-white">{formatAmount(totalCap)}</p>
-                  </div>
-                  <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-500" 
-                      style={{ width: `${Math.min(100, (totalAllocated / (totalCap || 1)) * 100)}%` }} 
-                    />
-                  </div>
+              <div className="p-3 bg-slate-900 rounded-xl mt-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-0.5">Total Extracted Wealth</p>
+                  <p className="text-[10px] font-black text-white tracking-tight">{formatAmount(totalCap)}</p>
+                </div>
+                <div className="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-emerald-500" 
+                    style={{ width: `${Math.min(100, (totalAllocated / (totalCap || 1)) * 100)}%` }} 
+                  />
                 </div>
               </div>
             </div>
