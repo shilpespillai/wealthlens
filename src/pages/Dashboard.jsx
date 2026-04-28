@@ -41,7 +41,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { CategoryIcon } from "@/utils/iconMap";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import { subDays, subMonths, startOfWeek, endOfWeek, endOfDay, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { subDays, subMonths, addMonths, startOfWeek, endOfWeek, endOfDay, eachWeekOfInterval, eachDayOfInterval, eachMonthOfInterval, format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { calculatePortfolioHoldings, getPortfolioMetrics } from "@/api/portfolioEngine";
 import { cn } from "@/lib/utils";
 import { robustParseDate } from "@/utils/dateParser";
@@ -78,6 +78,8 @@ export function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState("spending");
   const [selectedPeriod, setSelectedPeriod] = useState("This Month");
+  const [isEditingFire, setIsEditingFire] = useState(false);
+  const [isEditingBuckets, setIsEditingBuckets] = useState(false);
   
   const hasInitializedLayout = React.useRef(false);
   
@@ -620,10 +622,11 @@ export function DashboardContent() {
         const totalOut = allExps.reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
         const cumulativeSurplus = totalIn - totalOut;
 
-        // 2. Load Virtual Allocations and Bucket Config from Vault
-        const [allocations, bucketConfig] = await Promise.all([
+        // 2. Load Virtual Allocations, Bucket Config, and FIRE Config from Vault
+        const [allocations, bucketConfig, fireConfig] = await Promise.all([
           base44.user.loadData('wl_capital_allocation'),
-          base44.user.loadData('wl_vault_config')
+          base44.user.loadData('wl_vault_config'),
+          base44.user.loadData('wl_fire_config')
         ]);
 
         const defaultBuckets = [
@@ -642,7 +645,8 @@ export function DashboardContent() {
           currentMonthBudgets: extractBudgetData(currentMonthRow?.payload),
           cumulativeSurplus,
           allocations: allocations || { emergency_fund: 0, travel_fund: 0, education_fund: 0, medical_fund: 0 },
-          vaultBuckets: bucketConfig || defaultBuckets
+          vaultBuckets: bucketConfig || defaultBuckets,
+          fireConfig: fireConfig || { multiplier: 25, expectedReturn: 7, useManualTarget: false, manualTarget: 2000000 }
         }));
       } catch (err) {
         console.error("Profile initialization error:", err);
@@ -1253,46 +1257,161 @@ export function DashboardContent() {
           </div>
         );
       case "fire_gauge":
-        const fireTarget = (holisticMetrics.avgMonthlySpend * 12) * 25;
+        const fireMultiplier = liveData.fireConfig?.multiplier || 25;
+        const fireExpectedReturn = liveData.fireConfig?.expectedReturn || 7;
+        const useManualTarget = liveData.fireConfig?.useManualTarget || false;
+        const manualTargetVal = liveData.fireConfig?.manualTarget || 2000000;
+
+        const budgetDerivedTarget = (holisticMetrics.avgMonthlySpend * 12) * fireMultiplier;
+        const fireTarget = useManualTarget ? manualTargetVal : budgetDerivedTarget;
         const fireProgress = fireTarget > 0 ? Math.min(100, (holisticMetrics.netWorth / fireTarget) * 100) : 0;
         
+        // Sustainability Check
+        const isUnderfunded = useManualTarget && manualTargetVal < budgetDerivedTarget;
+        
+        // Calculate Time to FIRE
+        const monthlySavings = Math.max(0, (holisticMetrics.incomeCurrent - holisticMetrics.spendCurrent));
+        const currentCapital = holisticMetrics.netWorth;
+        const monthlyRate = (fireExpectedReturn / 100) / 12;
+        
+        let monthsToFire = 0;
+        let projectedCapital = currentCapital;
+        if (projectedCapital < fireTarget) {
+          if (monthlySavings <= 0 && monthlyRate <= 0) {
+            monthsToFire = Infinity;
+          } else {
+            while (projectedCapital < fireTarget && monthsToFire < 600) {
+              projectedCapital = (projectedCapital * (1 + monthlyRate)) + monthlySavings;
+              monthsToFire++;
+            }
+          }
+        }
+
+        const fireYears = Math.floor(monthsToFire / 12);
+        const fireRemainingMonths = monthsToFire % 12;
+        const fireDate = addMonths(new Date(), monthsToFire);
+        const fireDateFormatted = format(fireDate, 'MMMM yyyy');
+
+        const [isEditingFire, setIsEditingFire] = useState(false);
+
+        const updateFireConfig = async (key, val) => {
+          const newConfig = { ...liveData.fireConfig, [key]: val };
+          setLiveData(prev => ({ ...prev, fireConfig: newConfig }));
+          await base44.user.saveData('wl_fire_config', newConfig);
+        };
+        
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="h-1 bg-indigo-500 w-full" />
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
                 <div className="space-y-1">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
                     <Flame className="w-3.5 h-3.5 text-indigo-500" />
-                    Financial Independence
+                    Freedom Horizon
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">FIRE Goal / 25x Rule</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                    {monthsToFire >= 600 ? 'Horizon: 50+ Years' : `Horizon: ~${fireYears}y ${fireRemainingMonths}m`}
+                  </p>
                 </div>
+                <button onClick={() => setIsEditingFire(!isEditingFire)} className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                  <Settings className="w-3.5 h-3.5 text-slate-400" />
+                </button>
               </div>
 
               <div className="space-y-6">
                 <div className="flex justify-between items-end">
                   <div className="space-y-1">
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Freedom Progress</p>
-                    <p className="text-3xl font-black tracking-tighter text-slate-900">{fireProgress.toFixed(1)}%</p>
+                    <p className="text-4xl font-black tracking-tighter text-slate-900">{fireProgress.toFixed(1)}%</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Target Core</p>
-                    <p className="text-sm font-black text-indigo-600">{formatAmount(fireTarget)}</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Freedom Date</p>
+                    <p className="text-sm font-black text-indigo-600">
+                      {monthsToFire === 0 ? 'Work Optional Now' : (monthsToFire >= 600 ? 'Out of Range' : fireDateFormatted)}
+                    </p>
                   </div>
                 </div>
 
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${fireProgress}%` }}
-                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                  />
+                <div className="relative pt-2">
+                  <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${fireProgress}%` }}
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-sm"
+                    />
+                  </div>
+                  {isUnderfunded && (
+                    <div className="mt-2 flex items-center gap-1.5 text-[8px] font-bold text-amber-600 uppercase">
+                      <AlertCircle className="w-3 h-3" />
+                      Goal below sustainability threshold
+                    </div>
+                  )}
                 </div>
 
-                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
-                  Based on your current burn rate, you need <span className="text-slate-900 font-black">{formatAmount(fireTarget)}</span> in investable assets to become permanently work-optional.
-                </p>
+                {isEditingFire ? (
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-5">
+                    <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200">
+                      <div>
+                        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest leading-none">Absolute Goal</p>
+                        <p className="text-[7px] text-slate-400 font-bold uppercase mt-1">Manual Target Override</p>
+                      </div>
+                      <button 
+                        onClick={() => updateFireConfig('useManualTarget', !useManualTarget)}
+                        className={`w-9 h-5 rounded-full transition-all relative ${useManualTarget ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${useManualTarget ? 'left-5' : 'left-1'}`} />
+                      </button>
+                    </div>
+
+                    {useManualTarget ? (
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Target Capital ($)</p>
+                        <input 
+                          type="number"
+                          value={manualTargetVal}
+                          onChange={(e) => updateFireConfig('manualTarget', Number(e.target.value))}
+                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-black text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 shadow-inner"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Multiplier Rule</p>
+                          <span className="text-xs font-black text-indigo-600">{fireMultiplier}x</span>
+                        </div>
+                        <input 
+                          type="range" min="15" max="40" value={fireMultiplier}
+                          onChange={(e) => updateFireConfig('multiplier', Number(e.target.value))}
+                          className="w-full h-1 bg-slate-200 appearance-none cursor-pointer accent-indigo-600"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Market Return</p>
+                        <span className="text-xs font-black text-emerald-600">{fireExpectedReturn}%</span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="15" value={fireExpectedReturn}
+                        onChange={(e) => updateFireConfig('expectedReturn', Number(e.target.value))}
+                        className="w-full h-1 bg-slate-200 appearance-none cursor-pointer accent-emerald-600"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Capital</p>
+                      <p className="text-xs font-black text-slate-900 tracking-tight">{formatAmount(fireTarget)}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Savings Velocity</p>
+                      <p className="text-xs font-black text-emerald-600 tracking-tight">{formatAmount(monthlySavings)}<span className="text-[10px] text-slate-400 font-medium">/mo</span></p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1357,7 +1476,7 @@ export function DashboardContent() {
         const currentAllocations = liveData.allocations || {};
         const totalAllocated = Object.values(currentAllocations).reduce((s, v) => s + (Number(v) || 0), 0);
         const unallocated = totalCap - totalAllocated;
-        const [isEditingBuckets, setIsEditingBuckets] = useState(false);
+        
 
         const handleAllocate = async (id, val) => {
           const newAlloc = { ...currentAllocations, [id]: val };

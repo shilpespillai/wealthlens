@@ -116,7 +116,7 @@ const AdminDashboard = () => {
             { label: "Total Users", value: stats?.total_users, icon: Users, color: "indigo", trend: "+12%" },
             { label: "Pro Conversion", value: `${premiumRate}%`, icon: Crown, color: "amber", trend: "+2.4%" },
             { label: "Daily Active", value: Math.floor(stats?.total_users * 0.64), icon: Activity, color: "emerald", trend: "+8%" },
-            { label: "Revenue Delta", value: `$${(stats?.premium_users * 19.99).toFixed(0)}`, icon: TrendingUp, color: "indigo", trend: "+15%" },
+            { label: "Total Revenue Earned", value: `$${(stats?.premium_users * 29.99).toLocaleString()}`, icon: TrendingUp, color: "indigo", trend: "+15%" },
           ].map((stat, i) => (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
