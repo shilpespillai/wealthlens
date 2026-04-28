@@ -74,12 +74,7 @@ const DEFAULT_EXPENSES = [
   { id: 5, name: "Health & Insurance", category: "fixed", amount: 200 },
 ];
 
-const DEFAULT_GOALS = [
-  { id: 1, name: "Emergency Fund", target: 10000, current: 2400 },
-  { id: 2, name: "Family Travel", target: 5000, current: 750 },
-  { id: 3, name: "Education Fund", target: 20000, current: 0 },
-  { id: 4, name: "Medical Fund", target: 5000, current: 0 }
-];
+const DEFAULT_GOALS = []; // Decommissioned: Migrated to Dashboard Vault Allocation Hub
 
 // Legacy mock data removed. Transaction visibility is now 100% relational through getProductionLedger.
 
@@ -104,10 +99,6 @@ function FamilyBudgetContent() {
   const [expenses, setExpenses] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [dbAccounts, setDbAccounts] = useState([]);
-  const [goals, setGoals] = useState(DEFAULT_GOALS);
-  const [selectedVaultGoal, setSelectedVaultGoal] = useState("");
-  const [vaultWithdrawAmount, setVaultWithdrawAmount] = useState("");
-  const [isVaultAllocating, setIsVaultAllocating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const monthKey = useMemo(() => {
@@ -497,32 +488,7 @@ function FamilyBudgetContent() {
     );
   };
 
-  const vaultData = useMemo(() => {
-     // 1. Use the CENTRALIZED normalization engine (The "Common Place")
-     const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(allTransactions, dbAccounts);
 
-     const historicalIncome = normIncs.reduce((sum, i) => sum + Math.abs(Number(i.amount || 0)), 0);
-     const historicalExpense = normExps.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0);
-     const surplusNow = historicalIncome - historicalExpense;
-     
-     const allocated = Number(localStorage.getItem('wealthlens-vault-allocated')) || 0;
-     // Base surplus starts with the historical seed (12450) + current ledger delta
-     return { remaining: Math.max(0, 12450 + surplusNow - allocated), allocated };
-  }, [allTransactions, dbAccounts, getNormalizedLedger]);
-
-  const handleVaultWithdraw = (goalId, amount) => {
-    const withdrawal = Number(amount);
-    if (!goalId) return toast.error("Please select a goal first");
-    if (isNaN(withdrawal) || withdrawal <= 0) return toast.error("Enter a valid amount");
-    if (withdrawal > vaultData.remaining) return toast.error("Insufficient funds in the vault");
-    
-    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, current: g.current + withdrawal } : g));
-    const newAllocated = vaultData.allocated + withdrawal;
-    localStorage.setItem('wealthlens-vault-allocated', newAllocated.toString());
-    
-    toast.success(`Allocated ${getCurrencySymbol(currency)}${(withdrawal || 0).toLocaleString()} from vault to ${goals.find(g => g.id === goalId)?.name}`);
-    setVaultWithdrawAmount("");
-  };
 
 
 
@@ -806,75 +772,7 @@ function FamilyBudgetContent() {
           {/* Left Column: Editor */}
           <div className="lg:col-span-7 space-y-4">
 
-            {/* Household Vault & Global Savings Engine - Relocated to reduce width */}
-            <motion.div 
-              initial={{opacity:0, y:10}} 
-              animate={{opacity:1, y:0}}
-              className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md"
-            >
-              <div className="relative z-10 flex flex-col xl:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
-                    <Lock className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-slate-700 tracking-tight leading-none text-md">Vault</h3>
-                      <span className="text-[8px] font-medium bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full uppercase tracking-widest">Locked</span>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-xl font-medium text-slate-700">{getCurrencySymbol(currency)}{vaultData.remaining.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="w-full xl:w-auto">
-                  {!isVaultAllocating ? (
-                    <Button 
-                      onClick={() => setIsVaultAllocating(true)}
-                      disabled={vaultData.remaining <= 0}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-[10px] h-9 px-4 shadow-lg shadow-indigo-100 transition-all active:scale-95 w-full xl:w-auto"
-                    >
-                      Fund Goals
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100 animate-in slide-in-from-right-2 duration-300">
-                      <select 
-                        value={selectedVaultGoal}
-                        onChange={(e) => setSelectedVaultGoal(Number(e.target.value))}
-                        className="bg-transparent border-none text-[10px] font-black text-slate-700 outline-none w-24 px-1 cursor-pointer"
-                      >
-                        <option value="">Select Goal</option>
-                        {goals.map(g => (
-                          <option key={g.id} value={g.id}>{g.name}</option>
-                        ))}
-                      </select>
-                      <div className="w-px h-4 bg-slate-200" />
-                      <div className="relative min-w-[60px]">
-                        <input 
-                          type="number"
-                          placeholder="0"
-                          value={vaultWithdrawAmount}
-                          onChange={(e) => setVaultWithdrawAmount(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg h-7 pl-2 pr-1 text-[10px] font-black outline-none focus:border-indigo-400"
-                        />
-                      </div>
-                      <button 
-                        onClick={() => handleVaultWithdraw(selectedVaultGoal, vaultWithdrawAmount)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-widest"
-                      >
-                        Ok
-                      </button>
-                      <button onClick={() => setIsVaultAllocating(false)} className="p-1 text-slate-400 hover:text-slate-600"><Plus className="w-3.5 h-3.5 rotate-45" /></button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-2xl -mr-12 -mt-12" />
-            </motion.div>
-
-
-                    {/* Aggregated Overview Pane — Now with Donut Chart */}
+            {/* Aggregated Overview Pane — Now with Donut Chart */}
             <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm relative overflow-hidden">
                <div className="flex items-center justify-between mb-10">
                  <div>
@@ -1090,44 +988,8 @@ function FamilyBudgetContent() {
                   </div>
                 </div>
 
-                {/* 3. Savings Pillars (2 Columns) */}
-                <div className="border-t border-white/5 pt-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Savings Velocity</h4>
-                    <TrendingUp className="w-4 h-4 text-[#E5C48B]" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    {goals.map((g) => {
-                      const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
-                      return (
-                        <div key={g.id} className="space-y-2">
-                          <div className="flex justify-between items-end">
-                            <div>
-                              <p className="text-[10px] font-medium text-white/90 uppercase tracking-tight truncate max-w-[120px]">{g.name}</p>
-                              <p className="text-[9px] font-medium text-slate-400">
-                                {sym}{g.current.toLocaleString()} / {sym}{g.target.toLocaleString()}
-                              </p>
-                            </div>
-                            <span className="text-[10px] font-medium text-[#B8D8BA]">{pct.toFixed(0)}%</span>
-                          </div>
-                          <div className="relative h-2 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              className="h-full bg-emerald-500/80 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all duration-700"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
             </div>
-
-
-
-
           </div>
         </div>
       </div>
@@ -1135,7 +997,7 @@ function FamilyBudgetContent() {
     </div>
   </div>
   );
-}
+};
 
 export default function FamilyBudgetPage() {
   return (

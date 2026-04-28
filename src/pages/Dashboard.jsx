@@ -14,7 +14,8 @@ import {
   Flame,
   ShieldAlert,
   Activity,
-  Shield
+  Shield,
+  ShieldCheck
 } from "lucide-react";
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -100,7 +101,7 @@ export function DashboardContent() {
   };
 
   const [columns, setColumns] = useState({
-    col1: ["accounts", "networth_card", "fire_gauge"],
+    col1: ["accounts", "networth_card", "fire_gauge", "vault_allocation"],
     col2: ["transactions", "liquidity_runway"],
     col3: ["bills", "subscription_audit"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
@@ -552,6 +553,9 @@ export function DashboardContent() {
           if (!Object.values(layout).flat().includes("subscription_audit")) {
             layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
           }
+          if (!Object.values(layout).flat().includes("vault_allocation")) {
+            layout.col1 = [...(layout.col1 || []), "vault_allocation"];
+          }
           setColumns(layout);
         } else if (user?.calc_params) {
           const parsedParams = JSON.parse(user.calc_params);
@@ -563,6 +567,9 @@ export function DashboardContent() {
             }
             if (!Object.values(layout).flat().includes("subscription_audit")) {
               layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
+            }
+            if (!Object.values(layout).flat().includes("vault_allocation")) {
+              layout.col1 = [...(layout.col1 || []), "vault_allocation"];
             }
             setColumns(layout);
           }
@@ -602,13 +609,30 @@ export function DashboardContent() {
           };
         });
 
+        // ── VAULT ALLOCATION ENGINE ──────────────────────────────────────────
+        // 1. Calculate Total Cumulative Surplus (The "Common Place" for all historical savings)
+        const { incomes: allIncs, expenses: allExps } = getNormalizedLedger(allTransactions, dbAccounts || []);
+        const totalIn = allIncs.reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+        const totalOut = allExps.reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+        const cumulativeSurplus = totalIn - totalOut;
+
+        // 2. Load Virtual Allocations from Vault
+        const allocations = await base44.user.loadData('wl_capital_allocation') || { 
+          emergency_fund: 0,
+          travel_fund: 0,
+          education_fund: 0,
+          medical_fund: 0
+        };
+
         setLiveData(prev => ({
           ...prev,
           accounts: liveAccounts,
           portfolio: dbPortfolio || [],
           transactions: allTransactions,
           currentMonthTransactions: currentMonthTx,
-          currentMonthBudgets: extractBudgetData(currentMonthRow?.payload)
+          currentMonthBudgets: extractBudgetData(currentMonthRow?.payload),
+          cumulativeSurplus,
+          allocations
         }));
       } catch (err) {
         console.error("Profile initialization error:", err);
@@ -663,9 +687,19 @@ export function DashboardContent() {
 
   const saveLayout = async (newColumns) => {
     try {
+      console.log("[Dashboard] Persistence Engine: Saving layout to vault and profile...", newColumns);
+      
+      // 1. Save to secure Vault (Primary)
       await base44.user.saveData("wl_dashboard_layout", { dashboard_layout: newColumns });
+      
+      // 2. Synchronize to User Profile (Secondary/Legacy Fallback)
+      const updatedParams = { ...params, dashboard_layout: newColumns };
+      setParams(updatedParams);
+      await base44.auth.updateMe({ calc_params: JSON.stringify(updatedParams) });
+      
+      console.log("[Dashboard] Persistence Engine: Save successful.");
     } catch (err) {
-      console.error("Failed to save layout:", err);
+      console.error("[Dashboard] Persistence Engine: Save failed:", err);
     }
   };
 
@@ -1303,6 +1337,99 @@ export function DashboardContent() {
                     No active subscriptions detected
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "vault_allocation":
+        const totalCap = liveData.cumulativeSurplus || 0;
+        const currentAllocations = liveData.allocations || { emergency_fund: 0, travel_fund: 0, education_fund: 0, medical_fund: 0 };
+        const totalAllocated = Object.values(currentAllocations).reduce((s, v) => s + (Number(v) || 0), 0);
+        const unallocated = totalCap - totalAllocated;
+        
+        const buckets = [
+          { id: 'emergency_fund', label: 'Emergency Fund', target: 10000, icon: <ShieldCheck className="w-3 h-3" />, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+          { id: 'travel_fund', label: 'Family Travel', target: 5000, icon: <ArrowUpRight className="w-3 h-3" />, color: 'bg-blue-500', textColor: 'text-blue-600' },
+          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: <Target className="w-3 h-3" />, color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+          { id: 'medical_fund', label: 'Medical Fund', target: 5000, icon: <Zap className="w-3 h-3" />, color: 'bg-rose-500', textColor: 'text-rose-600' }
+        ];
+
+        const handleAllocate = async (id, val) => {
+          const newAlloc = { ...currentAllocations, [id]: val };
+          setLiveData(prev => ({ ...prev, allocations: newAlloc }));
+          await base44.user.saveData('wl_capital_allocation', newAlloc);
+        };
+
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-1 bg-emerald-500 w-full" />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    Strategic Vault Allocation
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Capital Distribution Hub</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Available Vault</p>
+                  <p className="text-sm font-black text-slate-900 tracking-tighter">{formatAmount(unallocated)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {buckets.map((b) => {
+                  const val = currentAllocations[b.id] || 0;
+                  const perc = Math.min(100, (val / b.target) * 100);
+                  return (
+                    <div key={b.id} className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("p-1.5 rounded-lg bg-slate-50", b.textColor.replace('text-', 'bg-').replace('-600', '-50'))}>
+                            <div className={b.textColor}>{b.icon}</div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{b.label}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{formatAmount(val)} / {formatAmount(b.target)}</p>
+                          </div>
+                        </div>
+                        <span className={cn("text-[10px] font-black tracking-widest", b.textColor)}>{perc.toFixed(0)}%</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${perc}%` }}
+                            className={cn("h-full", b.color)}
+                          />
+                        </div>
+                        <input 
+                          type="range"
+                          min="0"
+                          max={Math.min(b.target, val + unallocated)}
+                          value={val}
+                          onChange={(e) => handleAllocate(b.id, Number(e.target.value))}
+                          className="w-full h-1 bg-transparent appearance-none cursor-pointer accent-slate-300"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="p-4 bg-slate-900 rounded-xl mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Wealth Extracted</p>
+                    <p className="text-xs font-black text-white">{formatAmount(totalCap)}</p>
+                  </div>
+                  <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500" 
+                      style={{ width: `${Math.min(100, (totalAllocated / (totalCap || 1)) * 100)}%` }} 
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
