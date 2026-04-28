@@ -114,10 +114,35 @@ export const useFinancialParser = () => {
    * calculateMetrics
    * Consolidates complex budget reduction logic based on raw DB fields.
    */
-  const calculateMetrics = useCallback((incomes = [], expenses = []) => {
+  const calculateMetrics = useCallback((incomes = [], expenses = [], accounts = []) => {
+    // 1. Isolate strict cashflow (Exclude internal transfers and paybacks)
+    const EXCLUDED_CATEGORIES = ['Transfer', 'Reimbursement'];
+    
+    // Build O(1) set of debt accounts to aggressively exclude credit card payments from Income
+    const creditCardIds = new Set(
+      accounts
+        .filter(a => a.type === 'debt' || (a.name || '').toLowerCase().includes('credit'))
+        .map(a => String(a.id))
+    );
+
+    const validIncomes = incomes.filter(i => {
+      const isExcludedCategory = EXCLUDED_CATEGORIES.includes(i.category) || EXCLUDED_CATEGORIES.includes(i.name);
+      
+      // If we have transactionIds (from normalizeTransactionData), check if ALL of them belong to a credit card
+      // In normalized data, 'i' is an aggregate bucket. But wait, calculateMetrics is also called on raw transactions.
+      // If it's a raw transaction, it has account_id.
+      const isCreditCardIncome = i.account_id && creditCardIds.has(String(i.account_id));
+      
+      return !isExcludedCategory && !isCreditCardIncome;
+    });
+
+    const validExpenses = expenses.filter(e => !EXCLUDED_CATEGORIES.includes(e.category) && !EXCLUDED_CATEGORIES.includes(e.name));
+
     // Priority: Actual Amount (realized) > Monthly Target (planned)
-    const totalIncome = incomes.reduce((sum, i) => sum + (Number(i.amount !== undefined && i.amount !== null ? i.amount : (i.monthly_target || 0))), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount !== undefined && e.amount !== null ? e.amount : (e.monthly_target || 0))), 0);
+    const totalIncome = validIncomes.reduce((sum, i) => sum + (Number(i.amount !== undefined && i.amount !== null ? i.amount : (i.monthly_target || 0))), 0);
+    const totalExpenses = validExpenses.reduce((sum, e) => sum + (Number(e.amount !== undefined && e.amount !== null ? e.amount : (e.monthly_target || 0))), 0);
+    
+    // Savings calculation continues to scan expenses for the 'savings' spendType
     const savings = expenses
       .filter(e => e.spendType === 'savings' || (e.name && e.name.toLowerCase().includes('save')))
       .reduce((sum, e) => sum + (Number(e.amount || e.monthly_target || 0)), 0);

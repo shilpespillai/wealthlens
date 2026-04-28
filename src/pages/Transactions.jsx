@@ -638,7 +638,6 @@ function TransactionsContent() {
   };
 
   const handleDeleteAccount = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"? Transactions assigned to this account will be moved to Manual Vault.`)) return;
     try {
       await base44.db.deleteRow('user_accounts', id);
       
@@ -839,7 +838,7 @@ function TransactionsContent() {
 
 
 
-  const summary = calculateMetrics(incomes, expenses);
+  const summary = calculateMetrics(incomes, expenses, dbAccounts);
   const sym = getCurrencySymbol(currency);
 
   const toggleSelectAll = () => {
@@ -1074,10 +1073,23 @@ function TransactionsContent() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteAccount(acc.id, acc.name);
+                        if (e.currentTarget.dataset.confirmed === 'true') {
+                          handleDeleteAccount(acc.id, acc.name);
+                        } else {
+                          e.currentTarget.dataset.confirmed = 'true';
+                          e.currentTarget.classList.add('text-rose-600', 'bg-rose-100', 'opacity-100');
+                          e.currentTarget.classList.remove('text-slate-300', 'hover:bg-rose-50', 'opacity-0', 'group-hover:opacity-100');
+                          setTimeout(() => {
+                            if (e.currentTarget) {
+                              e.currentTarget.dataset.confirmed = 'false';
+                              e.currentTarget.classList.remove('text-rose-600', 'bg-rose-100', 'opacity-100');
+                              e.currentTarget.classList.add('text-slate-300', 'hover:bg-rose-50', 'opacity-0', 'group-hover:opacity-100');
+                            }
+                          }, 3000);
+                        }
                       }}
                       className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-600 transition-all z-10 pointer-events-auto"
-                      title="Delete Account"
+                      title="Click twice to delete account"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

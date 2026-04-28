@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from 'sonner';
-import { base44 } from '@/api/base44Client';
+import { base44, invokeUniversalAI } from '@/api/base44Client';
 import { resolveCanonicalCategory } from '@/utils/constants';
 import { robustParseDate } from '@/utils/dateParser';
 
@@ -109,15 +109,24 @@ const SmartImporter = ({ accounts, onComplete, onCancel }) => {
         return;
       }
 
+      const targetAccount = accounts.find(a => String(a.id) === String(selectedAccountId));
+      const isCreditCard = targetAccount?.type === 'debt' || targetAccount?.name.toLowerCase().includes('credit');
+
       // Convert to "Grid View" format for preview
-      const items = found.map((item, idx) => ({
-        ...item,
-        id: `pdf-${idx}`,
-        type: item.amount > 0 ? 'income' : 'expense',
-        amount: Math.abs(item.amount),
-        selected: true,
-        isDuplicate: false // Will check in preview step
-      }));
+      const items = found.map((item, idx) => {
+        // Strict mathematical sign mapping (Negative = Expense, Positive = Income)
+        // Works universally for both standard accounts and credit cards with this bank format
+        const txType = item.amount >= 0 ? 'income' : 'expense';
+        
+        return {
+          ...item,
+          id: `pdf-${idx}`,
+          type: txType,
+          amount: Math.abs(item.amount),
+          selected: true,
+          isDuplicate: false // Will check in preview step
+        };
+      });
 
       await enrichWithDeduplication(items);
     } catch (err) {
@@ -130,18 +139,68 @@ const SmartImporter = ({ accounts, onComplete, onCancel }) => {
   // --- 3. COMMON FLOWS ---
 
   const enrichWithDeduplication = async (items) => {
-    setLoadingMessage("Checking for duplicates...");
+    setLoadingMessage("Checking for duplicates & learning categories...");
     try {
-      const allTx = await base44.db.getTable('transactions');
+      const allTx = await base44.db.getTable('transactions') || [];
       const accountTx = allTx.filter(t => String(t.account_id) === String(selectedAccountId));
       
       const enriched = items.map(item => {
+        // 1. Deduplication Engine
         const isDuplicate = accountTx.some(existing => 
           existing.merchant.toLowerCase().includes(item.merchant.toLowerCase()) &&
           Math.abs(existing.amount) === Math.abs(item.amount)
         );
-        return { ...item, isDuplicate, selected: !isDuplicate };
+
+        // 2. Historical Auto-Categorization Engine
+        let autoCategory = item.category;
+        if (autoCategory === "Uncategorized" || !autoCategory) {
+           // Look through all historical transactions for the same merchant to 'learn' user preferences
+           const historicalMatch = allTx.find(t => 
+             t.merchant && 
+             item.merchant && 
+             (t.merchant.toLowerCase().includes(item.merchant.toLowerCase()) || item.merchant.toLowerCase().includes(t.merchant.toLowerCase())) &&
+             t.category && 
+             t.category !== "Uncategorized"
+           );
+           
+           if (historicalMatch) {
+             autoCategory = historicalMatch.category;
+           } else {
+             // Fallback to hardcoded neural dictionary for common global merchants
+             const m = item.merchant.toLowerCase();
+             if (m.includes('woolworths') || m.includes('coles') || m.includes('aldi')) autoCategory = "Groceries";
+             else if (m.includes('uber') || m.includes('transport') || m.includes('train') || m.includes('petrol')) autoCategory = "Fuel & Transport";
+             else if (m.includes('netflix') || m.includes('spotify') || m.includes('cinema')) autoCategory = "Lifestyle";
+             else if (m.includes('pharmacy') || m.includes('chemist') || m.includes('doctor')) autoCategory = "Healthcare";
+             else if (m.includes('mcdonald') || m.includes('kfc') || m.includes('cafe') || m.includes('coffee') || m.includes('restaurant')) autoCategory = "Dining & Food";
+             else if (m.includes('insurance') || m.includes('bupa') || m.includes('medibank')) autoCategory = "Insurance";
+             else autoCategory = "Uncategorized";
+           }
+        }
+
+        return { ...item, isDuplicate, selected: !isDuplicate, category: autoCategory };
       });
+
+      // 3. LLM Batch Categorization (for any remaining "Uncategorized" merchants)
+      const uncategorizedMerchants = [...new Set(enriched.filter(i => i.category === "Uncategorized" && i.merchant).map(i => i.merchant))];
+      
+      if (uncategorizedMerchants.length > 0) {
+        setLoadingMessage(`Neural Hub analyzing ${uncategorizedMerchants.length} unknown merchants...`);
+        try {
+          const promptText = `Map these merchants to one of the following canonical categories: Income, Housing, Utilities, Financial, Groceries, Dining & Food, Fuel & Transport, Healthcare, Lifestyle, Insurance, Education, Travel, Shopping, Gifts & Donations, Maintenance, Transfer, Reimbursement. Merchants: ${JSON.stringify(uncategorizedMerchants)}`;
+          const aiResult = await invokeUniversalAI(promptText, 'categorize');
+          
+          if (aiResult && aiResult.categories) {
+            enriched.forEach(item => {
+               if (item.category === "Uncategorized" && aiResult.categories[item.merchant]) {
+                 item.category = resolveCanonicalCategory(aiResult.categories[item.merchant]);
+               }
+            });
+          }
+        } catch (llmErr) {
+          console.warn("LLM Categorization fallback triggered:", llmErr);
+        }
+      }
 
       setPreviewItems(enriched);
       setStep('preview');
@@ -212,17 +271,28 @@ const SmartImporter = ({ accounts, onComplete, onCancel }) => {
   };
 
   const processCsvToPreview = async (rows, headersList, finalMapping) => {
+    const targetAccount = accounts.find(a => String(a.id) === String(selectedAccountId));
+    const isCreditCard = targetAccount?.type === 'debt' || targetAccount?.name.toLowerCase().includes('credit');
+
     const items = rows.map((row, idx) => {
       const rowData = {};
       headersList.forEach((h, i) => rowData[h] = row[i]);
       const rawAmount = rowData[finalMapping.amount] || "0";
+      
+      // Clean the string (preserve minus signs and decimals, strip currency symbols)
+      const cleanAmountStr = String(rawAmount).replace(/[^\d.-]/g, '');
+      const parsedAmount = parseFloat(cleanAmountStr) || 0;
+      
+      // Strict mathematical sign mapping
+      const txType = parsedAmount >= 0 ? 'income' : 'expense';
+
       return {
         id: `csv-${idx}`,
         date: rowData[finalMapping.date] || "",
         merchant: rowData[finalMapping.merchant] || "Unknown",
         amount: Math.abs(parseFloat(rawAmount.replace(/[^-0-9.]/g, ''))) || 0,
         category: resolveCanonicalCategory(rowData[finalMapping.category] || "Uncategorized"),
-        type: parseFloat(rawAmount) > 0 ? 'income' : 'expense',
+        type: txType,
         selected: true
       };
     });

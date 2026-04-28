@@ -48,7 +48,8 @@ export default function HelpCenter() {
     { id: "reports-detail", label: "04. Intelligence Hub" },
     { id: "neural-bridge", label: "05. Neural Bridge" },
     { id: "operational-specs", label: "06. Operational Specs" },
-    { id: "compliance", label: "07. Compliance & Security" }
+    { id: "transactions-guide", label: "07. Ledger Protocols" },
+    { id: "compliance", label: "08. Compliance & Security" }
   ];
 
   const scrollToSection = (id) => {
@@ -499,11 +500,89 @@ export default function HelpCenter() {
              </div>
           </section>
 
-          {/* 07. Compliance & Security */}
+          {/* 07. Ledger Protocols (Transactions Guide) */}
+          <section id="transactions-guide" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">07. Ledger & Transaction Protocols</h2>
+             </div>
+             
+             <div className="space-y-12">
+                <div className="bg-white border border-slate-200 rounded-[2rem] p-10 shadow-sm space-y-8">
+                   <div className="pb-8 border-b border-slate-100">
+                      <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Categorization & Cash Flow Logic</h3>
+                      <p className="text-[11px] text-slate-500 uppercase tracking-widest font-semibold leading-relaxed">
+                         The system automatically separates <strong>Internal Transfers</strong> from <strong>True Cash Flow</strong> to prevent inflation of your income and expense reports.
+                      </p>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                         <h4 className="text-xs font-black text-[#C5A059] uppercase tracking-widest">Standard Categorization</h4>
+                         <ul className="space-y-3 text-[10px] text-slate-600 font-medium uppercase tracking-tight">
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1" />
+                               <span><strong>Expenses:</strong> Groceries, Bills, Subscriptions. These reduce Global Balance.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1" />
+                               <span><strong>Income:</strong> Salary, Dividends, Rent. These increase Global Balance.</span>
+                            </li>
+                         </ul>
+                      </div>
+                      <div className="space-y-4">
+                         <h4 className="text-xs font-black text-[#00A381] uppercase tracking-widest">Internal Cash Flow (Exclusions)</h4>
+                         <ul className="space-y-3 text-[10px] text-slate-600 font-medium uppercase tracking-tight">
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 mt-1" />
+                               <span><strong>Transfer:</strong> Moving money between accounts (e.g., Credit Card Payments). Excluded from total expenses.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 mt-1" />
+                               <span><strong>Reimbursement:</strong> Friends paying you back. Excluded from total income.</span>
+                            </li>
+                         </ul>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-200">
+                         <span className="text-[10px] font-black text-slate-900">01</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Adding Records</h5>
+                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight leading-relaxed">
+                         Click "Add Manually" to inject a single record. For bulk data, use the "Import" AI Scanner (PDF/CSV). Note: The scanner automatically detects Credit Cards and categorizes purchases as expenses.
+                      </p>
+                   </div>
+                   <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-200">
+                         <span className="text-[10px] font-black text-slate-900">02</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Deleting Records</h5>
+                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight leading-relaxed">
+                         To delete a single transaction, hover over the row in the grid and click the trash icon. The system will instantly recalculate your Global Balance and update all active reports.
+                      </p>
+                   </div>
+                   <div className="p-8 bg-rose-50 rounded-2xl border border-rose-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-rose-200">
+                         <span className="text-[10px] font-black text-rose-600">03</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-rose-600 uppercase tracking-widest">Purging Data</h5>
+                      <p className="text-[10px] text-slate-600 font-medium uppercase tracking-tight leading-relaxed">
+                         Click "Purge Month" to securely wipe all data for the visible month. <strong>Safety Lock:</strong> You must click the button twice within 3 seconds to bypass security and execute the purge.
+                      </p>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 08. Compliance & Security */}
           <section id="compliance" className="mb-20 space-y-16 scroll-mt-32">
              <div className="flex items-center gap-4">
                 <span className="w-12 h-[1px] bg-slate-100" />
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">07. Compliance & Security</h2>
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">08. Compliance & Security</h2>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

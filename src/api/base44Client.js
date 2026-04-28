@@ -43,7 +43,7 @@ const SYMBOL_REGISTRY = {
 
 // Helper: Call Gemini Directly from Frontend in Development
 // Universal Intelligence Bridge (Local-Only Provider Support)
-const invokeUniversalAI = async (prompt, type, params = {}) => {
+export const invokeUniversalAI = async (prompt, type, params = {}) => {
   const config = await base44.user.loadData('wl_ai_config') || {};
   const userProvider = config.provider || 'gemini';
   
@@ -83,6 +83,7 @@ const invokeUniversalAI = async (prompt, type, params = {}) => {
     const fullPrompt = `${systemContext}\n\nTask: ${prompt}\n\nResponse Requirements:
     IF type is 'coach': { "assessment": "sharp 2-sentence mathematical evaluation", "tone": "encouraging|urgent|excellent", "recommendations": [{ "action": "specific task", "impact": "mathematical result", "priority": "high|medium|low" }], "key_insights": ["data-driven insight from prompt"], "closing_motivation": "compelling closing" }
     IF type is 'pillar': { "stockName": "Full Name", "currentPrice": number, "pillars": [{ "id": "pe|roic|rev|net_income|shares|fcf|liabilities|price_fcf", "passed": boolean, "current": "data value", "target": "threshold", "rationale": "one-sentence explanation" }], "summary": "2-sentence overview", "overallScore": number, "recommendation": "Verdict" }
+    IF type is 'categorize': { "categories": { "merchant_name_exactly_as_provided": "Canonical_Category_Name" } }
     Return ONLY valid JSON.`;
 
     if (userProvider === 'gemini') {
@@ -180,6 +181,9 @@ const syncModels = async (provider, key) => {
 
 // Smart Heuristics Engine (Logic-based fallback)
 const runSmartHeuristics = async (type, params) => {
+  if (type === 'categorize') {
+    return { categories: {} }; // Return empty mapping to trigger standard offline fallback logic
+  }
   if (type === 'coach') {
     const savingsRate = params.savingsRate || 0;
     const runway = params.cashRunway || 3;

@@ -101,6 +101,7 @@ function FamilyBudgetContent() {
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
+  const [dbAccounts, setDbAccounts] = useState([]);
   const [goals, setGoals] = useState(DEFAULT_GOALS);
   const [selectedVaultGoal, setSelectedVaultGoal] = useState("");
   const [vaultWithdrawAmount, setVaultWithdrawAmount] = useState("");
@@ -125,7 +126,11 @@ function FamilyBudgetContent() {
         // 2. Fetch real transactions from production ledger
         const productionLedger = await getProductionLedger({ month: monthKey });
         
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger);
+        // 3. Fetch accounts to enable credit card income exclusion
+        const accounts = await getDatabaseTable("user_accounts");
+        setDbAccounts(accounts || []);
+        
+        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, accounts || []);
         
         setIncomes(normIncs);
         setExpenses(normExps);
@@ -204,7 +209,7 @@ function FamilyBudgetContent() {
 
 
   const metrics = useMemo(() => {
-    const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses);
+    const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses, dbAccounts);
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
       const catExpenses = expenses.filter(e => {
@@ -249,7 +254,7 @@ function FamilyBudgetContent() {
     }).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
-  }, [incomes, expenses, calculateMetrics]);
+  }, [incomes, expenses, dbAccounts, calculateMetrics]);
 
   const sankeyData = useMemo(() => {
     if ((incomes.length === 0 && expenses.length === 0) || metrics.totalIncome === 0) return null;

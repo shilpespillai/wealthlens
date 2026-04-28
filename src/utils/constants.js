@@ -19,6 +19,8 @@ export const CORE_CATEGORY_REGISTRY = [
   { name: "Shopping", type: "expense", iconId: "shopping-bag", color: "pink", aliases: ["shopping", "clothes", "amazon", "electronics", "gifts"] },
   { name: "Gifts & Donations", type: "expense", iconId: "gift", color: "red", aliases: ["charity", "gifts", "donations", "presents"] },
   { name: "Maintenance", type: "expense", iconId: "wrench", color: "grey", aliases: ["repairs", "maintenance", "service", "home improvement"] },
+  { name: "Transfer", type: "expense", iconId: "arrow-right-left", color: "zinc", aliases: ["transfer", "payment", "credit card payment", "bank transfer", "internal transfer"] },
+  { name: "Reimbursement", type: "income", iconId: "refresh-cw", color: "teal", aliases: ["reimbursement", "payback", "refund", "friends payback"] },
   { name: "Uncategorized", type: "expense", iconId: "circle", color: "slate", aliases: ["misc", "other", "uncategorized", "general"] }
 ];
 
