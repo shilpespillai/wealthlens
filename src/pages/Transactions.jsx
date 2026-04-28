@@ -136,9 +136,10 @@ const MOCK_TRANSACTIONS = (() => {
 })();
 
 const SIDEBAR_ITEMS = [
-  { id: "all", label: "All items", icon: List, color: "text-purple-600", bg: "bg-purple-50" },
+  { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-purple-600", bg: "bg-purple-50" },
   { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
@@ -194,7 +195,8 @@ function TransactionsContent() {
     calculateMetrics, 
     normalizeTransactionData,
     getProductionLedger,
-    getDatabaseTable
+    getDatabaseTable,
+    getNormalizedLedger
   } = useFinancialParser();
   const { categories, seedCategories, isLoading: categoriesLoading } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -352,12 +354,10 @@ function TransactionsContent() {
       setDbAccounts(accounts || []);
 
       // 1. Fetch raw transactions directly from the production ledger.
-      //    The Transactions page is a ledger view — it must show each
-      //    individual transaction record, NOT budget-aggregated totals.
-      //    Using normalizeTransactionData here caused every budget income
-      //    item (Salary, Monthly Salary, Salary & Wages) to display the
-      //    same canonical-category aggregate, creating duplicate rows.
       const ledger = await getProductionLedger({ month: monthKey });
+
+      // 2. Use the CENTRALIZED normalization engine (The "Common Place")
+      const { incomes: normIncs, expenses: normExps, transfers: normTrans } = getNormalizedLedger(ledger, accounts || []);
 
       const resolveAccount = (tx) => {
         if (tx.account_id) {
@@ -366,42 +366,29 @@ function TransactionsContent() {
         return tx.account || 'Manual Vault';
       };
 
-      const rawIncs = (ledger || [])
-        .filter(t => {
-          const rawType = (t.type || t.spend_type || "").toLowerCase();
-          const amount = Number(t.amount) || 0;
-          return rawType === 'income' || (rawType !== 'expense' && amount > 0);
-        })
-        .map(t => ({
-          ...t,
-          name:       t.merchant || t.name || t.category || 'Income Item',
-          merchant:   t.merchant || t.name || t.category || 'Income Item',
-          amount:     Math.abs(Number(t.amount) || 0),
-          account_id: t.account_id || null,
-          account:    resolveAccount(t),
-          type:       'income',
-          spendType:  t.spendType || t.spend_type || 'income'
-        }));
+      // 3. Map to UI-friendly structure while preserving classification
+      setIncomes(normIncs.map(t => ({
+        ...t,
+        name:       t.merchant || t.name || t.category || 'Income Item',
+        account:    resolveAccount(t),
+        amount:     Math.abs(Number(t.amount) || 0)
+      })));
 
-      const rawExps = (ledger || [])
-        .filter(t => {
-          const rawType = (t.type || t.spend_type || "").toLowerCase();
-          const amount = Number(t.amount) || 0;
-          return rawType === 'expense' || (rawType !== 'income' && amount < 0);
-        })
-        .map(t => ({
+      setExpenses([
+        ...normExps.map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Expense Item',
-          merchant:   t.merchant || t.name || t.category || 'Expense Item',
-          amount:     Math.abs(Number(t.amount) || 0),
-          account_id: t.account_id || null,
           account:    resolveAccount(t),
-          type:       'expense',
-          spendType:  t.spendType || t.spend_type || 'variable'
-        }));
-
-      setIncomes(rawIncs);
-      setExpenses(rawExps);
+          amount:     Math.abs(Number(t.amount) || 0)
+        })),
+        ...normTrans.map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Transfer Item',
+          account:    resolveAccount(t),
+          amount:     Math.abs(Number(t.amount) || 0),
+          type:       'transfer'
+        }))
+      ]);
 
       // Preserve currency preference from budget if set
       const allBudgets = await getDatabaseTable("budgets");

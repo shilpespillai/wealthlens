@@ -71,6 +71,7 @@ import CashflowsReport from './pages/reports/CashflowsReport';
 import NetWorthReport from './pages/reports/NetWorthReport';
 import TrendsReport from './pages/reports/TrendsReport';
 import DigestReport from './pages/reports/DigestReport';
+import AIReports from './pages/reports/AIReports';
 import PrivacyProtocol from './pages/PrivacyProtocol';
 import SetBudget from './pages/SetBudget';
 import Transactions from './pages/Transactions';
@@ -104,6 +105,7 @@ export const PAGES = {
     "reports/NetWorth": NetWorthReport,
     "reports/Trends": TrendsReport,
     "reports/Digest": DigestReport,
+    "reports/AIReports": AIReports,
     "PrivacyProtocol": PrivacyProtocol,
     "SetBudget": SetBudget,
     "Transactions": Transactions,

@@ -243,6 +243,15 @@ export default function Sidebar() {
                   <span className="text-[10px] font-medium uppercase tracking-widest">Digest</span>
                   {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
                 </Link>
+
+                <Link 
+                  to="/reports/AIReports" 
+                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/AIReports') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isActive('/reports/AIReports') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                  <span className="text-[10px] font-medium uppercase tracking-widest">AI Insights</span>
+                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
+                </Link>
               </div>
             </div>
           </>

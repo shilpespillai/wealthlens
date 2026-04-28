@@ -269,6 +269,8 @@ export default function SetBudget() {
   const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
   const [expectedIncome, setExpectedIncome] = useState(0);
+  const [actualsMap, setActualsMap] = useState({});
+  const [monthTransactions, setMonthTransactions] = useState([]);
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
   const leafCategories = useMemo(() => 
     flattenCategories(CORE_CATEGORY_REGISTRY).filter(c => c.type !== 'income'), 
@@ -314,12 +316,24 @@ export default function SetBudget() {
       );
 
       // Aggregate spent amounts by canonical category name
-      const actualsMap = {};
+      const currentActuals = {};
+      const EXCLUDED_CATEGORIES = ['Transfer', 'Reimbursement', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
+      
       monthTransactions.forEach(tx => {
         const canonical = resolveCanonicalCategory(tx.category);
-        const amount = Math.abs(parseFloat(tx.amount) || 0);
-        actualsMap[canonical.toLowerCase()] = (actualsMap[canonical.toLowerCase()] || 0) + amount;
+        if (EXCLUDED_CATEGORIES.includes(canonical)) return;
+        
+        const rawAmt = parseFloat(tx.amount) || 0;
+        const isExpense = tx.type === 'expense' || (tx.type !== 'income' && rawAmt < 0);
+        
+        if (isExpense) {
+          const amount = Math.abs(rawAmt);
+          currentActuals[canonical.toLowerCase()] = (currentActuals[canonical.toLowerCase()] || 0) + amount;
+        }
       });
+
+      setActualsMap(currentActuals);
+      setMonthTransactions(monthTransactions);
 
       if (saved) {
         if (!isTemplate) setBudgetId(saved.id);
@@ -502,21 +516,39 @@ export default function SetBudget() {
   const flatItems = useMemo(() => flattenCategories(data), [data]);
   
   const totals = useMemo(() => {
-    let expense = 0;
+    let plannedExpense = 0;
+    let actualExpense = 0;
     
     flatItems.forEach(item => {
       const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
-      // Items here are guaranteed to be expenses based on our new system
-      expense += val;
+      plannedExpense += val;
+      
+      const canonical = resolveCanonicalCategory(item.category || item.name);
+      actualExpense += (actualsMap[canonical.toLowerCase()] || 0);
     });
+
+    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
+    // Actually, it's easier to just sum all actuals from monthTransactions that are income
+    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
+    const actualIncome = monthTransactions.reduce((sum, tx) => {
+       const category = resolveCanonicalCategory(tx.category);
+       const EXCLUDED = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment', 'Reimbursement'];
+       if (EXCLUDED.includes(category)) return sum;
+       
+       const rawAmt = Number(tx.amount || 0);
+       const isIncome = tx.type === 'income' || (tx.type !== 'expense' && rawAmt > 0);
+       return isIncome ? sum + Math.abs(rawAmt) : sum;
+    }, 0);
     
     return {
       income: expectedIncome,
-      expense,
-      net: expectedIncome - expense,
-      pieData: [] // can be derived later if needed
+      actualIncome,
+      expense: plannedExpense,
+      actualExpense,
+      net: expectedIncome - plannedExpense,
+      actualNet: actualIncome - actualExpense
     };
-  }, [flatItems, expectedIncome, parseCurrency]);
+  }, [flatItems, expectedIncome, parseCurrency, actualsMap, monthTransactions]);
 
 
   const handleEditItem = (item) => {

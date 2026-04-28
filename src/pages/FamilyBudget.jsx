@@ -51,6 +51,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { resolveCanonicalCategory } from "@/utils/constants";
 
 
 
@@ -90,7 +91,8 @@ function FamilyBudgetContent() {
     syncData, 
     normalizeTransactionData,
     getDatabaseTable,
-    getProductionLedger 
+    getProductionLedger,
+    getNormalizedLedger
   } = useFinancialParser();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -130,7 +132,8 @@ function FamilyBudgetContent() {
         const accounts = await getDatabaseTable("user_accounts");
         setDbAccounts(accounts || []);
         
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, accounts || []);
+        // 4. Use the CENTRALIZED normalization engine (The "Common Place")
+        const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(productionLedger, accounts || []);
         
         setIncomes(normIncs);
         setExpenses(normExps);
@@ -162,6 +165,9 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
+      const canonical = resolveCanonicalCategory(curr.category || curr.name);
+      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      
       const catName = curr.category || "Income";
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'income').toLowerCase();
@@ -171,10 +177,13 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
     return Object.values(groups);
-  }, [incomes]);
+  }, [incomes, resolveCanonicalCategory]);
 
   const aggregatedExpenses = useMemo(() => {
     const groups = expenses.reduce((acc, curr) => {
+      const canonical = resolveCanonicalCategory(curr.category || curr.name);
+      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      
       const catName = curr.category || "Uncategorized";
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'variable').toLowerCase();
@@ -184,7 +193,7 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
     return Object.values(groups);
-  }, [expenses]);
+  }, [expenses, resolveCanonicalCategory]);
 
 
 
@@ -527,16 +536,17 @@ function FamilyBudgetContent() {
   };
 
   const vaultData = useMemo(() => {
-     // Aggregate surplus from the production ledger
-     const surplusNow = allTransactions.reduce((sum, t) => {
-       const amount = Math.abs(t.amount || t.amount || 0);
-       return (t.type === 'income' || t.spendType === 'income') ? sum + amount : sum - amount;
-     }, 0);
+     // 1. Use the CENTRALIZED normalization engine (The "Common Place")
+     const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(allTransactions, dbAccounts);
+
+     const historicalIncome = normIncs.reduce((sum, i) => sum + Math.abs(Number(i.amount || 0)), 0);
+     const historicalExpense = normExps.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0);
+     const surplusNow = historicalIncome - historicalExpense;
      
      const allocated = Number(localStorage.getItem('wealthlens-vault-allocated')) || 0;
      // Base surplus starts with the historical seed (12450) + current ledger delta
      return { remaining: Math.max(0, 12450 + surplusNow - allocated), allocated };
-  }, [allTransactions]);
+  }, [allTransactions, dbAccounts, getNormalizedLedger]);
 
   const handleVaultWithdraw = (goalId, amount) => {
     const withdrawal = Number(amount);
@@ -627,23 +637,23 @@ function FamilyBudgetContent() {
           <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
             <div className="flex items-center justify-between max-w-7xl mx-auto">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalIncome.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INCOME</p>
               </div>
               <div className="text-center w-full px-2 border-l border-white/5">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalExpenses.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SPENT</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category?.toLowerCase() === 'debt').reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.savings.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">LEFT TO SPEND</p>
               </div>
             </div>

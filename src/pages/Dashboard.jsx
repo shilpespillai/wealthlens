@@ -42,6 +42,7 @@ import { subDays, subMonths, startOfWeek, endOfWeek, endOfDay, eachWeekOfInterva
 import { calculatePortfolioHoldings, getPortfolioMetrics } from "@/api/portfolioEngine";
 import { cn } from "@/lib/utils";
 import { robustParseDate } from "@/utils/dateParser";
+import { resolveCanonicalCategory } from "../utils/constants";
 
 
 // Institutional Flattening Engine
@@ -64,6 +65,8 @@ export function DashboardContent() {
     formatAmount, 
     formatCurrencyShort, 
     getProductionLedger,
+    getDatabaseTable,
+    getNormalizedLedger,
     normalizeTransactionData 
   } = useFinancialParser();
   const { isAuthenticated, isLoadingAuth } = useAuth();
@@ -94,7 +97,7 @@ export function DashboardContent() {
 
   const [columns, setColumns] = useState({
     col1: ["accounts", "networth_card"],
-    col2: ["transactions", "recent_activity"],
+    col2: ["transactions", "liquidity_runway"],
     col3: ["bills"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
   });
@@ -310,13 +313,17 @@ export function DashboardContent() {
     };
     
     const focusDate = new Date(periodInfo.focusMonthKey + '-01');
-    return normalizeTransactionData(budgetRow, focusDate, liveData.currentMonthTransactions || []);
-  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, periodInfo.focusMonthKey, normalizeTransactionData]);
+    return normalizeTransactionData(budgetRow, focusDate, liveData.currentMonthTransactions || [], liveData.accounts || []);
+  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, liveData.accounts, periodInfo.focusMonthKey, normalizeTransactionData]);
 
   // Consumption Target summary ALWAYS anchored to the CURRENT MONTH'S PRE-CALCULATED STATE
   const budgetSummary = useMemo(() => {
     // 1. Filter for valid expense budgets from the CURRENT MONTH collection
     const expenseBudgets = normalizedMonthData.expenses || [];
+    
+    // 2. Use the CENTRALIZED normalization engine for the TOTAL spend truth
+    const { expenses: realExpenses } = getNormalizedLedger(liveData.currentMonthTransactions || [], liveData.accounts || []);
+    const totalSpent = realExpenses.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0);
 
     const categories = expenseBudgets.map(b => {
       const catName = b.category || b.name;
@@ -333,16 +340,15 @@ export function DashboardContent() {
     });
 
     const totalAllocated = categories.reduce((sum, c) => sum + c.total, 0);
-    const totalSpent = categories.reduce((sum, c) => sum + c.value, 0);
     const remaining  = Math.max(0, totalAllocated - totalSpent);
 
     return {
       totalAllocated,
       totalSpent,
       remaining,
-      breakdown: [...categories, { name: 'Remaining', value: remaining, isRemaining: true }]
+      breakdown: [...categories.filter(c => c.value > 0), { name: 'Remaining', value: remaining, isRemaining: true }]
     };
-  }, [normalizedMonthData]);
+  }, [normalizedMonthData, liveData.currentMonthTransactions, liveData.accounts, getNormalizedLedger]);
 
   // --- HOLISTIC LOGIC ---
   const { chartData, holisticMetrics } = useMemo(() => {
@@ -383,13 +389,25 @@ export function DashboardContent() {
       });
 
       const actualSpent = periodTx.reduce((sum, t) => {
-        const amt = Math.abs(Number(t.amount || 0));
-        return t.type === 'expense' ? sum + amt : sum;
+        const category = resolveCanonicalCategory(t.category);
+        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
+        
+        const rawAmt = Number(t.amount || 0);
+        const isExpense = t.type === 'expense' || (t.type !== 'income' && rawAmt < 0);
+        return isExpense ? sum + Math.abs(rawAmt) : sum;
       }, 0);
 
       const actualEarned = periodTx.reduce((sum, t) => {
-        const amt = Math.abs(Number(t.amount || 0));
-        return t.type === 'income' ? sum + amt : sum;
+        const category = resolveCanonicalCategory(t.category);
+        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
+        
+        const rawAmt = Number(t.amount || 0);
+        // Exclude Credit Card Payments from income totals (Account-aware filtering)
+        const isCreditCardIncome = t.account_id && accounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
+        if (isCreditCardIncome) return sum;
+
+        const isIncome = t.type === 'income' || (t.type !== 'expense' && rawAmt > 0);
+        return isIncome ? sum + Math.abs(rawAmt) : sum;
       }, 0);
 
       // Scale Budgets into Bucket Interval:
@@ -460,9 +478,12 @@ export function DashboardContent() {
     // Spend & Income logic: Use budgetSummary totals if viewing the Current Month horizon
     const isCurrentMonthHorizon = selectedPeriod === 'This Month';
     
-    // 4. Scoping for Treasury Metrics (Anchor to Today's Month via Normalized Store)
-    const incomeCurrent = (normalizedMonthData.incomes || []).reduce((sum, b) => sum + Number(b.amount || 0), 0);
-    const spendCurrent  = budgetSummary.totalSpent;
+    // 4. Scoping for Treasury Metrics (Dynamic Horizon)
+    // We use the CENTRALIZED normalization engine (The "Common Place")
+    const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(periodTxAll, latestAccounts);
+    
+    const incomeCurrent = normIncs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    const spendCurrent  = normExps.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
     
     const savingsRate  = incomeCurrent > 0 ? ((incomeCurrent - spendCurrent) / incomeCurrent) * 100 : 0;
 
@@ -533,13 +554,42 @@ export function DashboardContent() {
         const currentMonthRow = dbBudgets?.find(b => b.month === currentMonthFocus) || 
                                 (dbBudgets?.length > 0 ? [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0] : null);
         
-        const currentMonthTx = await getProductionLedger({ month: currentMonthFocus });
+        // Fetch ALL transactions for real-time account balance calculation
+        const allTransactions = await base44.db.getTable('transactions') || [];
+        
+        // Inline filter for current month transactions (avoiding undefined helper)
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-indexed
+        
+        const currentMonthTx = allTransactions.filter(tx => {
+          const d = robustParseDate(tx.date || tx.actualDate);
+          return d && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        });
+
+        // Calculate LIVE balances by applying all historical transactions to base_balance
+        const liveAccounts = (dbAccounts || []).map(acc => {
+          const accTx = allTransactions.filter(t => String(t.account_id) === String(acc.id));
+          const delta = accTx.reduce((sum, t) => {
+            const amt = Number(t.amount || 0);
+            const type = (t.type || "").toLowerCase();
+            if (type === 'income') return sum + Math.abs(amt);
+            if (type === 'expense') return sum - Math.abs(amt);
+            return sum + amt;
+          }, 0);
+          
+          return {
+            ...acc,
+            base_balance: (Number(acc.base_balance || 0)) + delta
+          };
+        });
 
         setLiveData(prev => ({
           ...prev,
-          accounts: dbAccounts || [],
+          accounts: liveAccounts,
           portfolio: dbPortfolio || [],
-          currentMonthTransactions: currentMonthTx || [],
+          transactions: allTransactions,
+          currentMonthTransactions: currentMonthTx,
           currentMonthBudgets: extractBudgetData(currentMonthRow?.payload)
         }));
       } catch (err) {
@@ -855,59 +905,105 @@ export function DashboardContent() {
             </div>
           </div>
         );
-    case "recent_activity":
-        const recentTxs = [...liveData.transactions]
-          .sort((a, b) => (robustParseDate(b.date) || 0) - (robustParseDate(a.date) || 0))
-          .slice(0, 8);
+      case "liquidity_runway":
+        const runway = holisticMetrics.cashRunway || 0;
+        const dailyAllowance = (budgets.reduce((sum, b) => b.type !== 'income' ? sum + Number(b.monthly_target || 0) : sum, 0) || 5000) / 30.42;
+        const isHealthy = runway >= 6;
+        const isCritical = runway < 3;
 
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="h-1 bg-indigo-600 w-full" />
-            <div className="p-7">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2 mb-6">
-                <Receipt className="w-3.5 h-3.5 text-indigo-600" />
-                Strategic Activity
-              </h3>
-              
-              <div className="space-y-4">
-                {recentTxs.length > 0 ? recentTxs.map((tx, i) => (
-                  <div key={i} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                        <CategoryIcon category={tx.category} className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-800 leading-none mb-1">{tx.merchant || tx.name || tx.category}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          {format(robustParseDate(tx.date), 'MMM dd')} · {tx.category}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-black tracking-tight ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {tx.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(tx.amount))}
-                    </span>
-                  </div>
-                )) : (
-                  <div className="py-12 flex flex-col items-center justify-center opacity-40">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No recent activity</p>
-                  </div>
-                )}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition-all">
+            <div className={`h-1 w-full ${isHealthy ? 'bg-emerald-500' : isCritical ? 'bg-rose-500' : 'bg-amber-500'}`} />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    Tactical Liquidity
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Reserves & Runway</p>
+                </div>
               </div>
 
-              <Link to="/Transactions" className="block mt-6 pt-6 border-t border-slate-50 text-center text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors">
-                View Full Ledger
-              </Link>
+              <div className="flex flex-col items-center justify-center py-4 mb-8">
+                 <div className="relative">
+                    <svg className="w-32 h-32 transform -rotate-90">
+                       <circle
+                          cx="64"
+                          cy="64"
+                          r="58"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          fill="transparent"
+                          className="text-slate-50"
+                       />
+                       <circle
+                          cx="64"
+                          cy="64"
+                          r="58"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={364.4}
+                          strokeDashoffset={364.4 - (Math.min(runway, 12) / 12) * 364.4}
+                          className={isHealthy ? 'text-emerald-500' : isCritical ? 'text-rose-500' : 'text-amber-500'}
+                       />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                       <p className="text-3xl font-black text-slate-900 tracking-tighter">{runway.toFixed(1)}</p>
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Months</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex justify-between items-end border-b border-slate-50 pb-4">
+                   <div className="space-y-1">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Cash Runway</p>
+                      <p className={`text-xs font-black uppercase ${isHealthy ? 'text-emerald-600' : 'text-amber-600'}`}>
+                         {isHealthy ? 'Fully Funded' : isCritical ? 'Critical Action' : 'Stable'}
+                      </p>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Optimal Outflow</p>
+                      <p className="text-sm font-black text-slate-900 tracking-tight">{formatAmount(dailyAllowance)}<span className="text-[9px] text-slate-400 ml-1 font-bold">/ day</span></p>
+                   </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group-hover:bg-indigo-50 transition-colors">
+                   <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                         <Shield className="w-4 h-4 text-indigo-500" />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-600 leading-tight">
+                         Maintain <span className="text-indigo-600 font-black">6 months</span> of funding to reach "Strategic Safety" status.
+                      </p>
+                   </div>
+                </div>
+              </div>
             </div>
           </div>
         );
       case "bills":
         const upcomingBills = liveData.budgets
           .filter(b => (b.type === 'fixed' || b.spend_type === 'fixed') && Number(b.monthly_target || 0) > 0)
-          .map(b => ({
-            name: b.category || b.name,
-            amount: Number(b.monthly_target || 0),
-            status: "upcoming"
-          }));
+          .map(b => {
+            const catName = b.category || b.name;
+            const canonical = resolveCanonicalCategory(catName);
+            
+            // Find actual spend for this fixed category in normalizedMonthData
+            const actualMatch = (normalizedMonthData.expenses || []).find(e => resolveCanonicalCategory(e.category || e.name) === canonical);
+            const actuallyPaid = Math.abs(Number(actualMatch?.amount || 0));
+            const target = Number(b.monthly_target || 0);
+
+            return {
+              name: catName,
+              target: target,
+              paid: actuallyPaid,
+              isPaid: actuallyPaid >= target,
+              status: actuallyPaid >= target ? "paid" : "upcoming"
+            };
+          });
 
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -931,12 +1027,27 @@ export function DashboardContent() {
                     </div>
                     <div className="space-y-0.5">
                       {upcomingBills.map((b, i) => (
-                        <div key={i} className="flex justify-between p-2.5 text-[11px] items-center hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-100">
+                        <div key={i} className="flex justify-between p-2.5 text-[11px] items-center hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-100 group">
                           <div className="flex items-center gap-3">
-                            <div className="w-1 h-1 rounded-full shrink-0 bg-amber-400 shadow-sm shadow-amber-400/50" />
-                            <span className="font-bold text-slate-700 leading-none">{b.name}</span>
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full shrink-0 shadow-sm transition-all",
+                              b.isPaid ? "bg-emerald-400 shadow-emerald-400/50" : "bg-amber-400 shadow-amber-400/50"
+                            )} />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-700 leading-none mb-0.5">{b.name}</span>
+                              <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">{b.isPaid ? 'Settled' : 'Outstanding'}</span>
+                            </div>
                           </div>
-                          <span className="font-black text-rose-600 tracking-tighter">{formatAmount(b.amount)}</span>
+                          <div className="text-right">
+                            <p className={cn("font-black tracking-tighter leading-none", b.isPaid ? "text-emerald-600" : "text-rose-600")}>
+                              {formatAmount(b.paid)}
+                            </p>
+                            {b.paid < b.target && (
+                              <p className="text-[8px] font-bold text-slate-300 uppercase tracking-tighter mt-0.5">
+                                Target {formatAmount(b.target)}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1097,7 +1208,9 @@ export function DashboardContent() {
 
               <div className="space-y-6">
                 {budgetSummary.breakdown.filter(b => !b.isRemaining).slice(0, 5).map((b, i) => {
-                  const perc = b.total > 0 ? Math.min(100, (b.value / b.total) * 100) : 0;
+                  const actualRatio = b.total > 0 ? (b.value / b.total) : 0;
+                  const perc = Math.min(100, actualRatio * 100);
+                  const isExceeded = actualRatio > 1;
 
                   return (
                     <div key={i} className="space-y-2">
@@ -1110,18 +1223,26 @@ export function DashboardContent() {
                              />
                              <span className="text-slate-800">{b.name}</span>
                           </div>
-                          <span className="text-[9px] text-slate-400 uppercase">{perc > 100 ? 'Budget Exceeded' : 'On Track'}</span>
+                          <span className={cn(
+                            "text-[9px] uppercase tracking-widest font-black",
+                            isExceeded ? "text-rose-600" : "text-emerald-600"
+                          )}>
+                            {isExceeded ? 'Exceeded' : 'On Track'}
+                          </span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${perc}%` }}
                             transition={{ duration: 1, delay: i*0.1 }}
-                            className={`h-full ${perc > 100 ? 'bg-rose-500' : 'bg-purple-600'}`} 
+                            className={cn(
+                              "h-full",
+                              isExceeded ? "bg-rose-500" : "bg-purple-600"
+                            )} 
                           />
                       </div>
                       <div className="flex justify-between text-[10px] font-black tracking-tight text-slate-500">
-                          <span>{b.total > 0 ? perc.toFixed(0) : "0"}% used</span>
+                          <span>{(actualRatio * 100).toFixed(0)}% used</span>
                           <span>{formatAmount(b.value)} / {formatAmount(b.total)}</span>
                       </div>
                     </div>

@@ -83,7 +83,10 @@ export default function BudgetCalendar() {
       setRawTransactions(productionLedger || []);
 
       // Still compute aggregated data if needed for summary purposes
-      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, currentDate, productionLedger, [], { ignoreMonthFilter: true });
+      const accounts = await getDatabaseTable("user_accounts");
+      setDbAccounts(accounts || []);
+
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, currentDate, productionLedger, accounts || [], { ignoreMonthFilter: true });
       setIncomes(normIncs);
       setExpenses(normExps);
 
