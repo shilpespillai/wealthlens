@@ -10,7 +10,11 @@ import {
   Zap, 
   Target,
   ChevronRight,
-  TrendingDown
+  TrendingDown,
+  Flame,
+  ShieldAlert,
+  Activity,
+  Shield
 } from "lucide-react";
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -96,9 +100,9 @@ export function DashboardContent() {
   };
 
   const [columns, setColumns] = useState({
-    col1: ["accounts", "networth_card"],
+    col1: ["accounts", "networth_card", "fire_gauge"],
     col2: ["transactions", "liquidity_runway"],
-    col3: ["bills"],
+    col3: ["bills", "subscription_audit"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
   });
 
@@ -541,12 +545,26 @@ export function DashboardContent() {
         const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
 
         if (vaultLayout?.dashboard_layout) {
-          setColumns(vaultLayout.dashboard_layout);
+          const layout = vaultLayout.dashboard_layout;
+          if (!Object.values(layout).flat().includes("fire_gauge")) {
+            layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
+          }
+          if (!Object.values(layout).flat().includes("subscription_audit")) {
+            layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
+          }
+          setColumns(layout);
         } else if (user?.calc_params) {
           const parsedParams = JSON.parse(user.calc_params);
           setParams(parsedParams);
           if (parsedParams.dashboard_layout) {
-            setColumns(parsedParams.dashboard_layout);
+            const layout = parsedParams.dashboard_layout;
+            if (!Object.values(layout).flat().includes("fire_gauge")) {
+              layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
+            }
+            if (!Object.values(layout).flat().includes("subscription_audit")) {
+              layout.col3 = ["subscription_audit", ...(layout.col3 || [])];
+            }
+            setColumns(layout);
           }
         }
 
@@ -1190,6 +1208,106 @@ export function DashboardContent() {
             </div>
           </div>
         );
+      case "fire_gauge":
+        const fireTarget = (holisticMetrics.avgMonthlySpend * 12) * 25;
+        const fireProgress = fireTarget > 0 ? Math.min(100, (holisticMetrics.netWorth / fireTarget) * 100) : 0;
+        
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-1 bg-indigo-500 w-full" />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+                    <Flame className="w-3.5 h-3.5 text-indigo-500" />
+                    Financial Independence
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">FIRE Goal / 25x Rule</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Freedom Progress</p>
+                    <p className="text-3xl font-black tracking-tighter text-slate-900">{fireProgress.toFixed(1)}%</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Target Core</p>
+                    <p className="text-sm font-black text-indigo-600">{formatAmount(fireTarget)}</p>
+                  </div>
+                </div>
+
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${fireProgress}%` }}
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                  />
+                </div>
+
+                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                  Based on your current burn rate, you need <span className="text-slate-900 font-black">{formatAmount(fireTarget)}</span> in investable assets to become permanently work-optional.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "subscription_audit":
+        const subKeywords = ['netflix', 'spotify', 'amazon prime', 'youtube', 'disney', 'subscription', 'monthly', 'recurring', 'patreon', 'github', 'notion', 'adobe'];
+        const subs = (liveData.transactions || []).filter(t => {
+          const m = (t.merchant || t.name || t.category || "").toLowerCase();
+          return subKeywords.some(k => m.includes(k));
+        }).reduce((acc, t) => {
+          const key = (t.merchant || t.name || t.category);
+          if (!acc[key]) acc[key] = { name: key, amount: 0, count: 0 };
+          acc[key].amount += Math.abs(Number(t.amount || 0));
+          acc[key].count += 1;
+          return acc;
+        }, {});
+        
+        const subList = Object.values(subs).sort((a, b) => b.amount - a.amount).slice(0, 5);
+        const totalSubDrain = subList.reduce((s, a) => s + a.amount, 0);
+
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-1 bg-rose-500 w-full" />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+                    Subscription Governance
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">The Silent Drain</p>
+                </div>
+                <div className="px-2 py-1 bg-rose-50 text-rose-600 text-[9px] font-black rounded uppercase">
+                  {formatAmount(totalSubDrain)} / mo
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {subList.length > 0 ? subList.map((sub, i) => (
+                  <div key={i} className="flex items-center justify-between pb-3 border-b border-slate-50 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 text-rose-500">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-tight">{sub.name}</p>
+                    </div>
+                    <span className="text-xs font-black text-slate-900">{formatAmount(sub.amount)}</span>
+                  </div>
+                )) : (
+                  <div className="py-10 text-center opacity-40 text-[10px] font-black uppercase tracking-widest">
+                    No active subscriptions detected
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
       case "budgets_detailed":
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
