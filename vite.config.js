@@ -51,5 +51,13 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  build: {
+    target: 'esnext'
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext'
+    }
   }
 });

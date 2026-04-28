@@ -540,9 +540,11 @@ export const base44 = {
             .insert(cleanRows)
             .select();
 
-          if (!error) return data || { success: true };
-          console.error(`[base44] Bulk insert failed for ${tableName}:`, error);
-          return { error };
+          if (error) {
+            console.error(`[base44] Bulk insert failed for ${tableName}:`, error);
+            throw new Error(error.message || "Database rejected the insertion");
+          }
+          return data || { success: true };
         }
       }
       // Local fallback
@@ -709,7 +711,50 @@ export const base44 = {
       }
       const key = `wl_table_${tableName}`;
       const rows = await base44.db.getTable(tableName);
-      return base44.user.saveData(key, rows.filter(r => r[column] !== value));
+      const updated = rows.filter(r => r[column] !== value);
+      await base44.user.saveData(key, updated);
+      return { success: true };
+    },
+    
+    // ── deleteByDatePrefix ───────────────────────────────────────────────────
+    // Perform bulk deletions for a specific month (e.g., '2026-04')
+    deleteByDatePrefix: async (tableName, column, monthKey) => {
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      
+      // Calculate date bounds for the month (e.g. 2026-04-01 to 2026-05-01)
+      const [year, month] = monthKey.split('-');
+      const startDate = `${year}-${month}-01`;
+      
+      // Calculate next month for exclusive upper bound
+      let nextMonth = parseInt(month) + 1;
+      let nextYear = parseInt(year);
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear += 1;
+      }
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+      if (isSupabaseEnabled) {
+        const { session } = await base44.db._getSession();
+        if (session?.user) {
+          const { error } = await supabase
+            .from(sqlTable)
+            .delete()
+            .gte(column, startDate)
+            .lt(column, endDate)
+            .eq('user_id', session.user.id);
+            
+          if (!error) return { success: true };
+          console.error(`[base44] DeleteByDatePrefix failed for ${tableName}:`, error);
+          throw new Error(error.message);
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const rows = await base44.db.getTable(tableName);
+      const updated = rows.filter(r => !(r[column] && r[column].startsWith(monthKey)));
+      await base44.user.saveData(key, updated);
+      return { success: true };
     },
     getSummary: async (month) => {
       if (isSupabaseEnabled) {
