@@ -13,6 +13,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { resolveCanonicalCategory } from '@/utils/constants';
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
 const PROMPT_TEMPLATES = [
@@ -115,7 +116,15 @@ export default function AIReports() {
       const payload = {
         metrics,
         expenses: expenses.map(e => ({ cat: e.category || e.name, amt: e.amount, count: e.count })),
-        topTransactions: transactions.sort((a,b) => (b.amount||0) - (a.amount||0)).slice(0, 10)
+        topTransactions: transactions
+          .filter(t => {
+            const cat = resolveCanonicalCategory(t.category);
+            const isTransfer = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(cat);
+            const isDebtInflow = t.account_id && dbAccounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
+            return !isTransfer && !isDebtInflow;
+          })
+          .sort((a,b) => Math.abs(b.amount||0) - Math.abs(a.amount||0))
+          .slice(0, 10)
       };
 
       const prompt = `INSTRUCTION: ${userInstruction}\nDATA: ${JSON.stringify(payload)}`;

@@ -132,7 +132,10 @@ export const useFinancialParser = () => {
       // If we have an account_id, check if it's a debt/credit account
       const isCreditCardIncome = i.account_id && creditCardIds.has(String(i.account_id));
       
-      return !isExcludedCategory && !isCreditCardIncome;
+      const rawAmt = Number(i.amount !== undefined ? i.amount : (i.monthly_target || 0));
+      const isNegativeIncome = rawAmt < 0; // Negative income is an expense correction or error
+
+      return !isExcludedCategory && !isCreditCardIncome && !isNegativeIncome;
     });
 
     const validExpenses = expenses.filter(e => {
@@ -298,9 +301,10 @@ export const useFinancialParser = () => {
       const amount = Number(m.amount) || 0;
       const category = resolveCanonicalCategory(m.category);
       
-      // Strict Income Detection: Exclude transfers and payments
+      // Strict Income Detection: Exclude transfers, payments, and debt account inflows
       const isTransfer = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category);
-      const isIncome = !isTransfer && (m.type === 'income' || (m.type !== 'expense' && amount > 0));
+      const isDebtInflow = m.account_id && accounts.find(a => String(a.id) === String(m.account_id))?.type === 'debt';
+      const isIncome = !isTransfer && !isDebtInflow && (m.type === 'income' || (m.type !== 'expense' && amount > 0));
       return isIncome && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
