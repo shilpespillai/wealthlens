@@ -502,7 +502,7 @@ export function DashboardContent() {
       : 5000;
     
     const avgMonthlySpend = totalMonthlyTarget;
-    const cashRunway = avgMonthlySpend > 0 ? totalLiquidOnly / avgMonthlySpend : 0;
+    const cashRunway = avgMonthlySpend > 0 ? (liveData.cumulativeSurplus || totalLiquidOnly) / avgMonthlySpend : 0;
 
     // Income & Spend scoped to the SELECTED PERIOD (not hardcoded 30 days)
     const periodStart = new Date(periodInfo.startDate);
@@ -1068,9 +1068,9 @@ export function DashboardContent() {
               <div className="space-y-6">
                 <div className="flex justify-between items-end border-b border-slate-50 pb-4">
                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Cash Runway</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Vault Runway</p>
                       <p className={`text-xs font-black uppercase ${isHealthy ? 'text-emerald-600' : 'text-amber-600'}`}>
-                         {isHealthy ? 'Fully Funded' : isCritical ? 'Critical Action' : 'Stable'}
+                         {isHealthy ? 'Vault Secured' : isCritical ? 'Vault Critical' : 'Vault Stable'}
                       </p>
                    </div>
                    <div className="text-right">
