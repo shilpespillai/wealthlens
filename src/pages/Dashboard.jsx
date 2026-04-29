@@ -508,7 +508,8 @@ export function DashboardContent() {
         wealthScore: Math.round(score),
         income30: incomeCurrent,
         spend30: spendCurrent,
-        burnRate: spendCurrent
+        burnRate: spendCurrent,
+        avgMonthlySpend
       }
     };
   }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency]);
@@ -1270,7 +1271,7 @@ export function DashboardContent() {
         const isUnderfunded = useManualTarget && manualTargetVal < budgetDerivedTarget;
         
         // Calculate Time to FIRE
-        const monthlySavings = Math.max(0, (holisticMetrics.incomeCurrent - holisticMetrics.spendCurrent));
+        const monthlySavings = Math.max(0, (holisticMetrics.income30 - holisticMetrics.spend30));
         const currentCapital = holisticMetrics.netWorth;
         const monthlyRate = (fireExpectedReturn / 100) / 12;
         
