@@ -325,37 +325,69 @@ export function DashboardContent() {
 
   // Consumption Target summary ALWAYS anchored to the CURRENT MONTH'S PRE-CALCULATED STATE
   const budgetSummary = useMemo(() => {
-    // 1. Filter for valid expense budgets from the CURRENT MONTH collection
-    const expenseBudgets = normalizedMonthData.expenses || [];
-    
-    // 2. Use the CENTRALIZED normalization engine for the TOTAL spend truth
-    const { expenses: realExpenses } = getNormalizedLedger(liveData.currentMonthTransactions || [], liveData.accounts || []);
-    const totalSpent = realExpenses.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0);
+    const horizonTxs = liveData.transactions || [];
+    const horizonBudgets = liveData.budgets || [];
+    const accounts = liveData.accounts || [];
 
-    const categories = expenseBudgets.map(b => {
-      const catName = b.category || b.name;
-      
-      // Precision extraction from the aligned schema (Live Aggregated)
-      const spentValue = Number(b.amount || 0);
-      const targetValue = Number(b.monthly_target || 0);
-      
-      return { 
-        name: catName, 
-        value: Math.abs(spentValue), 
-        total: Math.abs(targetValue) 
-      };
+    // 1. Calculate Horizon Scale (How many months does this represent?)
+    const horizonDays = periodInfo.daysCutoff;
+    const horizonMonths = horizonDays / 30.42;
+
+    // 2. Aggregate Spent Data by Category
+    const categorySpent = {};
+    const { expenses: normExps } = getNormalizedLedger(horizonTxs, accounts);
+    
+    normExps.forEach(tx => {
+      const cat = resolveCanonicalCategory(tx.category);
+      if (cat === 'Transfer') return;
+      categorySpent[cat] = (categorySpent[cat] || 0) + Math.abs(Number(tx.amount || 0));
     });
 
-    const totalAllocated = categories.reduce((sum, c) => sum + c.total, 0);
-    const remaining  = Math.max(0, totalAllocated - totalSpent);
+    const totalSpent = Object.values(categorySpent).reduce((s, v) => s + v, 0);
+
+    // 3. Aggregate Budget Targets
+    const categoryTargets = {};
+    
+    if (horizonBudgets.length > 1) {
+      // Multiple budgets found in range (e.g. This Year) - Sum them up
+      horizonBudgets.forEach(b => {
+        (b.data || []).forEach(item => {
+          const cat = resolveCanonicalCategory(item.category || item.name);
+          const target = Number(item.monthly_target || 0);
+          categoryTargets[cat] = (categoryTargets[cat] || 0) + target;
+        });
+      });
+    } else if (horizonBudgets.length === 1) {
+      // Single budget found (fallback or single month) - Scale by time
+      const b = horizonBudgets[0];
+      (b.data || []).forEach(item => {
+        const cat = resolveCanonicalCategory(item.category || item.name);
+        const target = Number(item.monthly_target || 0);
+        categoryTargets[cat] = target * horizonMonths;
+      });
+    }
+
+    // 4. Construct Final Breakdown
+    const breakdown = Object.keys(categoryTargets).map(cat => {
+      const spent = categorySpent[cat] || 0;
+      const target = categoryTargets[cat] || 0;
+      return {
+        name: cat,
+        value: spent,
+        total: target
+      };
+    }).sort((a, b) => b.total - a.total);
+
+    const totalAllocated = Object.values(categoryTargets).reduce((s, v) => s + v, 0);
+    const remaining = Math.max(0, totalAllocated - totalSpent);
 
     return {
       totalAllocated,
       totalSpent,
       remaining,
-      breakdown: [...categories.filter(c => c.value > 0), { name: 'Remaining', value: remaining, isRemaining: true }]
+      breakdown: [...breakdown.filter(b => b.value > 0 || b.total > 0), { name: 'Remaining', value: remaining, isRemaining: true }]
     };
-  }, [normalizedMonthData, liveData.currentMonthTransactions, liveData.accounts, getNormalizedLedger]);
+  }, [liveData.budgets, liveData.transactions, liveData.accounts, periodInfo, getNormalizedLedger]);
 
   // --- HOLISTIC LOGIC ---
   const { chartData, holisticMetrics } = useMemo(() => {
@@ -381,7 +413,7 @@ export function DashboardContent() {
     const transactions = liveData.transactions || [];
     const accounts = liveData.accounts || [];
     const portfolio = liveData.portfolio || [];
-    const budgets = liveData.budgets || [];
+    const horizonBudgets = liveData.budgets || [];
 
     const buckets = intervals.map((intStart, idx) => {
       let intEnd;
@@ -428,21 +460,16 @@ export function DashboardContent() {
         bucketFraction = 1; // Monthly portion
       }
       
-      const totalMonthlyBudget = budgets
-        .filter(b => b.type !== 'income' && !(b.children && b.children.length > 0)) // Only leaf nodes
-        .reduce((sum, b) => {
-          const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
-          return sum + val;
-        }, 0);
-      const bucketBudgetTarget = totalMonthlyBudget * bucketFraction;
+      const avgMonthlyExpenseTarget = (horizonBudgets.length > 0)
+        ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
+        : 5000;
+        
+      const bucketBudgetTarget = avgMonthlyExpenseTarget * bucketFraction;
 
-      const totalMonthlyIncomeTarget = budgets
-        .filter(b => b.type === 'income')
-        .reduce((sum, b) => {
-          const val = Number(b.monthly_target || (typeof b.amount === 'string' ? b.amount.replace(/[^0-9.-]/g, '') : 0));
-          return sum + val;
-        }, 0);
-      const bucketIncomeTarget = totalMonthlyIncomeTarget * bucketFraction;
+      const avgMonthlyIncomeTarget = (horizonBudgets.length > 0)
+        ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type === 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
+        : 5000;
+      const bucketIncomeTarget = avgMonthlyIncomeTarget * bucketFraction;
 
       return {
         name: format(idx === 0 ? (intStart < start ? start : intStart) : intStart, formatStr),
@@ -470,7 +497,11 @@ export function DashboardContent() {
       
     const netWorth = latestAccounts.reduce((sum, a) => sum + (Number(a.base_balance || a.balance || 0)), 0) + totalInvested;
 
-    const avgMonthlySpend = budgets.reduce((sum, b) => b.type !== 'income' ? sum + Number(b.monthly_target || 0) : sum, 0) || 5000;
+    const totalMonthlyTarget = (horizonBudgets.length > 0) 
+      ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
+      : 5000;
+    
+    const avgMonthlySpend = totalMonthlyTarget;
     const cashRunway = avgMonthlySpend > 0 ? totalLiquidOnly / avgMonthlySpend : 0;
 
     // Income & Spend scoped to the SELECTED PERIOD (not hardcoded 30 days)
@@ -678,14 +709,21 @@ export function DashboardContent() {
           endDate: periodInfo.endDate 
         }); 
 
-        const dbBudgets = await base44.db.getTable('budgets');
-        const horizonRow = dbBudgets?.find(b => b.month === periodInfo.focusMonthKey) || 
-                           (dbBudgets?.length > 0 ? [...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0] : null);
+        const dbBudgets = await base44.db.getTable('budgets') || [];
+        
+        // Filter for all months that overlap with the current horizon
+        const startMonthStr = format(new Date(periodInfo.startDate), 'yyyy-MM');
+        const endMonthStr = format(new Date(periodInfo.endDate), 'yyyy-MM');
+        
+        const horizonBudgets = dbBudgets.filter(b => b.month >= startMonthStr && b.month <= endMonthStr);
+        
+        // If no budgets found in range, fallback to the most recent one available to provide a baseline
+        let activeBudgets = horizonBudgets.length > 0 ? horizonBudgets : (dbBudgets.length > 0 ? [[...dbBudgets].sort((a, b) => b.month.localeCompare(a.month))[0]] : []);
 
         setLiveData(prev => ({
           ...prev,
           transactions: horizonTx || [],
-          budgets: extractBudgetData(horizonRow?.payload)
+          budgets: activeBudgets.map(b => ({ month: b.month, data: extractBudgetData(b.payload) }))
         }));
       } catch (err) {
         console.error("Horizon synchronization error:", err);
@@ -788,6 +826,9 @@ export function DashboardContent() {
   }
 
   const renderPanel = (panelId) => {
+    const horizonBudgets = liveData.budgets || [];
+    const horizonMonths = periodInfo.daysCutoff / 30.42;
+
     switch (panelId) {
       case "accounts":
         return (
@@ -974,7 +1015,8 @@ export function DashboardContent() {
         );
       case "liquidity_runway":
         const runway = holisticMetrics.cashRunway || 0;
-        const dailyAllowance = (liveData.budgets.reduce((sum, b) => b.type !== 'income' ? sum + Number(b.monthly_target || 0) : sum, 0) || 5000) / 30.42;
+        const avgTarget = (liveData.budgets || []).reduce((sum, b) => sum + (b.data || []).reduce((s, item) => item.type !== 'income' ? s + Number(item.monthly_target || 0) : s, 0), 0) / (liveData.budgets?.length || 1);
+        const dailyAllowance = (avgTarget || 5000) / 30.42;
         const isHealthy = runway >= 6;
         const isCritical = runway < 3;
 
@@ -1052,25 +1094,32 @@ export function DashboardContent() {
           </div>
         );
       case "bills":
-        const upcomingBills = liveData.budgets
+        const upcomingBills = (liveData.budgets || [])
+          .flatMap(b => b.data || [])
           .filter(b => (b.type === 'fixed' || b.spend_type === 'fixed') && Number(b.monthly_target || 0) > 0)
-          .map(b => {
+          .reduce((acc, b) => {
             const catName = b.category || b.name;
             const canonical = resolveCanonicalCategory(catName);
+            const existing = acc.find(item => item.canonical === canonical);
             
-            // Find actual spend for this fixed category in normalizedMonthData
-            const actualMatch = (normalizedMonthData.expenses || []).find(e => resolveCanonicalCategory(e.category || e.name) === canonical);
-            const actuallyPaid = Math.abs(Number(actualMatch?.amount || 0));
             const target = Number(b.monthly_target || 0);
+            const actualMatch = budgetSummary.breakdown.find(e => resolveCanonicalCategory(e.name) === canonical);
+            const actuallyPaid = actualMatch ? actualMatch.value : 0;
 
-            return {
-              name: catName,
-              target: target,
-              paid: actuallyPaid,
-              isPaid: actuallyPaid >= target,
-              status: actuallyPaid >= target ? "paid" : "upcoming"
-            };
-          });
+            if (existing) {
+              existing.target += target;
+              // Paid is already summed in budgetSummary for the whole horizon
+            } else {
+              acc.push({
+                name: catName,
+                canonical,
+                target: target * (horizonBudgets.length > 0 ? 1 : horizonMonths), // Scale if single fallback
+                paid: actuallyPaid,
+                isPaid: actuallyPaid >= (target * (horizonBudgets.length > 0 ? 1 : horizonMonths))
+              });
+            }
+            return acc;
+          }, []);
 
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1082,7 +1131,7 @@ export function DashboardContent() {
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
                     Liabilities & Bills
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(), 'MMMM yyyy')}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedPeriod}</p>
                 </div>
               </div>
 
@@ -1139,7 +1188,7 @@ export function DashboardContent() {
                      <Target className="w-4 h-4 text-purple-600" />
                      Category Targets
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(), 'MMMM yyyy')}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedPeriod}</p>
                 </div>
 
               <div className="h-[240px] w-full mb-8 relative">
@@ -1591,6 +1640,47 @@ export function DashboardContent() {
           </div>
         );
 
+      case "budgets_short":
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="h-1 bg-indigo-600 w-full" />
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-800 flex items-center gap-2">
+                     <Target className="w-4 h-4 text-indigo-600" />
+                     Category Targets
+                  </h3>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedPeriod}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                 {budgetSummary.breakdown.filter(b => !b.isRemaining).slice(0, 4).map((b, i) => {
+                    const ratio = b.total > 0 ? (b.value / b.total) : 0;
+                    return (
+                      <div key={i} className="flex flex-col gap-1.5">
+                         <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">{b.name}</span>
+                            <span className="text-[9px] font-black text-slate-900">{formatAmount(b.value)} <span className="text-slate-400">/ {formatAmount(b.total)}</span></span>
+                         </div>
+                         <div className="w-full h-1 bg-slate-50 rounded-full overflow-hidden">
+                            <div 
+                              className={cn("h-full transition-all", ratio > 1 ? "bg-rose-500" : "bg-indigo-500")} 
+                              style={{ width: `${Math.min(100, ratio * 100)}%` }} 
+                            />
+                         </div>
+                      </div>
+                    );
+                 })}
+                 {budgetSummary.breakdown.length === 0 && (
+                    <div className="py-10 text-center opacity-30 text-[10px] font-black uppercase tracking-widest">No targets defined</div>
+                 )}
+              </div>
+            </div>
+          </div>
+        );
+
       case "budgets_detailed":
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1602,7 +1692,7 @@ export function DashboardContent() {
                      <Target className="w-4 h-4 text-purple-600" />
                      Consumption Targets
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(), 'MMMM yyyy')}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedPeriod}</p>
                 </div>
                 <Link to="/SetBudget" className="text-[9px] font-black uppercase text-purple-600 hover:opacity-70 border-b border-purple-600/20 pb-0.5">Budget Planner</Link>
               </div>
