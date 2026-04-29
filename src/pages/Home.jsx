@@ -18,6 +18,38 @@ import StatsBar from "@/components/home/StatsBar";
 import AssetShowcase from "@/components/home/AssetShowcase";
 import ComparisonTable from "@/components/home/ComparisonTable";
 import FAQ from "@/components/home/FAQ";
+import heroSankey from "@/assets/hero-sankey.png";
+
+const Navbar = () => {
+  const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
+  
+  const handleLogin = async () => {
+    const isActuallyAuthenticated = isAuthenticated && !authLoading;
+    if (!isActuallyAuthenticated) {
+      window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
+      return;
+    }
+    window.location.href = "/Dashboard";
+  };
+
+  return (
+    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-medium text-lg shadow-lg">W</div>
+          <span className="text-sm font-black text-gray-900 tracking-[0.2em] uppercase">WealthLens</span>
+        </div>
+        <Button 
+          onClick={handleLogin}
+          variant="ghost" 
+          className="text-gray-900 font-black uppercase tracking-[0.2em] text-[10px] gap-2 hover:bg-black hover:text-white transition-colors"
+        >
+          Terminal Login <ArrowRight className="w-3 h-3" />
+        </Button>
+      </div>
+    </nav>
+  );
+};
 
 
 const FEATURES = [
@@ -109,7 +141,6 @@ const CustomHeroLink = (props) => {
              C${cpX},${sourceY} 
              ${cpX},${targetY} 
              ${targetX},${targetY}`;
-
   return (
     <path
       d={d}
@@ -122,33 +153,82 @@ const CustomHeroLink = (props) => {
   );
 };
 
-function HeroSankey() {
+function SignatureSankey() {
   return (
-    <div className="w-full h-[650px] relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/20 via-transparent to-emerald-50/20 rounded-full blur-3xl -z-10" />
-      <ResponsiveContainer width="100%" height="100%">
-        <Sankey
-          data={HERO_SANKEY_DATA}
-          node={<CustomHeroNode />}
-          link={<CustomHeroLink />}
-          nodeWidth={8}
-          nodePadding={40}
-          margin={{ top: 20, bottom: 20, left: 10, right: 120 }}
-        >
-          <Tooltip />
-        </Sankey>
-      </ResponsiveContainer>
+    <div className="relative w-full h-[800px] flex items-center justify-center select-none overflow-visible">
+      {/* 1. The High-Fidelity Static Asset */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1 }}
+        className="absolute inset-0 z-0 flex items-center justify-center"
+      >
+        <div className="relative w-full h-full flex items-center justify-center">
+          {/* Edge Blending Mask */}
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-r from-white via-transparent to-white" />
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-b from-white via-transparent to-white" />
+          
+          <img 
+            src={heroSankey} 
+            alt="WealthLens Dashboard" 
+            className="w-full h-full object-contain mix-blend-multiply opacity-95 transition-opacity duration-1000"
+            style={{ 
+              maskImage: 'radial-gradient(circle, black 70%, transparent 98%)',
+              WebkitMaskImage: 'radial-gradient(circle, black 70%, transparent 98%)'
+            }}
+          />
+        </div>
+      </motion.div>
+
+      {/* 2. Transparent Interaction & Particle Layer */}
+      <svg viewBox="0 0 1000 700" className="absolute inset-0 w-full h-full overflow-visible z-10 pointer-events-none">
+        <defs>
+          <filter id="particleGlow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* --- Invisible Paths (Aligned with liquid flows) --- */}
+        <path id="p1" d="M 150 150 Q 300 150, 420 320" fill="none" stroke="transparent" />
+        <path id="p2" d="M 150 550 Q 300 550, 420 420" fill="none" stroke="transparent" />
+        <path id="p3" d="M 436 320 Q 550 150, 850 150" fill="none" stroke="transparent" />
+        <path id="p4" d="M 436 420 Q 550 600, 850 600" fill="none" stroke="transparent" />
+
+        {/* --- LIVE MOTION PARTICLES --- */}
+        <g filter="url(#particleGlow)">
+          <circle r="4" fill="#fff" opacity="0.9">
+            <animateMotion dur="2.8s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#p1"/>
+            </animateMotion>
+          </circle>
+          <circle r="3" fill="#fff" opacity="0.6">
+            <animateMotion dur="3.5s" repeatCount="indefinite" begin="1.2s" rotate="auto">
+              <mpath href="#p2"/>
+            </animateMotion>
+          </circle>
+          <circle r="3" fill="#fff" opacity="0.8">
+            <animateMotion dur="4.2s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#p3"/>
+            </animateMotion>
+          </circle>
+        </g>
+      </svg>
     </div>
   );
+}
+
+function HeroSankey() {
+  return <SignatureSankey />;
 }
 
 export default function Home() {
   const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
   const [price, setPrice] = useState(10);
   const [priceLoading, setPriceLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     async function loadPrice() {
@@ -165,24 +245,13 @@ export default function Home() {
   }, []);
 
   const handleLogin = async () => {
-    // Determine if we are truly authenticated via Supabase session
     const isActuallyAuthenticated = isAuthenticated && !authLoading;
 
     if (!isActuallyAuthenticated) {
-      // Unconditionally go to the login page (the screenshot you attached)
       window.location.href = "/Login?redirect_to=" + encodeURIComponent("/Dashboard");
       return;
     }
-    
-    // If robustly authenticated, proceed to Dashboard
     window.location.href = "/Dashboard";
-  };
-
-  const scrollToPricing = () => {
-    const section = document.getElementById('pricing');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   if (authLoading) {
@@ -193,64 +262,72 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-softPeach relative">
+    <div className="min-h-screen bg-white font-sans selection:bg-black selection:text-white">
       {/* Institutional Public Header */}
-      <nav className="sticky top-0 z-50 bg-softPeach/80 backdrop-blur-md border-b border-gray-200/50 px-8 py-4">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-deepPurple rounded-lg flex items-center justify-center text-white font-medium text-lg shadow-lg">W</div>
-            <span className="text-sm font-serif font-medium text-gray-900 tracking-tight italic">Wealth<span className="text-deepPurple">Lens</span></span>
+            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-medium text-lg shadow-lg">W</div>
+            <span className="text-sm font-black text-gray-900 tracking-[0.2em] uppercase">WealthLens</span>
           </div>
           <Button 
             onClick={handleLogin}
             variant="ghost" 
-            className="text-gray-900 font-bold uppercase tracking-widest text-[10px] gap-2 hover:bg-deepPurple/10 group"
+            className="text-gray-900 font-black uppercase tracking-[0.2em] text-[10px] gap-2 hover:bg-black hover:text-white transition-colors"
           >
-            Terminal Login <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            Terminal Login <ArrowRight className="w-3 h-3" />
           </Button>
         </div>
       </nav>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-left space-y-10"
-          >
-            <h1 className="text-6xl sm:text-8xl font-serif font-black text-gray-900 leading-[1.1] mb-8">
-              Everything in
-              <br />
-              one smart
-              <br />
-              <span className="text-deepPurple italic">dashboard</span>
-            </h1>
+      {/* Hero Section: Liquid Architectural Edition */}
+      <section className="relative pt-32 pb-20 overflow-hidden min-h-[900px]">
+        <div className="absolute inset-0 z-0 opacity-[0.03]" 
+             style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="absolute inset-0 z-0 opacity-[0.05]" 
+             style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '128px 128px' }} />
+
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-16">
             
-            <p className="text-2xl text-gray-600 max-w-xl leading-relaxed font-sans font-medium">
-              Budgeting, Portfolio Tracking, and Family Finance — all in a single, private command center powered by your own AI.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
-              <Button
-                onClick={scrollToPricing}
-                className="w-full sm:w-auto bg-deepPurple hover:opacity-90 text-white font-black px-12 py-5 rounded-full text-xl shadow-2xl hover:scale-105 transition-all">
-                See Plans & Pricing
-              </Button>
-              <span className="text-gray-400 font-bold uppercase tracking-widest text-sm">Secure & Private</span>
+            {/* Left Column: Industrial Typography */}
+            <div className="w-full lg:w-1/2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-black text-white text-[10px] font-black uppercase tracking-[0.3em] mb-10">
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                System Core: Liquid
+              </div>
+              
+              <h1 className="text-6xl md:text-8xl font-black text-black leading-[0.85] tracking-tighter uppercase mb-10">
+                Everything in <br />
+                <span className="text-transparent" style={{ WebkitTextStroke: '1.5px black' }}>one smart</span> <br />
+                dashboard
+              </h1>
+              
+              <p className="text-xl text-slate-500 font-medium leading-relaxed mb-12 max-w-lg border-l-4 border-black/10 pl-8">
+                Budgeting, Portfolio Tracking, and Family Finance — all in a single, private command center powered by your own AI.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-8">
+                <Button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} size="lg" className="bg-black hover:bg-slate-800 text-white px-12 h-16 text-sm font-black uppercase tracking-[0.2em] rounded-none shadow-[10px_10px_0_rgba(0,0,0,0.1)] transition-all hover:translate-x-1 hover:translate-y-1 hover:shadow-none">
+                  See Plans & Pricing
+                </Button>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  Secure & Private Protocol <br />
+                  <span className="text-black">Institutional Precision</span>
+                </div>
+              </div>
             </div>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative"
-          >
-            <HeroSankey />
-          </motion.div>
+            {/* Right Column: Liquid Asset */}
+            <div className="w-full lg:w-1/2 relative h-[800px] flex items-center justify-center">
+              <SignatureSankey />
+            </div>
+          </div>
         </div>
+      </section>
 
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURES.map((feature, idx) => {
             const Icon = feature.icon;
             return (
@@ -259,12 +336,12 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 border border-gray-200 text-center">
+                className="bg-white rounded-2xl p-6 border border-black/5 hover:border-black/20 transition-all text-center shadow-sm">
 
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mx-auto mb-3 shadow-lg`}>
-                <Icon className="w-5 h-5 text-white" />
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mx-auto mb-4 shadow-lg shadow-black/5`}>
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm">{feature.label}</h3>
+                <h3 className="font-black text-black text-sm uppercase tracking-widest">{feature.label}</h3>
               </motion.div>);
           })}
         </div>
