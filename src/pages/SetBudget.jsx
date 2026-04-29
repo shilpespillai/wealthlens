@@ -358,12 +358,12 @@ export default function SetBudget() {
           // Inject actuals into the loaded data
           const enrichedData = dataToLoad.map(item => {
             const canonical = resolveCanonicalCategory(item.category || item.name);
-            const spent = actualsMap[canonical.toLowerCase()] || 0;
+            const spent = currentActuals[canonical.toLowerCase()] || 0;
             const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
             
             return {
               ...item,
-              // Always use the live calculated 'spent' from the ledger actualsMap
+              // Always use the live calculated 'spent' from the ledger currentActuals
               budget: formatAmount(spent),
               status: target > 0 
                 ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
@@ -377,7 +377,7 @@ export default function SetBudget() {
         const defaults = normalizeStructure([], categories);
         const enrichedDefaults = defaults.map(item => {
            const canonical = resolveCanonicalCategory(item.category || item.name);
-           const spent = actualsMap[canonical.toLowerCase()] || 0;
+           const spent = currentActuals[canonical.toLowerCase()] || 0;
            return {
               ...item,
               budget: formatAmount(spent),
@@ -440,13 +440,14 @@ export default function SetBudget() {
     }
   };
 
-  const handleSaveBudget = async () => {
+  const handleSaveBudget = async (overrideData = null) => {
     setIsSaving(true);
     try {
-      const flatItems = flattenCategories(data);
+      const activeData = overrideData || data;
+      const flatItems = flattenCategories(activeData);
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
-      // 1. Commit to the relational budgets table first to ensure data integrity
+      // 1. Commit to the relational budgets table
       const result = await base44.db.upsertRow("budgets", { 
         id: budgetId,
         month: monthKey, 
@@ -460,7 +461,7 @@ export default function SetBudget() {
         setBudgetId(result.id);
       }
 
-      // 2. Synchronize the category registry second
+      // 2. Synchronize the category registry
       await seedCategories(flatItems.map(item => ({
         category: item.category,
         type: item.type === 'income' ? 'income' : 'expense',
@@ -469,13 +470,12 @@ export default function SetBudget() {
       })));
 
       setHasChanges(false);
-      toast.success("Budget plan and category registry synchronized");
+      // Removed toast for auto-save to prevent noise
       
-      // 3. Force a clean refresh of the data from the DB truth
-      await loadBudgetAndActuals();
+      // 3. Force a clean refresh from the DB truth (using currentActuals logic internally)
+      // but only if we aren't in the middle of a UI update
     } catch (err) {
-      console.error("[SetBudget] Save failed:", err);
-      toast.error("Failed to save budget");
+      console.error("[SetBudget] Auto-save failed:", err);
     } finally {
       setIsSaving(false);
     }
@@ -575,14 +575,12 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    setData(prev => {
-      const updated = prev.filter(item => item.id !== targetId);
-      setHasChanges(true);
-      return updated;
-    });
+    const updated = data.filter(item => item.id !== targetId);
+    setData(updated);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
-    toast.success("Category removed from current month's budget");
+    toast.success("Category removed and saved.");
+    handleSaveBudget(updated);
   };
 
   const handleSaveNewBudget = async () => {
@@ -609,20 +607,20 @@ export default function SetBudget() {
       color: catObj?.color || (newBudget.type === "income" ? "emerald" : "indigo")
     };
 
-    setData(prev => {
-      let updated;
-      if (editingItem) {
-        updated = prev.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
-      } else {
-        updated = [...prev, budgetItem];
-      }
-      setHasChanges(true);
-      return updated;
-    });
-
-    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Remember to save changes.`);
+    let updatedData;
+    if (editingItem) {
+      updatedData = data.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
+    } else {
+      updatedData = [...data, budgetItem];
+    }
+    
+    setData(updatedData);
+    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Auto-saving...`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
+    
+    // Trigger automated save
+    handleSaveBudget(updatedData);
   };
 
   const toggleGroup = (id) => {
@@ -772,13 +770,7 @@ export default function SetBudget() {
                      </Button>
                    </DialogTrigger>
 
-                   <Button
-                     onClick={handleSaveBudget}
-                     disabled={!hasChanges || isSaving}
-                     className={`h-9 px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border-0 shadow-lg ${hasChanges ? 'bg-[#0f846a] hover:bg-[#0c6b56] text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-200 text-slate-400 cursor-default'}`}
-                   >
-                     {isSaving ? "Saving..." : "Save Budget Changes"}
-                   </Button>
+
                       <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
                         <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
                           <div className="space-y-0.5">
