@@ -285,6 +285,7 @@ export default function SetBudget() {
   }, [selectedDate]);
 
   const loadBudgetAndActuals = useCallback(async () => {
+    if (isSaving) return;
     try {
       setIsInitialLoading(true);
       
@@ -348,10 +349,7 @@ export default function SetBudget() {
 
         let dataToLoad = [];
         if (saved.payload) {
-          dataToLoad = [
-            ...(saved.payload.visualData || []),
-            ...(saved.payload.expenses || [])
-          ];
+          dataToLoad = saved.payload.visualData || saved.payload.expenses || [];
         }
         
         if (dataToLoad.length > 0) {
@@ -445,22 +443,10 @@ export default function SetBudget() {
   const handleSaveBudget = async () => {
     setIsSaving(true);
     try {
-      // Flatten data for compatibility with simpler views (FamilyBudget Sankey, etc)
       const flatItems = flattenCategories(data);
-      const incomesToSave = flatItems.filter(i => i.type === "income");
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
-      // Institutional Sync: Ensure all categories in the budget are registered in user_categories
-      // This allows the full 16-suite to propagate to the transaction ledger on the first save.
-      await seedCategories(flatItems.map(item => ({
-        category: item.category,
-        type: item.type === 'income' ? 'income' : 'expense',
-        iconId: item.iconId,
-        color: item.color
-      })));
-
-      // Commit to the relational budgets table with the structured payload
-      // EXCLUDES income as budgets are strictly for consumption control (expenses)
+      // 1. Commit to the relational budgets table first to ensure data integrity
       const result = await base44.db.upsertRow("budgets", { 
         id: budgetId,
         month: monthKey, 
@@ -474,8 +460,19 @@ export default function SetBudget() {
         setBudgetId(result.id);
       }
 
+      // 2. Synchronize the category registry second
+      await seedCategories(flatItems.map(item => ({
+        category: item.category,
+        type: item.type === 'income' ? 'income' : 'expense',
+        iconId: item.iconId,
+        color: item.color
+      })));
+
       setHasChanges(false);
       toast.success("Budget plan and category registry synchronized");
+      
+      // 3. Force a clean refresh of the data from the DB truth
+      await loadBudgetAndActuals();
     } catch (err) {
       console.error("[SetBudget] Save failed:", err);
       toast.error("Failed to save budget");
@@ -600,7 +597,7 @@ export default function SetBudget() {
     const newTarget = parseFloat(newBudget.amount) || 0;
     
     const budgetItem = {
-      id: catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`,
+      id: editingItem ? editingItem.id : (catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`),
       category: searchName || (catObj ? catObj.name : "Uncategorized"),
       budget: newBudget.type === "income" ? "$0 earned" : "$0 spent",
       status: newBudget.type === "income" ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
