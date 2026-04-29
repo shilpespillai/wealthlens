@@ -973,7 +973,7 @@ export function DashboardContent() {
         );
       case "liquidity_runway":
         const runway = holisticMetrics.cashRunway || 0;
-        const dailyAllowance = (budgets.reduce((sum, b) => b.type !== 'income' ? sum + Number(b.monthly_target || 0) : sum, 0) || 5000) / 30.42;
+        const dailyAllowance = (liveData.budgets.reduce((sum, b) => b.type !== 'income' ? sum + Number(b.monthly_target || 0) : sum, 0) || 5000) / 30.42;
         const isHealthy = runway >= 6;
         const isCritical = runway < 3;
 
@@ -1292,7 +1292,6 @@ export function DashboardContent() {
         const fireDate = addMonths(new Date(), monthsToFire);
         const fireDateFormatted = format(fireDate, 'MMMM yyyy');
 
-        const [isEditingFire, setIsEditingFire] = useState(false);
 
         const updateFireConfig = async (key, val) => {
           const newConfig = { ...liveData.fireConfig, [key]: val };
