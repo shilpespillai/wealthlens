@@ -593,18 +593,21 @@ export default function SetBudget() {
     }
 
     const newTarget = parseFloat(newBudget.amount) || 0;
+    const spent = actualsMap[searchName.toLowerCase()] || 0;
     
     const budgetItem = {
-      id: editingItem ? editingItem.id : (catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`),
+      id: editingItem ? editingItem.id : (catObj?.id ? `cat-${catObj.id}` : `custom-${Date.now()}`),
       category: searchName || (catObj ? catObj.name : "Uncategorized"),
-      budget: newBudget.type === "income" ? "$0 earned" : "$0 spent",
-      status: newBudget.type === "income" ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
       monthly_target: newTarget,
       amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
-      iconId: catObj?.icon_id || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
+      iconId: catObj?.icon_id || editingItem?.iconId || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
       type: newBudget.type === "income" ? "income" : "item",
-      progress: 0,
-      color: catObj?.color || (newBudget.type === "income" ? "emerald" : "indigo")
+      color: catObj?.color || editingItem?.color || (newBudget.type === "income" ? "emerald" : "indigo"),
+      budget: newBudget.type === "income" ? formatAmount(spent) + " earned" : formatAmount(spent) + " spent",
+      status: newBudget.type === "income" 
+        ? (spent >= newTarget ? "Target Reached" : `${formatAmount(newTarget - spent)} to go`)
+        : (spent > newTarget ? `${formatAmount(spent - newTarget)} over` : `${formatAmount(newTarget - spent)} left`),
+      progress: newTarget > 0 ? Math.min(100, (spent / newTarget) * 100) : 0
     };
 
     let updatedData;
