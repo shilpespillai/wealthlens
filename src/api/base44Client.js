@@ -129,15 +129,39 @@ export const invokeUniversalAI = async (prompt, type, params = {}) => {
     
     // Robust JSON Extraction: Find the outermost braces to ignore LLM decoration or truncation errors
     const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+    const repairJson = (str) => {
+      try {
+        let fixed = str
+          .replace(/,\s*([\]}])/g, '$1') // Trailing commas
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Unquoted keys
+          .replace(/'/g, '"'); // Single to double quotes
+
+        // Handle unterminated strings (trailing open quote)
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) fixed += '"';
+
+        // Handle unclosed braces
+        const openBraces = (fixed.match(/{/g) || []).length;
+        const closeBraces = (fixed.match(/}/g) || []).length;
+        if (openBraces > closeBraces) fixed += '}'.repeat(openBraces - closeBraces);
+
+        return fixed;
+      } catch (e) { return str; }
+    };
+
     const firstBrace = cleanedText.indexOf('{');
     const lastBrace = cleanedText.lastIndexOf('}');
-    
+
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       const jsonCandidate = cleanedText.substring(firstBrace, lastBrace + 1);
       try {
         return JSON.parse(jsonCandidate);
       } catch (parseErr) {
-        console.warn("[Intelligence Hub] Outermost brace parse failed. Attempting narrative repair...");
+        try {
+           return JSON.parse(repairJson(jsonCandidate));
+        } catch (repairErr) {
+           console.warn("[Intelligence Hub] Outermost brace parse failed. Attempting narrative repair...");
+        }
         
         // If it's a report, try a greedy regex to pull out the content between the first "markdownContent": " and the last "
         if (type === 'report') {
@@ -158,7 +182,11 @@ export const invokeUniversalAI = async (prompt, type, params = {}) => {
         return { markdownContent: narrative.replace(/\\n/g, '\n').replace(/\\"/g, '"') };
     }
 
-    return JSON.parse(cleanedText);
+    try {
+      return JSON.parse(repairJson(cleanedText));
+    } catch (e) {
+      return JSON.parse(cleanedText);
+    }
   } catch (err) {
     console.warn("[Bridge Error] Falling back to Heuristics:", err);
     // Auto-Trigger Discovery if it was a 404 (Retired Model)

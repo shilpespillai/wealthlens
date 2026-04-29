@@ -24,7 +24,8 @@ import {
   TrendingUp,
   BookOpen,
   Lock,
-  Crown
+  Crown,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import IntelligenceDialog from "../intelligence/IntelligenceDialog";
@@ -277,6 +278,14 @@ export default function Sidebar() {
               >
                  <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
+              </Link>
+
+              <Link 
+                 to="/DataMaintenance"
+                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-400' : ''}`}
+              >
+                 <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-400' : 'text-gray-600 group-hover:text-gray-400'}`} />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
               </Link>
 
              {!isAdmin && (

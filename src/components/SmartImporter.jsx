@@ -186,19 +186,30 @@ const SmartImporter = ({ accounts, onComplete, onCancel }) => {
       
       if (uncategorizedMerchants.length > 0) {
         setLoadingMessage(`Neural Hub analyzing ${uncategorizedMerchants.length} unknown merchants...`);
-        try {
-          const promptText = `Map these merchants to one of the following canonical categories: Income, Housing, Utilities, Financial, Groceries, Dining & Food, Fuel & Transport, Healthcare, Lifestyle, Insurance, Education, Travel, Shopping, Gifts & Donations, Maintenance, Transfer, Reimbursement. Merchants: ${JSON.stringify(uncategorizedMerchants)}`;
-          const aiResult = await invokeUniversalAI(promptText, 'categorize');
-          
-          if (aiResult && aiResult.categories) {
-            enriched.forEach(item => {
-               if (item.category === "Uncategorized" && aiResult.categories[item.merchant]) {
-                 item.category = resolveCanonicalCategory(aiResult.categories[item.merchant]);
-               }
-            });
+        
+        // Process in batches of 20 to prevent AI response truncation/timeout
+        const batchSize = 20;
+        for (let i = 0; i < uncategorizedMerchants.length; i += batchSize) {
+          const batch = uncategorizedMerchants.slice(i, i + batchSize);
+          try {
+            const promptText = `Map these merchants to one of the following canonical categories: Income, Housing, Utilities, Financial, Groceries, Dining & Food, Fuel & Transport, Healthcare, Lifestyle, Insurance, Education, Travel, Shopping, Gifts & Donations, Maintenance, Transfer, Reimbursement. 
+
+Respond ONLY with a JSON object in this format: { "categories": { "Merchant Name": "Category Name" } }. Do not include any markdown or explanation.
+
+Merchants: ${JSON.stringify(batch)}`;
+            
+            const aiResult = await invokeUniversalAI(promptText, 'categorize');
+            
+            if (aiResult && aiResult.categories) {
+              enriched.forEach(item => {
+                 if (item.category === "Uncategorized" && aiResult.categories[item.merchant]) {
+                   item.category = resolveCanonicalCategory(aiResult.categories[item.merchant]);
+                 }
+              });
+            }
+          } catch (llmErr) {
+            console.warn(`Batch ${i/batchSize + 1} failed:`, llmErr);
           }
-        } catch (llmErr) {
-          console.warn("LLM Categorization fallback triggered:", llmErr);
         }
       }
 
