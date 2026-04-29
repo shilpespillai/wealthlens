@@ -581,6 +581,19 @@ export const base44 = {
     // ── insertRows ──────────────────────────────────────────────────────────
     // Bulk INSERT — for CSV imports, bank syncs, etc.
     insertRows: async (tableName, rows) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const newRows = rows.map((r, idx) => ({ 
+          ...r, 
+          id: r.id || `cat_${Date.now()}_${idx}`, 
+          created_at: new Date().toISOString() 
+        }));
+        const updated = [...current, ...newRows];
+        await base44.user.saveData('wl_categories', updated);
+        return newRows;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();
@@ -681,6 +694,31 @@ export const base44 = {
       return base44.user.saveData(key, newRows);
     },
     upsertRows: async (tableName, rows, options = {}) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const rowMap = new Map(current.map(r => [String(r.id), r]));
+        const nameMap = new Map(current.map(r => [(r.name || "").toLowerCase().trim(), r]));
+
+        rows.forEach(row => {
+          const key = (row.name || "").toLowerCase().trim();
+          const existing = (row.id && rowMap.get(String(row.id))) || nameMap.get(key);
+          
+          if (existing) {
+            const updated = { ...existing, ...row, updated_at: new Date().toISOString() };
+            rowMap.set(String(updated.id), updated);
+          } else {
+            const newId = row.id || `cat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const newRow = { ...row, id: newId, created_at: new Date().toISOString() };
+            rowMap.set(String(newId), newRow);
+          }
+        });
+
+        const updatedList = Array.from(rowMap.values());
+        await base44.user.saveData('wl_categories', updatedList);
+        return updatedList;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();
@@ -757,6 +795,14 @@ export const base44 = {
       return base44.user.saveData(key, rows.filter(r => r.id !== id));
     },
     deleteByFilter: async (tableName, column, value) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const updated = current.filter(r => r[column] !== value);
+        await base44.user.saveData('wl_categories', updated);
+        return { success: true };
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();

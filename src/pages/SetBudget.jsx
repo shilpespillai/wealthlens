@@ -201,60 +201,94 @@ const flattenCategories = (items) => {
 };
 
 // Utility: Normalize structure against the core registry AND user's personal registry
-const normalizeStructure = (savedItems, userCategories = []) => {
-  // 1. Build the baseline from BOTH Core Registry and User's DB Categories
-  // This ensures newly added categories persist across all months even before targets are set.
+const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}, formatAmount) => {
   const finalMap = new Map();
   
-  // A. Start with Core Categories (Filtered for Expenses)
+  // 1. Start with the Core Category Registry (Baseline)
+  // This ensures the user always sees a standard set of categories to start with.
   CORE_CATEGORY_REGISTRY
     .filter(cat => cat.type !== 'income')
     .forEach(cat => {
-      finalMap.set(cat.name.toLowerCase(), {
+      const canonical = resolveCanonicalCategory(cat.name).trim();
+      const key = canonical.toLowerCase();
+      finalMap.set(key, {
+        id: `core-${key}`,
         ...cat,
-        category: cat.name,
+        category: canonical,
         monthly_target: 0,
         amount: "0",
-        budget: "$0 spent",
-        status: "0.00 left"
+        budget: "$0",
+        status: "NO TARGET SET",
+        type: 'item'
       });
     });
 
-  // B. Merge User DB Categories (Override core if exists, or add as new)
-  // This is the key for persistence: it pulls from the 'user_categories' table.
+  // 2. Merge User-Defined Categories
   userCategories
     .filter(cat => cat.type !== 'income')
     .forEach(cat => {
       const name = cat.name || cat.category;
-      const key = name.toLowerCase();
+      const canonical = resolveCanonicalCategory(name).trim();
+      const key = canonical.toLowerCase();
       const existing = finalMap.get(key);
       
       finalMap.set(key, {
-        ...(existing || { id: `cat-${cat.id || Date.now()}` }),
+        ...(existing || { id: `user-${cat.id || Date.now()}` }),
         ...cat,
-        iconId: cat.iconId || cat.icon_id || existing?.iconId || 'circle',
-        category: name,
+        category: canonical,
         monthly_target: existing?.monthly_target || 0,
         amount: existing?.amount || "0",
-        budget: existing?.budget || "$0 spent",
-        status: existing?.status || "0.00 left"
+        budget: existing?.budget || "$0",
+        status: existing?.status || "NO TARGET SET"
       });
     });
 
-  // 2. Overlay specific saved items for THIS month (carrying the targets/actuals)
+  // 3. Overlay Saved Items (The user's defined budget targets)
   savedItems.forEach(s => {
-    const canonicalName = resolveCanonicalCategory(s.category || s.name);
-    const key = canonicalName.toLowerCase();
+    const name = s.category || s.name || "Uncategorized";
+    const canonical = resolveCanonicalCategory(name).trim();
+    const key = canonical.toLowerCase();
+    if (!key) return;
     
     const existing = finalMap.get(key);
-    if (existing) {
-      finalMap.set(key, { ...existing, ...s, category: canonicalName });
-    } else {
-      finalMap.set(key, { ...s, category: s.category || s.name });
+    finalMap.set(key, { 
+      ...(existing || {}),
+      ...s, 
+      category: canonical,
+      id: s.id || (existing?.id) || `saved-${key}`
+    });
+  });
+
+  // 4. Add Active Spending (Ensures visibility of unbudgeted expenses)
+  Object.keys(currentActuals).forEach(rawKey => {
+    const key = rawKey.trim().toLowerCase();
+    const spent = currentActuals[rawKey] || 0;
+    
+    if (spent > 0) {
+      const existing = finalMap.get(key);
+      if (existing) {
+        // Just ensure the budget string reflects the spending
+        existing.budget = formatAmount(spent);
+      } else {
+        const canonical = resolveCanonicalCategory(key).trim();
+        const coreMatch = CORE_CATEGORY_REGISTRY.find(c => c.name.toLowerCase() === canonical.toLowerCase());
+        
+        finalMap.set(key, {
+          id: `auto-${key}`,
+          category: canonical,
+          iconId: coreMatch?.iconId || 'circle',
+          color: coreMatch?.color || 'slate',
+          monthly_target: 0,
+          amount: "0",
+          budget: formatAmount(spent),
+          status: "UNBUDGETED",
+          type: 'item'
+        });
+      }
     }
   });
 
-  return Array.from(finalMap.values());
+  return Array.from(finalMap.values()).sort((a, b) => a.category.localeCompare(b.category));
 };
 
 export default function SetBudget() {
@@ -298,7 +332,9 @@ export default function SetBudget() {
       let isTemplate = false;
 
       if (results && results.length > 0) {
-        saved = results[0];
+        // DATA INTEGRITY: If multiple records exist for the same month, 
+        // always prioritize the most recently updated one.
+        saved = results.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
       } else {
         const allBudgets = await base44.db.getTable("budgets");
         if (allBudgets && allBudgets.length > 0) {
@@ -352,39 +388,64 @@ export default function SetBudget() {
           dataToLoad = saved.payload.visualData || saved.payload.expenses || [];
         }
         
-        if (dataToLoad.length > 0) {
-          dataToLoad = dataToLoad.filter(item => item.type !== 'income');
+        if (dataToLoad.length > 0 || Object.keys(currentActuals).length > 0) {
+          const structuralData = normalizeStructure(
+            dataToLoad.filter(item => item.type !== 'income'), 
+            categories,
+            currentActuals,
+            formatAmount
+          );
           
           // Inject actuals into the loaded data
-          const enrichedData = dataToLoad.map(item => {
-            const canonical = resolveCanonicalCategory(item.category || item.name);
+          const enrichedData = structuralData.map(item => {
+            const canonical = resolveCanonicalCategory(item.category || item.name).trim();
             const spent = currentActuals[canonical.toLowerCase()] || 0;
             const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
             
             return {
               ...item,
-              // Always use the live calculated 'spent' from the ledger currentActuals
+              category: canonical,
               budget: formatAmount(spent),
               status: target > 0 
                 ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
-                : "No target set"
+                : (spent > 0 ? "UNBUDGETED" : "NO TARGET SET")
             };
           });
 
-          setData(normalizeStructure(enrichedData, categories));
+          // Final state-level deduplication
+          const uniqueMap = new Map();
+          enrichedData.forEach(item => {
+             const key = resolveCanonicalCategory(item.category).trim().toLowerCase();
+             const existing = uniqueMap.get(key);
+             if (existing) {
+                const itemTarget = parseFloat(item.monthly_target) || 0;
+                const existingTarget = parseFloat(existing.monthly_target) || 0;
+                if (itemTarget >= existingTarget) uniqueMap.set(key, item);
+             } else {
+                uniqueMap.set(key, item);
+             }
+          });
+
+          const finalArray = Array.from(uniqueMap.values())
+            .sort((a, b) => a.category.localeCompare(b.category));
+
+          setData(finalArray);
         }
       } else {
-        const defaults = normalizeStructure([], categories);
-        const enrichedDefaults = defaults.map(item => {
-           const canonical = resolveCanonicalCategory(item.category || item.name);
+        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount);
+        const enrichedDefaults = structuralData.map(item => {
+           const canonical = resolveCanonicalCategory(item.category || item.name).trim();
            const spent = currentActuals[canonical.toLowerCase()] || 0;
            return {
               ...item,
+              category: canonical,
               budget: formatAmount(spent),
-              status: `${formatAmount(0)} left`
+              status: spent > 0 ? "UNBUDGETED" : "NO TARGET SET"
            };
         });
-        setData(enrichedDefaults);
+        
+        const finalArray = enrichedDefaults.sort((a, b) => a.category.localeCompare(b.category));
+        setData(finalArray);
         setBudgetId(null);
       }
     } catch (err) {
@@ -575,12 +636,23 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    const updated = data.filter(item => item.id !== targetId);
-    setData(updated);
+    const itemToDelete = data.find(i => i.id === targetId);
+    if (!itemToDelete) return;
+    
+    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category).toLowerCase().trim();
+    
+    const updated = data.filter(item => {
+      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
+      // Remove both the specific ID and any canonical duplicates
+      return item.id !== targetId && itemCanonical !== canonicalToDelete;
+    });
+    
+    const sorted = updated.sort((a, b) => a.category.localeCompare(b.category));
+    setData(sorted);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
-    toast.success("Category removed and saved.");
     handleSaveBudget(updated);
+    toast.success(`Removed ${itemToDelete.category} from budget.`);
   };
 
   const handleSaveNewBudget = async () => {
@@ -595,15 +667,17 @@ export default function SetBudget() {
     const newTarget = parseFloat(newBudget.amount) || 0;
     const spent = actualsMap[searchName.toLowerCase()] || 0;
     
+    const canonicalName = resolveCanonicalCategory(searchName || (catObj ? catObj.name : "Uncategorized"));
+    
     const budgetItem = {
       id: editingItem ? editingItem.id : (catObj?.id ? `cat-${catObj.id}` : `custom-${Date.now()}`),
-      category: searchName || (catObj ? catObj.name : "Uncategorized"),
+      category: canonicalName,
       monthly_target: newTarget,
       amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
       iconId: catObj?.icon_id || editingItem?.iconId || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
       type: newBudget.type === "income" ? "income" : "item",
       color: catObj?.color || editingItem?.color || (newBudget.type === "income" ? "emerald" : "indigo"),
-      budget: newBudget.type === "income" ? formatAmount(spent) + " earned" : formatAmount(spent) + " spent",
+      budget: formatAmount(spent),
       status: newBudget.type === "income" 
         ? (spent >= newTarget ? "Target Reached" : `${formatAmount(newTarget - spent)} to go`)
         : (spent > newTarget ? `${formatAmount(spent - newTarget)} over` : `${formatAmount(newTarget - spent)} left`),
@@ -611,13 +685,21 @@ export default function SetBudget() {
     };
 
     let updatedData;
-    if (editingItem) {
-      updatedData = data.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
-    } else {
-      updatedData = [...data, budgetItem];
-    }
+    const targetCanonical = canonicalName.toLowerCase().trim();
     
-    setData(updatedData);
+    // Aggressively purge any existing entries (by ID or by Canonical Name) 
+    // to ensure this save results in exactly ONE canonical entry.
+    const filteredData = data.filter(item => {
+      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
+      const isEditingThis = editingItem && item.id === editingItem.id;
+      const isSameCategory = itemCanonical === targetCanonical;
+      return !isEditingThis && !isSameCategory;
+    });
+
+    updatedData = [...filteredData, budgetItem];
+
+    const sorted = updatedData.sort((a, b) => a.category.localeCompare(b.category));
+    setData(sorted);
     toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Auto-saving...`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
