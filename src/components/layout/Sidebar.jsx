@@ -30,6 +30,8 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import IntelligenceDialog from "../intelligence/IntelligenceDialog";
 import SupportDialog from "../intelligence/SupportDialog";
+import { toast } from "sonner";
+import { base44 } from "@/api/base44Client";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -200,59 +202,32 @@ export default function Sidebar() {
             <div className="pt-8">
               <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence Reports</p>
               <div className="space-y-1">
-                <Link 
-                  to="/reports/IncomeExpense" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/IncomeExpense') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <BarChart3 className={`w-3.5 h-3.5 ${isActive('/reports/IncomeExpense') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Income & Expense</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
-
-                <Link 
-                  to="/reports/Cashflows" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/Cashflows') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <ArrowRightLeft className={`w-3.5 h-3.5 ${isActive('/reports/Cashflows') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Cashflows</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
-
-                <Link 
-                  to="/reports/NetWorth" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/NetWorth') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <Building2 className={`w-3.5 h-3.5 ${isActive('/reports/NetWorth') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Net Worth</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
-
-                <Link 
-                  to="/reports/Trends" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/Trends') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <TrendsIcon className={`w-3.5 h-3.5 ${isActive('/reports/Trends') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Trends</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
-
-                <Link 
-                  to="/reports/Digest" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/Digest') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <FileText className={`w-3.5 h-3.5 ${isActive('/reports/Digest') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Digest</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
-
-                <Link 
-                  to="/reports/AIReports" 
-                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('/reports/AIReports') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  <Sparkles className={`w-3.5 h-3.5 ${isActive('/reports/AIReports') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">AI Insights</span>
-                  {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                </Link>
+                {[
+                  { to: "/reports/IncomeExpense", icon: BarChart3, label: "Income & Expense" },
+                  { to: "/reports/Cashflows", icon: ArrowRightLeft, label: "Cashflows" },
+                  { to: "/reports/NetWorth", icon: Building2, label: "Net Worth" },
+                  { to: "/reports/Trends", icon: TrendsIcon, label: "Trends" },
+                  { to: "/reports/Digest", icon: FileText, label: "Digest" },
+                  { to: "/reports/AIReports", icon: Sparkles, label: "AI Insights" },
+                ].map((item) => (
+                  <Link 
+                    key={item.to}
+                    to={isPaidUser ? item.to : "#"} 
+                    onClick={(e) => {
+                      if (!isPaidUser) {
+                        e.preventDefault();
+                        toast.error("Pro Feature", {
+                          description: "This advanced reporting module is reserved for Pro members."
+                        });
+                      }
+                    }}
+                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive(item.to) ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    <item.icon className={`w-3.5 h-3.5 ${isActive(item.to) ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                    <span className="text-[10px] font-medium uppercase tracking-widest">{item.label}</span>
+                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
+                  </Link>
+                ))}
               </div>
             </div>
           </>
@@ -291,11 +266,20 @@ export default function Sidebar() {
              {!isAdmin && (
                <>
                  <div 
-                    onClick={() => setIntelOpen(true)}
+                    onClick={() => {
+                       if (isPaidUser) {
+                         setIntelOpen(true);
+                       } else {
+                         toast.error("Pro Feature", {
+                           description: "Configuring the AI Brain is reserved for Pro members."
+                         });
+                       }
+                    }}
                     className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
                  >
                     <Sparkles className="w-4 h-4 text-gray-600 group-hover:text-indigo-400" />
                     <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
+                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
                  </div>
 
                  <div 
@@ -345,6 +329,41 @@ export default function Sidebar() {
             <p className="text-[9px] text-[#C5A059] uppercase tracking-tighter">
               {isAdmin ? 'System Admin' : (isPaidUser ? 'Pro Member' : 'Member')}
             </p>
+            {!isPaidUser && !isAdmin && (
+              <button 
+                onClick={async () => {
+                  try {
+                    const u = user;
+                    if (!u?.id || !u?.email) {
+                      toast.error("Session Incomplete", { description: "Please log out and back in to refresh your account data." });
+                      return;
+                    }
+
+                    const price = await base44.app.getPrice() || 10;
+                    const response = await base44.functions.invoke('stripeCheckout', {
+                      userId: u.id,
+                      priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
+                      email: u.email.trim(),
+                      amount: price,
+                      successUrl: window.location.origin + "/Dashboard",
+                      cancelUrl: window.location.origin + "/Dashboard"
+                    });
+                    if (response.data?.url) {
+                      window.location.href = response.data.url;
+                    } else {
+                      const msg = response.error || "The server could not initialize your payment session.";
+                      toast.error("Checkout failed", { description: msg });
+                    }
+                  } catch (err) {
+                    toast.error("Checkout error", { description: "Payment gateway unavailable. Please try again later." });
+                    console.error("Checkout Error:", err);
+                  }
+                }}
+                className="text-[8px] font-black text-amber-400 hover:text-white uppercase tracking-[0.2em] mt-1 block animate-pulse hover:animate-none text-left"
+              >
+                Upgrade to PRO
+              </button>
+            )}
           </div>
         </div>
       </div>

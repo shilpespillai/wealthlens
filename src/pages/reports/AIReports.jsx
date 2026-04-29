@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44, invokeUniversalAI } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { 
   Sparkles, Download, Loader2, BarChart3, TrendingUp, AlertCircle, Bot, FileText, PieChart
 } from "lucide-react";
@@ -45,6 +46,7 @@ const PROMPT_TEMPLATES = [
 
 export default function AIReports() {
   const { getProductionLedger, normalizeTransactionData, getDatabaseTable, calculateMetrics } = useFinancialParser();
+  const { isPaidUser, loading: authLoading } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currency, setCurrency] = useState("USD");
   const [isLoading, setIsLoading] = useState(false);
@@ -70,6 +72,7 @@ export default function AIReports() {
 
   useEffect(() => {
     async function initData() {
+      if (!isPaidUser) return;
       setIsLoading(true);
       try {
         const allBudgets = await getDatabaseTable("budgets");
@@ -91,7 +94,7 @@ export default function AIReports() {
       }
     }
     initData();
-  }, [monthKey, selectedDate]);
+  }, [monthKey, selectedDate, isPaidUser]);
 
   const changeMonth = (offset) => {
     const next = new Date(selectedDate);
@@ -101,6 +104,7 @@ export default function AIReports() {
   };
 
   const handleGenerateReport = async () => {
+    if (!isPaidUser) return;
     if (transactions.length === 0) {
       toast.error("No transactions found for this month to analyze.");
       return;
@@ -238,6 +242,30 @@ export default function AIReports() {
   }, [selectedPrompt]);
 
   const sym = getCurrencySymbol(currency);
+
+  if (authLoading) return null;
+
+  if (!isPaidUser) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-amber-50 flex items-center justify-center border border-amber-100 mb-8 shadow-sm">
+          <Crown className="w-10 h-10 text-amber-500 fill-amber-500/10" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Pro Member Required</h2>
+        <p className="text-slate-500 mt-4 max-w-md leading-relaxed font-medium">
+          Advanced AI Intelligence Reports and the specialized analysis frameworks are exclusive features for our Pro members.
+        </p>
+        <div className="mt-8 flex gap-4">
+           <button 
+             onClick={() => window.location.href = '/'}
+             className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-xl hover:scale-105 transition-all"
+           >
+             Upgrade to Pro
+           </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">

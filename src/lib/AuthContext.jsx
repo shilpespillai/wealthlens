@@ -21,21 +21,9 @@ export const AuthProvider = ({ children }) => {
     // 1. FAST PATH: Check user_metadata first (Instant, zero DB query)
     let dbIsPremium = !!supabaseUser.user_metadata?.is_premium;
     
-    // 2. FALLBACK: Check public users table for legacy users who haven't migrated to metadata yet
-    if (!dbIsPremium) {
-      try {
-        const { data: dbUser } = await supabase
-          .from('users')
-          .select('is_premium')
-          .or(`id.eq.${supabaseUser.id},email.eq.${supabaseUser.email}`)
-          .maybeSingle();
-        dbIsPremium = !!dbUser?.is_premium;
-      } catch (e) {
-        console.warn("Premium legacy fallback check failed:", e);
-      }
-    }
-
-    return {
+    // 2. Metadata is the single source of truth for premium status
+    // Legacy relational table checks are removed to prevent 404 console noise
+    const mapped = {
       id: supabaseUser.id,
       email: supabaseUser.email,
       full_name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
@@ -46,6 +34,8 @@ export const AuthProvider = ({ children }) => {
       stripe_customer_id: supabaseUser.user_metadata?.stripe_customer_id,
       ...supabaseUser.user_metadata,
     };
+
+    return mapped;
   }, []);
 
   const checkAppState = React.useCallback(async () => {

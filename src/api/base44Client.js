@@ -400,13 +400,28 @@ export const base44 = {
             body: JSON.stringify(params)
           }).catch(() => ({ status: 404 }));
 
-          if (resp && resp.status !== 404) {
+          // If we got a real error from the server (500)
+          if (resp && resp.status >= 500) {
+            const errText = await resp.text().catch(() => "Internal Server Error");
+            
+            // SPECIAL CASE: On localhost, if the proxy target (port 3000) is down, Vite returns 500.
+            // We want to fallback to mock in this case so development isn't blocked.
+            if (window.location.hostname === 'localhost' && (errText.includes("Proxy error") || errText.includes("ECONNREFUSED"))) {
+              console.warn("[base44] Backend server offline. Falling back to Mock Checkout.");
+            } else {
+              return { error: `Payment Engine Crash: ${errText}` };
+            }
+          }
+
+          if (resp && resp.status !== 404 && resp.status < 500) {
              const data = await resp.json();
              if (data?.url || data?.sessionId) return { data };
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn("[base44] Stripe bridge exception:", e);
+        }
         
-        // Final Local Fallback
+        // Mock Fallback for 404 or Localhost Proxy Errors
         return { 
           data: { 
             url: params.successUrl || (window.location.origin + '/?upgraded=true'),
