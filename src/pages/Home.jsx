@@ -219,15 +219,15 @@ export default function Home() {
             className="text-left space-y-10"
           >
             <h1 className="text-6xl sm:text-8xl font-serif font-black text-gray-900 leading-[1.1] mb-8">
-              Master your
+              Everything in
               <br />
-              financial
+              one smart
               <br />
-              <span className="text-deepPurple italic">future</span>
+              <span className="text-deepPurple italic">dashboard</span>
             </h1>
             
             <p className="text-2xl text-gray-600 max-w-xl leading-relaxed font-sans font-medium">
-              WealthLens provides the clarity and intelligence you need to build lasting wealth. From detailed cashflow analysis to AI-driven investment strategies.
+              Budgeting, Portfolio Tracking, and Family Finance — all in a single, private command center powered by your own AI.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
@@ -327,31 +327,58 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
             {[
               {
-                icon: "🔑",
-                title: "Your Keys",
-                body: "Connect your own OpenAI, Supabase, or any API key. You control the intelligence engine — we just build the cockpit.",
-                accent: "from-violet-50 to-white",
-                border: "border-violet-200",
-                tag: "Bring Your Own API",
-                tagColor: "text-violet-600",
+                icon: "💰",
+                title: "Budgeting Made Simple",
+                body: "Track income, bills, subscriptions, groceries and spending habits with institutional-grade precision.",
+                accent: "from-emerald-50 to-white",
+                border: "border-emerald-200",
+                tag: "Cashflow Mastery",
+                tagColor: "text-emerald-600",
               },
               {
-                icon: "🏦",
-                title: "Your Data",
-                body: "Every transaction, every report, every insight lives in your own database. We never see your financial data. Ever.",
+                icon: "📈",
+                title: "Portfolio Tracking",
+                body: "Monitor stocks, ETFs, crypto, property and total net worth in a single unified command center.",
+                accent: "from-blue-50 to-white",
+                border: "border-blue-200",
+                tag: "Wealth Monitoring",
+                tagColor: "text-blue-600",
+              },
+              {
+                icon: "👨‍👩‍👧‍👦",
+                title: "Family Finance Mode",
+                body: "Manage shared expenses, household goals and family budgets without the friction.",
+                accent: "from-amber-50 to-white",
+                border: "border-amber-200",
+                tag: "Household Sync",
+                tagColor: "text-amber-600",
+              },
+              {
+                icon: "📊",
+                title: "Powerful Reports",
+                body: "See monthly trends, spending leaks, growth charts and forecasts powered by live ledger data.",
                 accent: "from-indigo-50 to-white",
                 border: "border-indigo-200",
-                tag: "Zero Data Harvesting",
+                tag: "Data Intelligence",
                 tagColor: "text-indigo-600",
               },
               {
-                icon: "⚡",
-                title: "One Price",
-                body: "Pay once, use forever. No renewal reminders. No feature paywalls that reset. No surprise price hikes.",
-                accent: "from-cyan-50 to-white",
-                border: "border-cyan-200",
-                tag: "Lifetime Access",
-                tagColor: "text-cyan-600",
+                icon: "🤖",
+                title: "AI Insights",
+                body: "Connect your own OpenAI or Google API key for advanced financial analysis and automated coaching.",
+                accent: "from-purple-50 to-white",
+                border: "border-purple-200",
+                tag: "Cognitive Finance",
+                tagColor: "text-purple-600",
+              },
+              {
+                icon: "🔒",
+                title: "Private & In Control",
+                body: "Your data never leaves your infrastructure. You own the keys, you own the data, you own the future.",
+                accent: "from-slate-50 to-white",
+                border: "border-slate-200",
+                tag: "Privacy Protocol",
+                tagColor: "text-slate-600",
               },
             ].map((card, i) => (
               <motion.div
@@ -360,7 +387,7 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 * i }}
-                className={`bg-gradient-to-b ${card.accent} border ${card.border} rounded-3xl p-8 flex flex-col gap-4`}
+                className={`bg-gradient-to-b ${card.accent} border ${card.border} rounded-3xl p-8 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all`}
               >
                 <div className="text-4xl">{card.icon}</div>
                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${card.tagColor}`}>{card.tag}</span>
