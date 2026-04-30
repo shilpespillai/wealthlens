@@ -1295,11 +1295,11 @@ export function DashboardContent() {
               </div>
                <div className="space-y-4 pt-8 border-t border-slate-50">
                 <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest">
-                   <span className="text-slate-400">Total Inflow</span>
+                   <span className="text-slate-400">Horizon Inflow</span>
                    <span className="text-emerald-600 font-black">{formatAmount(holisticMetrics.income30)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest">
-                   <span className="text-slate-400">Total Outflow</span>
+                   <span className="text-slate-400">Horizon Outflow</span>
                    <span className="text-red-500 font-black">({formatAmount(holisticMetrics.spend30)})</span>
                 </div>
               </div>
@@ -1456,8 +1456,8 @@ export function DashboardContent() {
                       <p className="text-xs font-black text-slate-900 tracking-tight">{formatAmount(fireTarget)}</p>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Savings Velocity</p>
-                      <p className="text-xs font-black text-emerald-600 tracking-tight">{formatAmount(monthlySavings)}<span className="text-[10px] text-slate-400 font-medium">/mo</span></p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Horizon Velocity</p>
+                      <p className="text-xs font-black text-emerald-600 tracking-tight">{formatAmount(monthlySavings)}<span className="text-[10px] text-slate-400 font-medium"> Total</span></p>
                     </div>
                   </div>
                 )}
@@ -1495,7 +1495,7 @@ export function DashboardContent() {
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">The Silent Drain</p>
                 </div>
                 <div className="px-2 py-1 bg-rose-50 text-rose-600 text-[9px] font-black rounded uppercase">
-                  {formatAmount(totalSubDrain)} / mo
+                  {formatAmount(totalSubDrain)} Total
                 </div>
               </div>
 
