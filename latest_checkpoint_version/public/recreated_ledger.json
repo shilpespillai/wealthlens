@@ -1,0 +1,1142 @@
+[
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-01",
+    "merchant": "Skyline Apartments",
+    "amount": -2343.01,
+    "category": "Rent",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_ndwprwzsm"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-01",
+    "merchant": "Cineplex",
+    "amount": -33.46,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_wq57qwgy8"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-04",
+    "merchant": "Whole Foods",
+    "amount": -115.32,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_rnapd1v2a"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-08",
+    "merchant": "The Coffee Club",
+    "amount": -27.36,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_fdxs5pebw"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-09",
+    "merchant": "Global Mutual Health",
+    "amount": -180,
+    "category": "Health Insurance",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_zu9zi465a"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-10",
+    "merchant": "City Power",
+    "amount": -83.9,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_jcb6u5tdz"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-10",
+    "merchant": "Cineplex",
+    "amount": -33.15,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_0ixacqu6e"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-11",
+    "merchant": "Whole Foods",
+    "amount": -72.47,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_1957w3y0a"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-11",
+    "merchant": "Auto Finance Repayment",
+    "amount": -450,
+    "category": "Repay Car Loan",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_6gy7xtrgu"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-12",
+    "merchant": "Credit Card Repayment",
+    "amount": -419.86,
+    "category": "Repay Credit Card",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_hgrnk4tqe"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-13",
+    "merchant": "The Coffee Club",
+    "amount": -40.07,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_5ylj6exga"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-14",
+    "merchant": "7-Eleven",
+    "amount": -82.83,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_pcxgtxz9j"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-15",
+    "merchant": "Monthly Salary",
+    "amount": 6026.13,
+    "category": "Salary and Wages",
+    "type": "income",
+    "spend_type": "income",
+    "id": "seed_yuyywrbt6"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-16",
+    "merchant": "Italian Bistro",
+    "amount": -25.47,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_428fmnjgd"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-16",
+    "merchant": "Shell",
+    "amount": -68.25,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_9do9x59el"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-17",
+    "merchant": "Fiber Internet",
+    "amount": -104.71,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_b8x0aiuhk"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-17",
+    "merchant": "Woolworths",
+    "amount": -79.18,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_z59g9eo7q"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-17",
+    "merchant": "Gala Event",
+    "amount": -96.93,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_yd243fymk"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-18",
+    "merchant": "Water Works",
+    "amount": -111.58,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_zyujwmuex"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-19",
+    "merchant": "The Coffee Club",
+    "amount": -49.7,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_6cg0ydjcv"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-19",
+    "merchant": "Sushi Central",
+    "amount": -27.88,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_z53b1ym2y"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-21",
+    "merchant": "Whole Foods",
+    "amount": -171.1,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_gpudgih10"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-21",
+    "merchant": "Spotify",
+    "amount": -38.76,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_5x7wzy5p7"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-21",
+    "merchant": "7-Eleven",
+    "amount": -57.56,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_7ewy8lxsj"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-21",
+    "merchant": "Nightscape Bar",
+    "amount": -79.94,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_r747kswxw"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-24",
+    "merchant": "City Pharmacy",
+    "amount": -67.67,
+    "category": "Healthcare",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_yz66dl0yq"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-24",
+    "merchant": "Pub & Grill",
+    "amount": -105.73,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_ri808cbme"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-24",
+    "merchant": "Gala Event",
+    "amount": -76.06,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_6kuqmsl22"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-27",
+    "merchant": "7-Eleven",
+    "amount": -55.73,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_zp0fcn5vc"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-28",
+    "merchant": "Whole Foods",
+    "amount": -49.15,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_bzwpu6gn0"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-01-29",
+    "merchant": "Whole Foods",
+    "amount": -63.38,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_50d55iwh5"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-01",
+    "merchant": "Skyline Apartments",
+    "amount": -2422.75,
+    "category": "Rent",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_3qc81w9mx"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-01",
+    "merchant": "Caltex",
+    "amount": -53.71,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_nv2lfy6wh"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-02",
+    "merchant": "Shell",
+    "amount": -56.6,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_2ncuig0pj"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-03",
+    "merchant": "Shell",
+    "amount": -53.62,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_lx2g88hzl"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-04",
+    "merchant": "Cineplex",
+    "amount": -13.62,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_cln89os6x"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-05",
+    "merchant": "City Power",
+    "amount": -149.96,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_zty0e9fr1"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-05",
+    "merchant": "City Pharmacy",
+    "amount": -116.47,
+    "category": "Healthcare",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_j2eproc6j"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-06",
+    "merchant": "Sushi Central",
+    "amount": -22.38,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_vwjj6fpw5"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-06",
+    "merchant": "The Coffee Club",
+    "amount": -35.1,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_75y54a9jo"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-08",
+    "merchant": "Fiber Internet",
+    "amount": -130.39,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_ok0ea6rba"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-08",
+    "merchant": "Whole Foods",
+    "amount": -137.85,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_1sy3g4q71"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-15",
+    "merchant": "Monthly Salary",
+    "amount": 6583.16,
+    "category": "Salary and Wages",
+    "type": "income",
+    "spend_type": "income",
+    "id": "seed_b09o7z7di"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-16",
+    "merchant": "Coles",
+    "amount": -85.4,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_bit55jls0"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-16",
+    "merchant": "Auto Finance Repayment",
+    "amount": -450,
+    "category": "Repay Car Loan",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_n83tb01z8"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-18",
+    "merchant": "Woolworths",
+    "amount": -68.8,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_7zjbuyzlt"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-18",
+    "merchant": "The Coffee Club",
+    "amount": -31.7,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_excx9lcg4"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-18",
+    "merchant": "Caltex",
+    "amount": -45.99,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_jxujo9cwh"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-20",
+    "merchant": "Gala Event",
+    "amount": -71.81,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_77tgclbzt"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-20",
+    "merchant": "Gala Event",
+    "amount": -98.06,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_kya4dxxvx"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-21",
+    "merchant": "Global Mutual Health",
+    "amount": -180,
+    "category": "Health Insurance",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_a47kjv5xp"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-21",
+    "merchant": "Nightscape Bar",
+    "amount": -115.24,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_f96cp2jng"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-22",
+    "merchant": "Fiber Internet",
+    "amount": -107.96,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_vyo6iy4wi"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-22",
+    "merchant": "Whole Foods",
+    "amount": -111.29,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_vhv29ge2l"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-22",
+    "merchant": "Coles",
+    "amount": -76.04,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_snwijzxh1"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-23",
+    "merchant": "Cineplex",
+    "amount": -14.41,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_ndvtqtrw6"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-23",
+    "merchant": "Nightscape Bar",
+    "amount": -112.84,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_2ys0z441z"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-26",
+    "merchant": "The Coffee Club",
+    "amount": -33.75,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_967k9lsgu"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-26",
+    "merchant": "Netflix",
+    "amount": -31.66,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_evobgkqqm"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-27",
+    "merchant": "Woolworths",
+    "amount": -138.09,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_pxqks8vu2"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-27",
+    "merchant": "Sushi Central",
+    "amount": -19.34,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_d2qde5zpq"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-02-27",
+    "merchant": "Credit Card Repayment",
+    "amount": -450.35,
+    "category": "Repay Credit Card",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_jkiu3x196"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-01",
+    "merchant": "Skyline Apartments",
+    "amount": -2412.41,
+    "category": "Rent",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_0k894vkg3"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-02",
+    "merchant": "Water Works",
+    "amount": -101.86,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_10url0cub"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-02",
+    "merchant": "Woolworths",
+    "amount": -179.6,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_nwfabsmg2"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-03",
+    "merchant": "Coles",
+    "amount": -55.67,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_ik4w4y3y3"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-04",
+    "merchant": "Pub & Grill",
+    "amount": -53.75,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_ac4105k69"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-05",
+    "merchant": "Cineplex",
+    "amount": -15.2,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_rbena32kg"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-07",
+    "merchant": "Auto Finance Repayment",
+    "amount": -450,
+    "category": "Repay Car Loan",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_s3hl6ije3"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-08",
+    "merchant": "Woolworths",
+    "amount": -79.07,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_u3u3ft58f"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-10",
+    "merchant": "Whole Foods",
+    "amount": -99.79,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_u9o0r3tfc"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-10",
+    "merchant": "Credit Card Repayment",
+    "amount": -499.11,
+    "category": "Repay Credit Card",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_30k6pa1j2"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-11",
+    "merchant": "Italian Bistro",
+    "amount": -27.82,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_4234b9j88"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-11",
+    "merchant": "General Clinic",
+    "amount": -71.97,
+    "category": "Healthcare",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_5ituvd2wf"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-13",
+    "merchant": "Spotify",
+    "amount": -26.51,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_wzo7f1f0e"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-13",
+    "merchant": "Pub & Grill",
+    "amount": -61.69,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_vuets2x9f"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-14",
+    "merchant": "Woolworths",
+    "amount": -88.3,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_t6evz3xb5"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-15",
+    "merchant": "Monthly Salary",
+    "amount": 6730.54,
+    "category": "Salary and Wages",
+    "type": "income",
+    "spend_type": "income",
+    "id": "seed_zz7dsweyz"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-16",
+    "merchant": "The Coffee Club",
+    "amount": -27.78,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_po085fs1v"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-18",
+    "merchant": "Whole Foods",
+    "amount": -73.07,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_t0xap9vi8"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-19",
+    "merchant": "GameStop",
+    "amount": -17.35,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_w1ak4f5gt"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-19",
+    "merchant": "7-Eleven",
+    "amount": -66.24,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_0l7ami00d"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-21",
+    "merchant": "City Power",
+    "amount": -111.67,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_wjim8ni83"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-22",
+    "merchant": "Shell",
+    "amount": -70.41,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_99frx8ap2"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-24",
+    "merchant": "Sushi Central",
+    "amount": -51.01,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_6rzgk2dux"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-24",
+    "merchant": "Caltex",
+    "amount": -77.67,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_bas0tqcxl"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-26",
+    "merchant": "Caltex",
+    "amount": -46.56,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_31q3ohlhp"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-26",
+    "merchant": "Pub & Grill",
+    "amount": -88.93,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_8s1anlc45"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-27",
+    "merchant": "Water Works",
+    "amount": -110.25,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_a3kebisky"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-28",
+    "merchant": "Sushi Central",
+    "amount": -46.66,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_0wqkyczt7"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-29",
+    "merchant": "The Coffee Club",
+    "amount": -43.75,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_8lmv3l9hq"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-30",
+    "merchant": "Global Mutual Health",
+    "amount": -180,
+    "category": "Health Insurance",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_pmljp5tgu"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-03-30",
+    "merchant": "Nightscape Bar",
+    "amount": -53.4,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_jg7gwwre8"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-01",
+    "merchant": "Skyline Apartments",
+    "amount": -2281.44,
+    "category": "Rent",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_4j0jwmmdz"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-01",
+    "merchant": "Water Works",
+    "amount": -140.38,
+    "category": "Utilities",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_efcmpk6lj"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-01",
+    "merchant": "Italian Bistro",
+    "amount": -50.17,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_2p3e6x7rk"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-01",
+    "merchant": "Gala Event",
+    "amount": -59.38,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_7zp26zkep"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-01",
+    "merchant": "Nightscape Bar",
+    "amount": -82.88,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_8d1sv6s3s"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-04",
+    "merchant": "Pub & Grill",
+    "amount": -61.93,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_xc7pz2f6o"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-06",
+    "merchant": "Sushi Central",
+    "amount": -53.32,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_xq3dbiy8x"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-06",
+    "merchant": "GameStop",
+    "amount": -19.01,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_3dihn2hwh"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-06",
+    "merchant": "Global Mutual Health",
+    "amount": -180,
+    "category": "Health Insurance",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_6voq08a3w"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-08",
+    "merchant": "Credit Card Repayment",
+    "amount": -457.37,
+    "category": "Repay Credit Card",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_hr7h0k71o"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-10",
+    "merchant": "Italian Bistro",
+    "amount": -28.98,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_lli39kalu"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-10",
+    "merchant": "Caltex",
+    "amount": -47.72,
+    "category": "Fuel / Gas",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_qj4vtj8ce"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-14",
+    "merchant": "GameStop",
+    "amount": -13.66,
+    "category": "Entertainment",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_eq8mxdrq5"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-15",
+    "merchant": "Monthly Salary",
+    "amount": 6693.55,
+    "category": "Salary and Wages",
+    "type": "income",
+    "spend_type": "income",
+    "id": "seed_3ejc2pray"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-15",
+    "merchant": "Woolworths",
+    "amount": -149.56,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_quhob3v66"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-15",
+    "merchant": "Nightscape Bar",
+    "amount": -87.99,
+    "category": "Dining & Social",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_p2jwwj5qq"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-16",
+    "merchant": "General Clinic",
+    "amount": -90.34,
+    "category": "Healthcare",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_j6dr96l1z"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-16",
+    "merchant": "Auto Finance Repayment",
+    "amount": -450,
+    "category": "Repay Car Loan",
+    "type": "expense",
+    "spend_type": "fixed",
+    "id": "seed_2deoocwl9"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-18",
+    "merchant": "Woolworths",
+    "amount": -82.26,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_69hgc6cu1"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-18",
+    "merchant": "Italian Bistro",
+    "amount": -41.89,
+    "category": "Eating Out",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_jvy82as23"
+  },
+  {
+    "user_id": "9de6f6a5-f51a-4e94-a0e8-7359d85cbb14",
+    "date": "2026-04-19",
+    "merchant": "Coles",
+    "amount": -145.91,
+    "category": "Groceries",
+    "type": "expense",
+    "spend_type": "variable",
+    "id": "seed_h6gzeqnu7"
+  }
+]
