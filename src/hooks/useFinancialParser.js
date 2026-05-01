@@ -116,7 +116,7 @@ export const useFinancialParser = () => {
    */
   const calculateMetrics = useCallback((incomes = [], expenses = [], accounts = []) => {
     // 1. Isolate strict cashflow (Exclude internal transfers and paybacks)
-    const EXCLUDED_CATEGORIES = ['Transfer', 'Reimbursement', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
+    const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
     
     // Build O(1) set of debt accounts to aggressively exclude credit card payments from Income
     const creditCardIds = new Set(

@@ -36,8 +36,9 @@ export default function CashflowsReport() {
 
   useEffect(() => {
     async function load() {
+      const currentMonthKey = format(new Date(), "yyyy-MM");
       // 1. Load accounts first
-      const rawAccounts = await getDatabaseTable("user_accounts", { month: monthKey });
+      const rawAccounts = await getDatabaseTable("user_accounts", { month: currentMonthKey });
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
         if (seen.has(a.id)) return false;
@@ -51,11 +52,11 @@ export default function CashflowsReport() {
         getDatabaseTable("transactions"),
         getDatabaseTable("budgets")
       ]);
-      setAllTransactions(productionLedger);
+      setAllTransactions(productionLedger || []);
       setAllBudgets(budgets || []);
     }
     load();
-  }, [getProductionLedger, getDatabaseTable]);
+  }, [getDatabaseTable]);
 
   const intervalMonths = useMemo(() => {
     try {
