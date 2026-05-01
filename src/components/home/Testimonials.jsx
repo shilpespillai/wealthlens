@@ -57,6 +57,33 @@ const TESTIMONIALS = [
       "Market sentiment analysis is on point. I use it every week before making moves. The scenario comparison feature is a game-changer for risk management.",
     stars: 5,
   },
+  {
+    name: "Alex C.",
+    role: "Privacy advocate",
+    avatar: "AC",
+    avatarColor: "from-slate-700 to-slate-900",
+    quote:
+      "The local encryption is what sold me. My financial data stays on my machine, encrypted. Finally, a tool that respects my privacy without sacrificing features.",
+    stars: 5,
+  },
+  {
+    name: "Jessica H.",
+    role: "Digital nomad",
+    avatar: "JH",
+    avatarColor: "from-blue-400 to-indigo-600",
+    quote:
+      "Seamless cloud sync across my laptop and tablet while I travel. I love that it uses my own infrastructure — I'm in total control of my data shard.",
+    stars: 5,
+  },
+  {
+    name: "Robert D.",
+    role: "Data enthusiast",
+    avatar: "RD",
+    avatarColor: "from-emerald-400 to-teal-700",
+    quote:
+      "The export/import feature is flawless. I can take my entire financial history with me in a simple JSON file. No vendor lock-in, just pure data portability.",
+    stars: 5,
+  },
 ];
 
 function StarRating({ count }) {
