@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { 
   Plus, 
@@ -23,6 +23,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  Save,
   Clock,
   LayoutGrid,
   List,
@@ -83,9 +84,11 @@ import BankConnect from "@/components/calculator/BankConnect";
 import { useCategories } from "@/hooks/useCategories";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import SmartImporter from "@/components/SmartImporter";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
 // --- Mock Data ---
@@ -95,8 +98,8 @@ const MOCK_TRANSACTIONS = (() => {
   const transactions = [];
   
   const CATEGORY_MAP = [
-    { name: "Salary", type: "income", spendType: "income", amount: 5500, merchant: "Global Corp Salary" },
-    { name: "Bonus", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
+    { name: "Income", type: "income", spendType: "income", amount: 5500, merchant: "Monthly Salary" },
+    { name: "Income", type: "income", spendType: "income", amount: 2000, merchant: "Performance Bonus" },
     { name: "Housing", type: "expense", spendType: "fixed", amount: -1850, merchant: "Metropolis Housing" },
     { name: "Groceries", type: "expense", spendType: "variable", amount: -150, merchant: "Whole Foods Market" },
     { name: "Dining Out", type: "expense", spendType: "variable", amount: -45, merchant: "Local Bistro" },
@@ -133,9 +136,10 @@ const MOCK_TRANSACTIONS = (() => {
 })();
 
 const SIDEBAR_ITEMS = [
-  { id: "all", label: "All items", icon: List, color: "text-purple-600", bg: "bg-purple-50" },
+  { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-purple-600", bg: "bg-purple-50" },
   { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
@@ -191,7 +195,8 @@ function TransactionsContent() {
     calculateMetrics, 
     normalizeTransactionData,
     getProductionLedger,
-    getDatabaseTable
+    getDatabaseTable,
+    getNormalizedLedger
   } = useFinancialParser();
   const { categories, seedCategories, isLoading: categoriesLoading } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -201,8 +206,9 @@ function TransactionsContent() {
   const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
-  const [entriesPerPage, setEntriesPerPage] = useState("25");
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [savedSearches, setSavedSearches] = useState([]);
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
@@ -210,6 +216,7 @@ function TransactionsContent() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Deep filter helpers
   const handleSidebarFilter = (type, value = "") => {
@@ -241,14 +248,11 @@ function TransactionsContent() {
   const [expenses, setExpenses] = useState([]);
   const [currency, setCurrency] = useState("USD");
   const [isLoading, setIsLoading] = useState(true);
-  const [importText, setImportText] = useState("");
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isCommiting, setIsCommiting] = useState(false);
   const [dbAccounts, setDbAccounts] = useState([]);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [newAccount, setNewAccount] = useState({ name: "", type: "asset", category: "Bank", balance: "" });
-  const [selectedImportAccount, setSelectedImportAccount] = useState("manual");
   const fileInputRef = React.useRef(null);
 
   // Automated Category Synchronization
@@ -282,8 +286,8 @@ function TransactionsContent() {
     });
 
     // Add Virtual "Manual Vault" for unassigned items
-    const manualIncs = incomes.filter(i => !i.account_id || i.account_id === "manual").reduce((s, i) => s + (Number(i.amount) || 0), 0);
-    const manualExps = expenses.filter(e => !e.account_id || e.account_id === "manual").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const manualBal = manualIncs - manualExps;
 
     sidebar.push({
@@ -310,7 +314,7 @@ function TransactionsContent() {
     category: "",
     spendType: "variable",
     type: "expense",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
     account_id: ""
   });
 
@@ -329,48 +333,92 @@ function TransactionsContent() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    async function initData() {
-      setIsLoading(true);
-      try {
-        // 0. Fetch accounts to enable attribution mapping
-        let accounts = await base44.db.getTable("user_accounts");
-        
-        // Default Account Provisioning Safety: Prevent duplicate defaults during rapid re-mounts
-        if (!accounts || accounts.length === 0) {
-          console.log("[Transactions] System initializing defaults...");
-          const defaults = [
-            { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
-            { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
-          ];
-          for (const acc of defaults) {
-            await base44.db.upsertRow("user_accounts", acc);
-          }
-          accounts = await base44.db.getTable("user_accounts");
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 0. Fetch accounts to enable attribution mapping
+      let accounts = await base44.db.getTable("user_accounts");
+      
+      // Default Account Provisioning Safety
+      if (!accounts || accounts.length === 0) {
+        const defaults = [
+          { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+          { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
+        ];
+        for (const acc of defaults) {
+          await base44.db.upsertRow("user_accounts", acc);
         }
-        
-        setDbAccounts(accounts || []);
-
-        // 1. Fetch real transactions from the production ledger
-        const ledger = await getProductionLedger({ month: monthKey });
-        
-        // 2. Load the current month's budget/saved state from relativistic budgets table
-        const allBudgets = await getDatabaseTable("budgets");
-        const saved = (allBudgets || []).find(b => b.month === monthKey);
-        
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger, accounts || []);
-        
-        setIncomes(normIncs);
-        setExpenses(normExps);
-        if (saved?.currency) setCurrency(saved.currency);
-      } catch (err) {
-        console.error("Transactions initialization failed:", err);
-      } finally {
-        setIsLoading(false);
+        accounts = await base44.db.getTable("user_accounts");
       }
+      
+      setDbAccounts(accounts || []);
+
+      // 1. Fetch raw transactions directly from the production ledger.
+      const ledger = await getProductionLedger({ month: monthKey });
+
+      // 2. Use the CENTRALIZED normalization engine (The "Common Place")
+      const { incomes: normIncs, expenses: normExps, transfers: normTrans } = getNormalizedLedger(ledger, accounts || []);
+
+      const resolveAccount = (tx) => {
+        if (tx.account_id) {
+          return accounts.find(a => String(a.id) === String(tx.account_id))?.name || 'Manual Vault';
+        }
+        return tx.account || 'Manual Vault';
+      };
+
+      // 3. Map to UI-friendly structure while preserving classification
+      setIncomes(normIncs.map(t => ({
+        ...t,
+        name:       t.merchant || t.name || t.category || 'Income Item',
+        account:    resolveAccount(t),
+        amount:     Math.abs(Number(t.amount) || 0)
+      })));
+
+      setExpenses([
+        ...normExps.map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Expense Item',
+          account:    resolveAccount(t),
+          amount:     Math.abs(Number(t.amount) || 0)
+        })),
+        ...normTrans.map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Transfer Item',
+          account:    resolveAccount(t),
+          amount:     Math.abs(Number(t.amount) || 0),
+          type:       'transfer'
+        }))
+      ]);
+
+      // Preserve currency preference from budget if set
+      const allBudgets = await getDatabaseTable("budgets");
+      const saved = (allBudgets || []).find(b => b.month === monthKey);
+      if (saved?.currency) setCurrency(saved.currency);
+
+    } catch (err) {
+      console.error("Transactions fetch failure:", err);
+    } finally {
+      setIsLoading(false);
     }
-    initData();
-  }, [monthKey, normalizeTransactionData, selectedDate, getProductionLedger, getDatabaseTable]);
+  }, [monthKey, selectedDate, getProductionLedger, getDatabaseTable]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Re-fetch once Supabase auth session is confirmed ready.
+  // Without this, fetchData fires before the PKCE session resolves,
+  // falls through to the empty localStorage fallback, and shows $0.
+  useEffect(() => {
+    const { data: { subscription } } = supabase?.auth?.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        fetchData();
+      }
+    }) || { data: { subscription: null } };
+
+    return () => subscription?.unsubscribe();
+  }, [fetchData]);
+
 
   // Load Saved Searches on mount
   useEffect(() => {
@@ -425,18 +473,40 @@ function TransactionsContent() {
   const handleSaveEdit = async () => {
     if (!editingTransaction) return;
     
-    const targetState = editingTransaction.type === 'income' ? incomes : expenses;
-    const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
-    
-    const newState = targetState.map(item => 
-      item.id === editingTransaction.id ? { ...item, ...editingTransaction } : item
-    );
-    
-    setState(newState);
-    setIsEditModalOpen(false);
-    setEditingTransaction(null);
-    setHasChanges(true); // Trigger commit-awareness
-    toast.success("Transaction updated locally. Commit to save to database.");
+    try {
+      // 1. Map fields to DB schema (merchant, spend_type)
+      const dbRecord = {
+        ...editingTransaction,
+        merchant:   editingTransaction.merchant || editingTransaction.name,
+        spend_type: editingTransaction.spendType || editingTransaction.spend_type,
+      };
+      // Clean up UI-only fields
+      delete dbRecord.spendType;
+      delete dbRecord.name;
+      delete dbRecord.account; // Account name is derived from account_id in DB
+
+      // 2. Perform real individual UPSERT
+      await base44.db.upsertRow('transactions', dbRecord);
+
+      // 3. Update local state
+      const targetState = editingTransaction.type === 'income' ? incomes : expenses;
+      const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
+      
+      const newState = targetState.map(item => 
+        item.id === editingTransaction.id ? { ...editingTransaction } : item
+      );
+      
+      setState(newState);
+      setIsEditModalOpen(false);
+      setEditingTransaction(null);
+      toast.success("Transaction updated successfully");
+      
+      // Refresh to ensure everything is in sync
+      fetchData();
+    } catch (err) {
+      console.error("Failed to save edit:", err);
+      toast.error("Failed to update transaction");
+    }
   };
 
   const persistTransactionData = async (newIncomes, newExpenses) => {
@@ -446,18 +516,16 @@ function TransactionsContent() {
   const handleCommit = async () => {
     setIsCommiting(true);
     try {
-      // Upsert into relational budgets table to maintain single source of truth
+      // Save budget-level settings (like currency)
+      // Transactions are now handled individually via insertRow/upsertRow
       await base44.db.upsert("budgets", {
         month: monthKey,
         currency,
-        payload: {
-          incomes,
-          expenses
-        }
+        updated_at: new Date()
       }, "month");
       
       setHasChanges(false);
-      toast.success("Ledger committed to production database");
+      toast.success("Budget settings committed to production");
     } catch (err) {
       console.error("Commit failed:", err);
       toast.error("Commit failed");
@@ -557,7 +625,6 @@ function TransactionsContent() {
   };
 
   const handleDeleteAccount = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"? Transactions assigned to this account will be moved to Manual Vault.`)) return;
     try {
       await base44.db.deleteRow('user_accounts', id);
       
@@ -580,21 +647,11 @@ function TransactionsContent() {
   };
 
   const handlePurgeMonth = async () => {
-    if (!window.confirm(`CRITICAL: This will permanently delete ALL transactions, budget staging, and analytical summaries for ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}. This action cannot be undone. Proceed?`)) return;
-    
     setIsLoading(true);
     try {
-      // 1. Purge raw transactions for the month (matching date prefix)
-      await base44.db.deleteByFilter('transactions', 'date', `%${monthKey}%`); // For SQL like, but local uses simple matching
-      // Note: Local deleteByFilter currently does !== value. I should use a more precise range for SQL or a dedicated purge method.
+      // 1. Purge raw transactions for the month using a bounded date range deletion
+      await base44.db.deleteByDatePrefix('transactions', 'date', monthKey);
       
-      // Improvement: Since we want a range, I'll use a fetch-and-bulk-delete strategy for accuracy across all environments
-      const allTxs = await base44.db.getTable('transactions');
-      const toDelete = allTxs.filter(t => t.date && t.date.includes(monthKey));
-      for (const t of toDelete) {
-        await base44.db.deleteRow('transactions', t.id);
-      }
-
       // 2. Purge budget state
       await base44.db.deleteByFilter('budgets', 'month', monthKey);
       
@@ -607,70 +664,111 @@ function TransactionsContent() {
       window.location.reload(); 
     } catch (err) {
       console.error("Purge failed:", err);
-      toast.error("Failed to purge data");
+      toast.error("Failed to purge: " + (err.message || err));
     } finally {
       setIsLoading(true);
     }
   };
 
-  const handleManualAdd = () => {
-    if (!manualForm.merchant || !manualForm.amount) return toast.error("Please fill required fields");
+  const handleManualAdd = async () => {
+    const parsedAmount = Number(manualForm.amount);
+    if (!manualForm.merchant) return toast.error("Please enter a merchant/label");
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) return toast.error("Please enter a valid amount greater than 0");
 
     const newItem = {
-      id: Date.now() + Math.random(),
-      name: manualForm.merchant,
-      category: manualForm.category || "Uncategorized",
-      amount: parseFloat(manualForm.amount) || 0,
-      spendType: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
-      date: manualForm.date,
-      account_id: manualForm.account_id,
-      account: dbAccounts.find(a => a.id === manualForm.account_id)?.name || "Manual Vault"
+      // DB schema columns: merchant, amount, category, type, spend_type, date, account_id
+      merchant:   manualForm.merchant.trim(),
+      category:   manualForm.type === 'income' ? 'Income' : (manualForm.category || "Uncategorized"),
+      amount:     parsedAmount,
+      type:       manualForm.type,
+      spend_type: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
+      date:       manualForm.date,
+      account_id: manualForm.account_id || null,
     };
+    console.log('[handleManualAdd] Saving transaction:', newItem);
 
-    if (manualForm.type === 'income') {
-      setIncomes(prev => [...prev, newItem]);
-    } else {
-      setExpenses(prev => [...prev, newItem]);
+    try {
+      // 1. Persist as a brand-new record (pure INSERT — no conflict/update)
+      const savedItem = await base44.db.insertRow('transactions', newItem);
+      
+      // 2. Update local state for immediate feedback
+      if (manualForm.type === 'income') {
+        setIncomes(prev => [...prev, { ...newItem, id: savedItem.id || Date.now() }]);
+      } else {
+        setExpenses(prev => [...prev, { ...newItem, id: savedItem.id || Date.now() }]);
+      }
+
+      toast.success("Transaction saved permanently to ledger.");
+      
+      // 3. Fully refresh all component states from the database
+      await fetchData();
+
+      // 4. Reset form and close modal
+      setManualForm({ 
+        merchant: "", 
+        amount: "", 
+        type: "expense", 
+        category: "Fixed", 
+        date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
+        account_id: ""
+      });
+      setIsAddModalOpen(false);
+
+    } catch (err) {
+      console.error("[Transactions] Manual add failed:", err);
+      toast.error(`Persistence Error: ${err.message || 'Failed to save to ledger'}`);
     }
-    setHasChanges(true);
-    setManualForm({ 
-      merchant: "", 
-      amount: "", 
-      type: "expense", 
-      category: "Fixed", 
-      date: selectedDate.toISOString().split('T')[0],
-      account_id: ""
-    });
-    toast.success("Transaction staged. Click Commit to save.");
   };
 
   const handleUpdateItem = async (id, updates, type) => {
-    const finalUpdates = { ...updates };
+    const targetState = type === 'income' ? incomes : expenses;
+    const item = targetState.find(i => i.id === id);
+    if (!item) return;
+
+    const updatedItem = { ...item, ...updates };
     
-    // Ensure name is updated if account_id changes
-    if (updates.account_id !== undefined) {
-      if (!updates.account_id || updates.account_id === 'manual') {
-        finalUpdates.account = "Manual Vault";
-        finalUpdates.account_id = null;
+    try {
+      // 1. Map fields to DB schema
+      const dbRecord = {
+        ...updatedItem,
+        merchant:   updatedItem.merchant || updatedItem.name,
+        spend_type: updatedItem.spendType || updatedItem.spend_type,
+      };
+      delete dbRecord.spendType;
+      delete dbRecord.name;
+      delete dbRecord.account;
+
+      // 2. Immediate individual UPSERT
+      await base44.db.upsertRow('transactions', dbRecord);
+
+      // 3. Update local state
+      if (type === 'income') {
+        setIncomes(incomes.map(i => i.id === id ? updatedItem : i));
       } else {
-        const found = dbAccounts.find(a => String(a.id) === String(updates.account_id));
-        finalUpdates.account = found?.name || "Unknown Account";
+        setExpenses(expenses.map(e => e.id === id ? updatedItem : e));
+      }
+      toast.success("Transaction updated");
+    } catch (err) {
+      console.error("Inline update failed:", err);
+      toast.error("Update failed");
+    }
+  };
+
+  const handleDelete = async (id, type) => {
+    // 1. Permanent Purge from Production Ledger
+    // If the ID is a real database record (UUID or system-assigned long string), we must purge it from the ledger.
+    // Mock IDs in this system are typically numbers or short strings.
+    const isRealRecord = (typeof id === 'string' && id.length > 10);
+    
+    if (isRealRecord) {
+      try {
+        await base44.db.deleteRow('transactions', id);
+      } catch (err) {
+        console.error("[Transactions] Failed to purge record from ledger:", err);
       }
     }
 
-    if (type === 'income') {
-      const updated = incomes.map(i => i.id === id ? { ...i, ...finalUpdates } : i);
-      setIncomes(updated);
-      persistTransactionData(updated, expenses);
-    } else {
-      const updated = expenses.map(e => e.id === id ? { ...e, ...finalUpdates } : e);
-      setExpenses(updated);
-      persistTransactionData(incomes, updated);
-    }
-    toast.success("Transaction updated");
-  };
-
-  const handleDelete = (id, type) => {
+    // 2. Update local state
     if (type === 'income') {
       const updated = incomes.filter(i => i.id !== id);
       setIncomes(updated);
@@ -680,10 +778,10 @@ function TransactionsContent() {
       setExpenses(updated);
       persistTransactionData(incomes, updated);
     }
-    toast.info("Transaction removed");
+    toast.info("Transaction removed and purged from ledger");
   };
 
-  const handleBankSync = (newItems) => {
+  const handleBankSync = async (newItems) => {
     const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
     const formatted = newItems.map(item => ({
       id: Date.now() + Math.random(),
@@ -696,46 +794,38 @@ function TransactionsContent() {
     const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.amount}`));
     
     if (uniqueNew.length > 0) {
-      const updated = [...expenses, ...uniqueNew];
-      setExpenses(updated);
-      persistTransactionData(incomes, updated);
-      toast.success(`Synced ${uniqueNew.length} new transactions!`);
+      try {
+        // Map to DB schema
+        const toInsert = uniqueNew.map(item => ({
+          merchant: item.name,
+          amount: item.amount,
+          category: item.category,
+          date: item.date,
+          spend_type: 'variable', // Default for bank sync
+          type: 'expense'
+        }));
+        
+        // Bulk insert to production ledger
+        await base44.db.insertRows('transactions', toInsert);
+        
+        const updated = [...expenses, ...uniqueNew];
+        setExpenses(updated);
+        toast.success(`Synced ${uniqueNew.length} new transactions to ledger!`);
+        fetchData(); // Refresh to get DB IDs
+      } catch (err) {
+        console.error("Bank sync persistence failed:", err);
+        toast.error("Failed to save synced transactions");
+      }
     } else {
       toast.info("No new transactions found.");
     }
   };
 
-  const handleImportResults = async (parsedData) => {
-    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
-    const formatted = parsedData.map(item => ({
-      id: Date.now() + Math.random(),
-      name: item.name || item.merchant || item.description || "Imported Item",
-      category: item.category || "variable",
-      amount: Number(item.amount || item.monthlyAmount) || 0,
-      date: item.date || `${fallbackDate} 01`,
-      account_id: selectedImportAccount === 'manual' ? null : selectedImportAccount,
-      account: dbAccounts.find(a => a.id === selectedImportAccount)?.name || "Manual Vault"
-    }));
-    
-    // Learning Logic: Associate this import source with this account for next time
-    // Isolated by User ID to prevent cross-account mapping leakage
-    if (selectedImportAccount !== 'manual') {
-      const user = await base44.auth.me();
-      const sourceKey = parsedData[0]?.source || parsedData[0]?.merchant || "Unknown Source";
-      localStorage.setItem(`wealthlens_mapping_${user.id}_${sourceKey}`, selectedImportAccount);
-    }
-
-    const updated = [...expenses, ...formatted];
-    setExpenses(updated);
-    persistTransactionData(incomes, updated);
-    setIsImportModalOpen(false);
-    setImportText("");
-    toast.success(`Imported ${formatted.length} transactions to ${dbAccounts.find(a => a.id === selectedImportAccount)?.name || 'Manual Vault'}`);
-  };
 
 
 
-  const summary = calculateMetrics(incomes, expenses);
+
+  const summary = calculateMetrics(incomes, expenses, dbAccounts);
   const sym = getCurrencySymbol(currency);
 
   const toggleSelectAll = () => {
@@ -970,10 +1060,23 @@ function TransactionsContent() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteAccount(acc.id, acc.name);
+                        if (e.currentTarget.dataset.confirmed === 'true') {
+                          handleDeleteAccount(acc.id, acc.name);
+                        } else {
+                          e.currentTarget.dataset.confirmed = 'true';
+                          e.currentTarget.classList.add('text-rose-600', 'bg-rose-100', 'opacity-100');
+                          e.currentTarget.classList.remove('text-slate-300', 'hover:bg-rose-50', 'opacity-0', 'group-hover:opacity-100');
+                          setTimeout(() => {
+                            if (e.currentTarget) {
+                              e.currentTarget.dataset.confirmed = 'false';
+                              e.currentTarget.classList.remove('text-rose-600', 'bg-rose-100', 'opacity-100');
+                              e.currentTarget.classList.add('text-slate-300', 'hover:bg-rose-50', 'opacity-0', 'group-hover:opacity-100');
+                            }
+                          }, 3000);
+                        }
                       }}
                       className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-600 transition-all z-10 pointer-events-auto"
-                      title="Delete Account"
+                      title="Click twice to delete account"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1004,17 +1107,28 @@ function TransactionsContent() {
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
-          {/* Action Header */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={handleCommit}
-                  disabled={!hasChanges || isCommiting}
-                  className={`h-9 px-6 gap-2 text-xs font-bold uppercase tracking-widest transition-all shadow-lg ${hasChanges ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 animate-pulse' : 'bg-slate-200 text-slate-400 cursor-default'}`}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {isCommiting ? "Commiting..." : "Commit Changes"}
-                </Button>
+          {/* Premium Header Metrics */}
+          <div className="px-6 py-4 bg-[#fcfcfc] border-b border-slate-100 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-10">
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</span>
+                 <span className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
+               </div>
+               <div className="w-[1px] h-8 bg-slate-100" />
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</span>
+                 <span className="text-lg font-bold text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
+               </div>
+               <div className="w-[1px] h-8 bg-slate-100" />
+               <div className="flex flex-col gap-0.5">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Balance</span>
+                 <span className={`text-lg font-bold tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                   {formatAmount(summary.balance)}
+                 </span>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
 
                 <BankConnect onSyncSuccess={handleBankSync} />
                 
@@ -1025,51 +1139,21 @@ function TransactionsContent() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
-                    {/* Reuse Import Logic UI */}
                     <DialogHeader>
-                      <DialogTitle>AI Bank Statement Import</DialogTitle>
+                      <DialogTitle className="text-xl font-black tracking-tighter">Institutional Data Importer</DialogTitle>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
-                      <Textarea 
-                        placeholder="Paste your bank statement text here..."
-                        className="min-h-[200px] bg-slate-50"
-                        value={importText}
-                        onChange={async (e) => {
-                          setImportText(e.target.value);
-                          try {
-                            const data = JSON.parse(e.target.value);
-                            const source = data[0]?.source || data[0]?.merchant;
-                            const user = await base44.auth.me();
-                            const learned = localStorage.getItem(`wealthlens_mapping_${user.id}_${source}`);
-                            if (learned) {
-                              setSelectedImportAccount(learned);
-                              toast.info("Smart Mapping: Pre-selected learned account", { icon: "🧠" });
-                            }
-                          } catch (e) {}
-                        }}
-                      />
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">Target Account</label>
-                         <Select value={selectedImportAccount} onValueChange={setSelectedImportAccount}>
-                           <SelectTrigger className="bg-white">
-                             <SelectValue placeholder="Select Account" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="manual">Manual Vault (Unassigned)</SelectItem>
-                             {dbAccounts.map(acc => (
-                               <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={() => handleImportResults(JSON.parse(importText))}>Import Raw JSON</Button>
-                    </DialogFooter>
+                    <SmartImporter 
+                      accounts={dbAccounts}
+                      onComplete={() => {
+                        setIsImportModalOpen(false);
+                        fetchData();
+                      }}
+                      onCancel={() => setIsImportModalOpen(false)}
+                    />
                   </DialogContent>
                 </Dialog>
 
-                <Dialog>
+                <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
                       <Plus className="w-4 h-4 text-slate-400" /> Add Manually
@@ -1088,9 +1172,10 @@ function TransactionsContent() {
                       <Input 
                         type="number" 
                         placeholder="Amount" 
-                        step="0.01" 
+                        step="0.01"
+                        min="0.01"
                         value={manualForm.amount}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, amount: e.target.value }))}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, amount: e.target.valueAsNumber || '' }))}
                       />
                       <Input 
                         type="date"
@@ -1099,7 +1184,11 @@ function TransactionsContent() {
                       />
                       <Select 
                         value={manualForm.type}
-                        onValueChange={(v) => setManualForm(prev => ({ ...prev, type: v }))}
+                        onValueChange={(v) => setManualForm(prev => ({ 
+                          ...prev, 
+                          type: v,
+                          category: v === 'income' ? 'Income' : (prev.category === 'Income' ? 'Uncategorized' : prev.category)
+                        }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1150,7 +1239,24 @@ function TransactionsContent() {
                 <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handlePurgeMonth}
+                onClick={(e) => {
+                  if (e.currentTarget.dataset.confirmed === 'true') {
+                    handlePurgeMonth();
+                  } else {
+                    e.currentTarget.dataset.confirmed = 'true';
+                    e.currentTarget.classList.add('bg-rose-600', 'text-white', 'border-rose-600');
+                    e.currentTarget.classList.remove('bg-rose-50', 'text-rose-600', 'border-rose-200');
+                    e.currentTarget.querySelector('span').innerText = 'Click again to confirm';
+                    setTimeout(() => {
+                      if (e.currentTarget) {
+                        e.currentTarget.dataset.confirmed = 'false';
+                        e.currentTarget.classList.remove('bg-rose-600', 'text-white', 'border-rose-600');
+                        e.currentTarget.classList.add('border-rose-200', 'text-rose-600');
+                        e.currentTarget.querySelector('span').innerText = 'Purge Month';
+                      }
+                    }, 3000);
+                  }
+                }}
                 className="h-9 px-4 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -1287,51 +1393,54 @@ function TransactionsContent() {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Entries</span>
-                 <Select value={entriesPerPage} onValueChange={(v) => { setEntriesPerPage(v); setCurrentPage(1); }}>
-                   <SelectTrigger className="h-8 w-[80px] text-xs font-medium border-slate-200 bg-white hover:border-purple-300 transition-all shadow-sm">
+                 <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(parseInt(v)); setCurrentPage(1); }}>
+                   <SelectTrigger className="h-8 border-none bg-slate-100/50 hover:bg-slate-100 text-xs font-bold w-20 rounded-full px-4 transition-all">
                      <SelectValue />
                    </SelectTrigger>
                    <SelectContent>
-                     {[10, 25, 50, 100].map(v => (
-                        <SelectItem key={v} value={v.toString()} className="text-xs">{v}</SelectItem>
-                     ))}
+                     <SelectItem value="10">10</SelectItem>
+                     <SelectItem value="25">25</SelectItem>
+                     <SelectItem value="50">50</SelectItem>
+                     <SelectItem value="100">100</SelectItem>
                    </SelectContent>
                  </Select>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">items per page</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 border-slate-200 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-all"
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 
-                <div className="flex items-center gap-1.5 px-3 h-8 bg-slate-50 border border-slate-200 rounded-md">
-                   <span className="text-xs font-medium text-purple-600 tabular-nums">{currentPage}</span>
-                   <span className="text-[10px] font-medium text-slate-400">/</span>
-                   <span className="text-xs font-medium text-slate-500 tabular-nums">{Math.ceil(filteredTransactions.length / parseInt(entriesPerPage)) || 1}</span>
+                <div className="flex items-center gap-2 px-3 h-8 bg-slate-100/50 rounded-full border border-slate-100">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page</span>
+                   <span className="text-xs font-medium text-slate-900 tabular-nums">{currentPage}</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">of</span>
+                   <span className="text-xs font-medium text-slate-500 tabular-nums">{Math.ceil(filteredTransactions.length / itemsPerPage) || 1}</span>
                 </div>
 
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 border-slate-200 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-all"
-                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTransactions.length / parseInt(entriesPerPage)), prev + 1))}
-                  disabled={currentPage >= Math.ceil(filteredTransactions.length / parseInt(entriesPerPage))}
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
+                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTransactions.length / itemsPerPage), prev + 1))}
+                  disabled={currentPage >= Math.ceil(filteredTransactions.length / itemsPerPage)}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-          <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-normal">
-            <span className="px-2">
-              Showing {((currentPage - 1) * parseInt(entriesPerPage)) + 1} - {Math.min(currentPage * parseInt(entriesPerPage), filteredTransactions.length)} of {filteredTransactions.length} items.
-            </span>
+          <div className="px-6 py-3 bg-[#fcfcfc] border-t border-slate-100 text-center">
+            <p className="text-[10px] font-bold text-slate-400 italic">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} items.
+            </p>
             {selectedTransactions.length > 0 && (
               <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-purple-100 animate-in zoom-in-50">
                 {selectedTransactions.length} selected
@@ -1342,32 +1451,28 @@ function TransactionsContent() {
           {/* Table Area */}
           <div className="flex-1 overflow-auto bg-[#f8fafc]/50">
             {viewMode === 'list' ? (
-              <Table>
-                <TableHeader className="bg-[#fcfcfc] border-b border-slate-200">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[50px] p-4">
+              <Table className="w-full border-collapse">
+                <TableHeader className="bg-slate-50/50 sticky top-0 z-20 backdrop-blur-md">
+                  <TableRow className="hover:bg-transparent border-slate-100 h-12">
+                    <TableHead className="w-12 p-4 text-center">
                       <Checkbox 
-                        checked={selectedTransactions.length === filteredTransactions.length && filteredTransactions.length > 0} 
+                        checked={selectedTransactions.length === filteredTransactions.length && filteredTransactions.length > 0}
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-[80px] p-4">
-                      <Filter className="w-3.5 h-3.5 text-slate-400" />
-                    </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400 cursor-pointer hover:text-purple-600 transition-colors">
-                      Date <span className="text-[8px] ml-1">▼</span>
-                    </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Merchant</TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Amount</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Category</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Spend Type</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Account</TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest p-4 text-slate-400">Balance</TableHead>
+                    <TableHead className="w-12 p-4"></TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Date</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Merchant</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Amount</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Category</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Type</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Account</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Balance</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody key={`${selectedTab}-${selectedAccountId || 'all'}-${selectedCategory || 'all'}`}>
+                <TableBody className="divide-y divide-slate-50">
                   {filteredTransactions
-                    .slice((currentPage - 1) * parseInt(entriesPerPage), currentPage * parseInt(entriesPerPage))
+                    .slice((currentPage - 1) * parseInt(itemsPerPage), currentPage * parseInt(itemsPerPage))
                     .map((tx) => (
                     <React.Fragment key={tx.id}>
                       <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-purple-50/50' : 'hover:bg-slate-50/50'}`}>
@@ -1502,7 +1607,7 @@ function TransactionsContent() {
             ) : (
               <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 max-w-[1600px] mx-auto auto-rows-fr">
                 {filteredTransactions
-                  .slice((currentPage - 1) * parseInt(entriesPerPage), currentPage * parseInt(entriesPerPage))
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                   .map((tx) => (
                     <div 
                       key={tx.id} 

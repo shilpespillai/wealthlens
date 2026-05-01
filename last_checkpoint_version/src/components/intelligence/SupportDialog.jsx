@@ -14,8 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "../layout/PremiumOverlay";
 
 export default function SupportDialog({ open, onOpenChange, userEmail }) {
+  const { isPaidUser } = useAuth();
   const [formData, setFormData] = useState({
     subject: "WealthLens Support Request",
     message: ""
@@ -47,7 +50,9 @@ ${formData.message}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[420px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)]">
+      <DialogContent className="max-w-[420px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] min-h-[400px]">
+        {!isPaidUser && <PremiumOverlay featureName="Direct Engineering Support" />}
+        
         <div className="relative p-8 flex flex-col">
             {/* Subtle Gradient Accent */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#C5A059]/5 blur-[60px] pointer-events-none" />

@@ -1,66 +1,61 @@
-import React from "react";
-import { AlertCircle, RefreshCw, Home } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from 'react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Critical UI Crash:", error, errorInfo);
+    this.setState({ error, errorInfo });
+    console.error("WealthLens Crash:", error, errorInfo);
   }
 
   handleReset = () => {
-    // Clear potentially corrupt local data
-    localStorage.removeItem("wealthlens-calc-state");
-    localStorage.removeItem("wealthlens-theme");
-    // Force reload to root
-    window.location.href = "/Dashboard";
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/';
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-sans">
-          <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-10 h-10 text-rose-500" />
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+          <div className="max-w-xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 p-10 text-center">
+            <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl text-rose-500">⚠️</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-3 tracking-tight">Terminal Interrupted</h1>
+            <h1 className="text-2xl font-black text-slate-900 mb-2">Platform Crash Detected</h1>
             <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-              We encountered a runtime exception while synchronizing your production data. This is often caused by missing profile parameters in a new account.
+              WealthLens encountered a critical system error. We've captured the diagnostics below.
             </p>
             
-            <div className="space-y-3">
-              <Button 
-                onClick={this.handleReset}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl h-12 font-semibold flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Reset & Try Again
-              </Button>
-              
-              <Button 
-                variant="outline"
-                onClick={() => window.location.href = "/"}
-                className="w-full border-slate-200 text-slate-600 rounded-xl h-12 font-medium flex items-center justify-center gap-2"
-              >
-                <Home className="w-4 h-4" />
-                Return Home
-              </Button>
+            <div className="bg-slate-900 rounded-2xl p-6 mb-8 text-left overflow-x-auto">
+              <p className="text-rose-400 font-mono text-xs font-bold mb-2 uppercase tracking-widest">Error Trace:</p>
+              <pre className="text-slate-300 font-mono text-[10px] leading-relaxed max-h-[200px] overflow-y-auto">
+                {this.state.error && this.state.error.toString()}
+                {"\n\nComponent Stack:\n"}
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
             </div>
-            
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-medium">Error Code</p>
-              <code className="text-[10px] bg-slate-50 text-slate-500 px-2 py-1 rounded mt-1 block truncate">
-                {this.state.error?.message || "Unknown Runtime Crash"}
-              </code>
+
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={this.handleReset}
+                className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all"
+              >
+                Hard Reset & Refresh
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-4 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all"
+              >
+                Attempt Simple Reload
+              </button>
             </div>
           </div>
         </div>

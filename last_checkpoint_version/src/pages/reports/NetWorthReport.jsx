@@ -11,7 +11,8 @@ import {
   CreditCard,
   Target,
   X,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -30,6 +31,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { generateManualPdf } from "@/utils/generateManualPdf";
+import { calculatePortfolioHoldings } from "@/api/portfolioEngine";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -42,9 +46,10 @@ const NW_COLORS    = ['#C5A059', '#1E293B'];
 const INITIAL_ACCOUNTS = [];
 
 export default function NetWorthReport() {
+  const { isPaidUser } = useAuth();
   const { getProductionLedger, getDatabaseTable } = useFinancialParser();
   const { user: authUser } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Jan 2026
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [viewMode, setViewMode] = useState('networth'); // networth, assets, debt
   const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
   const [addMode, setAddMode] = useState(null); 
@@ -74,13 +79,12 @@ export default function NetWorthReport() {
       }));
       
       if (portfolioSnapshots && portfolioSnapshots.length > 0) {
-        // Only merge the latest snapshot for NW calculation
-        const latestDate = portfolioSnapshots.reduce((latest, item) => !latest || item.snapshot_date > latest ? item.snapshot_date : latest, null);
-        const latest = portfolioSnapshots.filter(s => s.snapshot_date === latestDate);
+        // Use intelligent Engine to get latest snapshot (handles JSONB flattening automatically)
+        const latest = calculatePortfolioHoldings(portfolioSnapshots);
         
         const converted = latest.map(s => ({
           id: s.id,
-          name: s.label,
+          name: s.label || s.name,
           category: s.asset_class === 'property' ? 'Property' : 'Investments',
           type: 'asset',
           value: Number(s.current_value)
@@ -99,24 +103,35 @@ export default function NetWorthReport() {
   // Unified Save
   const saveAccounts = async (updated) => {
     setAccounts(updated);
-    await base44.user.saveData("wl_table_accounts", updated);
+    // Note: We don't save to the vault anymore. 
+    // Individual adds are handled in handleAddAccount via db.insertRow
   };
 
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (!newAccount.name || !newAccount.value) {
       toast.error("Please fill in all fields");
       return;
     }
-    const updated = [...accounts, { 
-      ...newAccount, 
-      id: Date.now().toString(), 
-      value: parseFloat(newAccount.value), 
-      type: addMode 
-    }];
-    saveAccounts(updated);
-    setNewAccount({ name: '', category: 'Bank', value: '' });
-    setAddMode(null);
-    toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`);
+    
+    const accountData = {
+      name: newAccount.name,
+      category: newAccount.category,
+      base_balance: parseFloat(newAccount.value),
+      type: addMode,
+      currency: 'AUD'
+    };
+
+    const loadingToast = toast.loading("Saving account...");
+    const result = await base44.db.insertRow("user_accounts", accountData);
+
+    if (result && !result.error) {
+      setAccounts([...accounts, { ...result, value: Number(result.base_balance) }]);
+      setNewAccount({ name: '', category: 'Bank', value: '' });
+      setAddMode(null);
+      toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`, { id: loadingToast });
+    } else {
+      toast.error("Failed to save account to database", { id: loadingToast });
+    }
   };
 
   // Temporal Logic: Calculate Cumulative Surplus up to Selected Month
@@ -149,6 +164,18 @@ export default function NetWorthReport() {
   const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0);
   const netWorth = totalAssets - totalDebts;
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById("networth-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-NetWorth-${format(selectedDate, 'MMM-yyyy')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
+
   const chartData = useMemo(() => {
     if (viewMode === 'assets') {
       const groups = assets.reduce((acc, a) => {
@@ -173,7 +200,8 @@ export default function NetWorthReport() {
   const displayValue = viewMode === 'assets' ? totalAssets : viewMode === 'debt' ? totalDebts : netWorth;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden">
+    <div id="networth-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
+      {!isPaidUser && <PremiumOverlay featureName="Net Worth Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
         <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
@@ -206,6 +234,15 @@ export default function NetWorthReport() {
                   <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 border-r border-slate-700 transition-all"><ChevronLeft className="w-4 h-4" /></button>
                   <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ChevronRight className="w-4 h-4" /></button>
                </div>
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

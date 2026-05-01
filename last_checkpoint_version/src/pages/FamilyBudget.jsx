@@ -51,6 +51,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import CurrencySelector, { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { resolveCanonicalCategory } from "@/utils/constants";
 
 
 
@@ -73,12 +74,7 @@ const DEFAULT_EXPENSES = [
   { id: 5, name: "Health & Insurance", category: "fixed", amount: 200 },
 ];
 
-const DEFAULT_GOALS = [
-  { id: 1, name: "Emergency Fund", target: 10000, current: 2400 },
-  { id: 2, name: "Family Travel", target: 5000, current: 750 },
-  { id: 3, name: "Education Fund", target: 20000, current: 0 },
-  { id: 4, name: "Medical Fund", target: 5000, current: 0 }
-];
+const DEFAULT_GOALS = []; // Decommissioned: Migrated to Dashboard Vault Allocation Hub
 
 // Legacy mock data removed. Transaction visibility is now 100% relational through getProductionLedger.
 
@@ -90,7 +86,8 @@ function FamilyBudgetContent() {
     syncData, 
     normalizeTransactionData,
     getDatabaseTable,
-    getProductionLedger 
+    getProductionLedger,
+    getNormalizedLedger
   } = useFinancialParser();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -101,10 +98,7 @@ function FamilyBudgetContent() {
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
-  const [goals, setGoals] = useState(DEFAULT_GOALS);
-  const [selectedVaultGoal, setSelectedVaultGoal] = useState("");
-  const [vaultWithdrawAmount, setVaultWithdrawAmount] = useState("");
-  const [isVaultAllocating, setIsVaultAllocating] = useState(false);
+  const [dbAccounts, setDbAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const monthKey = useMemo(() => {
@@ -125,7 +119,12 @@ function FamilyBudgetContent() {
         // 2. Fetch real transactions from production ledger
         const productionLedger = await getProductionLedger({ month: monthKey });
         
-        const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger);
+        // 3. Fetch accounts to enable credit card income exclusion
+        const accounts = await getDatabaseTable("user_accounts");
+        setDbAccounts(accounts || []);
+        
+        // 4. Use the CENTRALIZED normalization engine (The "Common Place")
+        const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(productionLedger, accounts || []);
         
         setIncomes(normIncs);
         setExpenses(normExps);
@@ -157,7 +156,10 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
-      const catName = curr.category || "Salary";
+      const canonical = resolveCanonicalCategory(curr.category || curr.name);
+      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      
+      const catName = curr.category || "Income";
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'income').toLowerCase();
       if (!acc[key]) acc[key] = { name: catName, amount: 0, count: 0, spendType: st };
@@ -166,10 +168,13 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
     return Object.values(groups);
-  }, [incomes]);
+  }, [incomes, resolveCanonicalCategory]);
 
   const aggregatedExpenses = useMemo(() => {
     const groups = expenses.reduce((acc, curr) => {
+      const canonical = resolveCanonicalCategory(curr.category || curr.name);
+      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      
       const catName = curr.category || "Uncategorized";
       const key = catName.toLowerCase();
       const st = (curr.spendType || 'variable').toLowerCase();
@@ -179,13 +184,16 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
     return Object.values(groups);
-  }, [expenses]);
+  }, [expenses, resolveCanonicalCategory]);
 
 
 
   const unifiedFlow = useMemo(() => {
     const incomesList = aggregatedIncomes.map(i => ({ ...i, flow: 'income', color: 'emerald' }));
-    const expensesList = aggregatedExpenses.map(e => ({ ...e, flow: 'expense', color: 'rose' }));
+    // Only show non-zero expenses to prevent empty chart segments
+    const expensesList = aggregatedExpenses
+      .filter(e => (Number(e.amount) || 0) > 0)
+      .map(e => ({ ...e, flow: 'expense', color: 'rose' }));
     return [...incomesList, ...expensesList].sort((a, b) => b.amount - a.amount);
   }, [aggregatedIncomes, aggregatedExpenses]);
 
@@ -201,7 +209,7 @@ function FamilyBudgetContent() {
 
 
   const metrics = useMemo(() => {
-    const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses);
+    const { totalIncome, totalExpenses, balance, savings } = calculateMetrics(incomes, expenses, dbAccounts);
 
     const breakdown = EXPENSE_CATEGORIES.map(cat => {
       const catExpenses = expenses.filter(e => {
@@ -246,7 +254,7 @@ function FamilyBudgetContent() {
     }).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return { totalIncome, totalExpenses, balance, breakdown, pieData, fixedExpenses, variableWants, savings };
-  }, [incomes, expenses, calculateMetrics]);
+  }, [incomes, expenses, dbAccounts, calculateMetrics]);
 
   const sankeyData = useMemo(() => {
     if ((incomes.length === 0 && expenses.length === 0) || metrics.totalIncome === 0) return null;
@@ -276,10 +284,7 @@ function FamilyBudgetContent() {
       return "#94a3b8"; // Slate for unknown
     };
 
-    const safeVal = (v) => {
-      const num = Number(v) || 0;
-      return Math.max(0.1, num); // Ensure minimal flow for Sankey to render links
-    };
+    const safeVal = (v) => Math.max(0.01, Number(v) || 0);
 
     const nodeNames = new Set();
     const safeNodePush = (node) => {
@@ -299,7 +304,7 @@ function FamilyBudgetContent() {
       return acc;
     }, {});
 
-    Object.values(groupedIncomes).forEach(inc => {
+    Object.values(groupedIncomes).filter(inc => inc.amount > 0).forEach(inc => {
       safeNodePush({ name: inc.name, color: colors.income, value: inc.amount });
     });
 
@@ -308,88 +313,59 @@ function FamilyBudgetContent() {
     safeNodePush({ name: "Gross Income", color: colors.gross, value: totalInc });
 
     // Link Incomes to Gross
-    Object.values(groupedIncomes).forEach((inc, i) => {
-      links.push({ source: i, target: grossIncomeIndex, value: safeVal(inc.amount) });
+    nodes.slice(0, nodes.length - 1).forEach((_, i) => {
+      links.push({ source: i, target: grossIncomeIndex, value: safeVal(nodes[i].value) });
     });
 
     // 2. Gross Income to Categories
-    const fixedIndex = nodes.length;
-    safeNodePush({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
+    let fixedIndex = -1;
     if (metrics.fixedExpenses > 0) {
+      fixedIndex = nodes.length;
+      safeNodePush({ name: "Fixed Needs", color: colors.fixed, value: metrics.fixedExpenses });
       links.push({ source: grossIncomeIndex, target: fixedIndex, value: safeVal(metrics.fixedExpenses) });
     }
 
-    const variableIndex = nodes.length;
-    safeNodePush({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
+    let variableIndex = -1;
     if (metrics.variableWants > 0) {
+      variableIndex = nodes.length;
+      safeNodePush({ name: "Variable Wants", color: colors.variable, value: metrics.variableWants });
       links.push({ source: grossIncomeIndex, target: variableIndex, value: safeVal(metrics.variableWants) });
     }
 
-    const savingsIndex = nodes.length;
-    safeNodePush({ name: "Savings", color: colors.savings, value: metrics.savings });
+    let savingsIndex = -1;
     if (metrics.savings > 0) {
+      savingsIndex = nodes.length;
+      safeNodePush({ name: "Savings", color: colors.savings, value: metrics.savings });
       links.push({ source: grossIncomeIndex, target: savingsIndex, value: safeVal(metrics.savings) });
     }
 
-    const surplusIndex = nodes.length;
+    let surplusIndex = -1;
     const bal = metrics.balance > 0 ? metrics.balance : 0;
-    safeNodePush({ name: "Monthly Surplus", color: colors.surplus, value: bal });
     if (bal > 0) {
+      surplusIndex = nodes.length;
+      safeNodePush({ name: "Monthly Surplus", color: colors.surplus, value: bal });
       links.push({ source: grossIncomeIndex, target: surplusIndex, value: safeVal(bal) });
     }
 
-    // 3. Group Expenses by Name and Category
-    const groupedExpensesMap = expenses.reduce((acc, exp) => {
-      const name = exp.name || "Item";
-      const st = exp.spendType || "variable";
-      const key = `${name}-${st}`;
-      if (!acc[key]) acc[key] = { name, st, amount: 0, category: exp.category };
-      acc[key].amount += Number(exp.amount) || 0;
-      return acc;
-    }, {});
-
-    const sortedGroupedExpenses = Object.values(groupedExpensesMap).sort((a, b) => b.amount - a.amount);
+    // 3. Aggregated Expenses by Category
+    const sortedGroupedExpenses = [...aggregatedExpenses]
+      .filter(exp => exp.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
     
-    // Aggregation Logic: Keep top 15, group others
-    const topCount = 15;
-    const displayedExpenses = sortedGroupedExpenses.slice(0, topCount);
-    const otherExpenses = sortedGroupedExpenses.slice(topCount);
-
-    // Add Top Expenses
-    displayedExpenses.forEach((exp) => {
-      const color = getSectionColor(exp.name, exp.category, exp.st);
+    // Add Category Nodes
+    sortedGroupedExpenses.forEach((exp) => {
+      const color = getSectionColor(exp.name, exp.category, exp.spendType);
       const itemIndex = nodes.length;
       safeNodePush({ name: exp.name, color, value: exp.amount });
       
       let targetCatIndex = variableIndex;
-      if (exp.st === "fixed") targetCatIndex = fixedIndex;
-      if (exp.st === "savings") targetCatIndex = savingsIndex;
+      if (exp.spendType === "fixed" && fixedIndex !== -1) targetCatIndex = fixedIndex;
+      if (exp.spendType === "savings" && savingsIndex !== -1) targetCatIndex = savingsIndex;
       
-      links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
+      if (targetCatIndex !== -1) {
+        links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(exp.amount) });
+      }
     });
-
-    // Add "Other" node if needed
-    if (otherExpenses.length > 0) {
-      // Group by spendType for "Other Fixed", "Other Variable", "Other Savings"
-      const otherBySt = otherExpenses.reduce((acc, exp) => {
-        if (!acc[exp.st]) acc[exp.st] = 0;
-        acc[exp.st] += exp.amount;
-        return acc;
-      }, {});
-
-      Object.entries(otherBySt).forEach(([st, amount]) => {
-        if (amount <= 0) return;
-        const name = `Diversified ${st === 'fixed' ? 'Needs' : (st === 'savings' ? 'Savings' : 'Outflows')}`;
-        const itemIndex = nodes.length;
-        safeNodePush({ name, color: "#94a3b8", value: amount });
-        
-        let targetCatIndex = variableIndex;
-        if (st === "fixed") targetCatIndex = fixedIndex;
-        if (st === "savings") targetCatIndex = savingsIndex;
-        
-        links.push({ source: targetCatIndex, target: itemIndex, value: safeVal(amount) });
-      });
-    }
 
     return { nodes, links };
   }, [incomes, expenses, metrics]);
@@ -512,31 +488,7 @@ function FamilyBudgetContent() {
     );
   };
 
-  const vaultData = useMemo(() => {
-     // Aggregate surplus from the production ledger
-     const surplusNow = allTransactions.reduce((sum, t) => {
-       const amount = Math.abs(t.amount || t.amount || 0);
-       return (t.type === 'income' || t.spendType === 'income') ? sum + amount : sum - amount;
-     }, 0);
-     
-     const allocated = Number(localStorage.getItem('wealthlens-vault-allocated')) || 0;
-     // Base surplus starts with the historical seed (12450) + current ledger delta
-     return { remaining: Math.max(0, 12450 + surplusNow - allocated), allocated };
-  }, [allTransactions]);
 
-  const handleVaultWithdraw = (goalId, amount) => {
-    const withdrawal = Number(amount);
-    if (!goalId) return toast.error("Please select a goal first");
-    if (isNaN(withdrawal) || withdrawal <= 0) return toast.error("Enter a valid amount");
-    if (withdrawal > vaultData.remaining) return toast.error("Insufficient funds in the vault");
-    
-    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, current: g.current + withdrawal } : g));
-    const newAllocated = vaultData.allocated + withdrawal;
-    localStorage.setItem('wealthlens-vault-allocated', newAllocated.toString());
-    
-    toast.success(`Allocated ${getCurrencySymbol(currency)}${(withdrawal || 0).toLocaleString()} from vault to ${goals.find(g => g.id === goalId)?.name}`);
-    setVaultWithdrawAmount("");
-  };
 
 
 
@@ -613,23 +565,23 @@ function FamilyBudgetContent() {
           <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
             <div className="flex items-center justify-between max-w-7xl mx-auto">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalIncome.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INCOME</p>
               </div>
               <div className="text-center w-full px-2 border-l border-white/5">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalExpenses.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SPENT</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{expenses.filter(e => e.name?.toLowerCase().includes('debt') || e.name?.toLowerCase().includes('loan') || e.category?.toLowerCase() === 'debt').reduce((s, x) => s + (Number(x.amount) || 0), 0).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.savings.toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
               </div>
               <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, incomes.reduce((s, x) => s + (Number(x.amount) || 0), 0) - expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0)).toLocaleString()}</p>
+                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
                 <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">LEFT TO SPEND</p>
               </div>
             </div>
@@ -688,35 +640,10 @@ function FamilyBudgetContent() {
                     data={sankeyData}
                     node={<CustomSankeyNode />}
                     link={<CustomSankeyLink />}
-                    nodePadding={45}
+                    nodePadding={15}
                     margin={{ left: 100, right: 200, top: 40, bottom: 40 }}
                     sort={false}
-                  >
-                    <RechartsTooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          const isLink = data.source && data.target;
-                          const name = isLink 
-                            ? `${data.source.name} → ${data.target.name}` 
-                            : (data.name || 'Financial Flow');
-                          const value = data.value || 0;
-                          const color = isLink ? data.source.color : (data.color || "#6366f1");
-
-                          return (
-                            <div className="bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 transition-all min-w-[200px] z-[999]">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{name}</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: color}} />
-                                <p className="text-xl font-black text-slate-800">{sym}{(Number(value) || 0).toLocaleString()}</p>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </Sankey>
+                  />
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
@@ -845,75 +772,7 @@ function FamilyBudgetContent() {
           {/* Left Column: Editor */}
           <div className="lg:col-span-7 space-y-4">
 
-            {/* Household Vault & Global Savings Engine - Relocated to reduce width */}
-            <motion.div 
-              initial={{opacity:0, y:10}} 
-              animate={{opacity:1, y:0}}
-              className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md"
-            >
-              <div className="relative z-10 flex flex-col xl:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
-                    <Lock className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-slate-700 tracking-tight leading-none text-md">Vault</h3>
-                      <span className="text-[8px] font-medium bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full uppercase tracking-widest">Locked</span>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-xl font-medium text-slate-700">{getCurrencySymbol(currency)}{vaultData.remaining.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="w-full xl:w-auto">
-                  {!isVaultAllocating ? (
-                    <Button 
-                      onClick={() => setIsVaultAllocating(true)}
-                      disabled={vaultData.remaining <= 0}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-[10px] h-9 px-4 shadow-lg shadow-indigo-100 transition-all active:scale-95 w-full xl:w-auto"
-                    >
-                      Fund Goals
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100 animate-in slide-in-from-right-2 duration-300">
-                      <select 
-                        value={selectedVaultGoal}
-                        onChange={(e) => setSelectedVaultGoal(Number(e.target.value))}
-                        className="bg-transparent border-none text-[10px] font-black text-slate-700 outline-none w-24 px-1 cursor-pointer"
-                      >
-                        <option value="">Select Goal</option>
-                        {goals.map(g => (
-                          <option key={g.id} value={g.id}>{g.name}</option>
-                        ))}
-                      </select>
-                      <div className="w-px h-4 bg-slate-200" />
-                      <div className="relative min-w-[60px]">
-                        <input 
-                          type="number"
-                          placeholder="0"
-                          value={vaultWithdrawAmount}
-                          onChange={(e) => setVaultWithdrawAmount(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg h-7 pl-2 pr-1 text-[10px] font-black outline-none focus:border-indigo-400"
-                        />
-                      </div>
-                      <button 
-                        onClick={() => handleVaultWithdraw(selectedVaultGoal, vaultWithdrawAmount)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-widest"
-                      >
-                        Ok
-                      </button>
-                      <button onClick={() => setIsVaultAllocating(false)} className="p-1 text-slate-400 hover:text-slate-600"><Plus className="w-3.5 h-3.5 rotate-45" /></button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-2xl -mr-12 -mt-12" />
-            </motion.div>
-
-
-                    {/* Aggregated Overview Pane — Now with Donut Chart */}
+            {/* Aggregated Overview Pane — Now with Donut Chart */}
             <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm relative overflow-hidden">
                <div className="flex items-center justify-between mb-10">
                  <div>
@@ -999,8 +858,18 @@ function FamilyBudgetContent() {
                      </>
                   )}
                </div>
+            </div>
 
-          </div>
+            {/* Guides & Tips (Relocated beneath Cash Flow) */}
+            <div className="bg-[#1E293B] border border-slate-700 rounded-[32px] p-8 shadow-xl">
+              <h4 className="font-medium text-white/95 mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                <Bot className="w-4 h-4 text-[#E5C48B]" />
+                Portfolio Guidance
+              </h4>
+              <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                The <strong className="font-medium text-white">50/30/20 rule</strong> is an institutional-grade framework for capital allocation. We recommend deploying <span className="text-white">50% to essentials</span>, <span className="text-white">30% to living luxuries</span>, and scaling <span className="text-white">20% into wealth-building assets</span>.
+              </p>
+            </div>
 
           </div>
 
@@ -1015,193 +884,112 @@ function FamilyBudgetContent() {
                 The 50/30/20 Analysis
               </h3>
               
-              <div className="space-y-6">
-                {metrics.breakdown.map((b) => (
-                  <div key={b.id} className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-white/90 text-sm tracking-tight">{b.label}</span>
-                          <span className="text-[9px] font-medium text-[#2D3748] px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
-                            Target {b.targetPct}%
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-2xl font-medium tracking-tighter" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
-                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Live Flow</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{formatAmount(b.targetAmount)} Goal</span>
-                        {b.isOver ? (
-                          <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <AlertCircle className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Variance
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Savings
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Bullet Chart for 50/30/20 */}
-                    <div className="relative h-3 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
-                      <div 
-                        className="absolute h-full rounded-full transition-all duration-700 opacity-90 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
-                        style={{ backgroundColor: b.color, width: `${b.actualPct}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Budget Integrity Radar */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Budget Integrity Radar</h4>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-[#C5A059]" />
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">Target</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">Actual</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                      <PolarGrid stroke="#334155" />
-                      <PolarAngleAxis 
-                        dataKey="subject" 
-                        tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }}
-                      />
-                      <PolarRadiusAxis 
-                        angle={30} 
-                        domain={[0, 100]} 
-                        tick={false}
-                        axisLine={false}
-                      />
-                      <Radar
-                        name="Target"
-                        dataKey="B"
-                        stroke="#C5A059"
-                        fill="#C5A059"
-                        fillOpacity={0.1}
-                      />
-                      <Radar
-                        name="Actual"
-                        dataKey="A"
-                        stroke="#10b981"
-                        fill="#10b981"
-                        fillOpacity={0.5}
-                      />
-                      <RechartsTooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                             return (
-                               <div className="bg-slate-800 p-3 rounded-xl shadow-xl border border-slate-700">
-                                 <p className="text-[9px] font-black text-slate-400 uppercase mb-2">{payload[0].payload.subject}</p>
-                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-emerald-400">Actual: {payload[0].value.toFixed(1)}%</p>
-                                    <p className="text-[10px] font-bold text-[#C5A059]">Target: {payload[1].value}%</p>
-                                 </div>
-                               </div>
-                             );
-                          }
-                          return null;
-                        }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Summary Pie Chart */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-6 text-center">Relative Distribution</h4>
-                {metrics.pieData.length > 0 ? (
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={metrics.pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={75}
-                          paddingAngle={8}
-                          dataKey="value"
-                          stroke="none"
-                          labelLine={false}
-                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                        >
-                          {metrics.pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip 
-                          formatter={(value) => sym + value.toLocaleString()}
-                          itemStyle={{ fontSize: 13, fontWeight: 'medium', color: '#111827' }}
-                          contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', color: '#94a3b8', paddingTop: '20px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-500 text-xs py-8 font-medium">Add inputs to generate flow analysis</p>
-                )}
-              </div>
-              {/* Family Savings Pillars */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Savings Velocity Pillars</h4>
-                  <TrendingUp className="w-4 h-4 text-[#E5C48B]" />
-                </div>
+              <div className="grid grid-cols-1 gap-8">
+                {/* 1. The Bars (Full Width) */}
                 <div className="space-y-6">
-                  {goals.map((g) => {
-                    const pct = Math.min((g.current / (g.target || 1)) * 100, 100);
-                    return (
-                      <div key={g.id} className="space-y-2.5">
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-[11px] font-medium text-white/90 uppercase tracking-tight">{g.name}</p>
-                            <p className="text-[10px] font-medium text-slate-400">
-                              {sym}{g.current.toLocaleString()} / {sym}{g.target.toLocaleString()}
-                            </p>
+                  {metrics.breakdown.map((b) => (
+                    <div key={b.id} className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white/90 text-sm tracking-tight">{b.label}</span>
+                            <span className="text-[9px] font-medium text-[#2D3748] px-2 py-0.5 rounded-full uppercase tracking-tighter" style={{backgroundColor: b.color}}>
+                              Target {b.targetPct}%
+                            </span>
                           </div>
-                          <span className="text-xs font-medium text-[#B8D8BA]">{pct.toFixed(0)}%</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-2xl font-medium tracking-tighter" style={{color: b.color}}>{b.actualPct.toFixed(1)}%</span>
+                            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Live Flow</span>
+                          </div>
                         </div>
-                        {/* High-Precision Bullet Chart */}
-                        <div className="relative h-2.5 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            className="h-full bg-emerald-500/80 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-700"
-                          />
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-300 font-medium uppercase tracking-widest block mb-0.5">{formatAmount(b.targetAmount)} Goal</span>
+                          {b.isOver ? (
+                            <span className="text-[10px] font-medium text-rose-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                              <AlertCircle className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Variance
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-emerald-400 uppercase tracking-widest flex items-center gap-1 justify-end">
+                              <CheckCircle2 className="w-3 h-3" /> {formatAmount(Math.abs(b.diff))} Savings
+                            </span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
+                      <div className="relative h-3 w-full bg-black/20 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className="absolute h-full rounded-full transition-all duration-700 opacity-90 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
+                          style={{ backgroundColor: b.color, width: `${b.actualPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+
+                {/* 2. Charts (2 Columns) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
+                  {/* Budget Integrity Radar */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Integrity Radar</h4>
+                      <div className="flex gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#C5A059]" title="Target" />
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" title="Actual" />
+                      </div>
+                    </div>
+                    <div className="h-56 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                          <PolarGrid stroke="#334155" />
+                          <PolarAngleAxis 
+                            dataKey="subject" 
+                            tick={{ fill: '#94a3b8', fontSize: 7, fontWeight: 700 }}
+                          />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                          <Radar name="Target" dataKey="B" stroke="#C5A059" fill="#C5A059" fillOpacity={0.1} />
+                          <Radar name="Actual" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.5} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Summary Pie Chart */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-medium text-slate-400 uppercase tracking-widest text-center mb-2">Distribution</h4>
+                    {metrics.pieData.length > 0 ? (
+                      <div className="h-56 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={metrics.pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={45}
+                              outerRadius={65}
+                              paddingAngle={8}
+                              dataKey="value"
+                              stroke="none"
+                              labelLine={false}
+                              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                              {metrics.pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              formatter={(value) => sym + value.toLocaleString()}
+                              contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#F3F4F6', fontSize: '10px' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-center text-slate-500 text-[10px] py-12 font-medium">No flow analysis</p>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
-
-            {/* Guides & Tips */}
-            <div className="bg-[#1E293B] border border-slate-700 rounded-[32px] p-8 shadow-xl">
-              <h4 className="font-medium text-white/95 mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
-                <Bot className="w-4 h-4 text-[#E5C48B]" />
-                Portfolio Guidance
-              </h4>
-              <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                The <strong className="font-medium text-white">50/30/20 rule</strong> is an institutional-grade framework for capital allocation. We recommend deploying <span className="text-white">50% to essentials</span>, <span className="text-white">30% to living luxuries</span>, and scaling <span className="text-white">20% into wealth-building assets</span>.
-              </p>
-            </div>
-
-
           </div>
         </div>
       </div>
@@ -1209,7 +997,7 @@ function FamilyBudgetContent() {
     </div>
   </div>
   );
-}
+};
 
 export default function FamilyBudgetPage() {
   return (

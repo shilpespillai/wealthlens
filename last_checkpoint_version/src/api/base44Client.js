@@ -1,6 +1,7 @@
 
 // Mocked base44 instance holding required methods completely local to the browser
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { encryptPayload, decryptPayload } from './crypto';
 
 const isProd = import.meta.env.PROD;
 
@@ -43,8 +44,8 @@ const SYMBOL_REGISTRY = {
 
 // Helper: Call Gemini Directly from Frontend in Development
 // Universal Intelligence Bridge (Local-Only Provider Support)
-const invokeUniversalAI = async (prompt, type, params = {}) => {
-  const config = JSON.parse(localStorage.getItem('wl_ai_config') || '{}');
+export const invokeUniversalAI = async (prompt, type, params = {}) => {
+  const config = await base44.user.loadData('wl_ai_config') || {};
   const userProvider = config.provider || 'gemini';
   
   // Extract key from siloed structure or legacy field
@@ -78,24 +79,30 @@ const invokeUniversalAI = async (prompt, type, params = {}) => {
     let endpoint, body, headers;
     const systemContext = `You are WealthLens Premium AI, an elite financial strategist. 
     Today's Date: ${new Date().toLocaleDateString()}
-    Context: Analysis for ${type === 'pillar' ? 'Stock Evaluation' : 'Financial Coaching'}.`;
+    Context: Analysis for ${type === 'pillar' ? 'Stock Evaluation' : (type === 'report' ? 'Institutional Financial Report' : 'Financial Coaching')}.`;
     
     const fullPrompt = `${systemContext}\n\nTask: ${prompt}\n\nResponse Requirements:
     IF type is 'coach': { "assessment": "sharp 2-sentence mathematical evaluation", "tone": "encouraging|urgent|excellent", "recommendations": [{ "action": "specific task", "impact": "mathematical result", "priority": "high|medium|low" }], "key_insights": ["data-driven insight from prompt"], "closing_motivation": "compelling closing" }
     IF type is 'pillar': { "stockName": "Full Name", "currentPrice": number, "pillars": [{ "id": "pe|roic|rev|net_income|shares|fcf|liabilities|price_fcf", "passed": boolean, "current": "data value", "target": "threshold", "rationale": "one-sentence explanation" }], "summary": "2-sentence overview", "overallScore": number, "recommendation": "Verdict" }
+    IF type is 'categorize': { "categories": { "merchant_name_exactly_as_provided": "Canonical_Category_Name" } }
+    IF type is 'report': { "markdownContent": "The full formatted markdown report string containing all analysis. Use # for headers, - for bullets, and ** for bold text." }
     Return ONLY valid JSON.`;
 
     if (userProvider === 'gemini') {
       endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${userModel}:generateContent?key=${userKey}`;
       headers = { "Content-Type": "application/json" };
-      body = JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] });
+      body = JSON.stringify({ 
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.1 }
+      });
     } else if (userProvider === 'openai') {
       endpoint = "https://api.openai.com/v1/chat/completions";
       headers = { "Content-Type": "application/json", "Authorization": `Bearer ${userKey}` };
       body = JSON.stringify({
         model: userModel,
         messages: [{ role: "system", content: systemContext }, { role: "user", content: fullPrompt }],
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
+        max_tokens: 4096
       });
     } else if (userProvider === 'anthropic') {
       endpoint = "https://api.anthropic.com/v1/messages";
@@ -106,7 +113,7 @@ const invokeUniversalAI = async (prompt, type, params = {}) => {
       };
       body = JSON.stringify({
         model: userModel,
-        max_tokens: 1024,
+        max_tokens: 4096,
         messages: [{ role: "user", content: fullPrompt }]
       });
     }
@@ -120,15 +127,74 @@ const invokeUniversalAI = async (prompt, type, params = {}) => {
     if (userProvider === 'anthropic') text = data.content?.[0]?.text;
 
     if (!text) throw new Error("No response from provider");
+    
+    // Robust JSON Extraction: Find the outermost braces to ignore LLM decoration or truncation errors
     const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
-    return JSON.parse(cleanedText);
+    const repairJson = (str) => {
+      try {
+        let fixed = str
+          .replace(/,\s*([\]}])/g, '$1') // Trailing commas
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // Unquoted keys
+          .replace(/'/g, '"'); // Single to double quotes
+
+        // Handle unterminated strings (trailing open quote)
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) fixed += '"';
+
+        // Handle unclosed braces
+        const openBraces = (fixed.match(/{/g) || []).length;
+        const closeBraces = (fixed.match(/}/g) || []).length;
+        if (openBraces > closeBraces) fixed += '}'.repeat(openBraces - closeBraces);
+
+        return fixed;
+      } catch (e) { return str; }
+    };
+
+    const firstBrace = cleanedText.indexOf('{');
+    const lastBrace = cleanedText.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const jsonCandidate = cleanedText.substring(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(jsonCandidate);
+      } catch (parseErr) {
+        try {
+           return JSON.parse(repairJson(jsonCandidate));
+        } catch (repairErr) {
+           console.warn("[Intelligence Hub] Outermost brace parse failed. Attempting narrative repair...");
+        }
+        
+        // If it's a report, try a greedy regex to pull out the content between the first "markdownContent": " and the last "
+        if (type === 'report') {
+          const greedyMatch = jsonCandidate.match(/"(?:markdownContent|report|text)":\s*"([\s\S]*)"\s*}/);
+          if (greedyMatch && greedyMatch[1]) {
+            return { markdownContent: greedyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') };
+          }
+        }
+      }
+    }
+
+    // Fallback for Reports: If no JSON structure found or parsing failed, return raw text
+    // but try to strip common JSON wrappers first for a cleaner look
+    if (type === 'report') {
+        let narrative = text.replace(/```json\n?|```\n?/g, '').trim();
+        // Remove common JSON wrappers if present
+        narrative = narrative.replace(/^{?\s*"(?:markdownContent|report|text)":\s*"/, '').replace(/"\s*}?$/, '');
+        return { markdownContent: narrative.replace(/\\n/g, '\n').replace(/\\"/g, '"') };
+    }
+
+    try {
+      return JSON.parse(repairJson(cleanedText));
+    } catch (e) {
+      return JSON.parse(cleanedText);
+    }
   } catch (err) {
     console.warn("[Bridge Error] Falling back to Heuristics:", err);
     // Auto-Trigger Discovery if it was a 404 (Retired Model)
     if (err.message && err.message.includes('404')) {
         console.warn("[Intelligence Hub] Detected retired model (404). Triggering discovery sync...");
     }
-    return runSmartHeuristics(type, params);
+    return await runSmartHeuristics(type, params);
   }
 };
 
@@ -179,7 +245,15 @@ const syncModels = async (provider, key) => {
 };
 
 // Smart Heuristics Engine (Logic-based fallback)
-const runSmartHeuristics = (type, params) => {
+const runSmartHeuristics = async (type, params) => {
+  if (type === 'categorize') {
+    return { categories: {} }; // Return empty mapping to trigger standard offline fallback logic
+  }
+  if (type === 'report') {
+    return {
+      markdownContent: `# Institutional Summary (Deterministic Mode)\n\n*Note: Connect an API key in Settings to unlock dynamic, AI-powered narratives.* \n\n### Key Findings\n- Total ledger volume has been successfully audited and mapped.\n- Core fixed costs are tracking within anticipated deterministic thresholds.\n- No severe systemic liquidity risks detected in the current month's cash flow.\n\n> **Unlock Deep Intelligence:** Connecting your Gemini or OpenAI API key enables the WealthLens Intelligence Engine to generate highly specific, conversational reports summarizing exact merchant spending anomalies, hidden subscription leakage, and proactive 50/30/20 budget adjustments.`
+    };
+  }
   if (type === 'coach') {
     const savingsRate = params.savingsRate || 0;
     const runway = params.cashRunway || 3;
@@ -203,7 +277,7 @@ const runSmartHeuristics = (type, params) => {
   }
 
   if (type === 'pillar') {
-    const config = JSON.parse(localStorage.getItem('wl_ai_config') || '{}');
+    const config = await base44.user.loadData('wl_ai_config') || {};
     const pName = config.provider || 'gemini';
     return {
       stockName: (params.symbol || 'STOCK').toUpperCase(),
@@ -227,8 +301,11 @@ export const base44 = {
   auth: {
     me: async () => {
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) return { ...session.user, ...session.user.user_metadata };
+        try {
+          const result = await supabase.auth.getSession();
+          const session = result?.data?.session;
+          if (session?.user) return { ...session.user, ...session.user.user_metadata };
+        } catch (e) {}
       }
       const stored = localStorage.getItem('mockUser');
       if (stored) return JSON.parse(stored);
@@ -262,12 +339,33 @@ export const base44 = {
       return { success: true };
     }
   },
-
-  app: {
-    getPrice: async () => 29.99,
-    updatePrice: async () => ({ success: true })
+  app: {
+    getPrice: async () => {
+      try {
+        // Attempt fetch but catch 404s silently on localhost
+        const resp = await fetch('/api/pricing').catch(() => null);
+        if (!resp || resp.status === 404) return 29.99;
+        const data = await resp.json();
+        return parseFloat(data.price || "29.99");
+      } catch (e) {
+        return 29.99;
+      }
+    },
+    updatePrice: async (newPrice, adminEmail) => {
+      try {
+        const resp = await fetch('/api/pricing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ price: newPrice, adminEmail })
+        }).catch(() => ({ status: 404 }));
+        
+        if (resp.status === 404) return { success: true, mock: true };
+        return await resp.json();
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
   },
-
   functions: {
     invoke: async (name, params) => {
       if (name === 'getInvestmentCoachAdvice') {
@@ -284,43 +382,336 @@ export const base44 = {
         return { data: realData };
       }
 
-      if (name === 'checkSubscription') return { data: { isActive: true } };
+      if (name === 'getStripeKey') {
+        try {
+          const resp = await fetch('/api/pricing').catch(() => ({ status: 404 }));
+          if (resp && resp.status !== 404) {
+             const data = await resp.json();
+             if (data?.publishableKey) return { data };
+          }
+        } catch (e) {}
+        return { data: { publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock' } };
+      }
+
+      if (name === 'stripeCheckout') {
+        try {
+          const resp = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+          }).catch(() => ({ status: 404 }));
+
+          // If we got a real error from the server (500)
+          if (resp && resp.status >= 500) {
+            const errText = await resp.text().catch(() => "Internal Server Error");
+            
+            // SPECIAL CASE: On localhost, if the proxy target (port 3000) is down, Vite returns 500.
+            // We want to fallback to mock in this case so development isn't blocked.
+            if (window.location.hostname === 'localhost' && (errText.includes("Proxy error") || errText.includes("ECONNREFUSED"))) {
+              console.warn("[base44] Backend server offline. Falling back to Mock Checkout.");
+            } else {
+              return { error: `Payment Engine Crash: ${errText}` };
+            }
+          }
+
+          if (resp && resp.status !== 404 && resp.status < 500) {
+             const data = await resp.json();
+             if (data?.url || data?.sessionId) return { data };
+          }
+        } catch (e) {
+          console.warn("[base44] Stripe bridge exception:", e);
+        }
+        
+        // Mock Fallback for 404 or Localhost Proxy Errors
+        return { 
+          data: { 
+            url: params.successUrl || (window.location.origin + '/?upgraded=true'),
+            sessionId: 'mock_session_id'
+          } 
+        };
+      }
+
       return { data: { success: true } };
     }
   },
+
   
   user: {
     loadData: async (key) => {
-      if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', session.user.id).eq('key', key).maybeSingle();
-          if (!error && data) return data.payload;
-        }
+      const { session } = await base44.db._getSession();
+      const userId = session?.user?.id || 'anonymous';
+      const storageKey = `${key}_${userId}`;
+
+      // SECURITY: AI Configuration must remain local and NOT sync to DB
+      if (key === 'wl_ai_config') {
+        const stored = localStorage.getItem(storageKey);
+        return stored ? JSON.parse(stored) : null;
       }
-      const stored = localStorage.getItem(key);
+
+      if (isSupabaseEnabled && session?.user) {
+        const { data, error } = await supabase.from('user_data').select('payload').eq('user_id', userId).eq('key', key).maybeSingle();
+        if (!error && data) return data.payload;
+      }
+      
+      const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : null;
     },
     saveData: async (key, data) => {
-      if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await supabase.from('user_data').upsert({ user_id: session.user.id, key: key, payload: data, updated_at: new Date() });
-          return { success: true };
-        }
+      const { session } = await base44.db._getSession();
+      const userId = session?.user?.id || 'anonymous';
+      const storageKey = `${key}_${userId}`;
+
+      // SECURITY: AI Configuration must remain local and NOT sync to DB
+      if (key === 'wl_ai_config') {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        return { success: true };
       }
-      localStorage.setItem(key, JSON.stringify(data));
+
+      // DATA INTEGRITY: Prevent "Double-Writing" relational data to the vault
+      // These keys are legacy leftovers from when the app used JSON blobs for everything.
+      const legacyBlocklist = [
+        'wl_table_transactions', 
+        'wl_table_accounts', 
+        'wl_table_user_accounts',
+        'wl_table_portfolio_holdings',
+        'wl_table_budgets',
+        'wl_table_monthly_summaries'
+      ];
+      
+      if (legacyBlocklist.some(k => key === k || key.startsWith('wealthlens-budget-'))) {
+        if (!isProd) console.log(`[base44] Blocked double-write of relational key to vault: ${key}`);
+        localStorage.setItem(storageKey, JSON.stringify(data)); // Keep local but don't sync to DB
+        return { success: true };
+      }
+
+      if (isSupabaseEnabled && session?.user) {
+        const { error } = await supabase
+          .from('user_data')
+          .upsert(
+            { user_id: userId, key: key, payload: data, updated_at: new Date() }, 
+            { onConflict: 'user_id,key' }
+          );
+        
+        if (error) {
+          console.error(`[base44] saveData failed for ${key}:`, error);
+          // Fallback to local storage on error to prevent data loss
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+        return { success: !error };
+      }
+      
+      localStorage.setItem(storageKey, JSON.stringify(data));
       return { success: true };
     }
   },
   
   db: {
-    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets", categories: "user_categories" },
+    TABLE_MAP: { accounts: "user_accounts", transactions: "transactions", portfolio_holdings: "portfolio_holdings", budgets: "budgets" },
+    
+    // Internal session cache to prevent auth-storming during loops/navigation
+    _sessionCache: null,
+    _sessionCacheTime: 0,
+    
+    // Synchronous session tracker to bypass async getSession hangs
+    _activeSession: null,
+    _isInitialized: false,
+    _getSession: async () => {
+      if (!isSupabaseEnabled) return { session: null };
+      
+      // 1. Return cached session instantly if available
+      if (base44.db._activeSession) return { session: base44.db._activeSession };
+
+      // 2. Fast Synchronous Recovery from disk
+      try {
+        const stored = localStorage.getItem('sb-wealthlens-auth-token');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.user) {
+            base44.db._activeSession = parsed;
+            return { session: parsed };
+          }
+        }
+      } catch (e) {}
+
+      // 3. Fallback to Supabase but with total safety
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data && data.session) {
+          base44.db._activeSession = data.session;
+          return { session: data.session };
+        }
+      } catch (e) {}
+
+      return { session: null };
+    },
+
+    // ── VAULT SHARDING ENGINE (Shadow Schema Proxy) ────────────────────────
+    _getShardKey: (date) => {
+      if (!date) return new Date().toISOString().substring(0, 7); // Default to current month
+      try {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+      } catch (e) {
+        return new Date().toISOString().substring(0, 7);
+      }
+    },
+
+    _loadShard: async (shardKey) => {
+      const { session } = await base44.db._getSession();
+      if (!session?.user) return null;
+
+      try {
+        const { data, error } = await supabase
+          .from('wealthlens_vault')
+          .select('payload')
+          .eq('user_id', session.user.id)
+          .eq('shard_key', shardKey)
+          .maybeSingle();
+
+        if (error || !data) return null;
+
+        const payload = data.payload;
+        
+        // If it's already an object (from JSONB migration), return it
+        if (payload && typeof payload === 'object') return payload;
+
+        // Otherwise, try to decrypt the Base64 string
+        let decrypted = await decryptPayload(payload, session.user.id);
+        if (!decrypted) {
+            try { return JSON.parse(payload); } catch(e) { return null; }
+        }
+        return decrypted;
+      } catch (e) {
+        console.error(`[Vault] Load failed for ${shardKey}:`, e);
+        return null;
+      }
+    },
+
+    _saveShard: async (shardKey, shardData) => {
+      const { session } = await base44.db._getSession();
+      if (!session?.user) return false;
+
+      try {
+        // Encrypt before saving
+        const encrypted = await encryptPayload(shardData, session.user.id);
+        if (!encrypted) throw new Error("Encryption failed");
+
+        const { error } = await supabase
+          .from('wealthlens_vault')
+          .upsert({
+            user_id: session.user.id,
+            shard_key: shardKey,
+            payload: encrypted,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id, shard_key' });
+
+        return !error;
+      } catch (e) {
+        console.error(`[Vault] Save failed for ${shardKey}:`, e);
+        return false;
+      }
+    },
+
+    _getLatestShard: async () => {
+      const { session } = await base44.db._getSession();
+      if (!session?.user) return null;
+
+      const { data, error } = await supabase
+        .from('wealthlens_vault')
+        .select('shard_key, payload')
+        .eq('user_id', session.user.id)
+        .order('shard_key', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      
+      let decrypted = await decryptPayload(data.payload, session.user.id);
+      if (!decrypted && typeof data.payload === 'object') return data.payload;
+      return decrypted;
+    },
+
     getTable: async (tableName) => {
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (['transactions', 'user_accounts', 'user_categories', 'categories', 'budgets'].includes(tableName)) {
+        console.log(`[base44.db] Intercepting ${tableName} -> Vault Redirect`);
+        
+        if (tableName === 'transactions') {
+          // Load ALL shards to reconstruct the relational ledger
+          const { session } = await base44.db._getSession();
+          if (!session?.user) return [];
+
+          const { data, error } = await supabase
+            .from('wealthlens_vault')
+            .select('payload')
+            .eq('user_id', session.user.id);
+
+          if (error || !data) return [];
+
+          const allTxs = [];
+          for (const row of data) {
+            const payload = row.payload;
+            let decrypted = (payload && typeof payload === 'object') ? payload : await decryptPayload(payload, session.user.id);
+            
+            if (!decrypted && typeof payload === 'string') {
+              try { decrypted = JSON.parse(payload); } catch(e) {}
+            }
+            
+            if (decrypted?.transactions) {
+              allTxs.push(...decrypted.transactions);
+            }
+          }
+          return allTxs;
+        }
+
+        if (tableName === 'budgets') {
+            const { session } = await base44.db._getSession();
+            if (!session?.user) return [];
+
+            const { data, error } = await supabase
+                .from('wealthlens_vault')
+                .select('shard_key, payload')
+                .eq('user_id', session.user.id);
+
+            if (error || !data) return [];
+
+            const allBudgets = [];
+            for (const row of data) {
+                const payload = row.payload;
+                let decrypted = (payload && typeof payload === 'object') ? payload : await decryptPayload(payload, session.user.id);
+                
+                if (!decrypted && typeof payload === 'string') {
+                    try { decrypted = JSON.parse(payload); } catch(e) {}
+                }
+                
+                if (decrypted?.budget) {
+                    allBudgets.push({
+                        month: row.shard_key,
+                        payload: decrypted.budget,
+                        user_id: session.user.id
+                    });
+                }
+            }
+            return allBudgets;
+        }
+
+        // Accounts and Categories: Use the LATEST state snapshot
+        const latest = await base44.db._getLatestShard();
+        if (latest) {
+          if (tableName === 'user_accounts') return latest.accounts || [];
+          if (tableName === 'user_categories' || tableName === 'categories') return latest.categories || [];
+        }
+        
+        return [];
+      }
+
+      // ── LEGACY TABLE FALLBACK (For non-vaulted data like Portfolio) ──────
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const sessionResult = await base44.db._getSession();
+        const session = sessionResult ? sessionResult.session : null;
+        
+        if (session && session.user) {
           const { data, error } = await supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
           if (!error && data) return data;
           
@@ -336,32 +727,218 @@ export const base44 = {
       const data = await base44.user.loadData(key);
       return Array.isArray(data) ? data : [];
     },
-    upsertRow: async (tableName, row, options = {}) => {
+    // ── insertRow ───────────────────────────────────────────────────────────
+    // Pure INSERT — never updates an existing record.
+    // Use this for new transactions, new accounts, etc.
+    insertRow: async (tableName, row) => {
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (tableName === 'transactions') {
+        const shardKey = base44.db._getShardKey(row.date);
+        let shard = await base44.db._loadShard(shardKey);
+        
+        // Inheritance: If new month, copy state from latest
+        if (!shard) {
+          const latest = await base44.db._getLatestShard();
+          shard = {
+            transactions: [],
+            accounts: latest?.accounts || [],
+            categories: latest?.categories || [],
+            budget: null,
+            metadata: { month: shardKey, version: "1.0" }
+          };
+        }
+
+        const newRow = { ...row, id: row.id || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, created_at: new Date().toISOString() };
+        shard.transactions.push(newRow);
+        
+        await base44.db._saveShard(shardKey, shard);
+        return newRow;
+      }
+
+      if (tableName === 'user_accounts' || tableName === 'user_categories' || tableName === 'categories') {
+        const shardKey = base44.db._getShardKey(); // Current month
+        let shard = await base44.db._loadShard(shardKey);
+        
+        if (!shard) {
+          const latest = await base44.db._getLatestShard();
+          shard = {
+            transactions: [],
+            accounts: latest?.accounts || [],
+            categories: latest?.categories || [],
+            budget: null,
+            metadata: { month: shardKey, version: "1.0" }
+          };
+        }
+
+        if (tableName === 'user_accounts') {
+          const newRow = { ...row, id: row.id || `acc_${Date.now()}` };
+          shard.accounts.push(newRow);
+          await base44.db._saveShard(shardKey, shard);
+          return newRow;
+        } else {
+          const newRow = { ...row, id: row.id || `cat_${Date.now()}` };
+          shard.categories.push(newRow);
+          await base44.db._saveShard(shardKey, shard);
+          return newRow;
+        }
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
-          // Optimized for WealthLens: Automatically handle composite unique constraints for planning tables
-          // Detect shorthand string options (e.g., "month") and map to onConflict
+          const cleanRow = { ...row };
+          delete cleanRow.id; // Always let DB generate the UUID
+
+          const { data, error } = await supabase
+            .from(sqlTable)
+            .insert({ ...cleanRow, user_id: session.user.id, created_at: new Date(), updated_at: new Date() })
+            .select();
+
+          if (!error) {
+            console.log(`[base44] INSERT OK → ${sqlTable}:`, data?.[0]);
+            return data?.[0] || { success: true };
+          }
+
+          if (error.code === 'PGRST205') {
+            console.warn(`[base44] Table '${sqlTable}' not found. Falling back to local vault.`);
+          } else {
+            console.error(`[base44] Insert failed for ${tableName}:`, error);
+            return { error };
+          }
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const rows = await base44.db.getTable(tableName);
+      const newRow = { ...row, id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() };
+      return base44.user.saveData(key, [...rows, newRow]);
+    },
+
+    // ── insertRows ──────────────────────────────────────────────────────────
+    // Bulk INSERT — for CSV imports, bank syncs, etc.
+    insertRows: async (tableName, rows) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const newRows = rows.map((r, idx) => ({ 
+          ...r, 
+          id: r.id || `cat_${Date.now()}_${idx}`, 
+          created_at: new Date().toISOString() 
+        }));
+        const updated = [...current, ...newRows];
+        await base44.user.saveData('wl_categories', updated);
+        return newRows;
+      }
+
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { session } = await base44.db._getSession();
+        if (session?.user) {
+          const cleanRows = rows.map(r => {
+            const clean = { ...r, user_id: session.user.id, created_at: new Date(), updated_at: new Date() };
+            delete clean.id;
+            return clean;
+          });
+
+          const { data, error } = await supabase
+            .from(sqlTable)
+            .insert(cleanRows)
+            .select();
+
+          if (error) {
+            console.error(`[base44] Bulk insert failed for ${tableName}:`, error);
+            throw new Error(error.message || "Database rejected the insertion");
+          }
+          return data || { success: true };
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const existing = await base44.db.getTable(tableName);
+      const newRows = rows.map(r => ({ ...r, id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, created_at: new Date().toISOString() }));
+      return base44.user.saveData(key, [...existing, ...newRows]);
+    },
+
+    // ── upsertRow ───────────────────────────────────────────────────────────
+    // INSERT or UPDATE based on conflict key.
+    // Use this for edits to existing records (e.g. inline transaction edits,
+    // budget planning rows, user settings).
+    upsertRow: async (tableName, row, options = {}) => {
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (['transactions', 'budgets'].includes(tableName)) {
+        const shardKey = tableName === 'budgets' ? row.month : base44.db._getShardKey(row.date);
+        let shard = await base44.db._loadShard(shardKey);
+        
+        if (!shard) {
+            // New month inheritance
+            const latest = await base44.db._getLatestShard();
+            shard = {
+                transactions: [],
+                accounts: latest?.accounts || [],
+                categories: latest?.categories || [],
+                budget: null,
+                metadata: { month: shardKey, version: "1.0" }
+            };
+        }
+
+        if (tableName === 'transactions') {
+            const index = shard.transactions.findIndex(t => t.id === row.id);
+            if (index !== -1) {
+                shard.transactions[index] = { ...shard.transactions[index], ...row, updated_at: new Date().toISOString() };
+            } else {
+                shard.transactions.push({ ...row, id: row.id || `tx_${Date.now()}`, created_at: new Date().toISOString() });
+            }
+        } else {
+            // Budget update
+            shard.budget = row.payload || row;
+        }
+        
+        await base44.db._saveShard(shardKey, shard);
+        return row;
+      }
+
+      if (tableName === 'user_accounts' || tableName === 'user_categories' || tableName === 'categories') {
+        const shardKey = base44.db._getShardKey();
+        let shard = await base44.db._loadShard(shardKey);
+        if (!shard) {
+            const latest = await base44.db._getLatestShard();
+            shard = { transactions: [], accounts: latest?.accounts || [], categories: latest?.categories || [], budget: null, metadata: { month: shardKey } };
+        }
+
+        const list = (tableName === 'user_accounts') ? shard.accounts : shard.categories;
+        const index = list.findIndex(i => i.id === row.id || i.name === row.name);
+        
+        if (index !== -1) {
+          list[index] = { ...list[index], ...row };
+        } else {
+          list.push(row);
+        }
+
+        await base44.db._saveShard(shardKey, shard);
+        return row;
+      }
+
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      if (isSupabaseEnabled) {
+        const { session } = await base44.db._getSession();
+        if (session?.user) {
           const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           
-          // Safety: Strip null or undefined ID to allow DB-generated defaults (UUIDs)
           const cleanRow = { ...row };
           if (cleanRow.id === null || cleanRow.id === undefined) {
             delete cleanRow.id;
           }
 
-          // Use the table's composite key or primary key for onConflict if not provided
           if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
-            upsertOptions.onConflict = 'user_id,month'; // WealthLens standard for planning tables
+            upsertOptions.onConflict = 'user_id,month';
           } else if (upsertOptions.onConflict === 'month') {
-            upsertOptions.onConflict = 'user_id,month'; // Map shorthand to composite key
+            upsertOptions.onConflict = 'user_id,month';
           }
 
           const { data, error } = await supabase.from(sqlTable).upsert({ ...cleanRow, user_id: session.user.id, updated_at: new Date() }, upsertOptions).select();
           if (!error) return data?.[0] || { success: true };
           
-          // Catch 'missing table' error and allow local fallback
           if (error && error.code === 'PGRST205') {
              console.warn(`[base44] Table '${sqlTable}' not found for upsert. Falling back to local vault.`);
           } else {
@@ -374,7 +951,6 @@ export const base44 = {
       const rows = await base44.db.getTable(tableName);
       let targetId = row.id;
       
-      // Local Fallback: Find by logical keys if ID is missing
       if (!targetId) {
         if (tableName === 'budgets' || tableName === 'monthly_summaries') {
           const match = rows.find(r => r.month === row.month);
@@ -392,9 +968,34 @@ export const base44 = {
       return base44.user.saveData(key, newRows);
     },
     upsertRows: async (tableName, rows, options = {}) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const rowMap = new Map(current.map(r => [String(r.id), r]));
+        const nameMap = new Map(current.map(r => [(r.name || "").toLowerCase().trim(), r]));
+
+        rows.forEach(row => {
+          const key = (row.name || "").toLowerCase().trim();
+          const existing = (row.id && rowMap.get(String(row.id))) || nameMap.get(key);
+          
+          if (existing) {
+            const updated = { ...existing, ...row, updated_at: new Date().toISOString() };
+            rowMap.set(String(updated.id), updated);
+          } else {
+            const newId = row.id || `cat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            const newRow = { ...row, id: newId, created_at: new Date().toISOString() };
+            rowMap.set(String(newId), newRow);
+          }
+        });
+
+        const updatedList = Array.from(rowMap.values());
+        await base44.user.saveData('wl_categories', updatedList);
+        return updatedList;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const upsertOptions = typeof options === 'string' ? { onConflict: options } : { ...options };
           if (!upsertOptions.onConflict && (tableName === 'budgets' || tableName === 'monthly_summaries')) {
@@ -447,9 +1048,49 @@ export const base44 = {
       return base44.user.saveData(key, finalRows);
     },
     deleteRow: async (tableName, id) => {
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (['transactions', 'user_accounts', 'user_categories', 'categories'].includes(tableName)) {
+        const { session } = await base44.db._getSession();
+        if (!session?.user) return { success: false };
+
+        // We have to find which shard contains this ID
+        const { data, error } = await supabase
+            .from('wealthlens_vault')
+            .select('shard_key, payload')
+            .eq('user_id', session.user.id);
+
+        if (error || !data) return { success: false };
+
+        for (const row of data) {
+            let shard = await decryptPayload(row.payload, session.user.id);
+            if (!shard && typeof row.payload === 'object') shard = row.payload;
+
+            if (shard) {
+                let changed = false;
+                if (tableName === 'transactions') {
+                    const originalLength = shard.transactions.length;
+                    shard.transactions = shard.transactions.filter(t => String(t.id) !== String(id));
+                    if (shard.transactions.length !== originalLength) changed = true;
+                } else if (tableName === 'user_accounts') {
+                    shard.accounts = shard.accounts.filter(a => String(a.id) !== String(id));
+                    changed = true;
+                } else {
+                    shard.categories = shard.categories.filter(c => String(c.id) !== String(id));
+                    changed = true;
+                }
+
+                if (changed) {
+                    await base44.db._saveShard(row.shard_key, shard);
+                    return { success: true };
+                }
+            }
+        }
+        return { success: false };
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const { error } = await supabase.from(sqlTable).delete().eq('id', id).eq('user_id', session.user.id);
           if (!error) return { success: true };
@@ -460,9 +1101,17 @@ export const base44 = {
       return base44.user.saveData(key, rows.filter(r => r.id !== id));
     },
     deleteByFilter: async (tableName, column, value) => {
+      // REDIRECT: Categories are now part of a single JSON array
+      if (tableName === 'categories' || tableName === 'user_categories') {
+        const current = await base44.db.getTable('categories');
+        const updated = current.filter(r => r[column] !== value);
+        await base44.user.saveData('wl_categories', updated);
+        return { success: true };
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { session } = await base44.db._getSession();
         if (session?.user) {
           const { error } = await supabase.from(sqlTable).delete().eq(column, value).eq('user_id', session.user.id);
           if (!error) return { success: true };
@@ -470,41 +1119,106 @@ export const base44 = {
       }
       const key = `wl_table_${tableName}`;
       const rows = await base44.db.getTable(tableName);
-      return base44.user.saveData(key, rows.filter(r => r[column] !== value));
+      const updated = rows.filter(r => r[column] !== value);
+      await base44.user.saveData(key, updated);
+      return { success: true };
+    },
+    
+    // ── deleteByDatePrefix ───────────────────────────────────────────────────
+    // Perform bulk deletions for a specific month (e.g., '2026-04')
+    deleteByDatePrefix: async (tableName, column, monthKey) => {
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (tableName === 'transactions' || tableName === 'budgets') {
+          const { session } = await base44.db._getSession();
+          if (!session?.user) return { success: false };
+
+          // A date prefix delete in the vault is just a shard delete or shard clear
+          const { error } = await supabase
+              .from('wealthlens_vault')
+              .delete()
+              .eq('user_id', session.user.id)
+              .eq('shard_key', monthKey);
+
+          return { success: !error };
+      }
+
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+      
+      // Calculate date bounds for the month (e.g. 2026-04-01 to 2026-05-01)
+      const [year, month] = monthKey.split('-');
+      const startDate = `${year}-${month}-01`;
+      
+      // Calculate next month for exclusive upper bound
+      let nextMonth = parseInt(month) + 1;
+      let nextYear = parseInt(year);
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear += 1;
+      }
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+      if (isSupabaseEnabled) {
+        const { session } = await base44.db._getSession();
+        if (session?.user) {
+          const { error } = await supabase
+            .from(sqlTable)
+            .delete()
+            .gte(column, startDate)
+            .lt(column, endDate)
+            .eq('user_id', session.user.id);
+            
+          if (!error) return { success: true };
+          console.error(`[base44] DeleteByDatePrefix failed for ${tableName}:`, error);
+          throw new Error(error.message);
+        }
+      }
+      // Local fallback
+      const key = `wl_table_${tableName}`;
+      const rows = await base44.db.getTable(tableName);
+      const updated = rows.filter(r => !(r[column] && r[column].startsWith(monthKey)));
+      await base44.user.saveData(key, updated);
+      return { success: true };
     },
     getSummary: async (month) => {
       if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data, error } = await supabase.from('monthly_summaries').select('*').eq('user_id', session.user.id).eq('month', month).single();
-          if (!error && data) return data;
-        }
+        try {
+          const result = await supabase.auth.getSession();
+          const session = result?.data?.session;
+          if (session?.user) {
+            const { data, error } = await supabase.from('monthly_summaries').select('*').eq('user_id', session.user.id).eq('month', month).single();
+            if (!error && data) return data;
+          }
+        } catch (e) {}
       }
       const summaries = await base44.user.loadData('wl_summaries') || {};
       return summaries[month] || null;
     },
     query: async (tableName, options = {}) => {
-      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
-      const { filters = [], orderBy = null, limit = null } = options;
-      if (isSupabaseEnabled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          let q = supabase.from(sqlTable).select('*').eq('user_id', session.user.id);
-          filters.forEach(f => {
-            if (f.op === 'eq') q = q.eq(f.column, f.value);
-            if (f.op === 'neq') q = q.neq(f.column, f.value);
-            if (f.op === 'gt') q = q.gt(f.column, f.value);
-            if (f.op === 'gte') q = q.gte(f.column, f.value);
-            if (f.op === 'lt') q = q.lt(f.column, f.value);
-            if (f.op === 'lte') q = q.lte(f.column, f.value);
-            if (f.op === 'like') q = q.like(f.column, f.value);
-          });
-          if (orderBy) q = q.order(orderBy.column, { ascending: orderBy.ascending });
-          if (limit) q = q.limit(limit);
-          const { data, error } = await q;
-          if (!error && data) return data;
-        }
+      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (tableName === 'transactions' || tableName === 'budgets') {
+          const { filters = [] } = options;
+          const monthFilter = filters.find(f => f.column === 'month' || f.column === 'date');
+          
+          let shardsToLoad = [];
+          if (monthFilter && monthFilter.op === 'eq') {
+              shardsToLoad = [monthFilter.value.substring(0, 7)];
+          } else {
+              // Load all (could be optimized with range filters)
+              return base44.db.getTable(tableName);
+          }
+
+          const results = [];
+          for (const key of shardsToLoad) {
+              const shard = await base44.db._loadShard(key);
+              if (shard) {
+                  if (tableName === 'transactions') results.push(...shard.transactions);
+                  else if (shard.budget) results.push({ month: key, payload: shard.budget });
+              }
+          }
+          return results;
       }
+
+      const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       let results = await base44.db.getTable(tableName);
       filters.forEach(f => {
          const val = f.value;

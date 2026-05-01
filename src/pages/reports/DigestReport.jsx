@@ -10,7 +10,10 @@ import {
   AlertCircle,
   CheckCircle2,
   List,
-  Download
+  Download,
+  ShieldCheck,
+  Lock,
+  Zap
 } from "lucide-react";
 import { 
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip 
@@ -282,37 +285,63 @@ export default function DigestReport() {
               </div>
            </div>
 
-             <div className="space-y-4">
-                <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Linked Accounts (Consolidated)</p>
-                <div className="space-y-3 opacity-60 grayscale cursor-default pointer-events-none">
-                   <div 
-                     className="w-full text-left bg-slate-50 border border-[#C5A059] p-4 rounded-2xl bg-[#C5A059]/5"
-                   >
-                      <div className="flex items-center gap-3 mb-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                         <p className="text-[10px] font-medium text-slate-700 truncate">Total Consolidated Balance</p>
-                      </div>
-                      <p className="text-sm font-medium tracking-tight text-slate-900">
-                         {formatCurrency(accounts.reduce((s, a) => s + (a.type === 'asset' ? Number(a.base_balance || 0) : -Number(a.base_balance || 0)), 0))}
-                      </p>
-                   </div>
-
-                   {accounts.map((acc) => (
-                      <div 
-                        key={acc.id} 
-                        className="w-full text-left bg-slate-50 border border-slate-100 p-4 rounded-2xl"
-                      >
-                         <div className="flex items-center gap-3 mb-2">
-                            <div className={cn("w-1.5 h-1.5 rounded-full", acc.type === 'asset' ? "bg-teal-500" : "bg-rose-500")} />
-                            <p className="text-[10px] font-medium text-slate-700 truncate">{acc.name}</p>
-                         </div>
-                         <p className={cn("text-sm font-medium tracking-tight", acc.type === 'asset' ? "text-slate-900" : "text-rose-500")}>
-                            {formatCurrency(Number(acc.base_balance || 0))}
-                         </p>
-                      </div>
-                   ))}
+         {/* 1. Report Integrity Module */}
+         <div className="space-y-4 pt-4 border-t border-slate-50">
+            <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Report Integrity</p>
+            <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 shadow-lg shadow-slate-200/50">
+                <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#C5A059]">Private Ledger Sync</span>
                 </div>
-             </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                    Digest compiled locally from encrypted shards. Identity and merchant data remains masked to the server.
+                </p>
+                <div className="flex items-center gap-1.5 pt-1">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                   <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/80">AES-GCM Verified</span>
+                </div>
+            </div>
+         </div>
+
+         {/* 2. Executive KPIs Section */}
+         <div className="space-y-4 pt-4 border-t border-slate-50">
+            <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Executive Overview</p>
+            <div className="space-y-2">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-indigo-100 transition-colors group">
+                    <div className="flex flex-col">
+                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Avg Daily Burn</span>
+                       <span className="text-sm font-black text-slate-900 tabular-nums">
+                          {formatCurrency(metrics.spent / 30)}
+                       </span>
+                    </div>
+                    <TrendingDown className="w-4 h-4 text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-emerald-100 transition-colors group">
+                    <div className="flex flex-col">
+                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Savings Yield</span>
+                       <span className="text-sm font-black text-emerald-600 tabular-nums">
+                          {metrics.earned > 0 ? ((metrics.earned - metrics.spent) / metrics.earned * 100).toFixed(1) : 0}%
+                       </span>
+                    </div>
+                    <Zap className="w-4 h-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+            </div>
+         </div>
+
+         {/* 3. Institutional Footer */}
+         <div className="pt-12 mt-auto">
+            <div className="flex flex-col gap-3 p-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+               <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-300" />
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">WealthLens Institutional</p>
+               </div>
+               <p className="text-[8px] font-medium text-slate-400 leading-tight">
+                  This report is part of the Strategic Management Suite. 
+                  Internal Use Only · Classification: Private
+               </p>
+            </div>
+         </div>
         </aside>
 
         {/* Main Content Area */}

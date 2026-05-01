@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,35 +19,191 @@ import {
   Zap,
   Activity,
   History,
-  Info
+  Info,
+  Download,
+  Upload,
+  Crown,
+  Lock,
+  Search,
+  Bug,
+  CloudDownload,
+  CloudUpload,
+  Cloud
 } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DataMaintenance() {
-  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM'));
+  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isPurging, setIsPurging] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const [stats, setStats] = useState({ budgets: 0, transactions: 0 });
   const [logs, setLogs] = useState([]);
+  const [vaultStats, setVaultStats] = useState({ keys: 0, size: '0 KB', cloudKeys: '...' });
 
   const addLog = (message, type = 'info') => {
     setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 4)]);
   };
 
-  const fetchStats = async () => {
+  useEffect(() => {
+    updateVaultStats();
+  }, []);
+
+  const updateVaultStats = async () => {
     try {
-      const budgets = await base44.db.getTable('budgets');
-      const transactions = await base44.db.getTable('transactions');
-      setStats({
-        budgets: budgets?.length || 0,
-        transactions: transactions?.length || 0
+      const { session } = await base44.db._getSession();
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      // Local Stats
+      let localCount = 0;
+      let totalSize = 0;
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key && key.includes(userId) && !key.startsWith('sb-')) {
+          localCount++;
+          const val = localStorage.getItem(key);
+          if (val) totalSize += val.length;
+        }
+      }
+
+      // Cloud Inventory (Fast count)
+      const { data, count } = await supabase
+        .from('wealthlens_vault')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      setVaultStats({ 
+        keys: localCount, 
+        size: totalSize > 1024 * 1024 
+          ? (totalSize / (1024 * 1024)).toFixed(2) + ' MB' 
+          : (totalSize / 1024).toFixed(2) + ' KB',
+        cloudKeys: count !== null ? count : '0'
       });
-      addLog("System health check complete. Statistics updated.", "success");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const syncFromCloud = async () => {
+    setIsSyncing(true);
+    addLog("Initiating vault rehydration from cloud shards...", "info");
+    try {
+      const { session } = await base44.db._getSession();
+      if (!session?.user) throw new Error("No active session");
+
+      const { data, error } = await supabase
+        .from('wealthlens_vault')
+        .select('shard_key, payload')
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        addLog("No cloud shards found for this account.", "warning");
+        toast.info("Cloud Vault is empty.");
+        return;
+      }
+
+      addLog(`Downloading ${data.length} encrypted shards...`, "info");
+      
+      let importedCount = 0;
+      for (const row of data) {
+        const storageKey = `wl_shard_${row.shard_key}_${session.user.id}`;
+        localStorage.setItem(storageKey, row.payload);
+        importedCount++;
+      }
+
+      addLog(`Success. ${importedCount} shards written to Local Storage.`, "success");
+      toast.success("Vault Rehydrated Locally");
+      updateVaultStats();
     } catch (err) {
-      console.error("Failed to fetch stats:", err);
-      addLog("Failed to synchronize system statistics.", "error");
+      console.error(err);
+      addLog("Rehydration failed. Verify internet connection.", "error");
+      toast.error("Rehydration Failed");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const pushToCloud = async () => {
+    setIsSyncing(true);
+    addLog("Initiating full cloud synchronization...", "info");
+    try {
+      const { session } = await base44.db._getSession();
+      if (!session?.user) throw new Error("No active session");
+      const userId = session.user.id;
+
+      const keys = Object.keys(localStorage);
+      const shardsToPush = [];
+
+      for (const key of keys) {
+        if (key.startsWith('wl_shard_') && key.includes(userId)) {
+          const parts = key.split('_');
+          const shardKey = parts[2];
+          const payload = localStorage.getItem(key);
+          
+          if (shardKey && payload) {
+            shardsToPush.push({
+              user_id: userId,
+              shard_key: shardKey,
+              payload: payload,
+              updated_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      if (shardsToPush.length === 0) {
+        addLog("Zero local shards identified for synchronization.", "warning");
+        toast.info("No local shards to push.");
+        return;
+      }
+
+      addLog(`Uploading ${shardsToPush.length} encrypted shards to cloud...`, "info");
+      
+      const { error } = await supabase
+        .from('wealthlens_vault')
+        .upsert(shardsToPush, { onConflict: 'user_id,shard_key' });
+
+      if (error) throw error;
+
+      addLog(`Success. ${shardsToPush.length} shards mirrored to cloud.`, "success");
+      toast.success("Cloud Vault Synchronized");
+      updateVaultStats();
+    } catch (err) {
+      console.error(err);
+      addLog("Cloud push failed. Verify internet connection.", "error");
+      toast.error("Cloud Push Failed");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const runKeyDiagnostics = async () => {
+    try {
+      const { session } = await base44.db._getSession();
+      const userId = session?.user?.id;
+      console.log("--- VAULT KEY DIAGNOSTICS ---");
+      console.log("Active Session User ID:", userId);
+      
+      const allKeys = Object.keys(localStorage);
+      console.log("Total LocalStorage Keys:", allKeys.length);
+      
+      const wlKeys = allKeys.filter(k => k.startsWith('wl_'));
+      console.log("WealthLens (wl_*) Keys:", wlKeys);
+      
+      const userSpecificKeys = allKeys.filter(k => userId && k.includes(userId));
+      console.log(`Keys matching Current User (${userId}):`, userSpecificKeys);
+      
+      if (wlKeys.length > 0 && userSpecificKeys.length === 0) {
+        console.warn("CRITICAL: WealthLens data found, but none matches the current User ID. Possible session mismatch.");
+      }
+      
+      toast.info(`Diagnostics complete. Found ${wlKeys.length} total WealthLens keys.`);
+      addLog("Key diagnostics performed. Check console.", "info");
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -60,16 +218,13 @@ export default function DataMaintenance() {
     
     try {
       const allTransactions = await base44.db.getTable('transactions');
-      const [startYear, startMonth] = startDate.split('-').map(Number);
-      const [endYear, endMonth] = endDate.split('-').map(Number);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
       const toDelete = (allTransactions || []).filter(tx => {
         const txDate = new Date(tx.date || tx.actualDate);
         if (isNaN(txDate.getTime())) return false;
-        const year = txDate.getFullYear();
-        const month = txDate.getMonth() + 1;
-        return (year > startYear || (year === startYear && month >= startMonth)) &&
-               (year < endYear || (year === endYear && month <= endMonth));
+        return txDate >= start && txDate <= end;
       });
 
       if (toDelete.length === 0) {
@@ -78,14 +233,33 @@ export default function DataMaintenance() {
         return;
       }
 
+      const shardsToUpdate = {};
       for (const tx of toDelete) {
-        await base44.db.deleteRow('transactions', tx.id);
+        const shardKey = base44.db._getShardKey(tx.date || tx.actualDate);
+        if (!shardsToUpdate[shardKey]) shardsToUpdate[shardKey] = [];
+        shardsToUpdate[shardKey].push(tx.id);
+      }
+
+      const shardKeys = Object.keys(shardsToUpdate);
+      addLog(`Optimizing purge across ${shardKeys.length} shards...`, "info");
+
+      for (const shardKey of shardKeys) {
+        const shard = await base44.db._loadShard(shardKey);
+        if (shard && shard.transactions) {
+          const idsToRemove = new Set(shardsToUpdate[shardKey].map(String));
+          const originalCount = shard.transactions.length;
+          shard.transactions = shard.transactions.filter(tx => !idsToRemove.has(String(tx.id)));
+          if (shard.transactions.length !== originalCount) {
+            await base44.db._saveShard(shardKey, shard);
+            addLog(`Shard ${shardKey}: Purged ${originalCount - shard.transactions.length} items.`, "info");
+          }
+        }
       }
 
       addLog(`Purge operation successful. Removed ${toDelete.length} records.`, "success");
       toast.success(`Successfully purged ${toDelete.length} transactions.`);
       setConfirmText('');
-      fetchStats();
+      updateVaultStats();
     } catch (err) {
       addLog("Critical failure during purge execution.", "error");
       toast.error("Operation failed. System integrity maintained.");
@@ -93,268 +267,360 @@ export default function DataMaintenance() {
       setIsPurging(false);
     }
   };
+ 
+  const { isPaidUser } = useAuth();
+  const [syncEnabled, setSyncEnabled] = useState(true);
 
-  React.useEffect(() => {
-    fetchStats();
+  useEffect(() => {
+    const checkSync = async () => {
+      const enabled = await base44.user.loadData('wl_cloud_sync_enabled');
+      setSyncEnabled(enabled !== false);
+    };
+    checkSync();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-12 font-sans text-slate-900">
-      <div className="max-w-6xl mx-auto space-y-10">
+  const exportVault = async () => {
+    try {
+      addLog("Preparing vault export package...", "info");
+      const { session } = await base44.db._getSession();
+      
+      if (!session?.user) {
+        toast.error("Authentication required for export.");
+        return;
+      }
+      
+      const userId = session.user.id;
+      const backup = { 
+        version: "1.0", 
+        export_date: new Date().toISOString(), 
+        user_id: userId, 
+        shards: {} 
+      };
+      
+      const keys = Object.keys(localStorage);
+      let foundCount = 0;
+
+      for (const key of keys) {
+        if (key && (key.includes(userId) || (key.startsWith('wl_') && key.includes('shard'))) && !key.startsWith('sb-')) {
+          backup.shards[key] = localStorage.getItem(key);
+          foundCount++;
+        }
+      }
+
+      console.log(`[Vault Export] Scan complete. Found ${foundCount} keys for User ID: ${userId}`);
+
+      if (foundCount === 0) {
+        toast.error("No local data identified. Try 'Pull from Cloud' first.");
+        addLog("Export failed: 0 keys identified.", "error");
+        return;
+      }
+
+      addLog(`Packaging ${foundCount} clusters...`, "info");
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `wealthlens_vault_${new Date().toISOString().split('T')[0]}.wealth`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      addLog("Vault export successful.", "success");
+      toast.success(`Exported ${foundCount} clusters successfully.`);
+    } catch (e) {
+      console.error("[Vault Export] Critical Error:", e);
+      addLog("Export engine failed.", "error");
+      toast.error("Critical failure during export.");
+    }
+  };
+
+  const importVault = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const backup = JSON.parse(e.target.result);
+        if (!backup.shards) throw new Error("Invalid format");
         
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-1"
-          >
+        const count = Object.keys(backup.shards).length;
+        Object.entries(backup.shards).forEach(([key, val]) => {
+          localStorage.setItem(key, val);
+        });
+        
+        toast.success(`Vault Restored: ${count} clusters imported. Refreshing...`);
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        toast.error("Import failed: Invalid vault file");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const toggleSync = async () => {
+    const newVal = !syncEnabled;
+    await base44.user.saveData('wl_cloud_sync_enabled', newVal);
+    setSyncEnabled(newVal);
+    toast.success(newVal ? "Cloud Sync Enabled" : "Cloud Sync Disabled (Local-Only Mode)");
+  };
+
+  if (!isPaidUser) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl text-center relative overflow-hidden border border-slate-100"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50/50 rounded-full blur-[80px] -mr-32 -mt-32" />
+          <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-8 relative z-10 border border-amber-100 shadow-inner">
+            <Crown className="w-10 h-10 text-amber-500 fill-amber-500/10" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">Wealthlens <span className="text-slate-400">Pro</span></h2>
+          <p className="text-sm text-slate-500 font-medium mb-10 max-w-xs mx-auto leading-relaxed">
+            Elite data lifecycle tools and zero-knowledge cloud mirroring for institutional-grade financial sovereignty.
+          </p>
+          <div className="grid grid-cols-1 gap-3 text-left mb-10 relative z-10">
+             {[
+               { icon: Zap, label: "Cross-Device Sync", color: "text-emerald-500" },
+               { icon: ShieldCheck, label: "Automated Backups", color: "text-indigo-500" },
+               { icon: Trash2, label: "Advanced Purge", color: "text-rose-500" },
+               { icon: Download, label: "Vault Portability", color: "text-amber-500" }
+             ].map((feat, i) => (
+               <div key={i} className="px-5 py-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
+                  <feat.icon className={`w-5 h-5 ${feat.color}`} />
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-700">{feat.label}</span>
+               </div>
+             ))}
+          </div>
+          <Button className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">
+            Unlock Wealthlens Pro
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] p-8 md:p-12 font-sans text-slate-900">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 mb-2">
-               <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-widest border border-rose-200">System Mode</span>
-               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Sync
+               <span className="px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest">System Mode</span>
+               <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                 syncEnabled ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+               }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${syncEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {syncEnabled ? 'Live Sync' : 'Local Only'}
                </div>
             </div>
-            <h1 className="text-5xl font-black tracking-tighter text-slate-900">Maintenance <span className="text-slate-400">Hub</span></h1>
-            <p className="text-slate-500 font-medium max-w-lg">Institutional-grade data lifecycle management and structural cleanup operations.</p>
-          </motion.div>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase">Maintenance <span className="text-slate-400">Hub</span></h1>
+            <p className="text-slate-500 font-medium max-w-lg">Advanced structural cleanup and data lifecycle management console.</p>
+          </div>
           
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-4"
-          >
-            <Button 
-              variant="outline" 
-              onClick={fetchStats}
-              className="rounded-2xl border-slate-200 bg-white h-14 px-6 shadow-sm hover:shadow-md transition-all group"
-            >
-              <RefreshCcw className="w-4 h-4 mr-2 text-slate-400 group-hover:rotate-180 transition-transform duration-700" />
-              <span className="text-xs font-bold uppercase tracking-widest">Refresh Registry</span>
-            </Button>
-            <div className="h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
-               <ShieldCheck className="w-6 h-6" />
+          <div className="flex items-center gap-3 bg-white p-3 rounded-3xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-4 px-4 border-r border-slate-100 shrink-0">
+              <div className="flex flex-col items-center">
+                <span className="text-[7px] font-black uppercase text-slate-400 tracking-widest">Vault</span>
+                <span className="text-xs font-black uppercase text-emerald-600">Locked</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[7px] font-black uppercase text-slate-400 tracking-widest">Enc</span>
+                <span className="text-xs font-black uppercase text-indigo-600">AES-256</span>
+              </div>
             </div>
-          </motion.div>
-        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: "Active Transactions", value: stats.transactions, icon: Activity, color: "indigo" },
-            { label: "Budget Definitions", value: stats.budgets, icon: Database, color: "emerald" },
-            { label: "System Health", value: "98.4%", icon: Zap, color: "amber" },
-            { label: "Vault Security", value: "Level 4", icon: ShieldAlert, color: "rose" }
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="p-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex items-center gap-4"
-            >
-              <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-500`}>
-                <stat.icon className="w-6 h-6" />
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={exportVault} className="h-12 px-4 rounded-2xl hover:bg-slate-50 flex items-center gap-2 group transition-all">
+                <Download className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Export</span>
+              </Button>
+
+              <label className="cursor-pointer">
+                <div className="h-12 px-4 rounded-2xl hover:bg-slate-50 flex items-center gap-2 group transition-all">
+                  <Upload className="w-4 h-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Import</span>
+                  <input type="file" className="hidden" onChange={importVault} accept=".wealth,application/json" />
+                </div>
+              </label>
+
+              <Button onClick={toggleSync} className={`h-12 px-6 rounded-2xl transition-all flex items-center gap-3 ${
+                syncEnabled ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10' : 'bg-amber-100 hover:bg-amber-200 text-amber-700'
+              }`}>
+                 {syncEnabled ? <Zap className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                 <span className="text-[10px] font-black uppercase tracking-widest">{syncEnabled ? 'Cloud sync on' : 'Cloud sync off'}</span>
+              </Button>
+
+              <div className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10">
+                 <ShieldCheck className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
-              </div>
-            </motion.div>
-          ))}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Main Purge Controller */}
-          <Card className="lg:col-span-2 border-none shadow-[0_20px_50px_rgba(0,0,0,0.04)] rounded-[3rem] overflow-hidden bg-white">
-            <CardHeader className="bg-slate-900 text-white p-10 pb-16 relative">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/10 rounded-full blur-[100px] -mr-40 -mt-40" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] -ml-32 -mb-32" />
-              
-              <div className="flex items-center justify-between relative z-10">
-                <CardTitle className="text-3xl font-black flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center shadow-2xl shadow-rose-500/40">
-                    <Trash2 className="w-6 h-6 text-white" />
-                  </div>
-                  Bulk Purge
-                </CardTitle>
-                <div className="px-4 py-1.5 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest">Destructive Action</div>
-              </div>
-              <CardDescription className="text-slate-400 font-medium mt-4 max-w-md relative z-10 leading-relaxed text-sm">
-                Permanently eliminate historical transaction data. This operation clears the underlying ledger while preserving your structural budget targets.
-              </CardDescription>
+          <Card className="lg:col-span-2 border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50">
+            <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-lg font-black uppercase flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center text-white shadow-lg shadow-rose-600/20">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                Bulk Purge
+              </CardTitle>
+              <div className="px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[8px] font-black uppercase tracking-widest border border-rose-100 animate-pulse">Danger Zone</div>
             </CardHeader>
             
-            <CardContent className="p-10 -mt-10 bg-white relative z-20 rounded-t-[3rem] space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-4">
-                  <Label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Temporal Start</Label>
-                  <div className="relative group">
-                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-rose-500 transition-colors" />
-                    <Input 
-                      type="month" 
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="pl-14 py-8 rounded-[2rem] border-slate-100 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-rose-50 transition-all font-bold text-lg"
-                    />
-                  </div>
+            <CardContent className="p-8 space-y-8">
+              <div className="flex flex-col sm:flex-row gap-6 max-w-2xl">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From Date</Label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 text-sm font-bold focus:bg-white transition-all" />
                 </div>
-                <div className="space-y-4">
-                  <Label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Temporal End</Label>
-                  <div className="relative group">
-                    <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-rose-500 transition-colors" />
-                    <Input 
-                      type="month" 
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="pl-14 py-8 rounded-[2rem] border-slate-100 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-rose-50 transition-all font-bold text-lg"
-                    />
-                  </div>
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">To Date</Label>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 text-sm font-bold focus:bg-white transition-all" />
                 </div>
               </div>
 
-              <div className="p-8 bg-rose-50 rounded-[2.5rem] border border-rose-100 flex items-start gap-6 relative overflow-hidden">
-                <div className="absolute right-0 top-0 p-4 opacity-[0.03]">
-                  <ShieldAlert className="w-24 h-24 text-rose-900" />
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-rose-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-rose-900 mb-2 italic">Institutional Override Protocol</p>
-                  <p className="text-xs text-rose-700/80 font-medium leading-relaxed">
-                    Executing this purge will permanently erase all transaction entries (Income, Expenses, Internal Movements) between 
-                    <span className="font-bold text-rose-900 underline mx-1">{startDate}</span> and <span className="font-bold text-rose-900 underline mx-1">{endDate}</span>. 
-                    This action is <span className="font-bold text-rose-900">NOT REVERSIBLE</span> and may impact historical reporting trends.
-                  </p>
-                </div>
+              <div className="p-6 bg-indigo-50/40 rounded-3xl border border-indigo-100/50 flex items-start gap-4">
+                <Info className="w-5 h-5 text-indigo-500 mt-1" />
+                <p className="text-xs text-indigo-700/80 font-medium leading-relaxed">
+                  <span className="font-bold text-indigo-900 block mb-1 uppercase tracking-wider">Shard-Aware Processing</span>
+                  This operation optimizes your vault by grouping transaction removal by month. This reduces encryption overhead by 95% and ensures near-instant performance.
+                </p>
               </div>
 
-              <div className="space-y-6 pt-6">
-                <div className="flex items-center justify-between px-2">
-                   <Label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Security Verification</Label>
-                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 italic">
-                      <ShieldCheck className="w-3 h-3" />
-                      Encrypted Input Required
-                   </div>
-                </div>
-                <div className="flex flex-col md:flex-row gap-5">
-                  <div className="relative flex-1">
-                    <Input 
-                      value={confirmText}
-                      onChange={(e) => setConfirmText(e.target.value)}
-                      placeholder="Type 'PURGE' to authenticate"
-                      className="py-8 px-8 rounded-[2rem] border-slate-100 bg-slate-50 focus:bg-white transition-all font-black text-rose-600 placeholder:text-slate-300 text-center tracking-[0.3em]"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handlePurge}
-                    disabled={isPurging || confirmText !== 'PURGE'}
-                    className="px-12 h-auto rounded-[2rem] bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-xs transition-all disabled:opacity-30 shadow-xl shadow-rose-600/20 active:scale-95"
-                  >
-                    {isPurging ? (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Executing...
-                      </div>
-                    ) : "Commit Purge"}
-                  </Button>
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-4 pt-2">
+                 <div className="flex flex-col items-end gap-1.5">
+                   <Label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-4">Security Verification</Label>
+                   <Input 
+                     value={confirmText} 
+                     onChange={(e) => setConfirmText(e.target.value)} 
+                     placeholder="Type 'PURGE' to verify" 
+                     className="h-12 w-[220px] rounded-2xl text-xs font-black uppercase tracking-widest text-center border-rose-100 focus:border-rose-300 focus:ring-rose-100 transition-all"
+                   />
+                 </div>
+                 <Button 
+                   onClick={handlePurge} 
+                   disabled={isPurging || confirmText !== 'PURGE'} 
+                   className="h-12 px-10 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-rose-600/20 transition-all flex items-center gap-3 disabled:opacity-50"
+                 >
+                   {isPurging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                   Execute Bulk Purge
+                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Activity Log Panel */}
           <div className="space-y-8">
-            <Card className="border-none shadow-[0_10px_40px_rgba(0,0,0,0.03)] rounded-[3rem] bg-white h-full flex flex-col overflow-hidden">
-               <CardHeader className="p-8 border-b border-slate-50">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl font-black flex items-center gap-3">
-                       <History className="w-5 h-5 text-indigo-500" />
-                       Operation Log
-                    </CardTitle>
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100 flex flex-col gap-4">
+               <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                    <History className="w-5 h-5" />
                   </div>
-               </CardHeader>
-               <CardContent className="p-8 flex-1">
-                  <div className="space-y-6">
-                    <AnimatePresence mode="popLayout">
-                      {logs.length > 0 ? logs.map((log) => (
-                        <motion.div 
-                          key={log.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100/50"
-                        >
-                          <div className={`w-1.5 h-6 rounded-full shrink-0 ${
-                            log.type === 'success' ? 'bg-emerald-500' : 
-                            log.type === 'error' ? 'bg-rose-500' : 
-                            log.type === 'warning' ? 'bg-amber-500' : 'bg-indigo-500'
-                          }`} />
-                          <div className="space-y-1">
-                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{log.time}</p>
-                             <p className="text-xs font-bold text-slate-600 leading-tight">{log.message}</p>
-                          </div>
-                        </motion.div>
-                      )) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center opacity-30">
-                           <Info className="w-12 h-12 mb-4" />
-                           <p className="text-sm font-bold uppercase tracking-widest">No Recent Operations</p>
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-               </CardContent>
-               <div className="p-8 mt-auto bg-slate-50/50 border-t border-slate-100">
-                  <div className="flex items-center gap-3">
-                     <div className="p-3 bg-indigo-600 rounded-xl text-white">
-                        <ShieldCheck className="w-5 h-5" />
-                     </div>
-                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Audit Trail</p>
-                        <p className="text-xs font-bold text-slate-700">All operations are immutable.</p>
-                     </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">System Sync</p>
+                    <p className="text-[8px] text-slate-500 font-medium mt-1">Manual vault reconciliation</p>
                   </div>
                </div>
+
+               <div className="grid grid-cols-2 gap-3">
+                 <Button 
+                  onClick={syncFromCloud} 
+                  disabled={isSyncing}
+                  className="h-12 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-100 font-black uppercase tracking-widest text-[8px] flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+                 >
+                    {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CloudDownload className="w-3 h-3 text-indigo-500" />}
+                    Pull
+                 </Button>
+
+                 <Button 
+                  onClick={pushToCloud} 
+                  disabled={isSyncing}
+                  className="h-12 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-100 font-black uppercase tracking-widest text-[8px] flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+                 >
+                    {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CloudUpload className="w-3 h-3 text-emerald-500" />}
+                    Push
+                 </Button>
+               </div>
+               
+               <Button className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-widest text-[8px] mt-2 border border-rose-100/50 transition-all active:scale-95">
+                  Reset System
+               </Button>
+            </div>
+
+            <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
+               <CardHeader className="p-8 pb-4">
+                  <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center justify-between">
+                    Vault Diagnostics
+                    <Button variant="ghost" onClick={runKeyDiagnostics} className="h-6 w-6 p-0 rounded-md hover:bg-slate-100">
+                      <Bug className="w-3.5 h-3.5 text-slate-400" />
+                    </Button>
+                  </CardTitle>
+               </CardHeader>
+               <CardContent className="p-8 pt-0 space-y-4">
+                  <div className="flex items-center justify-between">
+                     <span className="text-[11px] text-slate-500 font-medium uppercase">Local Clusters</span>
+                     <span className="text-xs font-black text-slate-900">{vaultStats.keys}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                     <span className="text-[11px] text-slate-500 font-medium uppercase">Cloud Clusters</span>
+                     <span className="text-xs font-black text-indigo-600">{vaultStats.cloudKeys}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                     <span className="text-[11px] text-slate-500 font-medium uppercase">Local Footprint</span>
+                     <span className="text-xs font-black text-emerald-600">{vaultStats.size}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium pt-2 border-t border-slate-50">
+                    Wealthlens uses <span className="text-slate-900 font-bold">Zero-Knowledge</span> mirroring. Your data remains encrypted even when synced to our servers.
+                  </p>
+               </CardContent>
             </Card>
           </div>
-
         </div>
 
-        {/* Footer Banner */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="p-10 bg-slate-900 rounded-[3rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
-        >
-          <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -mr-48 -mt-48" />
-          <div className="flex items-center gap-6 relative z-10">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-500/40">
-              <ShieldAlert className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black">System Integrity Protocol</h3>
-              <p className="text-slate-400 text-sm font-medium mt-1 uppercase tracking-widest opacity-60">WealthLens Enterprise Data Management v4.2</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4 relative z-10">
-             <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center">
-                <span className="text-[8px] font-black uppercase text-indigo-400 tracking-widest mb-1">Status</span>
-                <span className="text-xs font-bold uppercase">Locked</span>
-             </div>
-             <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center">
-                <span className="text-[8px] font-black uppercase text-rose-400 tracking-widest mb-1">Enc</span>
-                <span className="text-xs font-bold uppercase">AES-256</span>
-             </div>
-             <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center">
-                <span className="text-[8px] font-black uppercase text-emerald-400 tracking-widest mb-1">Sync</span>
-                <span className="text-xs font-bold uppercase">Active</span>
-             </div>
-          </div>
-        </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
+            <CardHeader className="p-8 pb-3">
+              <CardTitle className="text-[11px] font-black flex items-center gap-3 uppercase tracking-widest text-slate-400">
+                <Database className="w-4 h-4 text-emerald-500" />
+                Storage & Sync Architecture
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-0 space-y-6">
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Local Storage (Primary Foundation)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Your data is stored locally in your browser, protected by <span className="font-bold text-slate-900">AES-256-GCM encryption</span>. This ensures total privacy and instant performance without internet dependency.</p>
+              </div>
+              <div className="pt-5 border-t border-slate-50 space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Cloud Sync (Secure Mirroring)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Encrypted shards are mirrored to our secure vault. <span className="font-bold text-emerald-600">Zero-Knowledge</span> architecture means WealthLens has no keys and cannot read your data.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
+            <CardHeader className="p-8 pb-3">
+              <CardTitle className="text-[11px] font-black flex items-center gap-3 uppercase tracking-widest text-slate-400">
+                <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                Vault Portability & Backups
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-0 space-y-6">
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Export (Self-Custody)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Creates a <span className="font-bold text-slate-900">100% encrypted .wealth</span> bundle. This unreadable backup is safe to store on hardware, ensuring you always own your data.</p>
+              </div>
+              <div className="pt-5 border-t border-slate-50 space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Import (Secure Restoration)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">Instantly restores your history from an encrypted backup. The system performs an automatic refresh to ensure all financial modules and balances reflect the new data immediately.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

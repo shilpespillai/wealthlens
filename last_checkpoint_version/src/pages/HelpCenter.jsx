@@ -20,7 +20,8 @@ import {
   LayoutDashboard,
   TrendingUp,
   Target,
-  Binary
+  Binary,
+  Flame
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -48,7 +49,8 @@ export default function HelpCenter() {
     { id: "reports-detail", label: "04. Intelligence Hub" },
     { id: "neural-bridge", label: "05. Neural Bridge" },
     { id: "operational-specs", label: "06. Operational Specs" },
-    { id: "compliance", label: "07. Compliance & Security" }
+    { id: "transactions-guide", label: "07. Ledger Protocols" },
+    { id: "compliance", label: "08. Compliance & Security" }
   ];
 
   const scrollToSection = (id) => {
@@ -235,54 +237,90 @@ export default function HelpCenter() {
                 <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">02. Dashboard Interface Spec</h2>
              </div>
              
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                <div className="space-y-10">
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <div className="space-y-12">
                    <p className="text-slate-600 text-[11px] leading-relaxed font-medium uppercase tracking-tight italic border-l-2 border-[#C5A059] pl-6">
                      The Dashboard is the platform's primary observability layer. It reconciles high-frequency data from three distinct sub-engines: Portfolio, Cashflows, and active Budgets.
                    </p>
                    
-                   <div className="space-y-4">
+                   <div className="space-y-6">
                       <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Key Metrics Specification</h4>
                       <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
                          <table className="w-full text-left border-collapse">
                             <thead>
                                <tr className="border-b border-slate-200">
-                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Component</th>
-                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Update Frequency</th>
+                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Engine</th>
+                                  <th className="p-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Logic & Frequency</th>
                                </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                <tr>
-                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Market Assets</td>
-                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Real-time / 60s Pool</td>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Treasury Lock</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Live Ledger Delta (Real-time)</td>
                                </tr>
                                <tr>
-                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Cashflow Velocity</td>
-                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Daily Audit Cycle</td>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Freedom Horizon</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Iterative Compounding (600m Capped)</td>
                                </tr>
                                <tr>
-                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Net Worth Engine</td>
-                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Event-driven (On Change)</td>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Canonical Mapping</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Merchant-to-Budget Alignment</td>
+                               </tr>
+                               <tr>
+                                  <td className="p-4 text-[9px] font-bold text-slate-900 uppercase tracking-widest">Vault Allocation</td>
+                                  <td className="p-4 text-[9px] text-slate-500 font-semibold uppercase">Historical Surplus Extraction</td>
                                </tr>
                             </tbody>
                          </table>
                       </div>
                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                   <div className="p-8 bg-slate-900 rounded-2xl text-white space-y-4">
-                      <LayoutDashboard className="w-6 h-6 text-[#C5A059]" />
-                      <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Net Worth Reconciler</h5>
-                      <p className="text-[9px] text-slate-400 leading-relaxed font-medium uppercase tracking-tight">
-                        Uses non-recursive balance aggregation across all integrated accounts. Implements a 'Liquidity Buffer' algorithm to separate true net worth from theoretical market value.
+                   <div className="p-8 bg-slate-50 border border-slate-200 rounded-3xl space-y-6">
+                      <div className="flex items-center gap-3">
+                        <Zap className="w-5 h-5 text-[#C5A059]" />
+                        <h5 className="text-xs font-bold uppercase tracking-widest">The "Treasury Command" Principle</h5>
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                        Unlike traditional dashboards that show static snapshots, WealthLens implements a <strong>Live Reconciliation</strong> engine. Every transaction in your ledger is treated as a delta applied to your base account balance. This ensures that your Net Worth is mathematically accurate to the second, accounting for every cent of inflow and outflow.
                       </p>
                    </div>
-                   <div className="p-8 border border-slate-100 rounded-2xl space-y-4">
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                   <div className="p-10 bg-slate-900 rounded-3xl text-white space-y-6 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                         <Flame className="w-12 h-12 text-[#C5A059]" />
+                      </div>
+                      <h5 className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A059]">Freedom Horizon (FIRE Engine)</h5>
+                      <p className="text-[10px] text-slate-400 leading-relaxed font-medium uppercase tracking-tight">
+                        Calculates the exact moment of financial independence using iterative monthly compounding: <br />
+                        <span className="text-indigo-400 font-mono mt-2 block italic">FV = (Current × (1 + r/12)) + Savings</span>
+                        Models up to 50 years of projections. Includes a <strong>Strategic Sustainability Audit</strong> that warns if your manual targets fall below the 4% safe withdrawal threshold for your current lifestyle.
+                      </p>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-6">
+                      <div className="p-8 border border-slate-100 bg-white rounded-3xl space-y-4 hover:border-[#C5A059] transition-colors">
+                         <Target className="w-6 h-6 text-[#C5A059]" />
+                         <h5 className="text-[10px] font-black uppercase tracking-[0.2em]">Vault Buckets</h5>
+                         <p className="text-[9px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                           Virtual allocation of historical surplus capital into strategic funds (Emergency, Education, Travel) without impacting actual bank liquidity.
+                         </p>
+                      </div>
+                      <div className="p-8 border border-slate-100 bg-white rounded-3xl space-y-4 hover:border-[#C5A059] transition-colors">
+                         <Binary className="w-6 h-6 text-[#C5A059]" />
+                         <h5 className="text-[10px] font-black uppercase tracking-[0.2em]">Alignment Engine</h5>
+                         <p className="text-[9px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                           Maps high-entropy merchant data to canonical budget categories using pattern recognition to ensure spend accuracy.
+                         </p>
+                      </div>
+                   </div>
+
+                   <div className="p-8 border border-slate-100 bg-slate-50 rounded-3xl space-y-4">
                       <Activity className="w-6 h-6 text-[#C5A059]" />
-                      <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Activity Stream</h5>
+                      <h5 className="text-xs font-bold uppercase tracking-[0.2em]">Tactical Liquidity</h5>
                       <p className="text-[9px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
-                        Tracks 'Turn-of-Event' data changes. Every data point is timestamped and hash-verified for audit-ready financial tracking.
+                        Visualizes your "Cash Runway" using a 30.42-day month constant. It calculates exactly how many days you can survive at your current "Optimal Outflow" rate.
                       </p>
                    </div>
                 </div>
@@ -499,11 +537,89 @@ export default function HelpCenter() {
              </div>
           </section>
 
-          {/* 07. Compliance & Security */}
+          {/* 07. Ledger Protocols (Transactions Guide) */}
+          <section id="transactions-guide" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">07. Ledger & Transaction Protocols</h2>
+             </div>
+             
+             <div className="space-y-12">
+                <div className="bg-white border border-slate-200 rounded-[2rem] p-10 shadow-sm space-y-8">
+                   <div className="pb-8 border-b border-slate-100">
+                      <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Categorization & Cash Flow Logic</h3>
+                      <p className="text-[11px] text-slate-500 uppercase tracking-widest font-semibold leading-relaxed">
+                         The system automatically separates <strong>Internal Transfers</strong> from <strong>True Cash Flow</strong> to prevent inflation of your income and expense reports.
+                      </p>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                         <h4 className="text-xs font-black text-[#C5A059] uppercase tracking-widest">Standard Categorization</h4>
+                         <ul className="space-y-3 text-[10px] text-slate-600 font-medium uppercase tracking-tight">
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1" />
+                               <span><strong>Expenses:</strong> Groceries, Bills, Subscriptions. These reduce Global Balance.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1" />
+                               <span><strong>Income:</strong> Salary, Dividends, Rent. These increase Global Balance.</span>
+                            </li>
+                         </ul>
+                      </div>
+                      <div className="space-y-4">
+                         <h4 className="text-xs font-black text-[#00A381] uppercase tracking-widest">Internal Cash Flow (Exclusions)</h4>
+                         <ul className="space-y-3 text-[10px] text-slate-600 font-medium uppercase tracking-tight">
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 mt-1" />
+                               <span><strong>Transfer:</strong> Moving money between accounts (e.g., Credit Card Payments). Excluded from total expenses.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 mt-1" />
+                               <span><strong>Reimbursement:</strong> Friends paying you back. Excluded from total income.</span>
+                            </li>
+                         </ul>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-200">
+                         <span className="text-[10px] font-black text-slate-900">01</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Adding Records</h5>
+                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight leading-relaxed">
+                         Click "Add Manually" to inject a single record. For bulk data, use the "Import" AI Scanner (PDF/CSV). Note: The scanner automatically detects Credit Cards and categorizes purchases as expenses.
+                      </p>
+                   </div>
+                   <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-200">
+                         <span className="text-[10px] font-black text-slate-900">02</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Deleting Records</h5>
+                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight leading-relaxed">
+                         To delete a single transaction, hover over the row in the grid and click the trash icon. The system will instantly recalculate your Global Balance and update all active reports.
+                      </p>
+                   </div>
+                   <div className="p-8 bg-rose-50 rounded-2xl border border-rose-100 space-y-4">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-rose-200">
+                         <span className="text-[10px] font-black text-rose-600">03</span>
+                      </div>
+                      <h5 className="text-xs font-bold text-rose-600 uppercase tracking-widest">Purging Data</h5>
+                      <p className="text-[10px] text-slate-600 font-medium uppercase tracking-tight leading-relaxed">
+                         Click "Purge Month" to securely wipe all data for the visible month. <strong>Safety Lock:</strong> You must click the button twice within 3 seconds to bypass security and execute the purge.
+                      </p>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 08. Compliance & Security */}
           <section id="compliance" className="mb-20 space-y-16 scroll-mt-32">
              <div className="flex items-center gap-4">
                 <span className="w-12 h-[1px] bg-slate-100" />
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">07. Compliance & Security</h2>
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">08. Compliance & Security</h2>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

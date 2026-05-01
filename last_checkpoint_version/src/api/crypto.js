@@ -67,13 +67,6 @@ export async function decryptPayload(encryptedBase64, userId) {
   try {
     if (typeof encryptedBase64 !== 'string') return null;
     
-    // Safety check: Is this even a potential base64 string?
-    // This prevents atob() from throwing an InvalidCharacterError for plain JSON
-    const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-    if (!base64Regex.test(encryptedBase64)) {
-      return null;
-    }
-    
     const key = await getEncryptionKey(userId);
     const combined = new Uint8Array(
       atob(encryptedBase64).split("").map(c => c.charCodeAt(0))

@@ -17,12 +17,24 @@ export const calculatePortfolioHoldings = (rows = [], endDate = new Date()) => {
   const timeCutoff = endDate.getTime();
   const latestByLabel = {};
 
+  // Step 1: Flatten rows if they are using the new JSONB 'holdings' architecture
+  const flattenedRows = [];
   rows.forEach(row => {
+    if (row.holdings && Array.isArray(row.holdings)) {
+      row.holdings.forEach(h => {
+        flattenedRows.push({ ...h, snapshot_date: row.snapshot_date, user_id: row.user_id, id: row.id });
+      });
+    } else {
+      flattenedRows.push(row);
+    }
+  });
+
+  flattenedRows.forEach(row => {
     const rowDate = new Date(row.snapshot_date).getTime();
     
     // Only consider history up to selected end date
     if (rowDate <= timeCutoff) {
-      const labelKey = (row.label || "Unlabeled Asset").trim().toLowerCase();
+      const labelKey = (row.label || row.name || "Unlabeled Asset").trim().toLowerCase();
       
       if (!latestByLabel[labelKey] || rowDate > new Date(latestByLabel[labelKey].snapshot_date).getTime()) {
         latestByLabel[labelKey] = row;

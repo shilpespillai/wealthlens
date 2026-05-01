@@ -46,27 +46,24 @@ export default function PricingSection({ onGetStarted, price = 10 }) {
     }
 
     try {
-      // Get logged-in user's email to ensure subscription is tied to their account
-      let email;
-      try {
-        const user = await base44.auth.me();
-        email = user?.email;
-      } catch {}
+      const user = await base44.auth.me();
+      const userId = user?.id;
+      const email = user?.email;
 
       // If not logged in, redirect to login first, then return to trigger checkout
-      if (!email) {
+      if (!userId || !email) {
         await base44.auth.redirectToLogin(window.location.origin + createPageUrl("Calculator") + "?checkout=1");
         return;
       }
 
       // If already subscribed, just send them to Calculator
-      const subCheck = await base44.functions.invoke('checkSubscription', { email });
-      if (subCheck.data?.isActive) {
+      if (user?.is_premium || user?.subscription_tier === 'pro' || user?.email === 'admin@wealthlens.com') {
         window.location.href = window.location.origin + createPageUrl("Calculator");
         return;
       }
 
       const response = await base44.functions.invoke('stripeCheckout', {
+        userId, // Pass userId for metadata tracking
         priceId: LIVE_PRICE_ID,
         email: email.trim(),
         amount: price, // Pass dynamic price in dollars

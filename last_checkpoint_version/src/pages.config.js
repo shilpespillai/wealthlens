@@ -71,10 +71,14 @@ import CashflowsReport from './pages/reports/CashflowsReport';
 import NetWorthReport from './pages/reports/NetWorthReport';
 import TrendsReport from './pages/reports/TrendsReport';
 import DigestReport from './pages/reports/DigestReport';
+import AIReports from './pages/reports/AIReports';
 import PrivacyProtocol from './pages/PrivacyProtocol';
 import SetBudget from './pages/SetBudget';
 import Transactions from './pages/Transactions';
 import DevSeeder from './pages/DevSeeder';
+import AdminSettings from './pages/AdminSettings';
+import AdminDashboard from './pages/AdminDashboard';
+import DataMaintenance from './pages/DataMaintenance';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -102,10 +106,14 @@ export const PAGES = {
     "reports/NetWorth": NetWorthReport,
     "reports/Trends": TrendsReport,
     "reports/Digest": DigestReport,
+    "reports/AIReports": AIReports,
     "PrivacyProtocol": PrivacyProtocol,
     "SetBudget": SetBudget,
     "Transactions": Transactions,
     "DevSeeder": DevSeeder,
+    "AdminSettings": AdminSettings,
+    "AdminDashboard": AdminDashboard,
+    "DataMaintenance": DataMaintenance,
 }
 
 export const pagesConfig = {

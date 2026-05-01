@@ -16,15 +16,30 @@ export const generateManualPdf = async (element, options = {}) => {
   try {
     onProgress(true);
 
+    // Freeze element dimensions to prevent ResponsiveContainer SVG overflow during cloning
+    const originalWidth = element.style.width;
+    const originalHeight = element.style.height;
+    element.style.width = `${element.offsetWidth}px`;
+    element.style.height = `${element.offsetHeight}px`;
+
     // 1. Capture the element with high scale for clarity
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight
+      onclone: (clonedDoc) => {
+        // Ensure all SVG charts don't overflow in the clone
+        const svgs = clonedDoc.querySelectorAll('svg');
+        svgs.forEach(svg => {
+          svg.style.overflow = 'visible'; // Prevent clipping but rely on fixed container
+        });
+      }
     });
+
+    // Restore dimensions
+    element.style.width = originalWidth;
+    element.style.height = originalHeight;
 
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
     
@@ -90,8 +105,41 @@ export const generateManualPdf = async (element, options = {}) => {
       heightLeft -= pageHeight;
     }
 
-    // 5. Save the PDF
-    pdf.save(filename);
+    // 5. Save the PDF using File System Access API (Forces OS save dialog with correct name)
+    const arrayBuffer = pdf.output("arraybuffer");
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+    
+    try {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'PDF Document',
+            accept: {'application/pdf': ['.pdf']},
+          }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        onProgress(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("showSaveFilePicker failed or was cancelled by user:", err);
+      // Fallback to standard anchor click if user cancels or API fails
+    }
+
+    // Fallback if showSaveFilePicker is not supported
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 1000);
     onProgress(false);
 
   } catch (error) {

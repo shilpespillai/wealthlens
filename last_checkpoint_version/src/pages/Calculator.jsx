@@ -90,8 +90,7 @@ function CalculatorContent() {
           const user = await base44.auth.me();
           if (!user?.email) return;
           // Check if already subscribed — if so, stay on Calculator
-          const subCheck = await base44.functions.invoke("checkSubscription", { email: user.email });
-          if (subCheck.data?.isActive) return;
+          if (user.is_premium || user.subscription_tier === 'pro') return;
           // Not subscribed — proceed to Stripe checkout
           const price = await base44.app.getPrice();
           const response = await base44.functions.invoke("stripeCheckout", {
@@ -236,7 +235,7 @@ function CalculatorContent() {
                 }}
                 className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
               >
-                {isPremium ? <Download className="w-4 h-4" /> : <Lock className="w-4 h-4 text-[#1A202C]/60" />}
+                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-[#1A202C]/60" />}
                 <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
                 {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
               </Button>

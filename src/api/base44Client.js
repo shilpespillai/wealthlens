@@ -339,7 +339,7 @@ export const base44 = {
       return { success: true };
     }
   },
-  app: {
+  app: {
     getPrice: async () => {
       try {
         // Attempt fetch but catch 404s silently on localhost
@@ -560,27 +560,49 @@ export const base44 = {
       const { session } = await base44.db._getSession();
       if (!session?.user) return null;
 
+      const userId = session.user.id;
+      const storageKey = `wl_shard_${shardKey}_${userId}`;
+
       try {
-        const { data, error } = await supabase
-          .from('wealthlens_vault')
-          .select('payload')
-          .eq('user_id', session.user.id)
-          .eq('shard_key', shardKey)
-          .maybeSingle();
-
-        if (error || !data) return null;
-
-        const payload = data.payload;
-        
-        // If it's already an object (from JSONB migration), return it
-        if (payload && typeof payload === 'object') return payload;
-
-        // Otherwise, try to decrypt the Base64 string
-        let decrypted = await decryptPayload(payload, session.user.id);
-        if (!decrypted) {
-            try { return JSON.parse(payload); } catch(e) { return null; }
+        // 1. Try Local First (Instant Load)
+        const localEncrypted = localStorage.getItem(storageKey);
+        if (localEncrypted) {
+          try { 
+            // Try to decrypt the local blob
+            const decrypted = await decryptPayload(localEncrypted, userId);
+            if (decrypted) return decrypted;
+            
+            // Fallback for legacy plaintext (one-time migration)
+            return JSON.parse(localEncrypted); 
+          } catch(e) {}
         }
-        return decrypted;
+
+        // 2. Fallback to Cloud if Premium
+        const isPremium = session.user.user_metadata?.is_premium || 
+                          session.user.user_metadata?.subscription_tier === 'pro' ||
+                          session.user.email === 'admin@wealthlens.com';
+
+        if (isPremium) {
+          const { data, error } = await supabase
+            .from('wealthlens_vault')
+            .select('payload')
+            .eq('user_id', userId)
+            .eq('shard_key', shardKey)
+            .maybeSingle();
+
+          if (!error && data) {
+            const payload = data.payload;
+            let decrypted = await decryptPayload(payload, userId);
+            if (!decrypted) {
+                try { decrypted = JSON.parse(payload); } catch(e) {}
+            }
+            // Sync cloud back to local
+            if (decrypted) localStorage.setItem(storageKey, JSON.stringify(decrypted));
+            return decrypted;
+          }
+        }
+        
+        return null;
       } catch (e) {
         console.error(`[Vault] Load failed for ${shardKey}:`, e);
         return null;
@@ -591,23 +613,44 @@ export const base44 = {
       const { session } = await base44.db._getSession();
       if (!session?.user) return false;
 
+      const isPremium = session.user.user_metadata?.is_premium || 
+                        session.user.user_metadata?.subscription_tier === 'pro' ||
+                        session.user.email === 'admin@wealthlens.com';
+
+      const storageKey = `wl_shard_${shardKey}_${session.user.id}`;
+      
       try {
-        // Encrypt before saving
+        // Encrypt the data BEFORE saving anywhere (Local or Cloud)
         const encrypted = await encryptPayload(shardData, session.user.id);
         if (!encrypted) throw new Error("Encryption failed");
 
-        const { error } = await supabase
-          .from('wealthlens_vault')
-          .upsert({
-            user_id: session.user.id,
-            shard_key: shardKey,
-            payload: encrypted,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id, shard_key' });
+        // Save encrypted blob to local first
+        localStorage.setItem(storageKey, encrypted);
 
-        return !error;
+        // PREMIUM CHECK: Only upload to cloud if user is premium AND has sync enabled
+        if (isPremium) {
+           const syncEnabled = await base44.user.loadData('wl_cloud_sync_enabled') !== false; 
+           if (syncEnabled) {
+             const { error } = await supabase
+               .from('wealthlens_vault')
+               .upsert({
+                 user_id: session.user.id,
+                 shard_key: shardKey,
+                 payload: encrypted,
+                 updated_at: new Date().toISOString()
+               }, { onConflict: 'user_id,shard_key' });
+
+             if (error) {
+               console.error(`[Vault] Cloud Sync failed:`, error);
+             } else {
+               console.log(`[Vault] Cloud Sync OK: ${shardKey}`);
+             }
+           }
+        }
+        
+        return true;
       } catch (e) {
-        console.error(`[Vault] Save failed for ${shardKey}:`, e);
+        console.error(`[Vault] Save failed:`, e);
         return false;
       }
     },
@@ -633,7 +676,7 @@ export const base44 = {
 
     getTable: async (tableName) => {
       // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
-      if (['transactions', 'user_accounts', 'user_categories', 'categories', 'budgets'].includes(tableName)) {
+      if (['transactions', 'user_accounts', 'user_categories', 'categories', 'budgets', 'portfolio_holdings'].includes(tableName)) {
         console.log(`[base44.db] Intercepting ${tableName} -> Vault Redirect`);
         
         if (tableName === 'transactions') {
@@ -695,11 +738,17 @@ export const base44 = {
             return allBudgets;
         }
 
-        // Accounts and Categories: Use the LATEST state snapshot
+        // Accounts, Categories, and Portfolio: Use the LATEST state snapshot
         const latest = await base44.db._getLatestShard();
         if (latest) {
           if (tableName === 'user_accounts') return latest.accounts || [];
           if (tableName === 'user_categories' || tableName === 'categories') return latest.categories || [];
+          if (tableName === 'portfolio_holdings') {
+            return [{ 
+              snapshot_date: new Date().toISOString(), 
+              holdings: latest.holdings || [] 
+            }];
+          }
         }
         
         return [];
@@ -732,6 +781,30 @@ export const base44 = {
     // Use this for new transactions, new accounts, etc.
     insertRow: async (tableName, row) => {
       // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      if (tableName === 'portfolio_holdings') {
+        const shardKey = base44.db._getShardKey(new Date().toISOString());
+        let shard = await base44.db._loadShard(shardKey);
+        
+        if (!shard) {
+          const latest = await base44.db._getLatestShard();
+          shard = {
+            transactions: [],
+            accounts: latest?.accounts || [],
+            categories: latest?.categories || [],
+            budget: latest?.budget || null,
+            holdings: [],
+            metadata: { month: shardKey, version: "1.0" }
+          };
+        }
+
+        // The portfolio payload is typically a snapshot object { holdings: [...] }
+        // or a direct array depending on the caller. Portfolio.jsx sends { holdings: [...] }.
+        shard.holdings = row.holdings || row;
+        
+        const success = await base44.db._saveShard(shardKey, shard);
+        return { data: success ? [row] : null, error: success ? null : { message: "Vault write failed" } };
+      }
+
       if (tableName === 'transactions') {
         const shardKey = base44.db._getShardKey(row.date);
         let shard = await base44.db._loadShard(shardKey);
@@ -866,21 +939,26 @@ export const base44 = {
     // budget planning rows, user settings).
     upsertRow: async (tableName, row, options = {}) => {
       // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
-      if (['transactions', 'budgets'].includes(tableName)) {
-        const shardKey = tableName === 'budgets' ? row.month : base44.db._getShardKey(row.date);
+      if (['transactions', 'budgets', 'portfolio_holdings'].includes(tableName)) {
+        let shardKey;
+        if (tableName === 'budgets') shardKey = row.month;
+        else if (tableName === 'portfolio_holdings') shardKey = base44.db._getShardKey(row.snapshot_date || new Date().toISOString());
+        else shardKey = base44.db._getShardKey(row.date);
+        
         let shard = await base44.db._loadShard(shardKey);
         
         if (!shard) {
             // New month inheritance
             const latest = await base44.db._getLatestShard();
-            shard = {
-                transactions: [],
-                accounts: latest?.accounts || [],
-                categories: latest?.categories || [],
-                budget: null,
-                metadata: { month: shardKey, version: "1.0" }
-            };
-        }
+             shard = {
+                 transactions: [],
+                 accounts: latest?.accounts || [],
+                 categories: latest?.categories || [],
+                 holdings: latest?.holdings || [],
+                 budget: null,
+                 metadata: { month: shardKey, version: "1.0" }
+             };
+         }
 
         if (tableName === 'transactions') {
             const index = shard.transactions.findIndex(t => t.id === row.id);
@@ -889,13 +967,20 @@ export const base44 = {
             } else {
                 shard.transactions.push({ ...row, id: row.id || `tx_${Date.now()}`, created_at: new Date().toISOString() });
             }
+        } else if (tableName === 'portfolio_holdings') {
+            // The portfolio payload is typically { holdings: [...] }
+            shard.holdings = row.holdings || row;
         } else {
             // Budget update
             shard.budget = row.payload || row;
         }
         
-        await base44.db._saveShard(shardKey, shard);
-        return row;
+        const success = await base44.db._saveShard(shardKey, shard);
+        if (!success) {
+            console.error(`[Vault] Failed to persist ${tableName} to shard ${shardKey}`);
+            return { data: null, error: { message: "Vault persistence failure" } };
+        }
+        return { data: [row], error: null };
       }
 
       if (tableName === 'user_accounts' || tableName === 'user_categories' || tableName === 'categories') {
@@ -916,7 +1001,7 @@ export const base44 = {
         }
 
         await base44.db._saveShard(shardKey, shard);
-        return row;
+        return { data: [row], error: null };
       }
 
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
@@ -1048,7 +1133,12 @@ export const base44 = {
       return base44.user.saveData(key, finalRows);
     },
     deleteRow: async (tableName, id) => {
-      // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
+      // REDIRECT: Vault-managed tables don't need individual row deletion logic here
+      // because they are saved as complete snapshots via upsertRow.
+      if (['portfolio_holdings', 'budgets'].includes(tableName)) {
+        return { success: true };
+      }
+
       if (['transactions', 'user_accounts', 'user_categories', 'categories'].includes(tableName)) {
         const { session } = await base44.db._getSession();
         if (!session?.user) return { success: false };
@@ -1251,7 +1341,8 @@ export const base44 = {
     },
     delete: async function(tableName, id) {
       return this.deleteRow(tableName, id);
-    }
+    },
+    _supabase: () => supabase
   },
 
   integrations: {

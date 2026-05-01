@@ -29,6 +29,9 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "../layout/PremiumOverlay";
 
 const MODEL_OPTIONS = {
   gemini: [
@@ -61,6 +64,7 @@ const PRICING_DATA = {
 };
 
 export default function IntelligenceDialog({ open, onOpenChange }) {
+  const { isPaidUser } = useAuth();
   const [config, setConfig] = useState({ 
     provider: 'gemini', 
     models: { gemini: 'gemini-2.5-flash', openai: 'gpt-5.3-instant', anthropic: 'claude-4.7-sonnet' },
@@ -73,23 +77,26 @@ export default function IntelligenceDialog({ open, onOpenChange }) {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('wl_ai_config');
-    if (saved) {
-      try { 
-        const parsed = JSON.parse(saved);
-        // Migration: If they have the old format, migrate 'key' to the current provider
-        if (parsed.key !== undefined && !parsed.keys) {
-            parsed.keys = { gemini: '', openai: '', anthropic: '' };
-            parsed.keys[parsed.provider || 'gemini'] = parsed.key;
-            delete parsed.key;
-        }
-        setConfig(prev => ({ ...prev, ...parsed })); 
-      } catch (e) { console.error(e); }
+    async function load() {
+      const saved = await base44.user.loadData('wl_ai_config');
+      if (saved) {
+        try { 
+          const parsed = saved;
+          // Migration: If they have the old format, migrate 'key' to the current provider
+          if (parsed.key !== undefined && !parsed.keys) {
+              parsed.keys = { gemini: '', openai: '', anthropic: '' };
+              parsed.keys[parsed.provider || 'gemini'] = parsed.key;
+              delete parsed.key;
+          }
+          setConfig(prev => ({ ...prev, ...parsed })); 
+        } catch (e) { console.error(e); }
+      }
     }
+    load();
   }, [open]);
 
-  const handleSave = () => {
-    localStorage.setItem('wl_ai_config', JSON.stringify(config));
+  const handleSave = async () => {
+    await base44.user.saveData('wl_ai_config', config);
     setIsSaved(true);
     
     // Broadcast update for other components to refresh
@@ -136,7 +143,9 @@ export default function IntelligenceDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[850px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)]">
+      <DialogContent className="max-w-[850px] p-0 overflow-hidden border-none bg-[#0B111D] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] min-h-[520px]">
+        {!isPaidUser && <PremiumOverlay featureName="Institutional Intelligence Hub" />}
+        
         <div className="flex flex-col md:flex-row min-h-[520px] relative">
           
           {/* Subtle Institutional Background */}

@@ -9,7 +9,8 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  List
+  List,
+  Download
 } from "lucide-react";
 import { 
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip 
@@ -21,6 +22,10 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, isSameMonth, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { toast } from "react-hot-toast";
+import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -29,8 +34,9 @@ const COLORS = ['#10B981', '#F43F5E'];
 // Mock generation removed for production data integrity.
 
 export default function DigestReport() {
-  const { formatAmount, getProductionLedger, getDatabaseTable } = useFinancialParser();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
+  const { isPaidUser } = useAuth();
+  const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [allTransactions, setAllTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -50,20 +56,40 @@ export default function DigestReport() {
     load();
   }, [getDatabaseTable, getProductionLedger]);
 
-  const filteredMonthTxs = useMemo(() => {
-    return allTransactions.filter(t => {
-      const dateMatch = isSameMonth(new Date(t.date || t.actualDate), selectedDate);
-      const accId = t.account_id || t.accountId;
-      const accountMatch = selectedAccountId === "all" || accId === selectedAccountId;
-      return dateMatch && accountMatch;
-    });
-  }, [allTransactions, selectedDate, selectedAccountId]);
+  const { normIncs, normExps } = useMemo(() => {
+    // Reconstruct a budget-like row for the parser (empty payload as we want purely ledger-driven actuals)
+    const budgetRow = { month: format(selectedDate, "yyyy-MM"), payload: { incomes: [], expenses: [] } };
+    const { incomes, expenses } = normalizeTransactionData(budgetRow, selectedDate, allTransactions, accounts);
+    
+    // Account filtering
+    const filterByAccount = (list) => {
+      if (selectedAccountId === "all") return list;
+      return list.filter(t => String(t.account_id || t.accountId) === String(selectedAccountId));
+    };
+
+    return { 
+      normIncs: filterByAccount(incomes), 
+      normExps: filterByAccount(expenses) 
+    };
+  }, [allTransactions, selectedDate, selectedAccountId, accounts, normalizeTransactionData]);
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById("digest-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-Digest-${format(selectedDate, 'MMM-yyyy')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
 
   const metrics = useMemo(() => {
-    const earned = filteredMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
-    const spent = filteredMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const earned = normIncs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const spent = normExps.reduce((s, t) => s + (Number(t.amount) || 0), 0);
     return { earned, spent, loss: spent > earned ? spent - earned : 0 };
-  }, [filteredMonthTxs]);
+  }, [normIncs, normExps]);
 
   const pieData = useMemo(() => [
     { name: 'Earned', value: metrics.earned },
@@ -74,56 +100,54 @@ export default function DigestReport() {
     // Generate 4 months of history up to selected month
     const historyMonths = [subMonths(selectedDate, 3), subMonths(selectedDate, 2), subMonths(selectedDate, 1), selectedDate];
     return historyMonths.map(m => {
-      const monthTxs = allTransactions.filter(t => {
-        const dateMatch = isSameMonth(new Date(t.date || t.actualDate), m);
-        const accId = t.account_id || t.accountId;
-        const accountMatch = selectedAccountId === "all" || accId === selectedAccountId;
-        return dateMatch && accountMatch;
-      });
+      const budgetRow = { month: format(m, "yyyy-MM"), payload: { incomes: [], expenses: [] } };
+      const { incomes, expenses } = normalizeTransactionData(budgetRow, m, allTransactions, accounts);
+      
+      const filterByAccount = (list) => {
+        if (selectedAccountId === "all") return list;
+        return list.filter(t => String(t.account_id || t.accountId) === String(selectedAccountId));
+      };
+
+      const i = filterByAccount(incomes).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      const o = filterByAccount(expenses).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
       return {
         month: format(m, "MMM"),
-        inflow: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
-        outflow: monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0),
+        inflow: i,
+        outflow: o,
       };
     });
-  }, [allTransactions, selectedDate, selectedAccountId]);
+  }, [allTransactions, selectedDate, selectedAccountId, accounts, normalizeTransactionData]);
 
   const reportInsights = useMemo(() => {
-    // Calculate highlights, lows, and top categories based on current vs previous month
-    const expTxs = filteredMonthTxs.filter(t => t.type === 'expense');
-    
-    // Group by category
-    const catTotals = {};
-    expTxs.forEach(t => {
-      const cat = t.category || 'Uncategorized';
-      catTotals[cat] = (catTotals[cat] || 0) + Math.abs(Number(t.amount || 0));
-    });
-    
-    const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-
-    // Compare with previous month
     const prevDate = subMonths(selectedDate, 1);
-    const prevMonthTxs = allTransactions.filter(t => {
-      const dateMatch = isSameMonth(new Date(t.date || t.actualDate), prevDate);
-      const accId = t.account_id || t.accountId;
-      const accountMatch = selectedAccountId === "all" || accId === selectedAccountId;
-      return dateMatch && accountMatch;
-    });
+    const budgetRowPrev = { month: format(prevDate, "yyyy-MM"), payload: { incomes: [], expenses: [] } };
+    const { incomes: prevIncs, expenses: prevExpsRaw } = normalizeTransactionData(budgetRowPrev, prevDate, allTransactions, accounts);
+    
+    const filterByAccount = (list) => {
+      if (selectedAccountId === "all") return list;
+      return list.filter(t => String(t.account_id || t.accountId) === String(selectedAccountId));
+    };
 
-    const prevExp = prevMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
-    const prevInc = prevMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+    const prevExp = filterByAccount(prevExpsRaw).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const prevInc = filterByAccount(prevIncs).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+    const catTotals = {};
+    normExps.forEach(t => {
+      const cat = t.category || 'Uncategorized';
+      catTotals[cat] = (catTotals[cat] || 0) + (Number(t.amount) || 0);
+    });
+    const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
 
     const highlights = [];
     const lows = [];
 
-    // Income insights
     if (metrics.earned > prevInc && prevInc > 0) {
       highlights.push(`Income increased by ${((metrics.earned - prevInc) / prevInc * 100).toFixed(0)}% compared to last month, totaling ${formatCurrency(metrics.earned)}.`);
     } else if (metrics.earned > 0 && prevInc === 0) {
       highlights.push(`You generated ${formatCurrency(metrics.earned)} in total income.`);
     }
 
-    // Savings insights
     const savings = metrics.earned - metrics.spent;
     if (savings > 0) {
       const sr = ((savings / metrics.earned) * 100).toFixed(0);
@@ -136,14 +160,12 @@ export default function DigestReport() {
       lows.push(`You operated at a deficit of ${formatCurrency(Math.abs(savings))} this month. Outflows exceeded inflows.`);
     }
 
-    // Expense comparisons
     if (metrics.spent < prevExp && prevExp > 0) {
       highlights.push(`Fantastic cost control. Total spending was down ${((prevExp - metrics.spent) / prevExp * 100).toFixed(0)}% from last month, landing at ${formatCurrency(metrics.spent)}.`);
     } else if (metrics.spent > prevExp && prevExp > 0) {
       lows.push(`Total spending rose ${((metrics.spent - prevExp) / prevExp * 100).toFixed(0)}% above last month. Overall outflows reached ${formatCurrency(metrics.spent)}.`);
     }
 
-    // Category insights
     if (sortedCats.length > 0) {
       const topCat = sortedCats[0];
       if (metrics.spent > 0) {
@@ -155,7 +177,6 @@ export default function DigestReport() {
       }
     }
 
-    // Fallbacks if data is too thin
     if (highlights.length === 0 && metrics.earned === 0 && metrics.spent === 0) {
        highlights.push("No financial activity recorded for this period.");
     }
@@ -163,17 +184,12 @@ export default function DigestReport() {
        highlights.push("No significant red flags detected in your spending behavior.");
     }
 
-    return {
-      sortedCats,
-      highlights,
-      lows,
-      prevExp,
-      prevInc
-    };
-  }, [filteredMonthTxs, allTransactions, selectedDate, selectedAccountId, metrics]);
+    return { sortedCats, highlights, lows, prevExp, prevInc };
+  }, [normIncs, normExps, allTransactions, selectedDate, selectedAccountId, metrics, normalizeTransactionData, accounts]);
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-slate-900">
+    <div id="digest-export-area" className="flex flex-col h-full bg-white font-sans text-slate-900 relative">
+      {!isPaidUser && <PremiumOverlay featureName="Monthly Intelligence Digest" />}
       {/* Container for Navbar Area — purely white background */}
       <div className="w-full px-6 pt-4 pb-2 bg-white">
         <div className="bg-[#1E293B] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
@@ -216,7 +232,7 @@ export default function DigestReport() {
                       <div className="flex flex-col gap-2 pt-2 border-t border-slate-700/50">
                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Select year</label>
                         <div className="flex items-center justify-between gap-2">
-                          {[2024, 2025, 2026].map((y) => (
+                          {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map((y) => (
                             <button
                               key={y}
                               onClick={() => setSelectedDate(new Date(y, selectedDate.getMonth(), 1))}
@@ -235,6 +251,15 @@ export default function DigestReport() {
                     </div>
                   </PopoverContent>
                </Popover>
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

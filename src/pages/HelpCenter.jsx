@@ -12,6 +12,8 @@ import {
   Lock,
   MessageSquare,
   HelpCircle,
+  Download,
+  Upload,
   FileBadge,
   Layers,
   Zap,
@@ -21,7 +23,9 @@ import {
   TrendingUp,
   Target,
   Binary,
-  Flame
+  Flame,
+  Database,
+  CloudUpload
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -50,7 +54,8 @@ export default function HelpCenter() {
     { id: "neural-bridge", label: "05. Neural Bridge" },
     { id: "operational-specs", label: "06. Operational Specs" },
     { id: "transactions-guide", label: "07. Ledger Protocols" },
-    { id: "compliance", label: "08. Compliance & Security" }
+    { id: "maintenance-hub", label: "08. Maintenance Hub" },
+    { id: "compliance", label: "09. Compliance & Security" }
   ];
 
   const scrollToSection = (id) => {
@@ -615,7 +620,77 @@ export default function HelpCenter() {
              </div>
           </section>
 
-          {/* 08. Compliance & Security */}
+          {/* 08. Data Maintenance Hub (Pro Exclusive) */}
+          <section id="maintenance-hub" className="mb-40 space-y-16 scroll-mt-32">
+             <div className="flex items-center gap-4">
+                <span className="w-12 h-[1px] bg-slate-100" />
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.4em]">08. Data Maintenance Hub</h2>
+             </div>
+             
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="space-y-8">
+                   <div className="flex items-center gap-3">
+                      <Database className="w-6 h-6 text-[#C5A059]" />
+                      <h3 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Administrative Lifecycle</h3>
+                   </div>
+                   <p className="text-[11px] text-slate-500 leading-relaxed font-semibold uppercase tracking-tight italic border-l-2 border-[#C5A059] pl-6">
+                      Reserved for Pro members, the Maintenance Hub provides direct oversight of the underlying encryption vault. It enables bi-directional sync, shard-aware cleaning, and local-first data portability.
+                   </p>
+                   
+                   <div className="grid grid-cols-1 gap-6">
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                         <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                            <Zap className="w-3.5 h-3.5 text-emerald-500" />
+                            Bi-Directional Sync Engine
+                         </h5>
+                         <p className="text-[9px] text-slate-500 font-bold uppercase leading-relaxed">
+                            <strong>Push:</strong> Forces a manual mirror of your local encrypted vault to the cloud. <br />
+                            <strong>Pull:</strong> Rehydrates your machine by downloading encrypted shards from the server.
+                         </p>
+                      </div>
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                         <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                            <Download className="w-3.5 h-3.5 text-indigo-500" />
+                            Vault Portability (.wealth)
+                         </h5>
+                         <p className="text-[9px] text-slate-500 font-bold uppercase leading-relaxed">
+                            Export your entire history into a 100% encrypted JSON bundle for self-custody. This file can be imported into any WealthLens instance to instantly restore your state without cloud dependency.
+                         </p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white space-y-10 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-8 opacity-10">
+                      <ShieldCheck className="w-24 h-24 text-[#C5A059]" />
+                   </div>
+                   
+                   <div className="space-y-4 relative z-10">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#C5A059]">Zero-Knowledge Diagnostics</h4>
+                      <p className="text-[9px] text-slate-400 font-medium leading-relaxed uppercase tracking-wide">
+                        The Hub provides real-time transparency into your data residency. By inventorying local vs cloud "clusters," you can verify your mirror status without ever decrypting or exposing sensitive financial PII to the server.
+                      </p>
+                   </div>
+
+                   <div className="space-y-6 pt-8 border-t border-white/10">
+                      <div className="flex justify-between items-center">
+                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Local Shards</span>
+                         <span className="px-3 py-1 bg-white/5 rounded text-[9px] font-bold text-white uppercase tracking-widest">Device Sovereign</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Cloud Shards</span>
+                         <span className="px-3 py-1 bg-[#C5A059]/20 rounded text-[9px] font-bold text-[#C5A059] uppercase tracking-widest">Encrypted Mirror</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Purge Logic</span>
+                         <span className="px-3 py-1 bg-rose-500/10 rounded text-[9px] font-bold text-rose-500 uppercase tracking-widest">Shard-Aware (Safe)</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </section>
+
+          {/* 09. Compliance & Security */}
           <section id="compliance" className="mb-20 space-y-16 scroll-mt-32">
              <div className="flex items-center gap-4">
                 <span className="w-12 h-[1px] bg-slate-100" />

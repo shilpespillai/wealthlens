@@ -28,6 +28,7 @@ const ASSET_CLASSES = [
   { id: "fixed_deposit", label: "Fixed Deposit", color: "#A8DADC" }, // Powder Blue
   { id: "mutual_funds", label: "Mutual Funds", color: "#DDBDF1" },  // Lavender
   { id: "gold", label: "Gold", color: "#FEEAFA" },       // Champagne
+  { id: "liability", label: "Liability / Debt", color: "#EF4444" }, // Red
 ];
 
 const CURRENCIES = ["USD", "AUD", "EUR", "GBP", "JPY", "CAD", "SGD", "INR", "NZD"];
@@ -212,14 +213,23 @@ function PortfolioContent() {
   };
 
   const metrics = useMemo(() => {
-    const totalValue = holdings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
-    const totalInvested = holdings.reduce((s, h) => s + Number(h.invested || 0), 0);
+    const totalValue = holdings.reduce((s, h) => {
+      const val = Number(h.currentValue || 0);
+      return h.asset === 'liability' ? s - val : s + val;
+    }, 0);
+
+    const totalInvested = holdings.reduce((s, h) => {
+      const val = Number(h.invested || 0);
+      return h.asset === 'liability' ? s - val : s + val;
+    }, 0);
+
     const totalGain = totalValue - totalInvested;
     const totalReturnPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
-    // Pie chart data — group by asset class
+    // Pie chart data — group by asset class (Assets Only)
     const grouped = {};
     holdings.forEach((h) => {
+      if (h.asset === 'liability') return; // Don't show debt in allocation pie
       if (!grouped[h.asset]) grouped[h.asset] = 0;
       grouped[h.asset] += Number(h.currentValue || 0);
     });
@@ -227,17 +237,18 @@ function PortfolioContent() {
       const cls = ASSET_CLASSES.find((a) => a.id === asset);
       return { name: cls?.label || asset, value, color: cls?.color || "#888" };
     }).filter((d) => d.value > 0);
-
+ 
     // Bar chart data — per holding
     const barData = holdings
-      .filter((h) => h.currentValue > 0 || h.invested > 0)
+      .filter((h) => h.currentValue > 0 || h.invested > 0 || h.asset === 'liability')
       .map((h) => {
         const cls = ASSET_CLASSES.find((a) => a.id === h.asset);
+        const isLiability = h.asset === 'liability';
         return {
           name: h.label || cls?.label,
-          invested: Number(h.invested || 0),
-          value: Number(h.currentValue || 0),
-          gain: Number(h.currentValue || 0) - Number(h.invested || 0),
+          invested: isLiability ? -Number(h.invested || 0) : Number(h.invested || 0),
+          value: isLiability ? -Number(h.currentValue || 0) : Number(h.currentValue || 0),
+          gain: (Number(h.currentValue || 0) - Number(h.invested || 0)) * (isLiability ? -1 : 1),
         };
       });
 

@@ -10,7 +10,8 @@ import {
   Info,
   ChevronDown,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,10 @@ import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth, subMonths, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
+import { toast } from "react-hot-toast";
+import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
@@ -42,6 +47,7 @@ const CATEGORY_BUDGETS = {
 // Mock generation removed per user request for production data integrity.
 
 export default function TrendsReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, getProductionLedger } = useFinancialParser();
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState("All categories");
@@ -49,8 +55,8 @@ export default function TrendsReport() {
   const [isBurndownOpen, setIsBurndownOpen] = useState(false);
   
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 10, 1), // Nov 2025
-    to: new Date(2026, 3, 30)   // Apr 2026
+    from: subMonths(new Date(), 6),
+    to: new Date()
   });
 
   const [allTransactions, setAllTransactions] = useState([]);
@@ -95,6 +101,18 @@ export default function TrendsReport() {
     load();
   }, [getProductionLedger, activeInterval]);
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById("trends-export-area");
+    if (!element) return;
+    const loadingToast = toast.loading("Generating PDF snapshot...");
+    try {
+      await generateManualPdf(element, { filename: `WealthLens-Trends-${selectedCategory.replace(/\s+/g, '-')}.pdf` });
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      toast.error("Failed to generate PDF.", { id: loadingToast });
+    }
+  };
+
   const chartData = useMemo(() => {
     return activeInterval.map((month, idx) => {
       const monthTxs = allTransactions.filter(t => isSameMonth(new Date(t.date || t.actualDate), month));
@@ -113,9 +131,12 @@ export default function TrendsReport() {
           }
         } else {
           const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-          const found = flatBudgets.find(b => (b.category || "").toLowerCase() === selectedCategory.toLowerCase() || (b.id || "").toLowerCase() === selectedCategory.toLowerCase());
+          const found = flatBudgets.find(b => 
+            (String(b.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase() || 
+            (String(b.id || "")).toLowerCase() === String(selectedCategory || "").toLowerCase()
+          );
           if (found) {
-            budgeted = parseFloat(found.amount?.replace(/[^\d.]/g, '')) || 0;
+            budgeted = parseFloat(String(found.amount || "").replace(/[^\d.]/g, '')) || 0;
           }
         }
       }
@@ -188,7 +209,10 @@ export default function TrendsReport() {
         }
       } else {
         const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-        const found = flatBudgets.find(b => b.category === selectedCategory || b.id === selectedCategory);
+        const found = flatBudgets.find(b => 
+          String(b.category || "") === String(selectedCategory || "") || 
+          String(b.id || "") === String(selectedCategory || "")
+        );
         if (found) {
           budget = Number(found.monthly_target) || 0;
         }
@@ -200,7 +224,7 @@ export default function TrendsReport() {
       const d = new Date(t.date || t.actualDate);
       const categoryMatch = selectedCategory === "All categories" 
         ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
-        : (t.category || "").toLowerCase() === selectedCategory.toLowerCase();
+        : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
       return isSameMonth(d, start) && categoryMatch;
     });
 
@@ -221,7 +245,8 @@ export default function TrendsReport() {
   }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900">
+    <div id="trends-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
+      {!isPaidUser && <PremiumOverlay featureName="Historical Trend Intelligence" />}
       {/* Premium Header */}
       <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
         <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
@@ -283,6 +308,15 @@ export default function TrendsReport() {
                    Showing {showType.charAt(0).toUpperCase() + showType.slice(1)}
                  </Button>
                )}
+
+               <Button 
+                  onClick={handleExportPDF}
+                  variant="outline" 
+                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+               >
+                 <Download className="w-4 h-4 text-[#C5A059]" />
+                 Export
+               </Button>
             </div>
           </div>
         </div>

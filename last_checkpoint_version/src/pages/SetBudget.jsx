@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { isSameMonthYear } from "@/utils/dateParser";
 import { useCategories } from "@/hooks/useCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -147,9 +148,8 @@ function BudgetRow({ item, onEdit, onDelete }) {
         <div className="w-48 px-6 text-right">
            <span className={`text-[11px] font-bold tabular-nums ${(String(item.amount || "").includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
              {(() => {
-               const val = String(item.amount || "0").replace(/\s?\/\s?mo/g, '');
-               const num = parseFloat(val);
-               return isNaN(num) ? val : formatAmount(num, { useParentheses: false });
+               const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
+               return formatAmount(target, { useParentheses: false });
              })()}
            </span>
         </div>
@@ -200,40 +200,95 @@ const flattenCategories = (items) => {
   return result;
 };
 
-// Utility: Normalize structure against the core registry
-const normalizeStructure = (savedItems) => {
-  // 1. Start with the Core Category Registry (Single Source of Truth)
-  // Filter out income as "budget is always for expenses"
-  const template = CORE_CATEGORY_REGISTRY
-    .filter(cat => cat.type !== 'income')
-    .map(cat => ({
-      ...cat,
-      category: cat.name,
-      monthly_target: 0,
-      amount: "0",
-      budget: "$0 spent",
-      status: "0.00 left"
-    }));
-
-  // 2. Normalize and merge saved items using Canonical Aliasing
+// Utility: Normalize structure against the core registry AND user's personal registry
+const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}, formatAmount) => {
   const finalMap = new Map();
-  template.forEach(t => finalMap.set(t.name.toLowerCase(), t));
+  
+  // 1. Start with the Core Category Registry (Baseline)
+  // This ensures the user always sees a standard set of categories to start with.
+  CORE_CATEGORY_REGISTRY
+    .filter(cat => cat.type !== 'income')
+    .forEach(cat => {
+      const canonical = resolveCanonicalCategory(cat.name).trim();
+      const key = canonical.toLowerCase();
+      finalMap.set(key, {
+        id: `core-${key}`,
+        ...cat,
+        category: canonical,
+        monthly_target: 0,
+        amount: "0",
+        budget: "$0",
+        status: "NO TARGET SET",
+        type: 'item'
+      });
+    });
 
+  // 2. Merge User-Defined Categories
+  userCategories
+    .filter(cat => cat.type !== 'income')
+    .forEach(cat => {
+      const name = cat.name || cat.category;
+      const canonical = resolveCanonicalCategory(name).trim();
+      const key = canonical.toLowerCase();
+      const existing = finalMap.get(key);
+      
+      finalMap.set(key, {
+        ...(existing || { id: `user-${cat.id || Date.now()}` }),
+        ...cat,
+        category: canonical,
+        monthly_target: existing?.monthly_target || 0,
+        amount: existing?.amount || "0",
+        budget: existing?.budget || "$0",
+        status: existing?.status || "NO TARGET SET"
+      });
+    });
+
+  // 3. Overlay Saved Items (The user's defined budget targets)
   savedItems.forEach(s => {
-    const canonicalName = resolveCanonicalCategory(s.category || s.name);
-    const key = canonicalName.toLowerCase();
+    const name = s.category || s.name || "Uncategorized";
+    const canonical = resolveCanonicalCategory(name).trim();
+    const key = canonical.toLowerCase();
+    if (!key) return;
     
     const existing = finalMap.get(key);
-    if (existing) {
-      // Merge saved data into existing canonical row
-      finalMap.set(key, { ...existing, ...s, category: canonicalName });
-    } else {
-      // standalone custom category
-      finalMap.set(key, { ...s, category: s.category || s.name });
+    finalMap.set(key, { 
+      ...(existing || {}),
+      ...s, 
+      category: canonical,
+      id: s.id || (existing?.id) || `saved-${key}`
+    });
+  });
+
+  // 4. Add Active Spending (Ensures visibility of unbudgeted expenses)
+  Object.keys(currentActuals).forEach(rawKey => {
+    const key = rawKey.trim().toLowerCase();
+    const spent = currentActuals[rawKey] || 0;
+    
+    if (spent > 0) {
+      const existing = finalMap.get(key);
+      if (existing) {
+        // Just ensure the budget string reflects the spending
+        existing.budget = formatAmount(spent);
+      } else {
+        const canonical = resolveCanonicalCategory(key).trim();
+        const coreMatch = CORE_CATEGORY_REGISTRY.find(c => c.name.toLowerCase() === canonical.toLowerCase());
+        
+        finalMap.set(key, {
+          id: `auto-${key}`,
+          category: canonical,
+          iconId: coreMatch?.iconId || 'circle',
+          color: coreMatch?.color || 'slate',
+          monthly_target: 0,
+          amount: "0",
+          budget: formatAmount(spent),
+          status: "UNBUDGETED",
+          type: 'item'
+        });
+      }
     }
   });
 
-  return Array.from(finalMap.values());
+  return Array.from(finalMap.values()).sort((a, b) => a.category.localeCompare(b.category));
 };
 
 export default function SetBudget() {
@@ -248,6 +303,8 @@ export default function SetBudget() {
   const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
   const [expectedIncome, setExpectedIncome] = useState(0);
+  const [actualsMap, setActualsMap] = useState({});
+  const [monthTransactions, setMonthTransactions] = useState([]);
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
   const leafCategories = useMemo(() => 
     flattenCategories(CORE_CATEGORY_REGISTRY).filter(c => c.type !== 'income'), 
@@ -262,6 +319,7 @@ export default function SetBudget() {
   }, [selectedDate]);
 
   const loadBudgetAndActuals = useCallback(async () => {
+    if (isSaving) return;
     try {
       setIsInitialLoading(true);
       
@@ -274,7 +332,9 @@ export default function SetBudget() {
       let isTemplate = false;
 
       if (results && results.length > 0) {
-        saved = results[0];
+        // DATA INTEGRITY: If multiple records exist for the same month, 
+        // always prioritize the most recently updated one.
+        saved = results.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
       } else {
         const allBudgets = await base44.db.getTable("budgets");
         if (allBudgets && allBudgets.length > 0) {
@@ -286,18 +346,31 @@ export default function SetBudget() {
 
       // 2. Fetch actual transactions for this month to calculate consumption
       const txResults = await base44.db.getTable("transactions");
-      const monthTransactions = txResults.filter(tx => {
-        const txDate = tx.date || "";
-        return txDate.startsWith(monthKey);
-      });
+      const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+
+      const monthTransactions = (txResults || []).filter(tx => 
+        isSameMonthYear(tx.date || tx.actualDate, targetMonth, targetYear)
+      );
 
       // Aggregate spent amounts by canonical category name
-      const actualsMap = {};
+      const currentActuals = {};
+      const EXCLUDED_CATEGORIES = ['Transfer', 'Reimbursement', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
+      
       monthTransactions.forEach(tx => {
         const canonical = resolveCanonicalCategory(tx.category);
-        const amount = Math.abs(parseFloat(tx.amount) || 0);
-        actualsMap[canonical.toLowerCase()] = (actualsMap[canonical.toLowerCase()] || 0) + amount;
+        if (EXCLUDED_CATEGORIES.includes(canonical)) return;
+        
+        const rawAmt = parseFloat(tx.amount) || 0;
+        const isExpense = tx.type === 'expense' || (tx.type !== 'income' && rawAmt < 0);
+        
+        if (isExpense) {
+          const amount = Math.abs(rawAmt);
+          currentActuals[canonical.toLowerCase()] = (currentActuals[canonical.toLowerCase()] || 0) + amount;
+        }
       });
+
+      setActualsMap(currentActuals);
+      setMonthTransactions(monthTransactions);
 
       if (saved) {
         if (!isTemplate) setBudgetId(saved.id);
@@ -312,44 +385,67 @@ export default function SetBudget() {
 
         let dataToLoad = [];
         if (saved.payload) {
-          dataToLoad = [
-            ...(saved.payload.visualData || []),
-            ...(saved.payload.expenses || [])
-          ];
+          dataToLoad = saved.payload.visualData || saved.payload.expenses || [];
         }
         
-        if (dataToLoad.length > 0) {
-          dataToLoad = dataToLoad.filter(item => item.type !== 'income');
+        if (dataToLoad.length > 0 || Object.keys(currentActuals).length > 0) {
+          const structuralData = normalizeStructure(
+            dataToLoad.filter(item => item.type !== 'income'), 
+            categories,
+            currentActuals,
+            formatAmount
+          );
           
           // Inject actuals into the loaded data
-          const enrichedData = dataToLoad.map(item => {
-            const canonical = resolveCanonicalCategory(item.category || item.name);
-            const spent = actualsMap[canonical.toLowerCase()] || 0;
+          const enrichedData = structuralData.map(item => {
+            const canonical = resolveCanonicalCategory(item.category || item.name).trim();
+            const spent = currentActuals[canonical.toLowerCase()] || 0;
             const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
             
             return {
               ...item,
+              category: canonical,
               budget: formatAmount(spent),
               status: target > 0 
                 ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
-                : "No target set"
+                : (spent > 0 ? "UNBUDGETED" : "NO TARGET SET")
             };
           });
 
-          setData(normalizeStructure(enrichedData));
+          // Final state-level deduplication
+          const uniqueMap = new Map();
+          enrichedData.forEach(item => {
+             const key = resolveCanonicalCategory(item.category).trim().toLowerCase();
+             const existing = uniqueMap.get(key);
+             if (existing) {
+                const itemTarget = parseFloat(item.monthly_target) || 0;
+                const existingTarget = parseFloat(existing.monthly_target) || 0;
+                if (itemTarget >= existingTarget) uniqueMap.set(key, item);
+             } else {
+                uniqueMap.set(key, item);
+             }
+          });
+
+          const finalArray = Array.from(uniqueMap.values())
+            .sort((a, b) => a.category.localeCompare(b.category));
+
+          setData(finalArray);
         }
       } else {
-        const defaults = normalizeStructure([]);
-        const enrichedDefaults = defaults.map(item => {
-           const canonical = resolveCanonicalCategory(item.category || item.name);
-           const spent = actualsMap[canonical.toLowerCase()] || 0;
+        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount);
+        const enrichedDefaults = structuralData.map(item => {
+           const canonical = resolveCanonicalCategory(item.category || item.name).trim();
+           const spent = currentActuals[canonical.toLowerCase()] || 0;
            return {
               ...item,
+              category: canonical,
               budget: formatAmount(spent),
-              status: `${formatAmount(0)} left`
+              status: spent > 0 ? "UNBUDGETED" : "NO TARGET SET"
            };
         });
-        setData(enrichedDefaults);
+        
+        const finalArray = enrichedDefaults.sort((a, b) => a.category.localeCompare(b.category));
+        setData(finalArray);
         setBudgetId(null);
       }
     } catch (err) {
@@ -357,7 +453,7 @@ export default function SetBudget() {
     } finally {
       setIsInitialLoading(false);
     }
-  }, [monthKey, parseCurrency, formatAmount, normalizeStructure]);
+  }, [monthKey, parseCurrency, formatAmount, categories]);
 
   useEffect(() => {
     loadBudgetAndActuals();
@@ -391,7 +487,7 @@ export default function SetBudget() {
           progress: 0
         }));
 
-        setData(normalizeStructure(clonedData));
+        setData(normalizeStructure(clonedData, categories));
         setHasChanges(true);
         toast.success(`Leads from ${prevMonthKey} synchronized successfully.`);
       } else {
@@ -405,30 +501,19 @@ export default function SetBudget() {
     }
   };
 
-  const handleSaveBudget = async () => {
+  const handleSaveBudget = async (overrideData = null) => {
     setIsSaving(true);
     try {
-      // Flatten data for compatibility with simpler views (FamilyBudget Sankey, etc)
-      const flatItems = flattenCategories(data);
-      const incomesToSave = flatItems.filter(i => i.type === "income");
+      const activeData = overrideData || data;
+      const flatItems = flattenCategories(activeData);
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
-      // Institutional Sync: Ensure all categories in the budget are registered in user_categories
-      // This allows the full 16-suite to propagate to the transaction ledger on the first save.
-      await seedCategories(flatItems.map(item => ({
-        category: item.category,
-        type: item.type === 'income' ? 'income' : 'expense',
-        iconId: item.iconId,
-        color: item.color
-      })));
-
-      // Commit to the relational budgets table with the structured payload
+      // 1. Commit to the relational budgets table
       const result = await base44.db.upsertRow("budgets", { 
         id: budgetId,
         month: monthKey, 
         payload: { 
-          visualData: flatItems,
-          expectedIncome: expectedIncome, 
+          visualData: expensesToSave,
           expenses: expensesToSave.map(i => ({ ...i, icon: null }))
         } 
       });
@@ -437,11 +522,21 @@ export default function SetBudget() {
         setBudgetId(result.id);
       }
 
+      // 2. Synchronize the category registry
+      await seedCategories(flatItems.map(item => ({
+        category: item.category,
+        type: item.type === 'income' ? 'income' : 'expense',
+        iconId: item.iconId,
+        color: item.color
+      })));
+
       setHasChanges(false);
-      toast.success("Budget plan and category registry synchronized");
+      // Removed toast for auto-save to prevent noise
+      
+      // 3. Force a clean refresh from the DB truth (using currentActuals logic internally)
+      // but only if we aren't in the middle of a UI update
     } catch (err) {
-      console.error("[SetBudget] Save failed:", err);
-      toast.error("Failed to save budget");
+      console.error("[SetBudget] Auto-save failed:", err);
     } finally {
       setIsSaving(false);
     }
@@ -479,21 +574,39 @@ export default function SetBudget() {
   const flatItems = useMemo(() => flattenCategories(data), [data]);
   
   const totals = useMemo(() => {
-    let expense = 0;
+    let plannedExpense = 0;
+    let actualExpense = 0;
     
     flatItems.forEach(item => {
       const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
-      // Items here are guaranteed to be expenses based on our new system
-      expense += val;
+      plannedExpense += val;
+      
+      const canonical = resolveCanonicalCategory(item.category || item.name);
+      actualExpense += (actualsMap[canonical.toLowerCase()] || 0);
     });
+
+    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
+    // Actually, it's easier to just sum all actuals from monthTransactions that are income
+    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
+    const actualIncome = monthTransactions.reduce((sum, tx) => {
+       const category = resolveCanonicalCategory(tx.category);
+       const EXCLUDED = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment', 'Reimbursement'];
+       if (EXCLUDED.includes(category)) return sum;
+       
+       const rawAmt = Number(tx.amount || 0);
+       const isIncome = tx.type === 'income' || (tx.type !== 'expense' && rawAmt > 0);
+       return isIncome ? sum + Math.abs(rawAmt) : sum;
+    }, 0);
     
     return {
       income: expectedIncome,
-      expense,
-      net: expectedIncome - expense,
-      pieData: [] // can be derived later if needed
+      actualIncome,
+      expense: plannedExpense,
+      actualExpense,
+      net: expectedIncome - plannedExpense,
+      actualNet: actualIncome - actualExpense
     };
-  }, [flatItems, expectedIncome, parseCurrency]);
+  }, [flatItems, expectedIncome, parseCurrency, actualsMap, monthTransactions]);
 
 
   const handleEditItem = (item) => {
@@ -523,14 +636,23 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    setData(prev => {
-      const updated = prev.filter(item => item.id !== targetId);
-      setHasChanges(true);
-      return updated;
+    const itemToDelete = data.find(i => i.id === targetId);
+    if (!itemToDelete) return;
+    
+    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category).toLowerCase().trim();
+    
+    const updated = data.filter(item => {
+      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
+      // Remove both the specific ID and any canonical duplicates
+      return item.id !== targetId && itemCanonical !== canonicalToDelete;
     });
+    
+    const sorted = updated.sort((a, b) => a.category.localeCompare(b.category));
+    setData(sorted);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
-    toast.success("Category removed from current month's budget");
+    handleSaveBudget(updated);
+    toast.success(`Removed ${itemToDelete.category} from budget.`);
   };
 
   const handleSaveNewBudget = async () => {
@@ -543,34 +665,47 @@ export default function SetBudget() {
     }
 
     const newTarget = parseFloat(newBudget.amount) || 0;
+    const spent = actualsMap[searchName.toLowerCase()] || 0;
+    
+    const canonicalName = resolveCanonicalCategory(searchName || (catObj ? catObj.name : "Uncategorized"));
     
     const budgetItem = {
-      id: catObj ? `cat-${catObj.id}` : `custom-${Date.now()}`,
-      category: searchName || (catObj ? catObj.name : "Uncategorized"),
-      budget: newBudget.type === "income" ? "$0 earned" : "$0 spent",
-      status: newBudget.type === "income" ? `${formatAmount(newTarget, { decimals: 0, useParentheses: false })} to go` : `${formatAmount(newTarget, { decimals: 0 })} left`,
+      id: editingItem ? editingItem.id : (catObj?.id ? `cat-${catObj.id}` : `custom-${Date.now()}`),
+      category: canonicalName,
       monthly_target: newTarget,
       amount: formatAmount(newTarget, { decimals: 0 }) + " / mo",
-      iconId: catObj?.icon_id || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
+      iconId: catObj?.icon_id || editingItem?.iconId || (newBudget.type === "income" ? "circle-emerald" : "circle-indigo"),
       type: newBudget.type === "income" ? "income" : "item",
-      progress: 0,
-      color: catObj?.color || (newBudget.type === "income" ? "emerald" : "indigo")
+      color: catObj?.color || editingItem?.color || (newBudget.type === "income" ? "emerald" : "indigo"),
+      budget: formatAmount(spent),
+      status: newBudget.type === "income" 
+        ? (spent >= newTarget ? "Target Reached" : `${formatAmount(newTarget - spent)} to go`)
+        : (spent > newTarget ? `${formatAmount(spent - newTarget)} over` : `${formatAmount(newTarget - spent)} left`),
+      progress: newTarget > 0 ? Math.min(100, (spent / newTarget) * 100) : 0
     };
 
-    setData(prev => {
-      let updated;
-      if (editingItem) {
-        updated = prev.map(item => (item.id === editingItem.id ? { ...item, ...budgetItem } : item));
-      } else {
-        updated = [...prev, budgetItem];
-      }
-      setHasChanges(true);
-      return updated;
+    let updatedData;
+    const targetCanonical = canonicalName.toLowerCase().trim();
+    
+    // Aggressively purge any existing entries (by ID or by Canonical Name) 
+    // to ensure this save results in exactly ONE canonical entry.
+    const filteredData = data.filter(item => {
+      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
+      const isEditingThis = editingItem && item.id === editingItem.id;
+      const isSameCategory = itemCanonical === targetCanonical;
+      return !isEditingThis && !isSameCategory;
     });
 
-    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Remember to save changes.`);
+    updatedData = [...filteredData, budgetItem];
+
+    const sorted = updatedData.sort((a, b) => a.category.localeCompare(b.category));
+    setData(sorted);
+    toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Auto-saving...`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
+    
+    // Trigger automated save
+    handleSaveBudget(updatedData);
   };
 
   const toggleGroup = (id) => {
@@ -631,9 +766,23 @@ export default function SetBudget() {
         {/* Header Area */}
         <div className="w-full px-6 pt-6 pb-4 border-b border-slate-100">
            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+              <div className="flex items-center justify-end w-full gap-4">
+                  {/* Institutional Premium Date Navigator */}
+                  <div className="flex items-center gap-1.5 bg-slate-50/80 border border-slate-200/60 rounded-2xl p-1 shadow-sm backdrop-blur-sm">
+                     <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all"
+                        onClick={() => {
+                           const newDate = new Date(selectedDate);
+                           newDate.setMonth(selectedDate.getMonth() - 1);
+                           setSelectedDate(newDate);
+                        }}
+                     >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                     </Button>
+
+                     <div className="flex items-center gap-0 px-1">
                         <Select 
                           value={selectedDate.getMonth().toString()} 
                           onValueChange={(val) => {
@@ -642,18 +791,20 @@ export default function SetBudget() {
                             setSelectedDate(newDate);
                           }}
                         >
-                          <SelectTrigger className="w-28 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                          <SelectTrigger className="w-auto min-w-[75px] border-none bg-transparent h-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-800 focus:ring-0 p-0 shadow-none hover:text-indigo-600 transition-colors">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl p-1">
                             {Array.from({ length: 12 }).map((_, i) => (
-                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                              <SelectItem key={i} value={i.toString()} className="text-[10px] font-bold uppercase tracking-widest rounded-lg">
                                 {format(new Date(2026, i, 1), 'MMMM')}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <div className="w-[1px] h-4 bg-slate-200" />
+                        
+                        <div className="w-4 flex justify-center text-[11px] font-black text-slate-300">/</div>
+
                         <Select 
                           value={selectedDate.getFullYear().toString()} 
                           onValueChange={(val) => {
@@ -662,12 +813,12 @@ export default function SetBudget() {
                             setSelectedDate(newDate);
                           }}
                         >
-                          <SelectTrigger className="w-20 border-none bg-transparent h-7 text-[10px] font-bold uppercase tracking-widest focus:ring-0">
+                          <SelectTrigger className="w-auto min-w-[45px] border-none bg-transparent h-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 focus:ring-0 p-0 shadow-none hover:text-indigo-600 transition-colors">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl p-1">
                             {[2025, 2026, 2027, 2028].map(y => (
-                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest">
+                              <SelectItem key={y} value={y.toString()} className="text-[10px] font-bold uppercase tracking-widest rounded-lg">
                                 {y}
                               </SelectItem>
                             ))}
@@ -675,32 +826,36 @@ export default function SetBudget() {
                         </Select>
                      </div>
 
-                     <Link to="/Dashboard" className="h-9 px-4 flex items-center text-xs font-bold text-slate-400 hover:text-slate-900 gap-2 transition-colors">
-                        Command Center
-                     </Link>
-
-                      <Button 
+                     <Button 
                         variant="ghost" 
-                        onClick={handleCopyFromPreviousMonth}
-                        className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
-                      >
-                         <Upload className="w-3.5 h-3.5" /> Copy Last Month
-                      </Button>
+                        size="icon" 
+                        className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all"
+                        onClick={() => {
+                           const newDate = new Date(selectedDate);
+                           newDate.setMonth(selectedDate.getMonth() + 1);
+                           setSelectedDate(newDate);
+                        }}
+                     >
+                        <ChevronRight className="w-4 h-4" />
+                     </Button>
+                  </div>
 
-                     <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
-                           <Plus className="w-3.5 h-3.5" /> New budget
-                        </Button>
-                      </DialogTrigger>
- 
-                      <Button
-                        onClick={handleSaveBudget}
-                        disabled={!hasChanges || isSaving}
-                        className={`h-9 px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border-0 shadow-lg ${hasChanges ? 'bg-[#0f846a] hover:bg-[#0c6b56] text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-200 text-slate-400 cursor-default'}`}
-                      >
-                        {isSaving ? "Saving..." : "Save Budget Changes"}
-                      </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleCopyFromPreviousMonth}
+                    className="h-9 px-4 text-xs font-bold text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2"
+                  >
+                     <Upload className="w-3.5 h-3.5" /> Copy Last Month
+                  </Button>
+
+                  <Dialog open={isNewBudgetOpen} onOpenChange={setIsNewBudgetOpen}>
+                   <DialogTrigger asChild>
+                     <Button variant="ghost" className="h-9 px-4 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 gap-2">
+                        <Plus className="w-3.5 h-3.5" /> New budget
+                     </Button>
+                   </DialogTrigger>
+
+
                       <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
                         <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
                           <div className="space-y-0.5">
@@ -838,7 +993,6 @@ export default function SetBudget() {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                 </div>
                  
                   <div className="flex items-center gap-2">
                     {hasGroups && (
@@ -849,12 +1003,7 @@ export default function SetBudget() {
                   </div>
               </div>
 
-              <div className="flex items-center gap-2 px-1">
-                 <Checkbox id="use-date-range" checked />
-                 <label htmlFor="use-date-range" className="text-[10px] font-bold text-slate-400 uppercase tracking-tight cursor-pointer">
-                    Use total budget summary date range for budget amount analysis
-                 </label>
-              </div>
+
            </div>
         </div>
 
@@ -865,13 +1014,13 @@ export default function SetBudget() {
             <div className="flex items-center h-16 border-b border-slate-100 bg-slate-50/30 px-0">
                <div className="w-12" />
                <div className="flex-1 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2 min-w-[300px]">
-                  Category <ChevronDown className="w-3.5 h-3.5" />
+                  Category
                </div>
                <div className="w-80 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  Budget <ChevronDown className="w-3.5 h-3.5" />
+                  Money flow
                </div>
                <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right flex items-center justify-end gap-2">
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-200" /> Amount
+                  Amount
                </div>
                <div className="w-24" />
                <div className="w-16" />
@@ -883,7 +1032,7 @@ export default function SetBudget() {
                 <BudgetRow 
                    item={item} 
                    key={item.id} 
-                   onEdit={setEditingItem}
+                   onEdit={handleEditItem}
                    onDelete={handleDeleteItem}
                 />
               ))}

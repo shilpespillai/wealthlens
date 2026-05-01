@@ -16,60 +16,48 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { isSameMonthYear } from "@/utils/dateParser";
 import { base44 } from "@/api/base44Client";
 import { addMonths, subMonths, format } from "date-fns";
 import { generateIncomeExpensePdf } from "@/components/reports/generateIncomeExpensePdf";
 import { toast } from "react-hot-toast";
+import { useAuth } from "@/lib/AuthContext";
+import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 // Mock generation removed for production data integrity.
 
 // Budget Targets based on INITIAL_BUDGET_DATA in SetBudget.jsx
-const BUDGET_TARGETS = {
-  "Salary": 3188.36,
-  "Bonus": 0,
-  "Housing": -1028.57,
-  "Utilities": -281.89,
-  "Groceries": -535.71,
-  "Dining Out": -200.00,
-  "Entertainment": -321.43,
-  "Healthcare": -41.10,
-  "Transport": -100.00,
-  "Shopping": -150.00,
-  "Savings": -500.00,
-  "Investments": -500.00
-};
+// Budget targets are now dynamically resolved from the 'budgets' table via the normalizeTransactionData helper.
+// Hardcoded BUDGET_TARGETS removed to ensure production data integrity.
+
 
 const NESTING_GROUPS = {
   "Household": ["Housing", "Utilities"],
-  "Living": ["Groceries", "Dining Out", "Shopping", "Transport"],
-  "Lifestyle": ["Entertainment", "Healthcare"]
+  "Living": ["Groceries", "Dining & Food", "Shopping", "Fuel & Transport"],
+  "Lifestyle": ["Entertainment", "Healthcare", "Travel", "Lifestyle"]
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function IncomeExpenseReport() {
+  const { isPaidUser } = useAuth();
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 0, 1)); // Default to January 2026
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [nestCategories, setNestCategories] = useState(true);
+  const [nestCategories, setNestCategories] = useState(false);
   const [showPercentages, setShowPercentages] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState(["Household", "Living", "Lifestyle"]);
+  const [expandedGroups, setExpandedGroups] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
 
   const monthKey = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}`;
   const [dbAccounts, setDbAccounts] = useState([]);
 
   useEffect(() => {
     async function load() {
-      const allBudgets = await getDatabaseTable("budgets");
-      const saved = (allBudgets || []).find((b) => b.month === monthKey);
-
-      const productionLedger = await getProductionLedger({ month: monthKey });
-      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger);
-      setIncomes(normIncs);
-      setExpenses(normExps);
-
-      // Use correct table name 'user_accounts' and deduplicate by id
+      setIncomes([]);
+      setExpenses([]);
+      // 1. Load accounts first as they are needed for normalization
       const rawAccounts = await getDatabaseTable("user_accounts");
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
@@ -77,7 +65,18 @@ export default function IncomeExpenseReport() {
         seen.add(a.id);
         return true;
       });
-      setDbAccounts(unique);
+      // Add Virtual "Manual Vault" for unassigned items
+      const virtualManual = { id: "manual", name: "Manual Vault", is_system: true };
+      setDbAccounts([virtualManual, ...unique]);
+
+      // 2. Load budgets and ledger
+      const allBudgets = await getDatabaseTable("budgets");
+      const saved = (allBudgets || []).find((b) => b.month === monthKey);
+
+      const productionLedger = await getProductionLedger({ month: monthKey });
+      const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, unique);
+      setIncomes(normIncs);
+      setExpenses(normExps);
     }
     load();
   }, [monthKey, normalizeTransactionData, selectedDate, getProductionLedger, getDatabaseTable]);
@@ -86,14 +85,33 @@ export default function IncomeExpenseReport() {
     const processGroup = (txs) => {
       const cats = {};
       txs.forEach(t => {
-        if (!cats[t.category]) cats[t.category] = { category: t.category, actual: 0, budgeted: BUDGET_TARGETS[t.category] || 0 };
-        cats[t.category].actual += Math.abs(Number(t.amount || 0));
+        const catName = t.category || 'Uncategorized';
+        if (!cats[catName]) {
+          cats[catName] = { 
+            category: catName, 
+            actual: 0, 
+            budgeted: Number(t.monthly_target || 0) 
+          };
+        }
+        cats[catName].actual += (Number(t.amount) || 0);
       });
       return Object.values(cats);
     };
 
-    const rawIncs = processGroup(incomes);
-    const rawExps = processGroup(expenses);
+    const filteredIncs = incomes.filter(i => {
+      if (!selectedAccountId) return true;
+      if (selectedAccountId === 'manual') return !i.account_id || String(i.account_id) === 'manual' || String(i.account_id) === 'null' || i.account_id === '';
+      return String(i.account_id) === String(selectedAccountId);
+    });
+    
+    const filteredExps = expenses.filter(e => {
+      if (!selectedAccountId) return true;
+      if (selectedAccountId === 'manual') return !e.account_id || String(e.account_id) === 'manual' || String(e.account_id) === 'null' || e.account_id === '';
+      return String(e.account_id) === String(selectedAccountId);
+    });
+
+    const rawIncs = processGroup(filteredIncs);
+    const rawExps = processGroup(filteredExps);
 
     if (!nestCategories) return { incomes: rawIncs, expenses: rawExps };
 
@@ -126,10 +144,10 @@ export default function IncomeExpenseReport() {
     };
 
     return { incomes: rawIncs, expenses: nest(rawExps) };
-  }, [incomes, expenses, nestCategories]);
+  }, [incomes, expenses, nestCategories, selectedAccountId]);
 
-  const totalActualIncome = incomes.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const totalActualExpense = expenses.reduce((s, e) => s + Math.abs(Number(e.amount || 0)), 0);
+  const totalActualIncome = reportData.incomes.reduce((s, i) => s + Number(i.actual || 0), 0);
+  const totalActualExpense = reportData.expenses.reduce((s, e) => s + Math.abs(Number(e.actual || 0)), 0);
 
   const handleExport = () => {
     const loadingToast = toast.loading("Generating professional PDF report...");
@@ -185,7 +203,8 @@ export default function IncomeExpenseReport() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans">
+    <div className="flex flex-col h-full bg-white font-sans relative">
+      {!isPaidUser && <PremiumOverlay featureName="Income & Expense Report" />}
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
         {/* Unified Analysis Sidebar */}
         <aside className="w-80 bg-white border-r border-slate-100 p-8 space-y-10 overflow-y-auto">
@@ -207,12 +226,16 @@ export default function IncomeExpenseReport() {
                <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Accounts</p>
                <div className="space-y-2">
                 {dbAccounts.map((acc, i) => (
-                  <div key={i} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between group hover:border-[#C5A059]/30 transition-all">
+                  <div 
+                    key={i} 
+                    onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
+                    className={`p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer border ${selectedAccountId === acc.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-[#C5A059]/30'}`}
+                  >
                     <div className="flex items-center gap-3">
-                      <Checkbox checked />
-                      <span className="text-[10px] font-medium text-slate-500 uppercase">{acc.name}</span>
+                      <Checkbox checked={selectedAccountId === acc.id || !selectedAccountId} />
+                      <span className={`text-[10px] font-medium uppercase transition-colors ${selectedAccountId === acc.id ? 'text-indigo-600' : 'text-slate-500'}`}>{acc.name}</span>
                     </div>
-                    <CheckCircle2 className="w-4 h-4 text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {(selectedAccountId === acc.id || !selectedAccountId) && <CheckCircle2 className="w-4 h-4 text-teal-400" />}
                   </div>
                 ))}
                 {dbAccounts.length === 0 && (
@@ -246,7 +269,7 @@ export default function IncomeExpenseReport() {
                             <SelectValue placeholder="Year" />
                           </SelectTrigger>
                           <SelectContent>
-                            {[2024, 2025, 2026].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                            {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
                           </SelectContent>
                         </Select>
                     </div>
