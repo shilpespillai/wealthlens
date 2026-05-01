@@ -59,9 +59,10 @@ export default function NetWorthReport() {
   // Load from Production DB
   useEffect(() => {
     async function load() {
+      const monthContext = format(selectedDate, 'yyyy-MM');
       const [rawAccounts, portfolioSnapshots] = await Promise.all([
-        getDatabaseTable("user_accounts"),
-        getDatabaseTable("portfolio_holdings")
+        getDatabaseTable("user_accounts", { month: monthContext }),
+        getDatabaseTable("portfolio_holdings", { month: monthContext })
       ]);
 
       // Deduplicate accounts by id
@@ -98,7 +99,7 @@ export default function NetWorthReport() {
       setAllTransactions(ledger);
     }
     load();
-  }, [getDatabaseTable, getProductionLedger]);
+  }, [getDatabaseTable, getProductionLedger, selectedDate]);
 
   // Unified Save
   const saveAccounts = async (updated) => {

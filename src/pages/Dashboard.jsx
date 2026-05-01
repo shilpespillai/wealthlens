@@ -574,7 +574,8 @@ export function DashboardContent() {
         console.log("[Dashboard] Initializing Static Profile...");
         const user = await base44.auth.me();
         
-        const dbAccounts = await base44.db.getTable('user_accounts');
+        const currentMonthKey = format(new Date(), 'yyyy-MM');
+        const dbAccounts = await base44.db.getTable('user_accounts', { month: currentMonthKey });
         const dbPortfolio = await base44.db.getTable('portfolio_holdings');
         const dbBudgets = await base44.db.getTable('budgets');
         // ── LAYOUT PERSISTENCE ENGINE (One-time Load) ──────────────────────
@@ -704,10 +705,13 @@ export function DashboardContent() {
       try {
         console.log("[Dashboard] Syncing Horizon Data...", periodInfo.startDate, periodInfo.endDate);
         
-        const horizonTx = await getProductionLedger({ 
-          startDate: periodInfo.startDate, 
-          endDate: periodInfo.endDate 
-        }); 
+        const [horizonTx, dbAccounts] = await Promise.all([
+          getProductionLedger({ 
+            startDate: periodInfo.startDate, 
+            endDate: periodInfo.endDate 
+          }),
+          base44.db.getTable('user_accounts', { month: periodInfo.focusMonthKey })
+        ]);
 
         const dbBudgets = await base44.db.getTable('budgets') || [];
         
@@ -722,6 +726,7 @@ export function DashboardContent() {
 
         setLiveData(prev => ({
           ...prev,
+          accounts: dbAccounts || prev.accounts,
           transactions: horizonTx || [],
           budgets: activeBudgets.map(b => ({ month: b.month, data: extractBudgetData(b.payload) }))
         }));

@@ -120,7 +120,7 @@ function FamilyBudgetContent() {
         const productionLedger = await getProductionLedger({ month: monthKey });
         
         // 3. Fetch accounts to enable credit card income exclusion
-        const accounts = await getDatabaseTable("user_accounts");
+        const accounts = await getDatabaseTable("user_accounts", { month: monthKey });
         setDbAccounts(accounts || []);
         
         // 4. Use the CENTRALIZED normalization engine (The "Common Place")

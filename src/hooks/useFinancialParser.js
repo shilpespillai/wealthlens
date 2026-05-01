@@ -380,8 +380,8 @@ export const useFinancialParser = () => {
    * getDatabaseTable
    * Generic wrapper for table-based retrieval.
    */
-  const getDatabaseTable = useCallback(async (tableName) => {
-    return base44.db.getTable(tableName);
+  const getDatabaseTable = useCallback(async (tableName, options = {}) => {
+    return base44.db.getTable(tableName, options);
   }, []);
 
   /**

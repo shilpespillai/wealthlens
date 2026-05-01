@@ -201,65 +201,27 @@ const flattenCategories = (items) => {
 };
 
 // Utility: Normalize structure against the core registry AND user's personal registry
-const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}, formatAmount) => {
+const normalizeStructure = (savedItems = [], userCategories = [], currentActuals = {}, formatAmount) => {
   const finalMap = new Map();
+  const hasSavedItems = savedItems.length > 0;
   
-  // 1. Start with the Core Category Registry (Baseline)
-  // This ensures the user always sees a standard set of categories to start with.
-  CORE_CATEGORY_REGISTRY
-    .filter(cat => cat.type !== 'income')
-    .forEach(cat => {
-      const canonical = resolveCanonicalCategory(cat.name).trim();
-      const key = canonical.toLowerCase();
-      finalMap.set(key, {
-        id: `core-${key}`,
-        ...cat,
-        category: canonical,
-        monthly_target: 0,
-        amount: "0",
-        budget: "$0",
-        status: "NO TARGET SET",
-        type: 'item'
-      });
-    });
-
-  // 2. Merge User-Defined Categories
-  userCategories
-    .filter(cat => cat.type !== 'income')
-    .forEach(cat => {
-      const name = cat.name || cat.category;
-      const canonical = resolveCanonicalCategory(name).trim();
-      const key = canonical.toLowerCase();
-      const existing = finalMap.get(key);
-      
-      finalMap.set(key, {
-        ...(existing || { id: `user-${cat.id || Date.now()}` }),
-        ...cat,
-        category: canonical,
-        monthly_target: existing?.monthly_target || 0,
-        amount: existing?.amount || "0",
-        budget: existing?.budget || "$0",
-        status: existing?.status || "NO TARGET SET"
-      });
-    });
-
-  // 3. Overlay Saved Items (The user's defined budget targets)
+  // 1. Initialize with Saved Items (The user's defined budget targets)
+  // This is now the authoritative source of truth for the budget structure.
   savedItems.forEach(s => {
     const name = s.category || s.name || "Uncategorized";
     const canonical = resolveCanonicalCategory(name).trim();
     const key = canonical.toLowerCase();
     if (!key) return;
     
-    const existing = finalMap.get(key);
     finalMap.set(key, { 
-      ...(existing || {}),
       ...s, 
       category: canonical,
-      id: s.id || (existing?.id) || `saved-${key}`
+      id: s.id || `saved-${key}`,
+      type: s.type === 'income' ? 'income' : 'item'
     });
   });
 
-  // 4. Add Active Spending (Ensures visibility of unbudgeted expenses)
+  // 2. Add Active Spending (Ensures visibility of unbudgeted expenses)
   Object.keys(currentActuals).forEach(rawKey => {
     const key = rawKey.trim().toLowerCase();
     const spent = currentActuals[rawKey] || 0;
@@ -267,17 +229,12 @@ const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}
     if (spent > 0) {
       const existing = finalMap.get(key);
       if (existing) {
-        // Just ensure the budget string reflects the spending
         existing.budget = formatAmount(spent);
       } else {
         const canonical = resolveCanonicalCategory(key).trim();
-        const coreMatch = CORE_CATEGORY_REGISTRY.find(c => c.name.toLowerCase() === canonical.toLowerCase());
-        
         finalMap.set(key, {
           id: `auto-${key}`,
           category: canonical,
-          iconId: coreMatch?.iconId || 'circle',
-          color: coreMatch?.color || 'slate',
           monthly_target: 0,
           amount: "0",
           budget: formatAmount(spent),
@@ -288,12 +245,56 @@ const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}
     }
   });
 
+  // 3. Fallback: If the budget is COMPLETELY empty (no targets, no spending), 
+  // seed with Core Registry to provide a starting point.
+  if (finalMap.size === 0 && !hasSavedItems) {
+    CORE_CATEGORY_REGISTRY
+      .filter(cat => cat.type !== 'income')
+      .forEach(cat => {
+        const canonical = resolveCanonicalCategory(cat.name).trim();
+        const key = canonical.toLowerCase();
+        finalMap.set(key, {
+          id: `core-${key}`,
+          ...cat,
+          category: canonical,
+          monthly_target: 0,
+          amount: "0",
+          budget: "$0",
+          status: "NO TARGET SET",
+          type: 'item'
+        });
+      });
+  }
+
+  // 4. Metadata Enrichment: Overlay icons/colors from registries for ANY item missing them
+  const enrichFromRegistry = (registry) => {
+    registry.forEach(reg => {
+      const canonical = resolveCanonicalCategory(reg.name || reg.category).trim();
+      const key = canonical.toLowerCase();
+      const existing = finalMap.get(key);
+      if (existing) {
+        existing.iconId = existing.iconId || reg.iconId || reg.icon_id;
+        existing.color = existing.color || reg.color;
+      }
+    });
+  };
+
+  enrichFromRegistry(CORE_CATEGORY_REGISTRY);
+  enrichFromRegistry(userCategories);
+
   return Array.from(finalMap.values()).sort((a, b) => a.category.localeCompare(b.category));
 };
 
 export default function SetBudget() {
   const { parseCurrency, formatAmount } = useFinancialParser();
-  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
+
+  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey);
 
   const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
@@ -311,12 +312,6 @@ export default function SetBudget() {
     []
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const monthKey = useMemo(() => {
-    const y = selectedDate.getFullYear();
-    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-    return `${y}-${m}`;
-  }, [selectedDate]);
 
   const loadBudgetAndActuals = useCallback(async () => {
     if (isSaving) return;
@@ -336,7 +331,7 @@ export default function SetBudget() {
         // always prioritize the most recently updated one.
         saved = results.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
       } else {
-        const allBudgets = await base44.db.getTable("budgets");
+        const allBudgets = await base44.db.getTable("budgets", { month: monthKey });
         if (allBudgets && allBudgets.length > 0) {
           const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
           saved = sorted[0];
@@ -345,7 +340,7 @@ export default function SetBudget() {
       }
 
       // 2. Fetch actual transactions for this month to calculate consumption
-      const txResults = await base44.db.getTable("transactions");
+      const txResults = await base44.db.getTable("transactions", { month: monthKey });
       const [targetYear, targetMonth] = monthKey.split('-').map(Number);
 
       const monthTransactions = (txResults || []).filter(tx => 

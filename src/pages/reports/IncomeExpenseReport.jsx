@@ -58,7 +58,7 @@ export default function IncomeExpenseReport() {
       setIncomes([]);
       setExpenses([]);
       // 1. Load accounts first as they are needed for normalization
-      const rawAccounts = await getDatabaseTable("user_accounts");
+      const rawAccounts = await getDatabaseTable("user_accounts", { month: monthKey });
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
         if (seen.has(a.id)) return false;

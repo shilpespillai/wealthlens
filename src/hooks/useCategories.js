@@ -8,29 +8,35 @@ import { toast } from 'sonner';
  * Centralized hook for managing a flat, global category list.
  * Ensures consistency across Transactions, SetBudget, and Reports.
  */
-export const useCategories = () => {
+export const useCategories = (monthKey = null) => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (forcedMonth = null) => {
     try {
       setIsLoading(true);
-      console.log("[useCategories] Fetching unified catalog (Registry + Latest Budget)...");
+      const targetMonth = forcedMonth || monthKey;
+      console.log(`[useCategories] Fetching catalog (Registry + ${targetMonth ? targetMonth : 'Latest'} Budget)...`);
       
       // 1. Fetch from the dedicated categories registry
-      const dbCategories = await base44.db.getTable('categories');
+      const dbCategories = await base44.db.getTable('categories', { month: targetMonth });
       
-      // 2. Proactively pull categories from the latest Budget Planner entry 
-      // to ensure Transactions matches 'Set Budget' exactly as requested.
+      // 2. Proactively pull categories from the target Budget Planner entry 
       const allBudgets = await base44.db.getTable('budgets');
       let budgetCategories = [];
       
       if (allBudgets && allBudgets.length > 0) {
-        // Find the absolute latest budget payload
-        const latestBudget = allBudgets.sort((a, b) => b.month.localeCompare(a.month))[0];
-        const payload = latestBudget.payload || {};
+        let selectedBudget;
+        if (targetMonth) {
+            selectedBudget = allBudgets.find(b => b.month === targetMonth);
+        }
         
-        // Extract flat categories from visualData or standard buckets
+        // Fallback to latest if specific month not found or not provided
+        if (!selectedBudget) {
+            selectedBudget = allBudgets.sort((a, b) => b.month.localeCompare(a.month))[0];
+        }
+
+        const payload = selectedBudget?.payload || {};
         const sourceList = payload.visualData || [...(payload.incomes || []), ...(payload.expenses || [])];
         budgetCategories = sourceList.map(item => ({
           name: item.category || item.name,
@@ -94,7 +100,7 @@ export const useCategories = () => {
     };
 
     try {
-      const result = await base44.db.upsertRow('categories', newCat);
+      const result = await base44.db.upsertRow('categories', newCat, { month: monthKey });
       await fetchCategories(); // Refresh list
       return result;
     } catch (err) {
@@ -108,7 +114,7 @@ export const useCategories = () => {
     try {
       console.log(`[useCategories] Synchronization check initiated with ${flatList.length} registry items.`);
       // 1. Fetch current categories to check for existence
-      const current = await base44.db.getTable('categories');
+      const current = await base44.db.getTable('categories', { month: monthKey });
       console.log(`[useCategories] Current DB count: ${current?.length || 0}`);
       
       const existingNames = new Set((current || []).map(c => (c.name || "").toLowerCase().trim()));
@@ -139,7 +145,7 @@ export const useCategories = () => {
       }));
       
       console.log(`[useCategories] Executing atomic batch commit for ${payloads.length} registry items...`);
-      await base44.db.upsertRows('categories', payloads);
+      await base44.db.upsertRows('categories', payloads, { month: monthKey });
       
       console.log("[useCategories] Batch committed. Refreshing catalog...");
       await fetchCategories();

@@ -37,7 +37,7 @@ export default function CashflowsReport() {
   useEffect(() => {
     async function load() {
       // 1. Load accounts first
-      const rawAccounts = await getDatabaseTable("user_accounts");
+      const rawAccounts = await getDatabaseTable("user_accounts", { month: monthKey });
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
         if (seen.has(a.id)) return false;

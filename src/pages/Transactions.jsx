@@ -198,7 +198,14 @@ function TransactionsContent() {
     getDatabaseTable,
     getNormalizedLedger
   } = useFinancialParser();
-  const { categories, seedCategories, isLoading: categoriesLoading } = useCategories();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
+
+  const { categories, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
   const initialSearch = searchParams.get("search") || "";
@@ -209,7 +216,6 @@ function TransactionsContent() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [savedSearches, setSavedSearches] = useState([]);
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
@@ -302,11 +308,6 @@ function TransactionsContent() {
     return sidebar;
   }, [dbAccounts, incomes, expenses]);
 
-  const monthKey = useMemo(() => {
-    const y = selectedDate.getFullYear();
-    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-    return `${y}-${m}`;
-  }, [selectedDate]);
 
   const [manualForm, setManualForm] = useState({
     merchant: "",
@@ -337,7 +338,7 @@ function TransactionsContent() {
     setIsLoading(true);
     try {
       // 0. Fetch accounts to enable attribution mapping
-      let accounts = await base44.db.getTable("user_accounts");
+      let accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       
       // Default Account Provisioning Safety
       if (!accounts || accounts.length === 0) {
@@ -346,9 +347,9 @@ function TransactionsContent() {
           { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
         ];
         for (const acc of defaults) {
-          await base44.db.upsertRow("user_accounts", acc);
+          await base44.db.upsertRow("user_accounts", acc, { month: monthKey });
         }
-        accounts = await base44.db.getTable("user_accounts");
+        accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       }
       
       setDbAccounts(accounts || []);
@@ -612,8 +613,8 @@ function TransactionsContent() {
         type: newAccount.type,
         category: newAccount.category,
         base_balance: parseFloat(newAccount.balance) || 0
-      });
-      const accounts = await base44.db.getTable("user_accounts");
+      }, { month: monthKey });
+      const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
       setIsAddAccountOpen(false);
       setNewAccount({ name: "", type: "asset", category: "Bank", balance: "" });
@@ -626,7 +627,7 @@ function TransactionsContent() {
 
   const handleDeleteAccount = async (id, name) => {
     try {
-      await base44.db.deleteRow('user_accounts', id);
+      await base44.db.deleteRow('user_accounts', id, { month: monthKey });
       
       // Migration Engine: Reassign all staged transactions to the Manual Vault
       const migrate = (items) => items.map(item => item.account_id === id ? { ...item, account_id: null, account: "Manual Vault" } : item);
@@ -637,7 +638,7 @@ function TransactionsContent() {
       setExpenses(updatedExps);
       setHasChanges(true); // Flag for Commit synchronization
 
-      const accounts = await base44.db.getTable("user_accounts");
+      const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
       toast.success("Account deleted. Transactions migrated to Manual Vault.");
     } catch (err) {
