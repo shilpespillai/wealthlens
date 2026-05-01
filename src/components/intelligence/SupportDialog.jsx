@@ -38,8 +38,8 @@ ${formData.message}
 -----------------------
 `.trim();
 
-    const mailtoUrl = `mailto:${supportEmail}?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${supportEmail}&su=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
+    window.open(gmailUrl, '_blank');
     
     setIsSent(true);
     setTimeout(() => {

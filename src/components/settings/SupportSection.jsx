@@ -26,8 +26,13 @@ export default function SupportSection() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Official Support Email</p>
-              <a href="mailto:aihealthtec@gmail.com" className="text-lg font-black text-slate-900 hover:text-indigo-600 transition-colors break-all">
-                aihealthtec@gmail.com
+              <a 
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=aihealthtech@gmail.com&su=WealthLens Support Request" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg font-black text-slate-900 hover:text-indigo-600 transition-colors break-all"
+              >
+                aihealthtech@gmail.com
               </a>
             </div>
           </div>
