@@ -27,16 +27,7 @@ export default function SupportDialog({ open, onOpenChange, userEmail }) {
 
   const handleSendEmail = () => {
     const supportEmail = "aihealthtech@gmail.com";
-    const body = `
---- SUPPORT REQUEST ---
-User: ${userEmail || 'Unauthenticated User'}
-App: WealthLens Premium (v1.0.0)
-Device: ${navigator.userAgent}
-
-MESSAGE:
-${formData.message}
------------------------
-`.trim();
+    const body = formData.message.trim();
 
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${supportEmail}&su=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
     window.open(gmailUrl, '_blank');
