@@ -1136,7 +1136,7 @@ function TransactionsContent() {
                 <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all">
-                      <Download className="w-4 h-4" /> Import
+                      <Download className="w-4 h-4" /> Import Transactions List (CSV/PDF)
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
