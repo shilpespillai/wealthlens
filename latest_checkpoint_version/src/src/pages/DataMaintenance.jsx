@@ -317,12 +317,19 @@ export default function DataMaintenance() {
       }
 
       addLog(`Packaging ${foundCount} clusters...`, "info");
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      
+      // Institutional Obfuscation: Wrap in Base64 to prevent plain-text inspection of UserIDs/Keys
+      const json = JSON.stringify(backup);
+      const obfuscated = btoa(unescape(encodeURIComponent(json)));
+      
+      const blob = new Blob([obfuscated], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = url;
-      link.download = `wealthlens_vault_${new Date().toISOString().split('T')[0]}.wealth`;
+      const localDate = new Date();
+      const dateStr = `${localDate.getFullYear()}-${(localDate.getMonth() + 1).toString().padStart(2, '0')}-${localDate.getDate().toString().padStart(2, '0')}`;
+      link.download = `wealthlens_vault_${dateStr}.wealth`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -342,8 +349,21 @@ export default function DataMaintenance() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const backup = JSON.parse(e.target.result);
-        if (!backup.shards) throw new Error("Invalid format");
+        let content = e.target.result;
+        let backup;
+
+        // Try to decode Base64 obfuscation first
+        try {
+          const decoded = decodeURIComponent(escape(atob(content)));
+          backup = JSON.parse(decoded);
+          console.log("[Vault Import] Decoded obfuscated format.");
+        } catch (b64Err) {
+          // Fallback to plain JSON for legacy support
+          backup = JSON.parse(content);
+          console.log("[Vault Import] Falling back to legacy JSON format.");
+        }
+
+        if (!backup || !backup.shards) throw new Error("Invalid format");
         
         const count = Object.keys(backup.shards).length;
         Object.entries(backup.shards).forEach(([key, val]) => {

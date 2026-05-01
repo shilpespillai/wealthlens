@@ -71,10 +71,10 @@ export default function TrendsReport() {
 
   const activeInterval = useMemo(() => {
     try {
-      if (!dateRange.from || !dateRange.to) return [new Date(2026, 4, 1)];
+      if (!dateRange.from || !dateRange.to) return [new Date()];
       return eachMonthOfInterval({ start: dateRange.from, end: dateRange.to });
     } catch (e) {
-      return [new Date(2026, 4, 1)];
+      return [new Date()];
     }
   }, [dateRange]);
 
@@ -192,7 +192,7 @@ export default function TrendsReport() {
 
   const burndownData = useMemo(() => {
     // Sync with the end of the selected date range for the burndown view
-    const refMonth = dateRange.to || new Date(2026, 4, 1);
+    const refMonth = dateRange.to || new Date();
     const start = startOfMonth(refMonth);
     const end = endOfMonth(refMonth);
     const days = eachDayOfInterval({ start, end });

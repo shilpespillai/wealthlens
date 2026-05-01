@@ -46,7 +46,7 @@ const MONTHS = [
 
 export default function BudgetCalendar() {
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 1)); // Default to April 2026 per current demo context
+  const [currentDate, setCurrentDate] = useState(new Date()); // Automatically roll over to current month
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [historicalSurplus, setHistoricalSurplus] = useState(0);

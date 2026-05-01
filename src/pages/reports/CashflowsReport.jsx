@@ -59,10 +59,10 @@ export default function CashflowsReport() {
 
   const intervalMonths = useMemo(() => {
     try {
-      if (!dateRange.from || !dateRange.to) return [new Date(2026, 4, 1)];
+      if (!dateRange.from || !dateRange.to) return [new Date()];
       return eachMonthOfInterval({ start: dateRange.from, end: dateRange.to });
     } catch (e) {
-      return [dateRange.from || new Date(2026, 4, 1)];
+      return [dateRange.from || new Date()];
     }
   }, [dateRange]);
 
