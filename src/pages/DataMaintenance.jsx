@@ -268,6 +268,34 @@ export default function DataMaintenance() {
       setIsPurging(false);
     }
   };
+
+  const handleResetSystem = async () => {
+    const confirmed = window.confirm(
+      "CRITICAL: This will perform a FULL FACTORY RESET.\n\n" +
+      "1. All local encrypted shards will be DELETED.\n" +
+      "2. All session keys and preferences will be CLEARED.\n" +
+      "3. You will be logged out immediately.\n\n" +
+      "Ensure you have a .wealth backup. Proceed?"
+    );
+
+    if (!confirmed) return;
+
+    addLog("Initiating full system wipe...", "warning");
+    try {
+      // Clear all WealthLens data
+      localStorage.clear();
+      addLog("Local Storage wiped.", "success");
+      toast.success("System Reset Complete");
+      
+      // Redirect to landing/login
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    } catch (err) {
+      console.error("Reset failed:", err);
+      toast.error("System reset encountered an error.");
+    }
+  };
  
   const { isPaidUser } = useAuth();
   const [syncEnabled, setSyncEnabled] = useState(true);
@@ -568,7 +596,10 @@ export default function DataMaintenance() {
                  </Button>
                </div>
                
-               <Button className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-widest text-[8px] mt-2 border border-rose-100/50 transition-all active:scale-95">
+               <Button 
+                  onClick={handleResetSystem}
+                  className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-widest text-[8px] mt-2 border border-rose-100/50 transition-all active:scale-95"
+               >
                   Reset System
                </Button>
             </div>
