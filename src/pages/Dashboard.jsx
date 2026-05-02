@@ -1918,7 +1918,7 @@ export function DashboardContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                 {(holisticMetrics.periodTxAll || [])
                   .filter(t => {
-                    const { incomes } = getNormalizedLedger([t], latestAccounts);
+                    const { incomes } = getNormalizedLedger([t], liveData.latestAccounts || []);
                     return incomes.length > 0;
                   })
                   .sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
