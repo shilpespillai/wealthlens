@@ -46,7 +46,7 @@ export default function Layout({ children }) {
       {/* Main Workspace Frame */}
       <div className={`flex-1 ${showSidebar ? (isFullWidthPage ? 'p-0' : 'p-4') : 'p-0'} h-screen flex flex-col gap-4 min-w-0`}>
         {/* The Horizon Mainframe - Master Rounded Panel */}
-        <div className={`flex-1 ${showSidebar ? (isFullWidthPage || isDashboard ? 'bg-transparent border-none rounded-none shadow-none' : 'bg-white border border-slate-200 rounded-[32px] shadow-2xl') : 'bg-transparent border-none rounded-none'} overflow-hidden flex flex-col relative`}>
+        <div className={`flex-1 ${showSidebar ? (isFullWidthPage ? 'bg-white border-none rounded-none shadow-none' : (isDashboard ? 'bg-transparent border border-slate-950/10 rounded-[48px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]' : 'bg-white border border-slate-200 rounded-[32px] shadow-2xl')) : 'bg-transparent border-none rounded-none'} overflow-hidden flex flex-col relative`}>
           
           <main className={`flex-1 overflow-y-auto ${showSidebar ? (isFullWidthPage || isDashboard ? 'p-0' : 'px-8 pb-12 pt-10') : 'p-0'}`}>
             <div className={`${showSidebar ? (isFullWidthPage || isDashboard ? 'max-w-full' : 'max-w-[1400px]') : 'max-w-full'} mx-auto`}>
