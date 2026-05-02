@@ -979,13 +979,13 @@ function TransactionsContent() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Secondary Sidebar */}
-        <aside className="w-72 bg-[#f8f9fa] border-r border-slate-200 overflow-y-auto p-4 flex flex-col gap-8 shrink-0">
+        <aside className="w-72 bg-white border-r border-slate-100 overflow-y-auto p-4 flex flex-col gap-8 shrink-0">
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Overview</p>
             <div className="space-y-1">
-              <div className="bg-slate-200/50 rounded-lg p-3 border border-slate-200 mb-4 text-center">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4 text-center">
                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Monthly Balance</span>
-                 <span className={`text-sm font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                 <span className={`text-sm font-normal ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                    {formatAmount(summary.balance)}
                  </span>
               </div>
@@ -1100,9 +1100,9 @@ function TransactionsContent() {
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${acc.color}`} />
-                    <span className={`text-xs font-bold transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-600 group-hover:text-amber-600'}`}>{acc.name}</span>
+                    <span className={`text-xs font-medium transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-600 group-hover:text-amber-600'}`}>{acc.name}</span>
                   </div>
-                  <p className="text-[11px] font-bold text-slate-800 tabular-nums ml-5">
+                  <p className="text-[11px] font-normal text-slate-600 tabular-nums ml-5">
                     {(acc.balance || 0) < 0 ? `(${Math.abs(acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                   </p>
                   
@@ -1162,17 +1162,17 @@ function TransactionsContent() {
             <div className="flex items-center gap-10">
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</span>
-                 <span className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
+                 <span className="text-lg font-normal text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
                </div>
                <div className="w-[1px] h-8 bg-slate-100" />
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</span>
-                 <span className="text-lg font-bold text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
+                 <span className="text-lg font-normal text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
                </div>
                <div className="w-[1px] h-8 bg-slate-100" />
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Balance</span>
-                 <span className={`text-lg font-bold tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                 <span className={`text-lg font-normal tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                    {formatAmount(summary.balance)}
                  </span>
                </div>
