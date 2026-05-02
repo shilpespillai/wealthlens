@@ -1158,7 +1158,7 @@ function TransactionsContent() {
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Premium Header Metrics */}
-          <div className="px-6 py-4 bg-[#fcfcfc] border-b border-slate-100 flex items-center justify-between shadow-sm">
+          <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-10">
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</span>
