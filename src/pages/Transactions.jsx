@@ -941,7 +941,7 @@ function TransactionsContent() {
                         setSaveSearchName(searchQuery || "");
                         setIsSaveSearchModalOpen(true);
                     }}
-                    className="text-slate-300 hover:text-slate-600 transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-[#C5A059] transition-colors"
                     title="Save this search"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -1610,7 +1610,7 @@ function TransactionsContent() {
                             onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
                             disabled={tx.type === 'income'}
                           >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-purple-300 transition-all">
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-amber-300 transition-all">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1626,7 +1626,7 @@ function TransactionsContent() {
                             value={tx.account_id || "manual"} 
                             onValueChange={(v) => handleUpdateItem(tx.id, { account_id: v }, tx.type)}
                           >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-amber-300 transition-all text-slate-700">
                               <SelectValue placeholder="Manual Vault" />
                             </SelectTrigger>
                             <SelectContent side="top">
@@ -1652,7 +1652,7 @@ function TransactionsContent() {
                   .map((tx) => (
                     <div 
                       key={tx.id} 
-                      className={`group relative p-6 rounded-[32px] border shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer flex flex-col justify-between overflow-hidden ${selectedTransactions.includes(tx.id) ? 'ring-2 ring-purple-600' : ''}`}
+                      className={`group relative p-6 rounded-[32px] border shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer flex flex-col justify-between overflow-hidden ${selectedTransactions.includes(tx.id) ? 'ring-2 ring-amber-600' : ''}`}
                       style={{ 
                         backgroundColor: getCategoryColor(tx.category) + '0a', 
                         borderColor: getCategoryColor(tx.category) + '30' 
@@ -1725,7 +1725,7 @@ function TransactionsContent() {
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{formatDate(tx.date)}</span>
                           <span className="text-xs font-black text-slate-700 tracking-tight flex items-center gap-1.5 opacity-60">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                             {tx.account || "Manual Vault"}
                           </span>
                         </div>

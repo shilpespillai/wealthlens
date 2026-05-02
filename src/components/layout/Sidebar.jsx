@@ -305,9 +305,9 @@ export default function Sidebar() {
              {isAuthenticated && (
                 <div 
                   onClick={() => logout()}
-                  className="flex items-center gap-3 px-4 py-3 text-[#C5A059]/80 hover:text-[#C5A059] cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 border border-transparent hover:border-[#C5A059]/10"
+                  className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-[#C5A059] cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 border border-transparent hover:border-[#C5A059]/10"
                 >
-                  <LogOut className="w-4 h-4 text-[#C5A059]/60 group-hover:text-[#C5A059]" />
+                  <LogOut className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
                   <span className="text-[10px] font-medium uppercase tracking-widest leading-none">Terminal Exit</span>
                 </div>
              )}
@@ -322,7 +322,7 @@ export default function Sidebar() {
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}
           </div>
           <div>
-            <p className="text-[10px] font-medium text-white uppercase tracking-widest truncate max-w-[120px] flex items-center gap-1.5">
+            <p className="text-[10px] font-bold text-[#C5A059] uppercase tracking-widest truncate max-w-[120px] flex items-center gap-1.5">
               {user?.full_name || user?.email?.split('@')[0] || "User"}
               {(isPaidUser || isAdmin) && <Crown className="w-2.5 h-2.5 text-[#C5A059] fill-[#C5A059]/20" />}
             </p>
