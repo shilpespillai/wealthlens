@@ -846,11 +846,11 @@ function TransactionsContent() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Top Header - Institutional Grade */}
-    <header className="h-14 bg-[#111827] flex items-center justify-between px-6 shrink-0 transition-all">
-        <div className="flex items-center gap-4">
-          <h1 className="text-white text-lg font-medium tracking-tight">Transactions</h1>
-          <div className="h-4 w-[1px] bg-white/20 mx-2" />
+    <div className="w-full px-2 pt-4 bg-white shrink-0">
+      <header className="h-16 bg-white flex items-center justify-between px-8 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 transition-all">
+        <div className="flex items-center gap-6">
+          <h1 className="text-slate-700 text-lg font-medium tracking-tight leading-none">Transactions</h1>
+          <div className="h-4 w-[1px] bg-slate-200 mx-1" />
           
           {/* Premium Month/Year Navigation */}
           <div className="flex items-center bg-white rounded-2xl p-1 border border-slate-200 shadow-sm">
@@ -956,17 +956,26 @@ function TransactionsContent() {
                </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-white/70">
-            <button 
-              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-              className="p-2 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white"
-              title={viewMode === 'list' ? "Switch to Grid View" : "Switch to List View"}
-            >
-              {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
-            </button>
+          <div className="flex items-center gap-4">
+             <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-100">
+               <button 
+                 onClick={() => setViewMode('grid')}
+                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                 <LayoutGrid className="w-4 h-4" />
+               </button>
+               <button 
+                 onClick={() => setViewMode('list')}
+                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                 <List className="w-4 h-4" />
+               </button>
+             </div>
+             <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white font-medium text-[10px]">SP</div>
           </div>
         </div>
       </header>
+    </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Secondary Sidebar */}
