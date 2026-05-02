@@ -846,7 +846,7 @@ function TransactionsContent() {
   return (
     <div className="flex flex-col h-screen bg-white">
       {/* Top Header - Institutional Grade */}
-    <header className="h-14 bg-[#5e1d8d] flex items-center justify-between px-6 shrink-0 transition-all">
+    <header className="h-14 bg-[#111827] flex items-center justify-between px-6 shrink-0 transition-all">
         <div className="flex items-center gap-4">
           <h1 className="text-white text-lg font-medium tracking-tight">Transactions</h1>
           <div className="h-4 w-[1px] bg-white/20 mx-2" />
@@ -858,12 +858,12 @@ function TransactionsContent() {
                 variant="outline" 
                 className="bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs font-bold gap-3 px-4 h-9 shadow-sm"
               >
-                <CalendarIcon className="w-4 h-4 text-purple-200" />
+                <CalendarIcon className="w-4 h-4 text-slate-400" />
                 {format(startOfMonth(selectedDate), "MMMM yyyy")}
                 <ChevronDown className="w-3 h-3 text-white/50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-[#5e1d8d] border-purple-400/30" align="start">
+            <PopoverContent className="w-auto p-0 bg-[#111827] border-white/10" align="start">
               <CalendarComponent
                 mode="single"
                 selected={selectedDate}
@@ -871,9 +871,9 @@ function TransactionsContent() {
                 month={selectedDate}
                 onMonthChange={setSelectedDate}
                 initialFocus
-                className="rounded-xl border-none bg-[#5e1d8d]"
+                className="rounded-xl border-none bg-[#111827]"
                 classNames={{
-                  day_selected: "bg-white text-purple-600 hover:bg-white hover:text-purple-600 focus:bg-white focus:text-purple-600",
+                  day_selected: "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white",
                   day_today: "bg-white/10 text-white",
                   head_cell: "text-white/50",
                   nav_button: "hover:bg-white/10 text-white",
