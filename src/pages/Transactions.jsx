@@ -1178,14 +1178,14 @@ function TransactionsContent() {
                </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
 
-                <BankConnect onSyncSuccess={handleBankSync} />
+                <BankConnect onSyncSuccess={handleBankSync} className="h-9 w-36 justify-center" />
                 
                 <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-bold border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all uppercase tracking-widest">
-                      <Download className="w-4 h-4" /> Import Transactions List (CSV/PDF)
+                    <Button variant="outline" className="h-9 w-36 justify-center gap-1.5 text-xs font-medium border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all">
+                      <Download className="w-4 h-4" /> Import (CSV/PDF)
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
@@ -1205,7 +1205,7 @@ function TransactionsContent() {
 
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                    <Button variant="outline" className="h-9 w-36 justify-center gap-1.5 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
                       <Plus className="w-4 h-4 text-slate-400" /> Add Manually
                     </Button>
                   </DialogTrigger>
@@ -1307,7 +1307,7 @@ function TransactionsContent() {
                     }, 3000);
                   }
                 }}
-                className="h-9 px-4 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
+                className="h-9 w-36 justify-center border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Purge Month</span>
