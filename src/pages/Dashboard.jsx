@@ -90,6 +90,7 @@ export function DashboardContent() {
     portfolio: [],
     budgets: [],
     currentMonthBudgets: [],
+    latestAccounts: [],
     vaultBuckets: []
   });
 
@@ -244,8 +245,9 @@ export function DashboardContent() {
   // Dynamic Period-Based Accounts (Balances as of periodInfo.endDate)
   // Treasury-Locked Accounts (Always stuck to LATEST truth)
   const periodAccounts = useMemo(() => {
-    return (liveData.accounts || []).map(acc => ({ ...acc }));
-  }, [liveData.accounts]);
+    const source = liveData.latestAccounts?.length > 0 ? liveData.latestAccounts : (liveData.accounts || []);
+    return source.map(acc => ({ ...acc }));
+  }, [liveData.latestAccounts, liveData.accounts]);
 
   // Summarized Treasury Allocation — Portfolio by asset class + Cash (Always stuck to LATEST truth)
   const treasuryAllocation = useMemo(() => {
@@ -600,7 +602,15 @@ export function DashboardContent() {
           const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
           
           if (vaultLayout?.dashboard_layout) {
-            const layout = vaultLayout.dashboard_layout;
+            let layout = vaultLayout.dashboard_layout;
+            
+            // SURGICAL REMOVAL of wealth_projection (networth_card) as requested
+            Object.keys(layout).forEach(col => {
+              if (Array.isArray(layout[col])) {
+                layout[col] = layout[col].filter(item => item !== "networth_card");
+              }
+            });
+
             if (!Object.values(layout).flat().includes("fire_gauge")) {
               layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
             }
@@ -744,6 +754,7 @@ export function DashboardContent() {
         setLiveData(prev => ({
           ...prev,
           accounts: dbAccounts || prev.accounts,
+          latestAccounts: (periodInfo.focusMonthKey === format(new Date(), 'yyyy-MM')) ? (dbAccounts || prev.latestAccounts) : prev.latestAccounts,
           transactions: horizonTx || [],
           budgets: activeBudgets.map(b => ({ month: b.month, data: extractBudgetData(b.payload) }))
         }));
