@@ -926,13 +926,13 @@ function TransactionsContent() {
         </div>
         <div className="flex items-center gap-6">
           <div className="relative group">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 group-focus-within:text-white transition-colors" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
             <input 
               type="text" 
               placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 text-white text-xs rounded-full py-1.5 pl-9 pr-8 w-64 outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
+              className="bg-white text-slate-900 text-[11px] font-medium rounded-2xl py-2 pl-9 pr-8 w-72 outline-none border border-slate-200 shadow-sm focus:ring-2 focus:ring-purple-600/10 transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pt-px">
@@ -941,15 +941,15 @@ function TransactionsContent() {
                         setSaveSearchName(searchQuery || "");
                         setIsSaveSearchModalOpen(true);
                     }}
-                    className="text-white/40 hover:text-white transition-colors"
+                    className="text-slate-300 hover:text-slate-600 transition-colors"
                     title="Save this search"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
-                  <div className="w-[1px] h-3 bg-white/20 mx-0.5" />
+                  <div className="w-[1px] h-3 bg-slate-200 mx-0.5" />
                   <button 
                     onClick={() => setSearchQuery("")}
-                    className="text-white/40 hover:text-white transition-colors"
+                    className="text-slate-300 hover:text-slate-600 transition-colors"
                   >
                     <Plus className="w-3 h-3 rotate-45" />
                   </button>
