@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { format } from "date-fns";
@@ -12,7 +12,60 @@ import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/datePars
  */
 const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment', 'Reimbursement'];
 
+const DEFAULT_CLASSIFICATION_RULES = {
+  income: {
+    logic: 'OR',
+    conditions: [
+      { field: 'category', operator: 'equals', value: 'Income' }
+    ]
+  },
+  expense: {
+    logic: 'AND',
+    conditions: [
+      { field: 'category', operator: 'not_equals', value: 'Income' },
+      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES }
+    ]
+  }
+};
+
 export const useFinancialParser = () => {
+  const [classificationRules, setClassificationRules] = useState(DEFAULT_CLASSIFICATION_RULES);
+
+  useEffect(() => {
+    const loadRules = async () => {
+      const rules = await base44.user.loadData('wl_classification_rules');
+      if (rules) setClassificationRules(rules);
+    };
+    loadRules();
+  }, []);
+
+  const matchRule = useCallback((tx, rule) => {
+    if (!rule || !rule.conditions || rule.conditions.length === 0) return false;
+    
+    const results = rule.conditions.map(c => {
+      let txVal = '';
+      if (c.field === 'category') txVal = resolveCanonicalCategory(tx.category || tx.name);
+      if (c.field === 'account') txVal = String(tx.account_id || '');
+      
+      const target = c.value;
+      switch (c.operator) {
+        case 'equals': return txVal === target;
+        case 'not_equals': return txVal !== target;
+        case 'contains': return String(txVal).toLowerCase().includes(String(target).toLowerCase());
+        case 'in': return Array.isArray(target) ? target.includes(txVal) : (String(txVal) === String(target));
+        case 'not_in': return Array.isArray(target) ? !target.includes(txVal) : (String(txVal) !== String(target));
+        default: return false;
+      }
+    });
+
+    if (rule.logic === 'AND') return results.every(r => r === true);
+    return results.some(r => r === true);
+  }, []);
+
+  const getClassificationRules = useCallback(async () => {
+    const rules = await base44.user.loadData('wl_classification_rules');
+    return rules || DEFAULT_CLASSIFICATION_RULES;
+  }, []);
 
 
   /**
@@ -118,40 +171,13 @@ export const useFinancialParser = () => {
    * Consolidates complex budget reduction logic based on raw DB fields.
    */
   const calculateMetrics = useCallback((incomes = [], expenses = [], accounts = []) => {
-    // 1. Isolate strict cashflow (Exclude internal transfers and paybacks)
+    // Parity: We now trust the pre-filtered arrays from getNormalizedLedger
+    // to follow the user's manual categorization (Category = Income).
+    const totalIncome = (incomes || []).reduce((sum, i) => sum + (Number(i.amount !== undefined ? i.amount : (i.monthly_target || 0))), 0);
+    const totalExpenses = (expenses || []).reduce((sum, e) => sum + (Number(e.amount !== undefined ? e.amount : (e.monthly_target || 0))), 0);
     
-    // Build O(1) set of debt accounts to aggressively exclude credit card payments from Income
-    const creditCardIds = new Set(
-      accounts
-        .filter(a => a.type === 'debt' || (a.name || '').toLowerCase().includes('credit'))
-        .map(a => String(a.id))
-    );
-
-    const validIncomes = incomes.filter(i => {
-      const category = resolveCanonicalCategory(i.category || i.name);
-      const isExcludedCategory = EXCLUDED_CATEGORIES.includes(category);
-      
-      // If we have an account_id, check if it's a debt/credit account
-      const isCreditCardIncome = i.account_id && creditCardIds.has(String(i.account_id));
-      
-      const rawAmt = Number(i.amount !== undefined ? i.amount : (i.monthly_target || 0));
-      const isNegativeIncome = rawAmt < 0; // Negative income is an expense correction or error
-
-      return !isExcludedCategory && !isCreditCardIncome && !isNegativeIncome;
-    });
-
-    const validExpenses = expenses.filter(e => {
-      const category = resolveCanonicalCategory(e.category || e.name);
-      return !EXCLUDED_CATEGORIES.includes(category);
-    });
-
-    // Priority: Actual Amount (realized)
-    // We strictly use 'amount' as the source of truth for "Actuals".
-    // If 'amount' is 0, it means $0 was realized.
-    const totalIncome = validIncomes.reduce((sum, i) => sum + (Number(i.amount !== undefined ? i.amount : (i.monthly_target || 0))), 0);
-    const totalExpenses = validExpenses.reduce((sum, e) => sum + (Number(e.amount !== undefined ? e.amount : (e.monthly_target || 0))), 0);
-    
-    const savings = expenses
+    // Sub-segment for savings-specific calculations in reports
+    const savings = (expenses || [])
       .filter(e => e.spendType === 'savings' || (resolveCanonicalCategory(e.category || e.name).toLowerCase().includes('save')))
       .reduce((sum, e) => sum + (Number(e.amount !== undefined ? e.amount : (e.monthly_target || 0))), 0);
     
@@ -229,6 +255,7 @@ export const useFinancialParser = () => {
     const data = saved?.payload || saved || {};
     // FORCE IGNORE incomes from budget records - income is a ledger-only funding source.
     const budgetData = { ...data, incomes: [] };
+
     
     // Account Resolution Helper
     const resolveAccountId = (tx) => {
@@ -269,6 +296,8 @@ export const useFinancialParser = () => {
     // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
     const consumedTransactionIds = new Set();
 
+    const activeRules = classificationRules;
+
     // 1. Process Incomes
     const incomeMap = new Map();
     (budgetData.incomes || []).forEach(i => {
@@ -300,14 +329,7 @@ export const useFinancialParser = () => {
     const baseIncs = Array.from(incomeMap.values());
 
     const missingIncs = rawTransactions.filter(m => {
-      const amount = Number(m.amount) || 0;
-      const category = resolveCanonicalCategory(m.category);
-      
-      // Strict Income Detection: Exclude transfers, payments, and debt account inflows
-      const isTransfer = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category);
-      const isDebtInflow = m.account_id && accounts.find(a => String(a.id) === String(m.account_id))?.type === 'debt';
-      const isIncome = !isTransfer && !isDebtInflow && (m.type === 'income' || (m.type !== 'expense' && amount > 0));
-      return isIncome && !consumedTransactionIds.has(m.id);
+      return matchRule(m, activeRules.income) && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
       return { 
@@ -354,12 +376,7 @@ export const useFinancialParser = () => {
     const baseExps = Array.from(expenseMap.values());
 
     const missingExps = rawTransactions.filter(m => {
-      const amount = Number(m.amount) || 0;
-      const category = resolveCanonicalCategory(m.category);
-      
-      const isTransfer = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category);
-      const isExpense = !isTransfer && (m.type === 'expense' || (m.type !== 'income' && amount < 0));
-      return isExpense && !consumedTransactionIds.has(m.id);
+      return matchRule(m, activeRules.expense) && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
       return { 
@@ -376,8 +393,7 @@ export const useFinancialParser = () => {
       incomes: [...baseIncs, ...missingIncs],
       expenses: [...baseExps, ...missingExps]
     };
-  }, []);
-
+  }, [classificationRules, matchRule]);
   /**
    * getDatabaseTable
    * Generic wrapper for table-based retrieval.
@@ -455,43 +471,33 @@ export const useFinancialParser = () => {
     }
   }, []);
 
-  /**
-   * getNormalizedLedger
-   * Returns a sanitized, typed list of transactions for a specific month.
-   * Centralizes the logic for income/expense separation and transfer exclusion.
-   */
-  const getNormalizedLedger = useCallback((transactions = [], accounts = []) => {
+  const getNormalizedLedger = useCallback((transactions = [], accounts = [], rules = null) => {
+    const activeRules = rules || classificationRules;
     const incomes = [];
     const expenses = [];
     const transfers = [];
 
     (transactions || []).forEach(t => {
-      const rawAmt = Number(t.amount || 0);
+      const rawAmt = Math.abs(Number(t.amount || 0));
       const category = resolveCanonicalCategory(t.category || t.name);
-      const isTransfer = EXCLUDED_CATEGORIES.includes(category);
-      
-      // Account-aware Debt Check: Payments into a debt account (credit card) are not income.
-      const isCreditCardAccount = t.account_id && accounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
-      
-      if (isTransfer) {
-        transfers.push({ ...t, type: 'transfer', category });
-      } else if (t.type === 'income' || (t.type !== 'expense' && rawAmt > 0)) {
-        if (isCreditCardAccount) {
-          transfers.push({ ...t, type: 'transfer', category: 'Credit Card Payment' });
-        } else {
-          incomes.push({ ...t, type: 'income', category });
-        }
+
+      if (matchRule(t, activeRules.income)) {
+        incomes.push({ ...t, type: 'income', amount: rawAmt, category });
+      } else if (matchRule(t, activeRules.expense)) {
+        expenses.push({ ...t, type: 'expense', amount: rawAmt, category });
       } else {
-        expenses.push({ ...t, type: 'expense', category });
+        transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
       }
     });
 
     return { incomes, expenses, transfers };
-  }, []);
+  }, [matchRule]);
 
   return {
     parseCurrency,
     formatAmount,
+    formatCurrencyShort,
+    formatDate,
     getMonthlyValue,
     calculateMetrics,
     syncData,
@@ -500,9 +506,9 @@ export const useFinancialParser = () => {
     getDatabaseTable,
     getProductionLedger,
     getNormalizedLedger,
-    formatDate,
-    formatCurrencyShort,
-    purgeProductionLedger
+    getClassificationRules,
+    purgeProductionLedger,
+    matchRule
   };
 };
 

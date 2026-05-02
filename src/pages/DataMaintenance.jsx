@@ -8,28 +8,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { 
-  Trash2, 
-  AlertTriangle, 
-  Calendar, 
-  RefreshCcw,
-  Database,
-  ShieldAlert,
-  Loader2,
-  ShieldCheck,
-  Zap,
-  Activity,
-  History,
-  Info,
+  Cloud,
+  ArrowRightLeft,
+  Filter,
+  Plus,
+  X,
+  PlusCircle,
+  TrendingUp,
+  TrendingDown,
+  Layers,
   Download,
   Upload,
-  Crown,
-  Lock,
-  Search,
-  Bug,
-  CloudDownload,
-  CloudUpload,
-  Cloud
+  Zap,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  Loader2,
+  Info,
+  Settings,
+  Activity,
+  Database,
+  Key,
+  AlertTriangle,
+  Clock,
+  Shield,
+  Crown
 } from 'lucide-react';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,6 +54,10 @@ export default function DataMaintenance() {
   const [confirmText, setConfirmText] = useState('');
   const [logs, setLogs] = useState([]);
   const [vaultStats, setVaultStats] = useState({ keys: 0, size: '0 KB', cloudKeys: '...' });
+  const { getClassificationRules, getDatabaseTable } = useFinancialParser();
+  const [classificationRules, setClassificationRules] = useState(null);
+  const [availableAccounts, setAvailableAccounts] = useState([]);
+  const [isSavingRules, setIsSavingRules] = useState(false);
 
   const addLog = (message, type = 'info') => {
     setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 4)]);
@@ -48,7 +65,54 @@ export default function DataMaintenance() {
 
   useEffect(() => {
     updateVaultStats();
+    loadClassificationData();
   }, []);
+
+  const loadClassificationData = async () => {
+    const [rules, accounts] = await Promise.all([
+      getClassificationRules(),
+      getDatabaseTable('user_accounts')
+    ]);
+    setClassificationRules(rules);
+    
+    // Unique accounts
+    const seen = new Set();
+    const unique = (accounts || []).filter(a => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    });
+    setAvailableAccounts(unique);
+  };
+
+  const handleSaveRules = async () => {
+    setIsSavingRules(true);
+    try {
+      await base44.user.saveData('wl_classification_rules', classificationRules);
+      toast.success("Classification rules updated globally.");
+    } catch (e) {
+      toast.error("Failed to save rules.");
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
+  const updateRule = (type, update) => {
+    setClassificationRules(prev => ({
+      ...prev,
+      [type]: { ...prev[type], ...update }
+    }));
+  };
+
+  const addCondition = (type) => {
+    const newRules = [...classificationRules[type].conditions, { field: 'category', operator: 'equals', value: '' }];
+    updateRule(type, { conditions: newRules });
+  };
+
+  const removeCondition = (type, index) => {
+    const newRules = classificationRules[type].conditions.filter((_, i) => i !== index);
+    updateRule(type, { conditions: newRules });
+  };
 
   const updateVaultStats = async () => {
     try {
@@ -450,11 +514,11 @@ export default function DataMaintenance() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-8 md:p-12 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto space-y-8">
         
+        {/* HEADER SECTION */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 mb-2">
@@ -462,7 +526,7 @@ export default function DataMaintenance() {
                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
                  syncEnabled ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${syncEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${syncEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
                   {syncEnabled ? 'Live Sync' : 'Local Only'}
                </div>
             </div>
@@ -510,6 +574,7 @@ export default function DataMaintenance() {
           </div>
         </div>
 
+        {/* TOP TOOLS GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Card className="lg:col-span-2 border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50">
             <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between space-y-0">
@@ -567,35 +632,28 @@ export default function DataMaintenance() {
           <div className="space-y-8">
             <div className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100 flex flex-col gap-4">
                <div className="flex items-center gap-3 mb-1">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
-                    <History className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white">
+                     <Settings className="w-4 h-4" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">System Sync</p>
-                    <p className="text-[8px] text-slate-500 font-medium mt-1">Manual vault reconciliation</p>
-                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">System Sync</h3>
                </div>
-
+               <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  Advanced maintenance tools for vault integrity and cloud synchronization state.
+               </p>
                <div className="grid grid-cols-2 gap-3">
-                 <Button 
-                  onClick={syncFromCloud} 
-                  disabled={isSyncing}
-                  className="h-12 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-100 font-black uppercase tracking-widest text-[8px] flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
-                 >
-                    {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CloudDownload className="w-3 h-3 text-indigo-500" />}
-                    Pull
-                 </Button>
-
-                 <Button 
-                  onClick={pushToCloud} 
-                  disabled={isSyncing}
-                  className="h-12 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-100 font-black uppercase tracking-widest text-[8px] flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
-                 >
-                    {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CloudUpload className="w-3 h-3 text-emerald-500" />}
-                    Push
-                 </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all"
+                  >
+                    Integrity Check
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all"
+                  >
+                    Force Sync
+                  </Button>
                </div>
-               
                <Button 
                   onClick={handleResetSystem}
                   className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-widest text-[8px] mt-2 border border-rose-100/50 transition-all active:scale-95"
@@ -607,15 +665,13 @@ export default function DataMaintenance() {
             <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
                <CardHeader className="p-8 pb-4">
                   <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center justify-between">
-                    Vault Diagnostics
-                    <Button variant="ghost" onClick={runKeyDiagnostics} className="h-6 w-6 p-0 rounded-md hover:bg-slate-100">
-                      <Bug className="w-3.5 h-3.5 text-slate-400" />
-                    </Button>
+                     Vault Statistics
+                     <Activity className="w-3 h-3" />
                   </CardTitle>
                </CardHeader>
                <CardContent className="p-8 pt-0 space-y-4">
                   <div className="flex items-center justify-between">
-                     <span className="text-[11px] text-slate-500 font-medium uppercase">Local Clusters</span>
+                     <span className="text-[11px] text-slate-500 font-medium uppercase">Active Clusters</span>
                      <span className="text-xs font-black text-slate-900">{vaultStats.keys}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -634,6 +690,299 @@ export default function DataMaintenance() {
           </div>
         </div>
 
+        {/* DYNAMIC CLASSIFICATION ENGINE */}
+        <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50/30 rounded-full blur-[100px] -mr-48 -mt-48"></div>
+          
+          <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between space-y-0 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Classification <span className="text-slate-400">Engine</span></CardTitle>
+                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Global logic overrides for income and expense detection</CardDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={handleSaveRules} 
+              disabled={isSavingRules}
+              className="h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-3"
+            >
+              {isSavingRules ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              Deploy Logic Globally
+            </Button>
+          </CardHeader>
+
+          <CardContent className="p-8 relative z-10">
+            {!classificationRules ? (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-4">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <p className="text-xs font-black uppercase tracking-widest">Hydrating rule set...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                {/* INCOME RULES */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                           <TrendingUp className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Income Classification</h3>
+                     </div>
+                     <Select 
+                      value={classificationRules.income.logic} 
+                      onValueChange={(v) => updateRule('income', { logic: v })}
+                     >
+                       <SelectTrigger className="w-24 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY (OR)</SelectItem>
+                         <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL (AND)</SelectItem>
+                       </SelectContent>
+                     </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    {classificationRules.income.conditions.map((cond, idx) => (
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        key={idx} 
+                        className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl group"
+                      >
+                        <Select 
+                          value={cond.field} 
+                          onValueChange={(v) => {
+                            const newConds = [...classificationRules.income.conditions];
+                            newConds[idx].field = v;
+                            newConds[idx].value = ''; 
+                            updateRule('income', { conditions: newConds });
+                          }}
+                        >
+                          <SelectTrigger className="w-28 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="category" className="text-[10px] font-black uppercase tracking-widest">Category</SelectItem>
+                            <SelectItem value="account" className="text-[10px] font-black uppercase tracking-widest">Account</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select 
+                          value={cond.operator} 
+                          onValueChange={(v) => {
+                            const newConds = [...classificationRules.income.conditions];
+                            newConds[idx].operator = v;
+                            updateRule('income', { conditions: newConds });
+                          }}
+                        >
+                          <SelectTrigger className="w-32 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="equals" className="text-[10px] font-black uppercase tracking-widest">Equals</SelectItem>
+                            <SelectItem value="not_equals" className="text-[10px] font-black uppercase tracking-widest">Not Equals</SelectItem>
+                            <SelectItem value="contains" className="text-[10px] font-black uppercase tracking-widest">Contains</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex-1">
+                          {cond.field === 'category' ? (
+                            <Select 
+                              value={cond.value} 
+                              onValueChange={(v) => {
+                                const newConds = [...classificationRules.income.conditions];
+                                newConds[idx].value = v;
+                                updateRule('income', { conditions: newConds });
+                              }}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                                <SelectValue placeholder="Select Category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CORE_CATEGORY_REGISTRY.map(c => (
+                                  <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Select 
+                              value={cond.value} 
+                              onValueChange={(v) => {
+                                const newConds = [...classificationRules.income.conditions];
+                                newConds[idx].value = v;
+                                updateRule('income', { conditions: newConds });
+                              }}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                                <SelectValue placeholder="Select Account" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableAccounts.map(a => (
+                                  <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeCondition('income', idx)}
+                          className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => addCondition('income')}
+                      className="w-full h-10 border-dashed border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:border-slate-200 transition-all"
+                    >
+                      <Plus className="w-3 h-3 mr-2" />
+                      Add Condition
+                    </Button>
+                  </div>
+                </div>
+
+                {/* EXPENSE RULES */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+                           <TrendingDown className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Expense Classification</h3>
+                     </div>
+                     <Select 
+                      value={classificationRules.expense.logic} 
+                      onValueChange={(v) => updateRule('expense', { logic: v })}
+                     >
+                       <SelectTrigger className="w-24 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY (OR)</SelectItem>
+                         <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL (AND)</SelectItem>
+                       </SelectContent>
+                     </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    {classificationRules.expense.conditions.map((cond, idx) => (
+                      <motion.div 
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        key={idx} 
+                        className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl group"
+                      >
+                        <Select 
+                          value={cond.field} 
+                          onValueChange={(v) => {
+                            const newConds = [...classificationRules.expense.conditions];
+                            newConds[idx].field = v;
+                            newConds[idx].value = ''; 
+                            updateRule('expense', { conditions: newConds });
+                          }}
+                        >
+                          <SelectTrigger className="w-28 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="category" className="text-[10px] font-black uppercase tracking-widest">Category</SelectItem>
+                            <SelectItem value="account" className="text-[10px] font-black uppercase tracking-widest">Account</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select 
+                          value={cond.operator} 
+                          onValueChange={(v) => {
+                            const newConds = [...classificationRules.expense.conditions];
+                            newConds[idx].operator = v;
+                            updateRule('expense', { conditions: newConds });
+                          }}
+                        >
+                          <SelectTrigger className="w-32 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="equals" className="text-[10px] font-black uppercase tracking-widest">Equals</SelectItem>
+                            <SelectItem value="not_equals" className="text-[10px] font-black uppercase tracking-widest">Not Equals</SelectItem>
+                            <SelectItem value="contains" className="text-[10px] font-black uppercase tracking-widest">Contains</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex-1">
+                          {cond.field === 'category' ? (
+                            <Select 
+                              value={cond.value} 
+                              onValueChange={(v) => {
+                                const newConds = [...classificationRules.expense.conditions];
+                                newConds[idx].value = v;
+                                updateRule('expense', { conditions: newConds });
+                              }}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                                <SelectValue placeholder="Select Category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CORE_CATEGORY_REGISTRY.map(c => (
+                                  <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Select 
+                              value={cond.value} 
+                              onValueChange={(v) => {
+                                const newConds = [...classificationRules.expense.conditions];
+                                newConds[idx].value = v;
+                                updateRule('expense', { conditions: newConds });
+                              }}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
+                                <SelectValue placeholder="Select Account" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableAccounts.map(a => (
+                                  <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeCondition('expense', idx)}
+                          className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => addCondition('expense')}
+                      className="w-full h-10 border-dashed border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:border-slate-200 transition-all"
+                    >
+                      <Plus className="w-3 h-3 mr-2" />
+                      Add Condition
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* DOCUMENTATION GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
             <CardHeader className="p-8 pb-3">
@@ -642,37 +991,76 @@ export default function DataMaintenance() {
                 Storage & Sync Architecture
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 pt-0 space-y-6">
-              <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Local Storage (Primary Foundation)</h4>
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">Your data is stored locally in your browser, protected by <span className="font-bold text-slate-900">AES-256-GCM encryption</span>. This ensures total privacy and instant performance without internet dependency.</p>
-              </div>
-              <div className="pt-5 border-t border-slate-50 space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Cloud Sync (Secure Mirroring)</h4>
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">Encrypted shards are mirrored to our secure vault. <span className="font-bold text-emerald-600">Zero-Knowledge</span> architecture means WealthLens has no keys and cannot read your data.</p>
-              </div>
+            <CardContent className="p-8 pt-0">
+               <div className="space-y-6">
+                  <div className="flex gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                        <Shield className="w-5 h-5 text-slate-400" />
+                     </div>
+                     <div className="space-y-1">
+                        <h4 className="text-[11px] font-black uppercase text-slate-900">Local-First Encryption</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">Transactions are encrypted with AES-256 before leaving your device.</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                        <Cloud className="w-5 h-5 text-slate-400" />
+                     </div>
+                     <div className="space-y-1">
+                        <h4 className="text-[11px] font-black uppercase text-slate-900">Mirror Synchronization</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">Encrypted shards are mirrored across clusters for multi-device access.</p>
+                     </div>
+                  </div>
+               </div>
             </CardContent>
           </Card>
 
           <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
             <CardHeader className="p-8 pb-3">
               <CardTitle className="text-[11px] font-black flex items-center gap-3 uppercase tracking-widest text-slate-400">
-                <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                Vault Portability & Backups
+                <Clock className="w-4 h-4 text-indigo-500" />
+                Maintenance Protocols
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 pt-0 space-y-6">
+            <CardContent className="p-8 pt-0">
+               <div className="space-y-6">
+                  <div className="flex gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                        <Key className="w-5 h-5 text-slate-400" />
+                     </div>
+                     <div className="space-y-1">
+                        <h4 className="text-[11px] font-black uppercase text-slate-900">Entropy Rotation</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">Session keys are rotated every 24 hours to ensure forward secrecy.</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-slate-400" />
+                     </div>
+                     <div className="space-y-1">
+                        <h4 className="text-[11px] font-black uppercase text-slate-900">Zero-Recovery Protocol</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">We cannot recover your data if your local master key is lost.</p>
+                     </div>
+                  </div>
+               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* VAULT PORTABILITY SECTION (Bottom-most) */}
+        <div className="pt-8 border-t border-slate-100">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-2">
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Export (Self-Custody)</h4>
                 <p className="text-xs text-slate-500 leading-relaxed font-medium">Creates a <span className="font-bold text-slate-900">100% encrypted .wealth</span> bundle. This unreadable backup is safe to store on hardware, ensuring you always own your data.</p>
               </div>
-              <div className="pt-5 border-t border-slate-50 space-y-2">
+              <div className="space-y-2">
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">Import (Secure Restoration)</h4>
                 <p className="text-xs text-slate-500 leading-relaxed font-medium">Instantly restores your history from an encrypted backup. The system performs an automatic refresh to ensure all financial modules and balances reflect the new data immediately.</p>
               </div>
-            </CardContent>
-          </Card>
+           </div>
         </div>
+
       </div>
     </div>
   );

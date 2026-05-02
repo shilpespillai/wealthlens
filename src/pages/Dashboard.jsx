@@ -557,8 +557,7 @@ export function DashboardContent() {
         // Absolute latest truth for pinned widgets
         incomeLatest,
         spendLatest,
-        latestMonthlyTarget,
-        periodTxAll // Expose for the Diagnostic Audit Table
+        latestMonthlyTarget
       }
     };
   }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics]);
@@ -1906,35 +1905,6 @@ export function DashboardContent() {
                     {formatAmount(holisticMetrics.income30 - holisticMetrics.spend30)}
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* TEMPORARY DIAGNOSTIC AUDIT TABLE */}
-            <div className="px-6 py-4 bg-amber-50/30 border-b border-amber-100">
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <AlertCircle className="w-3 h-3" />
-                Income Audit: Largest {selectedPeriod} Inflows
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                {(holisticMetrics.periodTxAll || [])
-                  .filter(t => {
-                    const { incomes } = getNormalizedLedger([t], liveData.latestAccounts || []);
-                    return incomes.length > 0;
-                  })
-                  .sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
-                  .slice(0, 10)
-                  .map((t, idx) => (
-                    <div key={idx} className="bg-white p-2.5 rounded-lg border border-amber-100 shadow-sm">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-[9px] font-black text-slate-800 truncate max-w-[100px]">{t.merchant || t.name || "Unknown"}</span>
-                        <span className="text-[10px] font-black text-teal-600">{formatAmount(t.amount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t.date || t.actualDate}</span>
-                        <span className="text-[8px] font-black text-amber-600 uppercase px-1.5 py-0.5 bg-amber-50 rounded-md border border-amber-100">{t.category || "Uncategorized"}</span>
-                      </div>
-                    </div>
-                  ))}
               </div>
             </div>
 
