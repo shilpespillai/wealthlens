@@ -253,6 +253,7 @@ function TransactionsContent() {
   
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [currency, setCurrency] = useState("USD");
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
@@ -376,21 +377,24 @@ function TransactionsContent() {
         amount:     Math.abs(Number(t.amount) || 0)
       })));
 
-      setExpenses([
-        ...normExps.map(t => ({
+      setExpenses(
+        normExps.map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Expense Item',
           account:    resolveAccount(t),
           amount:     Math.abs(Number(t.amount) || 0)
-        })),
-        ...normTrans.map(t => ({
+        }))
+      );
+
+      setTransfers(
+        normTrans.map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Transfer Item',
           account:    resolveAccount(t),
           amount:     Math.abs(Number(t.amount) || 0),
           type:       'transfer'
         }))
-      ]);
+      );
 
       // Preserve currency preference from budget if set
       const allBudgets = await getDatabaseTable("budgets");
@@ -554,9 +558,16 @@ function TransactionsContent() {
         target: e.monthly_target, 
         merchant: e.name || e.merchant || e.category || 'Expense Item', 
         date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate 
+      })),
+      ...transfers.map(t => ({
+        ...t,
+        type: 'transfer',
+        amount: t.amount || 0,
+        merchant: t.name || t.merchant || t.category || 'Transfer Item',
+        date: (t.date && t.date !== 'Monthly') ? t.date : fallbackDate
       }))
     ];
-  }, [incomes, expenses, selectedDate]);
+  }, [incomes, expenses, transfers, selectedDate]);
 
   const filteredTransactions = useMemo(() => {
     return allTransactions
