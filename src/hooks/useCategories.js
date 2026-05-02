@@ -8,7 +8,8 @@ import { toast } from 'sonner';
  * Centralized hook for managing a flat, global category list.
  * Ensures consistency across Transactions, SetBudget, and Reports.
  */
-export const useCategories = (monthKey = null) => {
+export const useCategories = (monthKey = null, options = {}) => {
+  const { global = false } = options;
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,40 +17,41 @@ export const useCategories = (monthKey = null) => {
     try {
       setIsLoading(true);
       const targetMonth = forcedMonth || monthKey;
-      console.log(`[useCategories] Fetching catalog (Registry + ${targetMonth ? targetMonth : 'Latest'} Budget)...`);
+      console.log(`[useCategories] Fetching catalog (${global ? 'Global' : 'Registry + ' + (targetMonth ? targetMonth : 'Latest') + ' Budget'})...`);
       
       // 1. Fetch from the dedicated categories registry
-      const dbCategories = await base44.db.getTable('categories', { month: targetMonth });
+      // If global, we fetch all categories from the DB (the central repository)
+      const dbCategories = await base44.db.getTable('categories', global ? {} : { month: targetMonth });
       
-      // 2. Proactively pull categories from the target Budget Planner entry 
-      const allBudgets = await base44.db.getTable('budgets');
+      // 2. Proactively pull categories from Budget Planner entries (ONLY if not in global mode)
+      // In global mode, we rely on Rule 3 (budget categories are seeded to the registry table)
       let budgetCategories = [];
-      
-      if (allBudgets && allBudgets.length > 0) {
-        let selectedBudget;
-        if (targetMonth) {
-            selectedBudget = allBudgets.find(b => b.month === targetMonth);
-        }
-        
-        // Fallback to latest if specific month not found or not provided
-        if (!selectedBudget) {
-            selectedBudget = allBudgets.sort((a, b) => b.month.localeCompare(a.month))[0];
-        }
+      if (!global) {
+        const allBudgets = await base44.db.getTable('budgets');
+        if (allBudgets && allBudgets.length > 0) {
+          let selectedBudget;
+          if (targetMonth) {
+              selectedBudget = allBudgets.find(b => b.month === targetMonth);
+          }
+          
+          if (!selectedBudget) {
+              selectedBudget = allBudgets.sort((a, b) => b.month.localeCompare(a.month))[0];
+          }
 
-        const payload = selectedBudget?.payload || {};
-        const sourceList = payload.visualData || [...(payload.incomes || []), ...(payload.expenses || [])];
-        budgetCategories = sourceList.map(item => ({
-          name: item.category || item.name,
-          type: item.type === 'income' ? 'income' : 'expense',
-          icon_id: item.iconId || item.icon_id || 'circle',
-          color: item.color || 'slate'
-        }));
+          const payload = selectedBudget?.payload || {};
+          const sourceList = payload.visualData || [...(payload.incomes || []), ...(payload.expenses || [])];
+          budgetCategories = sourceList.map(item => ({
+            name: item.category || item.name,
+            type: item.type === 'income' ? 'income' : 'expense',
+            icon_id: item.iconId || item.icon_id || 'circle',
+            color: item.color || 'slate'
+          }));
+        }
       }
 
-      // 3. Merge and Deduplicate (Preferring Budget names and icons)
+      // 3. Merge and Deduplicate
       const unifiedMap = new Map();
       
-      // 1. Load Registry as baseline (Ensures 'Income' and others always exist)
       CORE_CATEGORY_REGISTRY.forEach(c => {
         unifiedMap.set((c.name || "").toLowerCase().trim(), {
           name: c.name,
@@ -59,10 +61,7 @@ export const useCategories = (monthKey = null) => {
         });
       });
       
-      // 2. Extend with dedicated categories registry
       dbCategories.forEach(c => unifiedMap.set((c.name || "").toLowerCase().trim(), c));
-      
-      // 3. Overwrite/Extend with Budget items (the authoritative source)
       budgetCategories.forEach(c => {
         const key = (c.name || "").toLowerCase().trim();
         if (key) unifiedMap.set(key, c);
@@ -83,7 +82,7 @@ export const useCategories = (monthKey = null) => {
       setIsLoading(false);
     }
     return await base44.db.getTable('categories');
-  }, []);
+  }, [global, monthKey]);
 
   const addCategory = useCallback(async (name, type = 'expense') => {
     if (!name || name.trim() === '') return null;
@@ -155,6 +154,33 @@ export const useCategories = (monthKey = null) => {
     }
   }, [fetchCategories]);
 
+  const removeCategory = useCallback(async (name) => {
+    if (!name) return;
+    try {
+      // Rule 1: Deletion only removes from the central repository (Registry)
+      // This stops it from propagating to future months.
+      console.log(`[useCategories] Removing '${name}' from Central Repository...`);
+      
+      // 1. Delete from the categories table (Registry)
+      await base44.db.deleteByFilter('categories', 'name', name);
+
+      // 2. Clear from legacy global table if present
+      const legacy = await base44.user.loadData('wl_categories');
+      if (Array.isArray(legacy)) {
+        const updated = legacy.filter(c => (c.name || "").toLowerCase().trim() !== name.toLowerCase().trim());
+        if (updated.length !== legacy.length) {
+          await base44.user.saveData('wl_categories', updated);
+        }
+      }
+
+      await fetchCategories();
+      toast.success(`'${name}' removed from Central Repository. (Future months only)`);
+    } catch (err) {
+      console.error("[useCategories] Registry removal failed:", err);
+      toast.error(`Failed to remove category: ${name}`);
+    }
+  }, [fetchCategories]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -181,6 +207,7 @@ export const useCategories = (monthKey = null) => {
     categories,
     isLoading,
     addCategory,
+    removeCategory,
     seedCategories,
     resolveCategory: resolveCanonicalCategory,
     refresh: fetchCategories

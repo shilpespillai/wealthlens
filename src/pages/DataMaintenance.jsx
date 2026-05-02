@@ -42,6 +42,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { useCategories } from "@/hooks/useCategories";
 import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -55,6 +56,7 @@ export default function DataMaintenance() {
   const [logs, setLogs] = useState([]);
   const [vaultStats, setVaultStats] = useState({ keys: 0, size: '0 KB', cloudKeys: '...' });
   const { getClassificationRules, getDatabaseTable } = useFinancialParser();
+  const { categories, addCategory, removeCategory } = useCategories(null, { global: true });
   const [classificationRules, setClassificationRules] = useState(null);
   const [availableAccounts, setAvailableAccounts] = useState([]);
   const [isSavingRules, setIsSavingRules] = useState(false);
@@ -85,17 +87,20 @@ export default function DataMaintenance() {
     setAvailableAccounts(unique);
   };
 
-  const handleSaveRules = async () => {
-    setIsSavingRules(true);
-    try {
-      await base44.user.saveData('wl_classification_rules', classificationRules);
-      toast.success("Classification rules updated globally.");
-    } catch (e) {
-      toast.error("Failed to save rules.");
-    } finally {
-      setIsSavingRules(false);
-    }
-  };
+  // Auto-save classification rules when they change
+  useEffect(() => {
+    if (!classificationRules) return;
+    
+    const timer = setTimeout(async () => {
+      try {
+        await base44.user.saveData('wl_classification_rules', classificationRules);
+      } catch (e) {
+        console.error("Auto-save failed:", e);
+      }
+    }, 1000); // 1s debounce
+
+    return () => clearTimeout(timer);
+  }, [classificationRules]);
 
   const updateRule = (type, update) => {
     setClassificationRules(prev => ({
@@ -704,14 +709,6 @@ export default function DataMaintenance() {
                 <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Global logic overrides for income and expense detection</CardDescription>
               </div>
             </div>
-            <Button 
-              onClick={handleSaveRules} 
-              disabled={isSavingRules}
-              className="h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-3"
-            >
-              {isSavingRules ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-              Deploy Logic Globally
-            </Button>
           </CardHeader>
 
           <CardContent className="p-8 relative z-10">
@@ -803,7 +800,7 @@ export default function DataMaintenance() {
                                 <SelectValue placeholder="Select Category" />
                               </SelectTrigger>
                               <SelectContent>
-                                {CORE_CATEGORY_REGISTRY.map(c => (
+                                {categories.map(c => (
                                   <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -931,7 +928,7 @@ export default function DataMaintenance() {
                                 <SelectValue placeholder="Select Category" />
                               </SelectTrigger>
                               <SelectContent>
-                                {CORE_CATEGORY_REGISTRY.map(c => (
+                                {categories.map(c => (
                                   <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -979,6 +976,91 @@ export default function DataMaintenance() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* CATEGORY REGISTRY MANAGER */}
+        <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50 overflow-hidden relative mb-8">
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-50/20 rounded-full blur-[100px] -ml-48 -mb-48"></div>
+          
+          <CardHeader className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-xl shadow-emerald-600/10">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Category <span className="text-slate-400">Registry</span></CardTitle>
+                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manage global financial taxonomy and propagation baseline</CardDescription>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+               <Input 
+                 placeholder="New category name..." 
+                 id="new-category-input"
+                 className="h-12 w-64 rounded-2xl border-slate-100 bg-slate-50/50 text-xs font-bold focus:bg-white transition-all px-6"
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter') {
+                     const val = e.currentTarget.value;
+                     if (val) {
+                       addCategory(val);
+                       e.currentTarget.value = '';
+                     }
+                   }
+                 }}
+               />
+               <Button 
+                onClick={() => {
+                  const input = document.getElementById('new-category-input');
+                  if (input && input.value) {
+                    addCategory(input.value);
+                    input.value = '';
+                  }
+                }}
+                className="h-12 px-6 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2"
+               >
+                 <PlusCircle className="w-4 h-4" />
+                 Register
+               </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-8 relative z-10">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              <AnimatePresence>
+                {categories.map((cat, i) => {
+                  const isCore = CORE_CATEGORY_REGISTRY.some(c => c.name.toLowerCase() === cat.name.toLowerCase());
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      key={cat.name}
+                      className="group flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${cat.type === 'income' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                        <span className="text-[10px] font-black uppercase tracking-tight text-slate-700 truncate">{cat.name}</span>
+                      </div>
+                      
+                      {!isCore ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeCategory(cat.name)}
+                          className="w-6 h-6 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      ) : (
+                        <ShieldCheck className="w-3 h-3 text-slate-200 group-hover:text-slate-400 transition-colors mr-1" />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
           </CardContent>
         </Card>
 

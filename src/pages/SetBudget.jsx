@@ -245,26 +245,29 @@ const normalizeStructure = (savedItems = [], userCategories = [], currentActuals
     }
   });
 
-  // 3. Fallback: If the budget is COMPLETELY empty (no targets, no spending), 
-  // seed with Core Registry to provide a starting point.
-  if (finalMap.size === 0 && !hasSavedItems) {
-    CORE_CATEGORY_REGISTRY
-      .filter(cat => cat.type !== 'income')
-      .forEach(cat => {
-        const canonical = resolveCanonicalCategory(cat.name).trim();
-        const key = canonical.toLowerCase();
-        finalMap.set(key, {
-          id: `core-${key}`,
-          ...cat,
-          category: canonical,
-          monthly_target: 0,
-          amount: "0",
-          budget: "$0",
-          status: "NO TARGET SET",
-          type: 'item'
-        });
+  // 3. Registry Baseline: Ensure all core AND user-defined categories exist in the view.
+  // This makes custom categories "sticky" across months even if they aren't in the template.
+  const registries = [...CORE_CATEGORY_REGISTRY, ...userCategories];
+  registries.forEach(reg => {
+    if (reg.type === 'income') return; // Income is handled separately
+    
+    const name = reg.name || reg.category;
+    const canonical = resolveCanonicalCategory(name).trim();
+    const key = canonical.toLowerCase();
+    
+    if (key && !finalMap.has(key)) {
+      finalMap.set(key, {
+        id: `reg-${key}`,
+        ...reg,
+        category: canonical,
+        monthly_target: 0,
+        amount: "0",
+        budget: formatAmount(0),
+        status: "NO TARGET SET",
+        type: 'item'
       });
-  }
+    }
+  });
 
   // 4. Metadata Enrichment: Overlay icons/colors from registries for ANY item missing them
   const enrichFromRegistry = (registry) => {
@@ -294,7 +297,7 @@ export default function SetBudget() {
     return `${y}-${m}`;
   }, [selectedDate]);
 
-  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey);
+  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey, { global: true });
 
   const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);

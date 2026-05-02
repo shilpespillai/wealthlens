@@ -1356,7 +1356,20 @@ export const base44 = {
     deleteByFilter: async (tableName, column, value) => {
       // REDIRECT: Categories are now part of a single JSON array
       if (tableName === 'categories' || tableName === 'user_categories') {
-        const current = await base44.db.getTable('categories');
+        // Rule 1: Deletion only targets the "propagation source" (Latest Shard)
+        // No need to loop through historical shards.
+        const latestShard = await base44.db._getLatestShard();
+        if (latestShard && latestShard.categories) {
+          const original = latestShard.categories.length;
+          latestShard.categories = latestShard.categories.filter(r => r[column] !== value);
+          if (latestShard.categories.length !== original) {
+            const shardKey = latestShard.metadata?.month || base44.db._getShardKey();
+            await base44.db._saveShard(shardKey, latestShard);
+          }
+        }
+
+        // Maintain legacy global table sync
+        const current = await base44.user.loadData('wl_categories') || [];
         const updated = current.filter(r => r[column] !== value);
         await base44.user.saveData('wl_categories', updated);
         return { success: true };
