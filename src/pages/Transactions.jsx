@@ -223,6 +223,7 @@ function TransactionsContent() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   // Deep filter helpers
   const handleSidebarFilter = (type, value = "") => {
@@ -852,23 +853,23 @@ function TransactionsContent() {
           <div className="h-4 w-[1px] bg-white/20 mx-2" />
           
           {/* Premium Month/Year Navigation */}
-          <div className="flex items-center bg-white/5 rounded-2xl p-1 border border-white/10 shadow-sm">
+          <div className="flex items-center bg-white rounded-2xl p-1 border border-slate-200 shadow-sm">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
               onClick={() => setSelectedDate(prev => subMonths(prev, 1))}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <Popover>
+            <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
               <PopoverTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="h-8 px-4 text-white text-[11px] font-black uppercase tracking-[0.15em] hover:bg-white/10 rounded-xl transition-all flex items-center gap-3 min-w-[140px] justify-center"
+                  className="h-8 px-4 text-slate-900 text-[11px] font-black uppercase tracking-[0.15em] hover:bg-slate-100 rounded-xl transition-all flex items-center gap-3 min-w-[140px] justify-center"
                 >
-                  <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  <CalendarIcon className="w-3.5 h-3.5 text-purple-600" />
                   {format(selectedDate, "MMM yyyy")}
                 </Button>
               </PopoverTrigger>
@@ -894,7 +895,10 @@ function TransactionsContent() {
                     {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
                       <button
                         key={m}
-                        onClick={() => setSelectedDate(prev => setMonth(prev, idx))}
+                        onClick={() => {
+                          setSelectedDate(prev => setMonth(prev, idx));
+                          setIsMonthPickerOpen(false); // Auto-close
+                        }}
                         className={cn(
                           "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
                           selectedDate.getMonth() === idx 
@@ -913,7 +917,7 @@ function TransactionsContent() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
               onClick={() => setSelectedDate(prev => addMonths(prev, 1))}
             >
               <ChevronRight className="w-4 h-4" />
