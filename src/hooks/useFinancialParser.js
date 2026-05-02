@@ -11,6 +11,8 @@ import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/datePars
  * Follows the WealthLens Premium Design System standards.
  */
 export const useFinancialParser = () => {
+  const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment', 'Reimbursement'];
+
 
   /**
    * parseCurrency
@@ -116,7 +118,6 @@ export const useFinancialParser = () => {
    */
   const calculateMetrics = useCallback((incomes = [], expenses = [], accounts = []) => {
     // 1. Isolate strict cashflow (Exclude internal transfers and paybacks)
-    const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
     
     // Build O(1) set of debt accounts to aggressively exclude credit card payments from Income
     const creditCardIds = new Set(
@@ -466,7 +467,7 @@ export const useFinancialParser = () => {
     (transactions || []).forEach(t => {
       const category = resolveCanonicalCategory(t.category);
       const rawAmt = Number(t.amount || 0);
-      const isTransfer = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category);
+      const isTransfer = EXCLUDED_CATEGORIES.includes(category);
       
       // Account-aware Debt Check: Payments into a debt account (credit card) are not income.
       const isCreditCardAccount = t.account_id && accounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
