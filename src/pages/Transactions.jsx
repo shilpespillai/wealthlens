@@ -85,7 +85,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import SmartImporter from "@/components/SmartImporter";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, setMonth, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import { supabase } from "@/lib/supabaseClient";
@@ -851,38 +851,74 @@ function TransactionsContent() {
           <h1 className="text-white text-lg font-medium tracking-tight">Transactions</h1>
           <div className="h-4 w-[1px] bg-white/20 mx-2" />
           
-          {/* Date Picker - High Visibility */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs font-bold gap-3 px-4 h-9 shadow-sm"
-              >
-                <CalendarIcon className="w-4 h-4 text-slate-400" />
-                {format(startOfMonth(selectedDate), "MMMM yyyy")}
-                <ChevronDown className="w-3 h-3 text-white/50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-[#111827] border-white/10" align="start">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => d && setSelectedDate(d)}
-                month={selectedDate}
-                onMonthChange={setSelectedDate}
-                initialFocus
-                className="rounded-xl border-none bg-[#111827]"
-                classNames={{
-                  day_selected: "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white",
-                  day_today: "bg-white/10 text-white",
-                  head_cell: "text-white/50",
-                  nav_button: "hover:bg-white/10 text-white",
-                  day: "text-white hover:bg-white/10",
-                  caption_label: "text-white font-medium"
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          {/* Premium Month/Year Navigation */}
+          <div className="flex items-center bg-white/5 rounded-2xl p-1 border border-white/10 shadow-sm">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              onClick={() => setSelectedDate(prev => subMonths(prev, 1))}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="h-8 px-4 text-white text-[11px] font-black uppercase tracking-[0.15em] hover:bg-white/10 rounded-xl transition-all flex items-center gap-3 min-w-[140px] justify-center"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  {format(selectedDate, "MMM yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-5 bg-white border-none shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[24px]" align="center">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between px-1">
+                    <button 
+                      onClick={() => setSelectedDate(prev => subMonths(prev, 12))}
+                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">{format(selectedDate, "yyyy")}</span>
+                    <button 
+                      onClick={() => setSelectedDate(prev => addMonths(prev, 12))}
+                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
+                      <button
+                        key={m}
+                        onClick={() => setSelectedDate(prev => setMonth(prev, idx))}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                          selectedDate.getMonth() === idx 
+                            ? "bg-purple-600 text-white shadow-xl shadow-purple-600/30 ring-2 ring-purple-600/10" 
+                            : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
+                        )}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              onClick={() => setSelectedDate(prev => addMonths(prev, 1))}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="relative group">
