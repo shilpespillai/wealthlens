@@ -69,6 +69,7 @@ export function DashboardContent() {
     formatCurrencyShort, 
     getProductionLedger,
     getDatabaseTable,
+    calculateMetrics,
     getNormalizedLedger,
     normalizeTransactionData 
   } = useFinancialParser();
