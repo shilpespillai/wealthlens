@@ -10,8 +10,9 @@ import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/datePars
  * Centralized hook for financial calculations, parsing, and data persistence.
  * Follows the WealthLens Premium Design System standards.
  */
+const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment', 'Reimbursement'];
+
 export const useFinancialParser = () => {
-  const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment', 'Reimbursement'];
 
 
   /**
