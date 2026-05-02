@@ -262,15 +262,15 @@ export function DashboardContent() {
 
     // 1. Cash bucket (Latest Truth)
     const cashTotal = periodAccounts
-      .filter(acc => (Number(acc.base_balance || 0)) > 0)
-      .reduce((sum, acc) => sum + (Number(acc.base_balance || 0)), 0);
+      .filter(acc => acc.type === 'asset' || (!acc.type && Number(acc.base_balance || 0) > 0))
+      .reduce((sum, acc) => sum + Math.max(0, Number(acc.base_balance || 0)), 0);
     if (cashTotal > 0) groups['Cash & Savings'] = cashTotal;
 
     // 2. Liabilities & Debt (Latest Truth)
     const debtTotal = periodAccounts
-      .filter(acc => (Number(acc.base_balance || 0)) < 0)
-      .reduce((sum, acc) => sum + (Number(acc.base_balance || 0)), 0);
-    if (debtTotal < 0) groups['Liabilities'] = debtTotal;
+      .filter(acc => acc.type === 'debt' || (!acc.type && Number(acc.base_balance || 0) < 0))
+      .reduce((sum, acc) => sum + Math.abs(Number(acc.base_balance || 0)), 0);
+    if (debtTotal > 0) groups['Liabilities'] = -debtTotal;
 
     // 3. Portfolio assets — Fixed to TODAY'S snapshot for Treasury stability
     const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
@@ -488,14 +488,17 @@ export function DashboardContent() {
     const latestAccounts = liveData.accounts || [];
     
     const totalLiquidOnly = latestAccounts
-      .filter(a => Number(a.base_balance || 0) > 0)
+      .filter(a => a.type === 'asset' && Number(a.base_balance || 0) > 0)
       .reduce((sum, a) => sum + Number(a.base_balance || 0), 0);
     
     // Total Invested (Latest Snapshot)
     const latestPortfolio = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
     const totalInvested = latestPortfolio.reduce((sum, p) => sum + (Number(p.current_value) || 0), 0);
       
-    const netWorth = latestAccounts.reduce((sum, a) => sum + (Number(a.base_balance || a.balance || 0)), 0) + totalInvested;
+    const netWorth = latestAccounts.reduce((sum, a) => {
+      const val = Math.abs(Number(a.base_balance || a.balance || 0));
+      return a.type === 'debt' ? sum - val : sum + val;
+    }, 0) + totalInvested;
 
     const totalMonthlyTarget = (horizonBudgets.length > 0) 
       ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
