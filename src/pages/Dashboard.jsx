@@ -498,8 +498,19 @@ export function DashboardContent() {
     const periodStart = new Date(periodInfo.startDate);
     const periodEnd   = new Date(periodInfo.endDate);
     const periodTxAll = (liveData.transactions || []).filter(t => {
-      const dObj = robustParseDate(t.date);
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
+      
+      const dObj = robustParseDate(rawDate);
       if (!dObj) return false;
+      
+      // Strict Parity: Use month/year check for monthly horizons to match Family Overview
+      if (selectedPeriod === 'This Month' || selectedPeriod === 'Last Month') {
+        const targetMonthKey = periodInfo.focusMonthKey; // e.g. "2026-04"
+        const [y, m] = targetMonthKey.split('-').map(Number);
+        return dObj.getFullYear() === y && (dObj.getMonth() + 1) === m;
+      }
+      
       return dObj >= periodStart && dObj <= periodEnd;
     });
 
