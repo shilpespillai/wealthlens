@@ -509,8 +509,10 @@ export function DashboardContent() {
     // We use the CENTRALIZED normalization engine (The "Common Place")
     const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(periodTxAll, latestAccounts);
     
-    const incomeCurrent = normIncs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-    const spendCurrent  = normExps.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    // Use calculateMetrics for absolute parity with Family Overview
+    const metrics = calculateMetrics(normIncs, normExps, latestAccounts);
+    const incomeCurrent = metrics.totalIncome;
+    const spendCurrent  = metrics.totalExpenses;
     
     const savingsRate  = incomeCurrent > 0 ? ((incomeCurrent - spendCurrent) / incomeCurrent) * 100 : 0;
 

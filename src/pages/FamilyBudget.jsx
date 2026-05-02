@@ -156,8 +156,7 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
-      const canonical = resolveCanonicalCategory(curr.category || curr.name);
-      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      // Input 'incomes' is already filtered by getNormalizedLedger (Transfer exclusion)
       
       const catName = curr.category || "Income";
       const key = catName.toLowerCase();
@@ -172,8 +171,7 @@ function FamilyBudgetContent() {
 
   const aggregatedExpenses = useMemo(() => {
     const groups = expenses.reduce((acc, curr) => {
-      const canonical = resolveCanonicalCategory(curr.category || curr.name);
-      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      // Input 'expenses' is already filtered by getNormalizedLedger (Transfer exclusion)
       
       const catName = curr.category || "Uncategorized";
       const key = catName.toLowerCase();
