@@ -103,7 +103,7 @@ export function DashboardContent() {
   };
 
   const [columns, setColumns] = useState({
-    col1: ["accounts", "networth_card", "fire_gauge", "vault_allocation"],
+    col1: ["accounts", "fire_gauge", "vault_allocation"],
     col2: ["transactions", "liquidity_runway"],
     col3: ["bills", "subscription_audit"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
@@ -532,6 +532,16 @@ export function DashboardContent() {
     score += Math.min(25, (savingsRate > 0 ? (savingsRate / 40) * 25 : 0));
     score += Math.min(25, (cashRunway / 6) * 25);
 
+    // 5. LATEST Metrics for pinned widgets (Freedom Horizon / Treasury)
+    // These ALWAYS use currentMonthTransactions and latestAccounts regardless of selection
+    const { incomes: latestIncs, expenses: latestExps } = getNormalizedLedger(liveData.currentMonthTransactions || [], latestAccounts);
+    const incomeLatest = latestIncs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    const spendLatest  = latestExps.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    
+    // avgMonthlySpend for latest is just the current budget target
+    const currentBudgetsFlat = (liveData.currentMonthBudgets || []).flatMap(b => b.data || []);
+    const latestMonthlyTarget = currentBudgetsFlat.reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0);
+
     return {
       chartData: buckets,
       holisticMetrics: {
@@ -543,7 +553,11 @@ export function DashboardContent() {
         income30: incomeCurrent,
         spend30: spendCurrent,
         burnRate: spendCurrent,
-        avgMonthlySpend
+        avgMonthlySpend,
+        // Absolute latest truth for pinned widgets
+        incomeLatest,
+        spendLatest,
+        latestMonthlyTarget
       }
     };
   }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency]);
@@ -1320,15 +1334,15 @@ export function DashboardContent() {
         const useManualTarget = liveData.fireConfig?.useManualTarget || false;
         const manualTargetVal = liveData.fireConfig?.manualTarget || 2000000;
 
-        const budgetDerivedTarget = (holisticMetrics.avgMonthlySpend * 12) * fireMultiplier;
+        const budgetDerivedTarget = (holisticMetrics.latestMonthlyTarget * 12) * fireMultiplier;
         const fireTarget = useManualTarget ? manualTargetVal : budgetDerivedTarget;
         const fireProgress = fireTarget > 0 ? Math.min(100, (holisticMetrics.netWorth / fireTarget) * 100) : 0;
         
         // Sustainability Check
         const isUnderfunded = useManualTarget && manualTargetVal < budgetDerivedTarget;
         
-        // Calculate Time to FIRE
-        const monthlySavings = Math.max(0, (holisticMetrics.income30 - holisticMetrics.spend30));
+        // Calculate Time to FIRE (Always use latest income/spend truth)
+        const monthlySavings = Math.max(0, (holisticMetrics.incomeLatest - holisticMetrics.spendLatest));
         const currentCapital = holisticMetrics.netWorth;
         const monthlyRate = (fireExpectedReturn / 100) / 12;
         
