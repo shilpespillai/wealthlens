@@ -1468,7 +1468,7 @@ function TransactionsContent() {
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 
-                <div className="flex items-center gap-2 px-3 h-8 bg-slate-100/50 rounded-full border border-slate-100">
+                <div className="flex items-center gap-2 px-3 h-8 bg-white rounded-full border border-slate-200">
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page</span>
                    <span className="text-xs font-medium text-slate-900 tabular-nums">{currentPage}</span>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">of</span>
@@ -1487,7 +1487,7 @@ function TransactionsContent() {
               </div>
             </div>
 
-          <div className="px-6 py-3 bg-[#fcfcfc] border-t border-slate-100 text-center">
+          <div className="px-6 py-3 bg-white border-t border-slate-100 text-center">
             <p className="text-[10px] font-bold text-slate-400 italic">
               Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} items.
             </p>
@@ -1499,10 +1499,10 @@ function TransactionsContent() {
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 overflow-auto bg-[#f8fafc]/50">
+          <div className="flex-1 overflow-auto bg-white">
             {viewMode === 'list' ? (
               <Table className="w-full border-collapse">
-                <TableHeader className="bg-slate-50/50 sticky top-0 z-20 backdrop-blur-md">
+                <TableHeader className="bg-white sticky top-0 z-20">
                   <TableRow className="hover:bg-transparent border-slate-100 h-12">
                     <TableHead className="w-12 p-4 text-center">
                       <Checkbox 
