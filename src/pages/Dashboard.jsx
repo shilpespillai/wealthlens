@@ -1783,17 +1783,17 @@ export function DashboardContent() {
   if (!isAuthenticated && !isLoadingAuth && !isLoading) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#ffedd5] to-[#fed7aa] pb-20 font-sans text-slate-900">
+    <div className="min-h-screen bg-white pb-20 font-sans text-slate-900">
       {/* Top Section: Net Worth Hero */}
       <section className="border-b border-slate-900/5 pt-10 mb-10 overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-1 bg-orange-600/20" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500" />
         <div className="max-w-full mx-auto px-6 sm:px-16 pb-12 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
             <div className="flex-1 space-y-10">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-orange-500/10 rounded-full text-[10px] font-black tracking-widest text-orange-600 border border-orange-500/20 uppercase">Treasury Command</span>
+                    <span className="px-3 py-1 bg-indigo-500/10 rounded-full text-[10px] font-black tracking-widest text-indigo-600 border border-indigo-500/20 uppercase">Treasury Command</span>
                   </div>
 
                   <div className="bg-white rounded-2xl p-4 text-slate-900 border border-slate-200 shadow-sm min-w-[200px]">
@@ -1849,10 +1849,10 @@ export function DashboardContent() {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-indigo-600 transition-colors">Wealth Score</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-black text-slate-900">{holisticMetrics.wealthScore}</span>
-                    <span className="text-xs font-black text-orange-500">/ 100</span>
+                    <span className="text-xs font-black text-indigo-500">/ 100</span>
                   </div>
                   <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
-                    <div className="h-full bg-orange-600 rounded-full" style={{ width: `${holisticMetrics.wealthScore}%` }} />
+                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${holisticMetrics.wealthScore}%` }} />
                   </div>
                 </div>
                 
