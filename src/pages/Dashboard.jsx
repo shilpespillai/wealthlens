@@ -1767,8 +1767,46 @@ export function DashboardContent() {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
             <div className="flex-1 space-y-10">
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-indigo-500/10 rounded-full text-[10px] font-black tracking-widest text-indigo-600 border border-indigo-500/20 uppercase">Treasury Command</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-indigo-500/10 rounded-full text-[10px] font-black tracking-widest text-indigo-600 border border-indigo-500/20 uppercase">Treasury Command</span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-4 text-slate-900 border border-slate-200 shadow-sm min-w-[200px]">
+                    <p className="text-[8px] uppercase font-black tracking-[0.2em] text-slate-400 mb-2">Selected Time Horizon</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="flex items-center justify-between w-full group py-1 border-b border-slate-100 hover:border-slate-300 transition-all">
+                          <span className="text-sm font-bold text-slate-800 tracking-tight">{selectedPeriod}</span>
+                          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="end">
+                        <div className="grid grid-cols-3 bg-white">
+                          {[
+                            { title: "NOW", items: ["This Week", "This Month", "This Quarter", "This Year", "This Financial", "Custom Range"] },
+                            { title: "PAST", items: ["Last Week", "Last Month", "Last Quarter", "Last Year", "Last Financial"] },
+                            { title: "ROLL BACK", items: ["Rolling Week", "Rolling Month", "Rolling Quarter", "Rolling Year"] }
+                          ].map((section, idx) => (
+                            <div key={idx} className={`p-4 ${idx < 2 ? 'border-r border-slate-100' : ''}`}>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{section.title}</p>
+                              <div className="space-y-1">
+                                {section.items.map((item) => (
+                                  <button 
+                                    key={item} 
+                                    onClick={() => setSelectedPeriod(item)}
+                                    className={`w-full text-left px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedPeriod === item ? 'bg-[#00A381] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+                                  >
+                                    {item}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <h1 className="text-5xl sm:text-7xl font-black text-slate-900 tracking-tighter leading-none">
                   {formatCurrencyShort(holisticMetrics.netWorth)}
@@ -1818,46 +1856,6 @@ export function DashboardContent() {
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-6 h-full justify-between pb-2">
-              <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-xl shadow-slate-200 min-w-[200px]">
-                <p className="text-[8px] uppercase font-black tracking-[0.2em] text-slate-400 mb-2">Selected Time Horizon</p>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center justify-between w-full group py-1 border-b border-white/10 hover:border-white/30 transition-all">
-                      <span className="text-sm font-bold text-white tracking-tight">{selectedPeriod}</span>
-                      <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="end">
-                    <div className="grid grid-cols-3 bg-white">
-                      {[
-                        { title: "NOW", items: ["This Week", "This Month", "This Quarter", "This Year", "This Financial", "Custom Range"] },
-                        { title: "PAST", items: ["Last Week", "Last Month", "Last Quarter", "Last Year", "Last Financial"] },
-                        { title: "ROLL BACK", items: ["Rolling Week", "Rolling Month", "Rolling Quarter", "Rolling Year"] }
-                      ].map((section, idx) => (
-                        <div key={idx} className={`p-4 ${idx < 2 ? 'border-r border-slate-100' : ''}`}>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{section.title}</p>
-                          <div className="space-y-1">
-                            {section.items.map((item) => (
-                              <button 
-                                key={item} 
-                                onClick={() => setSelectedPeriod(item)}
-                                className={`w-full text-left px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedPeriod === item ? 'bg-[#00A381] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-                              >
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <div className="mt-3 flex items-center justify-end">
-                  <Settings className="w-4 h-4 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer" />
-                </div>
-              </div>
-            </div>
           </div>
           
               <div className="w-full flex-1 flex flex-col mt-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
