@@ -912,6 +912,41 @@ on>
                    </div>
                 </div>
              </div>
+             <div className="space-y-16 pt-16">
+                <div className="p-12 bg-white border border-slate-200 rounded-[3rem] shadow-sm space-y-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm">
+                      <Binary className="w-6 h-6 text-[#C5A059]" />
+                    </div>
+                    <h5 className="text-lg font-black text-slate-900 uppercase tracking-widest">The Reactive Rule Engine</h5>
+                  </div>
+                  <div className="space-y-6">
+                    <p className="text-[13px] text-slate-600 font-medium leading-relaxed">
+                      The WealthLens Rule Engine allows for automated, high-precision transaction classification. Instead of manually categorizing every coffee or subscription, you can define global logic that reconciles your ledger at the "Edge."
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <h6 className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Logical Operators</h6>
+                        <p className="text-[11px] text-slate-500 font-bold uppercase leading-relaxed tracking-tight">
+                          Supports <strong>Equals</strong>, <strong>Not Equals</strong>, and <strong>Contains</strong>. This allows you to catch variants of merchant names (e.g., "AMZN MKTPLACE" vs "AMAZON.COM") and group them under a single strategic category.
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        <h6 className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Account Scoping</h6>
+                        <p className="text-[11px] text-slate-500 font-bold uppercase leading-relaxed tracking-tight">
+                          Rules can be scoped to specific accounts. This is essential for distinguishing between personal expenses and business reimbursements that might share similar merchant strings.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-8 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                    <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Rule Execution Priority</h6>
+                    <p className="text-[12px] text-slate-600 leading-relaxed font-medium">
+                      Rules are executed in a top-down hierarchy. If a transaction matches multiple rules, the most specific rule (e.g., "Contains" with a specific Account ID) takes precedence over generic global rules.
+                    </p>
+                  </div>
+                </div>
+             </div>
           </section>
 
           <section id="compliance" className="mb-40 space-y-16 scroll-mt-32">
