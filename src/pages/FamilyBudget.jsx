@@ -506,7 +506,7 @@ function FamilyBudgetContent() {
                   <PiggyBank className="w-4 h-4 text-[#C5A059]" />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Budget Planner</h1>
+                  <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Monthly overview</h1>
                   <div className="flex items-center gap-2">
                     <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-[#2D3748] rounded text-[#C5A059]/60 hover:text-[#C5A059]">
                       <TrendingUp className="w-3 h-3 rotate-[270deg]" />

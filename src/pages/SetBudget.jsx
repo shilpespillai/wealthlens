@@ -761,7 +761,8 @@ export default function SetBudget() {
         {/* Header Area */}
         <div className="w-full px-6 pt-6 pb-4 border-b border-slate-100">
            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-end w-full gap-4">
+              <div className="flex items-center justify-between w-full gap-4">
+                  <h1 className="text-[28px] font-medium text-slate-800 tracking-tight">Budget Planner</h1>
                   {/* Institutional Premium Date Navigator */}
                   <div className="flex items-center gap-1.5 bg-slate-50/80 border border-slate-200/60 rounded-2xl p-1 shadow-sm backdrop-blur-sm">
                      <Button 
