@@ -247,7 +247,7 @@ export const useFinancialParser = () => {
         const transactionCategory = resolveCanonicalCategory(t.category);
         
         // 1. HARD EXCLUSION: Never count transfers or credit card payments as realization against budget targets
-        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(transactionCategory)) return false;
+        if (EXCLUDED_CATEGORIES.includes(transactionCategory)) return false;
         
         const amount = Number(t.amount) || 0;
         
