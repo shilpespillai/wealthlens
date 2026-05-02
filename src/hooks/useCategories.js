@@ -164,15 +164,6 @@ export const useCategories = (monthKey = null, options = {}) => {
       // 1. Delete from the categories table (Registry)
       await base44.db.deleteByFilter('categories', 'name', name);
 
-      // 2. Clear from legacy global table if present
-      const legacy = await base44.user.loadData('wl_categories');
-      if (Array.isArray(legacy)) {
-        const updated = legacy.filter(c => (c.name || "").toLowerCase().trim() !== name.toLowerCase().trim());
-        if (updated.length !== legacy.length) {
-          await base44.user.saveData('wl_categories', updated);
-        }
-      }
-
       await fetchCategories();
       toast.success(`'${name}' removed from Central Repository. (Future months only)`);
     } catch (err) {

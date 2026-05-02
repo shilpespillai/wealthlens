@@ -1227,7 +1227,6 @@ export const base44 = {
         });
 
         const updatedList = Array.from(rowMap.values());
-        await base44.user.saveData('wl_categories', updatedList);
         return updatedList;
       }
 
@@ -1368,10 +1367,6 @@ export const base44 = {
           }
         }
 
-        // Maintain legacy global table sync
-        const current = await base44.user.loadData('wl_categories') || [];
-        const updated = current.filter(r => r[column] !== value);
-        await base44.user.saveData('wl_categories', updated);
         return { success: true };
       }
 
