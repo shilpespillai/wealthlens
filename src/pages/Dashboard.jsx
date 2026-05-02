@@ -560,7 +560,7 @@ export function DashboardContent() {
         latestMonthlyTarget
       }
     };
-  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData]);
+  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics]);
 
   const currentPeriodMetrics = useMemo(() => {
     return {

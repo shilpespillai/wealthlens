@@ -466,8 +466,8 @@ export const useFinancialParser = () => {
     const transfers = [];
 
     (transactions || []).forEach(t => {
-      const category = resolveCanonicalCategory(t.category);
       const rawAmt = Number(t.amount || 0);
+      const category = resolveCanonicalCategory(t.category || t.name);
       const isTransfer = EXCLUDED_CATEGORIES.includes(category);
       
       // Account-aware Debt Check: Payments into a debt account (credit card) are not income.
