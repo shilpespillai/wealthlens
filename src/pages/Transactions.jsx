@@ -139,7 +139,7 @@ const SIDEBAR_ITEMS = [
   { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
-  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-purple-600", bg: "bg-purple-50" },
+  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-amber-600", bg: "bg-amber-50" },
   { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
@@ -869,7 +869,7 @@ function TransactionsContent() {
                   variant="ghost" 
                   className="h-8 px-4 text-slate-900 text-[11px] font-black uppercase tracking-[0.15em] hover:bg-slate-100 rounded-xl transition-all flex items-center gap-3 min-w-[140px] justify-center"
                 >
-                  <CalendarIcon className="w-3.5 h-3.5 text-purple-600" />
+                  <CalendarIcon className="w-3.5 h-3.5 text-amber-600" />
                   {format(selectedDate, "MMM yyyy")}
                 </Button>
               </PopoverTrigger>
@@ -902,7 +902,7 @@ function TransactionsContent() {
                         className={cn(
                           "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
                           selectedDate.getMonth() === idx 
-                            ? "bg-purple-600 text-white shadow-xl shadow-purple-600/30 ring-2 ring-purple-600/10" 
+                            ? "bg-amber-600 text-white shadow-xl shadow-amber-600/30 ring-2 ring-amber-600/10" 
                             : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
                         )}
                       >
@@ -932,7 +932,7 @@ function TransactionsContent() {
               placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white text-slate-900 text-[11px] font-medium rounded-2xl py-2 pl-9 pr-8 w-72 outline-none border border-slate-200 shadow-sm focus:ring-2 focus:ring-purple-600/10 transition-all placeholder:text-slate-400"
+              className="bg-white text-slate-900 text-[11px] font-medium rounded-2xl py-2 pl-9 pr-8 w-72 outline-none border border-slate-200 shadow-sm focus:ring-2 focus:ring-amber-600/10 transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pt-px">
@@ -985,7 +985,7 @@ function TransactionsContent() {
                 <button 
                   key={item.id}
                   onClick={() => handleSidebarFilter('tab', item.id)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id && !selectedCategory && !selectedAccountId ? 'bg-purple-600 text-white shadow-md' : (selectedTab === item.id ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-white hover:shadow-sm')}`}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id && !selectedCategory && !selectedAccountId ? 'bg-amber-600 text-white shadow-md' : (selectedTab === item.id ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-white hover:shadow-sm')}`}
                 >
                   <div className="flex items-center gap-3">
                     <item.icon className={`w-4 h-4 ${selectedTab === item.id ? 'text-white' : item.color}`} />
@@ -1329,7 +1329,7 @@ function TransactionsContent() {
                     <DialogFooter>
                         <Button 
                             onClick={handleSaveCurrentSearch}
-                            className="w-full bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-12 shadow-lg shadow-purple-100"
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 shadow-lg shadow-amber-100"
                         >
                             Save Selection
                         </Button>
@@ -1423,7 +1423,7 @@ function TransactionsContent() {
                         </Button>
                         <Button 
                             onClick={handleSaveEdit}
-                            className="bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-11 px-8"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold h-11 px-8"
                         >
                             Update Transaction
                         </Button>
@@ -1452,7 +1452,7 @@ function TransactionsContent() {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-amber-50 hover:text-amber-600 transition-all"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
@@ -1469,7 +1469,7 @@ function TransactionsContent() {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-amber-50 hover:text-amber-600 transition-all"
                   onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTransactions.length / itemsPerPage), prev + 1))}
                   disabled={currentPage >= Math.ceil(filteredTransactions.length / itemsPerPage)}
                 >
@@ -1483,7 +1483,7 @@ function TransactionsContent() {
               Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} items.
             </p>
             {selectedTransactions.length > 0 && (
-              <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-purple-100 animate-in zoom-in-50">
+              <span className="bg-amber-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-amber-100 animate-in zoom-in-50">
                 {selectedTransactions.length} selected
               </span>
             )}
@@ -1516,7 +1516,7 @@ function TransactionsContent() {
                     .slice((currentPage - 1) * parseInt(itemsPerPage), currentPage * parseInt(itemsPerPage))
                     .map((tx) => (
                     <React.Fragment key={tx.id}>
-                      <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-purple-50/50' : 'hover:bg-slate-50/50'}`}>
+                      <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-amber-50/50' : 'hover:bg-slate-50/50'}`}>
                         <TableCell className="p-4">
                           <Checkbox 
                             checked={selectedTransactions.includes(tx.id)} 
@@ -1565,14 +1565,14 @@ function TransactionsContent() {
                               value={tx.category || "Uncategorized"} 
                               onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
                             >
-                              <SelectTrigger className="h-8 bg-white text-[11px] font-medium border-slate-200 px-3 w-[150px] hover:border-purple-300 hover:shadow-sm transition-all text-slate-700">
+                              <SelectTrigger className="h-8 bg-white text-[11px] font-medium border-slate-200 px-3 w-[150px] hover:border-amber-300 hover:shadow-sm transition-all text-slate-700">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px] w-[180px]">
                                 {categories
                                   .filter(c => c.name.toLowerCase() !== "uncategorized")
                                   .map(c => (
-                                    <SelectItem key={c.id || c.name} value={c.name} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                    <SelectItem key={c.id || c.name} value={c.name} className="text-[11px] py-1.5 focus:bg-amber-50">
                                       <div className="flex items-center gap-2.5">
                                         <CategoryIcon iconId={c.icon_id || c.iconId} category={c.name} className="w-3.5 h-3.5 shrink-0" />
                                         <span className="truncate leading-none">{c.name}</span>
@@ -1580,7 +1580,7 @@ function TransactionsContent() {
                                     </SelectItem>
                                   ))}
                                 {!categories.some(c => c.name.toLowerCase() === (tx.category || "").toLowerCase()) && tx.category && tx.category !== "Uncategorized" && (
-                                  <SelectItem value={tx.category} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                  <SelectItem value={tx.category} className="text-[11px] py-1.5 focus:bg-amber-50">
                                     <div className="flex items-center gap-2.5">
                                       <CategoryIcon category={tx.category} className="w-3.5 h-3.5 shrink-0" />
                                       <span className="truncate leading-none">{tx.category}</span>
@@ -1597,7 +1597,7 @@ function TransactionsContent() {
                             </Select>
                             <button 
                               onClick={() => handleSidebarFilter("all", tx.category)}
-                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-purple-600 transition-colors"
+                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-amber-600 transition-colors"
                               title="Filter by this category"
                             >
                               <Filter className="w-3 h-3" />
