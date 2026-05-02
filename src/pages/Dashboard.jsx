@@ -487,7 +487,9 @@ export function DashboardContent() {
 
     // 3. Holistic Health Calculations (Institutional AR Anchor)
     // We use the LATEST data for the Treasury Hub, not historical snapshots.
-    const latestAccounts = liveData.accounts || [];
+    const latestAccounts = (liveData.latestAccounts && liveData.latestAccounts.length > 0) 
+      ? liveData.latestAccounts 
+      : (liveData.accounts || []);
     
     const totalLiquidOnly = latestAccounts
       .filter(a => a.type === 'asset' && Number(a.base_balance || 0) > 0)
@@ -699,6 +701,7 @@ export function DashboardContent() {
         setLiveData(prev => ({
           ...prev,
           accounts: liveAccounts,
+          latestAccounts: liveAccounts,
           portfolio: dbPortfolio || [],
           transactions: allTransactions,
           currentMonthTransactions: currentMonthTx,
