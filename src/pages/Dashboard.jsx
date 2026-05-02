@@ -557,7 +557,8 @@ export function DashboardContent() {
         // Absolute latest truth for pinned widgets
         incomeLatest,
         spendLatest,
-        latestMonthlyTarget
+        latestMonthlyTarget,
+        periodTxAll // Expose for the Diagnostic Audit Table
       }
     };
   }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics]);
@@ -1915,7 +1916,7 @@ export function DashboardContent() {
                 Income Audit: Largest {selectedPeriod} Inflows
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                {periodTxAll
+                {(holisticMetrics.periodTxAll || [])
                   .filter(t => {
                     const { incomes } = getNormalizedLedger([t], latestAccounts);
                     return incomes.length > 0;
