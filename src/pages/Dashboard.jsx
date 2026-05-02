@@ -1882,9 +1882,9 @@ export function DashboardContent() {
 
           </div>
           
-              <div className="w-full flex-1 flex flex-col mt-8 border border-white/20 rounded-2xl overflow-hidden bg-white/30 backdrop-blur-md shadow-xl shadow-orange-900/5">
+              <div className="w-full flex-1 flex flex-col mt-8 border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-xl shadow-slate-200/40">
             
-            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-5 border-b border-white/10 bg-white/20 gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-5 border-b border-slate-50 bg-slate-50/30 gap-4">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-purple-600" />
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">Spending Performance: {selectedPeriod}</p>
