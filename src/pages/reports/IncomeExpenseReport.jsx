@@ -209,33 +209,33 @@ export default function IncomeExpenseReport() {
         {/* Unified Analysis Sidebar */}
         <aside className="w-80 bg-white border-r border-slate-100 p-8 space-y-10 overflow-y-auto">
            <div className="space-y-6">
-              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Analysis Options</p>
+              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Analysis Options</p>
               <div className="space-y-5">
                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tight">Nest categories</span>
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Nest categories</span>
                     <Switch checked={nestCategories} onCheckedChange={setNestCategories} />
                  </div>
                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-tight">Show % of total</span>
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Show % of total</span>
                     <Switch checked={showPercentages} onCheckedChange={setShowPercentages} />
                  </div>
               </div>
            </div>
 
             <div className="space-y-4">
-               <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-300">Accounts</p>
+               <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Accounts</p>
                <div className="space-y-2">
                 {dbAccounts.map((acc, i) => (
                   <div 
                     key={i} 
                     onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
-                    className={`p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer border ${selectedAccountId === acc.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-[#C5A059]/30'}`}
+                    className={`p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer border ${selectedAccountId === acc.id ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-[#C5A059]/30'}`}
                   >
                     <div className="flex items-center gap-3">
                       <Checkbox checked={selectedAccountId === acc.id || !selectedAccountId} />
-                      <span className={`text-[10px] font-medium uppercase transition-colors ${selectedAccountId === acc.id ? 'text-indigo-600' : 'text-slate-500'}`}>{acc.name}</span>
+                      <span className={`text-[10px] font-bold uppercase transition-colors ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-500'}`}>{acc.name}</span>
                     </div>
-                    {(selectedAccountId === acc.id || !selectedAccountId) && <CheckCircle2 className="w-4 h-4 text-teal-400" />}
+                    {(selectedAccountId === acc.id || !selectedAccountId) && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                   </div>
                 ))}
                 {dbAccounts.length === 0 && (
@@ -245,19 +245,19 @@ export default function IncomeExpenseReport() {
             </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-12 pt-6 bg-[#F8F9FB]">
+        <main className="flex-1 overflow-y-auto p-2 bg-[#F8F9FB]">
             {/* Premium Header - Now part of the scroll flow */}
-            <div className="max-w-6xl mx-auto mb-8">
-              <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-                <div className="px-8 py-5 flex items-center justify-between">
+            <div className="max-w-full mx-auto mb-4">
+              <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+                <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
                   <div className="flex items-center gap-3">
                     <FileText className="w-6 h-6 text-[#C5A059]" />
-                    <h1 className="text-xl font-medium text-white tracking-tight">Income & Expense</h1>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">Income & Expense</h1>
                   </div>
                   <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-1.5 border border-slate-700">
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-1.5 border border-slate-100">
                         <Select value={selectedDate.getMonth().toString()} onValueChange={(v) => setSelectedDate(new Date(selectedDate.getFullYear(), parseInt(v), 1))}>
-                          <SelectTrigger className="w-[110px] h-7 text-[11px] text-white font-medium bg-transparent border-none focus:ring-0">
+                          <SelectTrigger className="w-[110px] h-7 text-[10px] text-slate-900 font-bold bg-transparent border-none focus:ring-0 uppercase tracking-widest">
                             <SelectValue placeholder="Month" />
                           </SelectTrigger>
                           <SelectContent>
@@ -265,7 +265,7 @@ export default function IncomeExpenseReport() {
                           </SelectContent>
                         </Select>
                         <Select value={selectedDate.getFullYear().toString()} onValueChange={(v) => setSelectedDate(new Date(parseInt(v), selectedDate.getMonth(), 1))}>
-                          <SelectTrigger className="w-[80px] h-7 text-[11px] text-white font-medium bg-transparent border-none focus:ring-0">
+                          <SelectTrigger className="w-[80px] h-7 text-[10px] text-slate-900 font-bold bg-transparent border-none focus:ring-0 uppercase tracking-widest">
                             <SelectValue placeholder="Year" />
                           </SelectTrigger>
                           <SelectContent>
@@ -273,22 +273,22 @@ export default function IncomeExpenseReport() {
                           </SelectContent>
                         </Select>
                     </div>
-                    <div className="flex items-center border border-slate-700 rounded-lg shadow-sm overflow-hidden bg-slate-800">
-                        <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 border-r border-slate-700 hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center border border-slate-100 rounded-lg shadow-sm overflow-hidden bg-slate-50">
+                        <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 border-r border-slate-100 hover:bg-slate-100 transition-colors">
                           <ChevronLeft className="w-4 h-4 text-slate-400" />
                         </button>
-                        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-slate-700 transition-colors">
+                        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-slate-100 transition-colors">
                           <ChevronRight className="w-4 h-4 text-slate-400" />
                         </button>
                     </div>
-                    <Button onClick={handleExport} variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-medium uppercase tracking-widest gap-2">
+                    <Button onClick={handleExport} variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-bold uppercase tracking-widest gap-2">
                         <Download className="w-4 h-4" /> Export PDF
                     </Button>
                   </div>
                 </div>
               </div>
             </div>
-           <div className="max-w-6xl mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
+           <div className="max-w-full mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
               <table className="w-full text-left border-collapse">
                  <thead>
                     <tr className="bg-slate-50/50">
@@ -323,14 +323,14 @@ export default function IncomeExpenseReport() {
                     </tr>
                     
                     {/* Summary Footer */}
-                    <tr className="bg-[#1E293B] border-t-2 border-slate-700">
-                       <td className="px-8 py-6 text-xs font-medium text-white uppercase tracking-wider">MONTHLY SURPLUS</td>
-                       <td className="px-8 py-6 text-right text-xs font-medium text-slate-400">---</td>
-                       <td className="px-8 py-6 text-right text-sm font-medium text-white group-hover:text-[#C5A059] transition-colors">{formatAmount(totalActualIncome - totalActualExpense)}</td>
+                    <tr className="bg-slate-900">
+                       <td className="px-8 py-6 text-[10px] font-bold text-white uppercase tracking-widest">MONTHLY SURPLUS</td>
+                       <td className="px-8 py-6 text-right text-xs font-bold text-slate-400">---</td>
+                       <td className="px-8 py-6 text-right text-sm font-bold text-white group-hover:text-[#C5A059] transition-colors">{formatAmount(totalActualIncome - totalActualExpense)}</td>
                        <td colSpan={showPercentages ? 2 : 1} className="px-8 py-6 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <span className="text-[10px] text-slate-500 uppercase">Savings Velocity</span>
-                            <span className="text-xs font-medium text-teal-400">{totalActualIncome > 0 ? (((totalActualIncome - totalActualExpense) / totalActualIncome) * 100).toFixed(1) : "0.0"}%</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Savings Velocity</span>
+                            <span className="text-xs font-bold text-emerald-400">{totalActualIncome > 0 ? (((totalActualIncome - totalActualExpense) / totalActualIncome) * 100).toFixed(1) : "0.0"}%</span>
                           </div>
                        </td>
                     </tr>

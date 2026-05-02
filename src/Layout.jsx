@@ -9,7 +9,7 @@ export default function Layout({ children }) {
   const path = location.pathname.toLowerCase();
 
   const isPublicPage = ['/login', '/auth/callback', '/about', '/methodology', '/contact', '/privacy-policy', '/terms', '/disclaimer', '/assumptions', '/cookie-policy', '/security-policy', '/'].includes(path);
-  const isFullWidthPage = path.includes('transactions');
+  const isFullWidthPage = path.includes('transactions') || path.includes('calculator') || path.includes('portfolio') || path.includes('familybudget') || path.includes('reports');
   const isDashboard = path.includes('dashboard');
   const showSidebar = user && !isPublicPage;
 
@@ -48,7 +48,7 @@ export default function Layout({ children }) {
         {/* The Horizon Mainframe - Master Rounded Panel */}
         <div className={`flex-1 ${showSidebar ? (isFullWidthPage ? 'bg-white border-none rounded-none shadow-none' : 'bg-white border border-slate-100/50 rounded-[32px] shadow-2xl') : 'bg-transparent border-none rounded-none'} overflow-hidden flex flex-col relative`}>
           
-          <main className={`flex-1 overflow-y-auto ${showSidebar ? (isFullWidthPage ? 'p-0' : 'px-8 pb-12 pt-10') : 'p-0'}`}>
+          <main className={`flex-1 overflow-y-auto ${showSidebar ? (isFullWidthPage ? 'p-0' : 'px-8 pb-12 pt-4') : 'p-0'}`}>
             <div className={`${showSidebar ? (isFullWidthPage || isDashboard ? 'max-w-full' : 'max-w-[1400px]') : 'max-w-full'} mx-auto`}>
               {children}
             </div>

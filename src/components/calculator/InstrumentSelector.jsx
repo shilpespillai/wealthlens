@@ -16,7 +16,7 @@ const instruments = [
 
 export default function InstrumentSelector({ selected, onSelect }) {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
       {instruments.map((inst) => {
         const Icon = inst.icon;
         const isActive = selected === inst.id;
@@ -27,21 +27,23 @@ export default function InstrumentSelector({ selected, onSelect }) {
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(inst.id)} 
             className={cn(
-              "group px-3 py-2 rounded-xl flex items-center gap-2 border transition-all duration-200 shadow-sm overflow-hidden",
+              "group px-3 py-2.5 rounded-xl flex items-center gap-3 border transition-all duration-200 overflow-hidden",
               isActive 
-                ? "bg-[#C5A059]/10 border-[#C5A059] shadow-lg shadow-[#C5A059]/10" 
-                : "bg-[#111827] border-white/5 hover:border-[#C5A059]/20 hover:bg-[#1a2333]"
+                ? "bg-[#C5A059]/10 border-[#C5A059]/20" 
+                : "bg-white border-slate-100 hover:bg-slate-900/5"
             )}
           >
             <div className={cn(
-              "w-6 h-6 rounded flex items-center justify-center transition-all shrink-0",
-              isActive ? "bg-[#C5A059] text-[#111827]" : "bg-[#C5A059]/10 text-[#C5A059]"
+              "w-6 h-6 rounded flex items-center justify-center transition-all shrink-0 border",
+              isActive 
+                ? "bg-amber-100 border-amber-200 text-[#C5A059]" 
+                : "bg-amber-50 border-amber-100 text-[#C5A059] group-hover:bg-amber-100"
             )}>
               <Icon className="w-3.5 h-3.5" />
             </div>
             <span className={cn(
-              "text-[8px] font-black uppercase tracking-widest truncate",
-              isActive ? "text-[#E5C48B]" : "text-gray-400 group-hover:text-gray-300"
+              "text-[10px] font-medium uppercase tracking-widest truncate",
+              isActive ? "text-[#C5A059]" : "text-slate-500 group-hover:text-slate-900"
             )}>
               {inst.label}
             </span>

@@ -72,7 +72,7 @@ const profiles = [
 
 export default function InvestmentProfiles({ onSelect }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
       {profiles.map((profile, i) => {
         const Icon = profile.icon;
         return (
@@ -82,23 +82,23 @@ export default function InvestmentProfiles({ onSelect }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.05 }}
             onClick={() => onSelect(profile.defaults)}
-            className="group flex flex-col w-full bg-[#111827] border border-white/5 rounded-xl p-3 text-left hover:border-[#C5A059]/30 hover:bg-[#1a2333] transition-all duration-300 shadow-lg"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded bg-[#C5A059]/10 flex items-center justify-center border border-[#C5A059]/10 group-hover:bg-[#C5A059]/20 transition-all">
-                <Icon className="w-3 h-3 text-[#C5A059]" />
-              </div>
-              <h3 className="text-[#C5A059] text-[9px] font-black uppercase tracking-widest truncate">{profile.label}</h3>
-            </div>
+            className="group flex flex-col w-full bg-white border border-slate-100 rounded-xl p-3 text-left hover:border-amber-200 hover:bg-slate-50 transition-all duration-300 shadow-sm hover:shadow-md"
+           >
+             <div className="flex items-center gap-2 mb-2">
+               <div className="w-6 h-6 rounded bg-amber-50 flex items-center justify-center border border-amber-100 group-hover:bg-amber-100 transition-all">
+                 <Icon className="w-3 h-3 text-[#C5A059]" />
+               </div>
+               <h3 className="text-slate-900 text-[9px] font-bold uppercase tracking-widest truncate">{profile.label}</h3>
+             </div>
             
             <div className="flex flex-col gap-0.5">
                <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-gray-500 font-medium">Initial</span>
-                  <span className="text-[9px] text-gray-300 font-black">${profile.defaults.initialAmount.toLocaleString()}</span>
+                  <span className="text-[9px] text-slate-400 font-medium">Initial</span>
+                  <span className="text-[9px] text-slate-900 font-black">${profile.defaults.initialAmount.toLocaleString()}</span>
                </div>
                <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-gray-500 font-medium">Monthly</span>
-                  <span className="text-[9px] text-gray-300 font-black">${profile.defaults.monthlyContribution.toLocaleString()}</span>
+                  <span className="text-[9px] text-slate-400 font-medium">Monthly</span>
+                  <span className="text-[9px] text-slate-900 font-black">${profile.defaults.monthlyContribution.toLocaleString()}</span>
                </div>
             </div>
           </motion.button>

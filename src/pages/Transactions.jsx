@@ -151,7 +151,7 @@ const CATEGORY_COLORS = {
   "Food": "#ef4444", // Red
   "Utilities": "#f59e0b", // Amber/Light Yellow
   "Healthcare": "#10b981", // Emerald
-  "Insurance": "#6366f1", // Indigo
+  "Insurance": "#C5A059", // Amber
   "Entertainment": "#d946ef", // Fuchsia
   "Personal": "#f43f5e", // Rose
   "Education": "#8b5cf6", // Violet
@@ -1015,7 +1015,7 @@ function TransactionsContent() {
                   >
                     <button 
                       onClick={() => applySavedSearch(s)}
-                      className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 pr-10 truncate ${searchQuery === s.query ? 'bg-white shadow-sm text-purple-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
+                      className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 pr-10 truncate ${searchQuery === s.query ? 'bg-white shadow-sm text-amber-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
                     >
                       <Search className="w-3 h-3 text-slate-300" /> 
                       <span className="truncate">{s.name}</span>
@@ -1037,7 +1037,7 @@ function TransactionsContent() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Accounts</p>
               <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
                 <DialogTrigger asChild>
-                  <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-purple-600 transition-colors">
+                  <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-amber-600 transition-colors">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </DialogTrigger>
@@ -1077,7 +1077,7 @@ function TransactionsContent() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleAddAccount} className="w-full bg-purple-600 hover:bg-purple-700">Create Account</Button>
+                    <Button onClick={handleAddAccount} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase tracking-widest text-[10px] h-12">Create Account</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1087,11 +1087,11 @@ function TransactionsContent() {
                 <div 
                   key={acc.id} 
                   onClick={() => handleSidebarFilter('account', acc.id)}
-                  className={`relative space-y-1 cursor-pointer group pr-8 p-1.5 rounded-xl transition-all ${selectedAccountId === acc.id ? 'bg-purple-50 ring-1 ring-purple-100 shadow-sm' : 'hover:bg-slate-50'}`}
+                  className={`relative space-y-1 cursor-pointer group pr-8 p-1.5 rounded-xl transition-all ${selectedAccountId === acc.id ? 'bg-amber-50 ring-1 ring-amber-100 shadow-sm' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${acc.color}`} />
-                    <span className={`text-xs font-medium transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-purple-600 font-bold' : 'text-slate-600 group-hover:text-purple-600'}`}>{acc.name}</span>
+                    <span className={`text-xs font-bold transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-600 group-hover:text-amber-600'}`}>{acc.name}</span>
                   </div>
                   <p className="text-[11px] font-bold text-slate-800 tabular-nums ml-5">
                     {(acc.balance || 0) < 0 ? `(${Math.abs(acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
@@ -1137,7 +1137,7 @@ function TransactionsContent() {
                 <button 
                   key={c} 
                   onClick={() => handleSidebarFilter("category", c)}
-                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${selectedCategory === c ? 'text-purple-600 font-bold bg-purple-50 rounded-lg shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}
+                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${selectedCategory === c ? 'text-amber-600 font-bold bg-amber-50 rounded-lg shadow-sm' : 'text-slate-500 hover:text-amber-600'}`}
                 >
                   {c}
                 </button>
@@ -1175,7 +1175,7 @@ function TransactionsContent() {
                 
                 <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all">
+                    <Button variant="outline" className="h-9 gap-2 text-xs font-bold border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all uppercase tracking-widest">
                       <Download className="w-4 h-4" /> Import Transactions List (CSV/PDF)
                     </Button>
                   </DialogTrigger>

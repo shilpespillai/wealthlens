@@ -204,42 +204,42 @@ export default function NetWorthReport() {
     <div id="networth-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
       {!isPaidUser && <PremiumOverlay featureName="Net Worth Intelligence" />}
       {/* Premium Header */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
-        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between">
+      <div className="w-full px-2 pt-4 pb-2 bg-white z-20">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
                <Building2 className="w-6 h-6 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Net Worth Breakdown</h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Net Worth Breakdown</h1>
             </div>
             
             <div className="flex items-center gap-6">
                <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors">
+                    <Button variant="outline" className="bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm">
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                       {format(selectedDate, "MMMM yyyy")}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl" align="end">
+                  <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
                       onSelect={(d) => d && setSelectedDate(d)}
                       initialFocus
-                      className="text-white"
+                      className="bg-white"
                     />
                   </PopoverContent>
                </Popover>
                
-               <div className="flex items-center border border-slate-700 rounded-xl bg-slate-800 overflow-hidden shadow-inner">
-                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 border-r border-slate-700 transition-all"><ChevronLeft className="w-4 h-4" /></button>
-                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ChevronRight className="w-4 h-4" /></button>
+               <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm">
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all"><ChevronLeft className="w-4 h-4" /></button>
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"><ChevronRight className="w-4 h-4" /></button>
                </div>
 
                <Button 
                   onClick={handleExportPDF}
                   variant="outline" 
-                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+                  className="bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
                >
                  <Download className="w-4 h-4 text-[#C5A059]" />
                  Export
@@ -249,37 +249,37 @@ export default function NetWorthReport() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-12 pt-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-2">
+        <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Analysis View (Left Card) */}
-          <div className="lg:col-span-4 bg-[#E0E7FF] border border-slate-200 rounded-[32px] p-10 flex flex-col items-center shadow-lg relative overflow-hidden min-h-[600px]">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full -mr-12 -mt-12 blur-3xl opacity-50" />
+           {/* Analysis View (Left Card) */}
+          <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[32px] p-10 flex flex-col items-center shadow-xl relative overflow-hidden min-h-[600px]">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-12 -mt-12 blur-3xl opacity-50" />
              
-             <div className="flex items-center bg-white/50 backdrop-blur-sm rounded-xl p-1 mb-8 self-center shadow-sm border border-white/50">
+             <div className="flex items-center bg-slate-50 rounded-xl p-1 mb-8 self-center shadow-sm border border-slate-100">
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('assets')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'assets' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'assets' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Assets</Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('networth')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'networth' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'networth' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Net Worth</Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('debt')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'debt' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'debt' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Debt</Button>
              </div>
 
              <div className="text-center mb-8 relative z-10">
-                <p className="text-[10px] font-medium text-indigo-600 uppercase tracking-[0.2em] mb-1">{viewMode.toUpperCase()}</p>
-                <p className="text-4xl font-medium text-slate-900 tracking-tight">{formatCurrency(displayValue)}</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em] mb-1">{viewMode.toUpperCase()}</p>
+                <p className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(displayValue)}</p>
              </div>
 
              <div className="w-full h-[280px] mb-8 relative">

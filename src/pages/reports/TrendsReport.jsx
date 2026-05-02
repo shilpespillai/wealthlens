@@ -248,29 +248,29 @@ export default function TrendsReport() {
     <div id="trends-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
       {!isPaidUser && <PremiumOverlay featureName="Historical Trend Intelligence" />}
       {/* Premium Header */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
-        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between">
+      <div className="w-full px-2 pt-4 pb-2 bg-white z-20">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
                <TrendsIcon className="w-5 h-5 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Trends <span className="text-slate-500 font-normal px-2">›</span> <span className="text-[#C5A059]">{selectedCategory}</span></h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Trends <span className="text-slate-300 font-normal px-2">›</span> <span className="text-[#C5A059]">{selectedCategory}</span></h1>
             </div>
             <div className="flex items-center gap-6">
                 
                <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-5 rounded-xl gap-3 text-xs font-medium uppercase tracking-widest transition-all">
+                    <Button variant="outline" className="bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 h-10 px-5 rounded-xl gap-3 text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm">
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                       {dateRange?.from ? (
                         format(dateRange.from, "MMM dd, yyyy") + (dateRange.to ? ` - ${format(dateRange.to, "MMM dd, yyyy")}` : "")
                       ) : "Pick date range"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl overflow-hidden rounded-3xl" align="end">
+                  <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl overflow-hidden rounded-3xl" align="end">
                     <div className="flex h-[360px]">
                       {/* Presets Sidebar */}
-                      <div className="w-40 border-r border-slate-700/50 p-4 space-y-2 flex flex-col justify-center bg-black/20">
-                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 px-2">Cycle Presets</p>
+                      <div className="w-40 border-r border-slate-100 p-4 space-y-2 flex flex-col justify-center bg-slate-50">
+                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">Cycle Presets</p>
                          {[
                            { label: "Last 3 Months", get: () => ({ from: subMonths(new Date(), 3), to: new Date() }) },
                            { label: "Last 6 Months", get: () => ({ from: subMonths(new Date(), 6), to: new Date() }) },
@@ -284,14 +284,14 @@ export default function TrendsReport() {
                            <button 
                              key={p.label}
                              onClick={() => setDateRange(p.get())}
-                             className="w-full text-left px-3 py-2 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:bg-[#C5A059]/10 hover:text-[#C5A059] transition-all"
+                             className="w-full text-left px-3 py-2 rounded-lg text-[9px] font-bold text-slate-500 uppercase tracking-wider hover:bg-amber-600 hover:text-white transition-all"
                            >
                              {p.label}
                            </button>
                          ))}
                       </div>
                       <div className="p-2">
-                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="text-white bg-transparent" />
+                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="bg-white" />
                       </div>
                     </div>
                   </PopoverContent>
@@ -301,8 +301,8 @@ export default function TrendsReport() {
                  <Button 
                    onClick={() => setShowType(prev => prev === 'expense' ? 'income' : 'expense')}
                    className={cn(
-                     "h-10 px-6 rounded-full text-[10px] font-medium uppercase tracking-widest transition-all shadow-lg",
-                     showType === 'expense' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-teal-500 hover:bg-teal-600 text-white"
+                     "h-10 px-6 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-md",
+                     showType === 'expense' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-emerald-500 hover:bg-emerald-600 text-white"
                    )}
                  >
                    Showing {showType.charAt(0).toUpperCase() + showType.slice(1)}
@@ -312,7 +312,7 @@ export default function TrendsReport() {
                <Button 
                   onClick={handleExportPDF}
                   variant="outline" 
-                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+                  className="bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
                >
                  <Download className="w-4 h-4 text-[#C5A059]" />
                  Export
@@ -324,27 +324,27 @@ export default function TrendsReport() {
 
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
         {/* Category Sidebar */}
-        <aside className="w-80 bg-white border-r border-slate-200 overflow-y-auto p-8 space-y-8 shadow-sm transition-all hidden lg:block">
+        <aside className="w-80 bg-white border-r border-slate-100 overflow-y-auto p-8 space-y-8 shadow-sm transition-all hidden lg:block">
            <div className="flex items-center justify-between bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-              <span className="text-xs font-medium text-slate-500 tracking-tight">Roll up budgets</span>
+              <span className="text-xs font-bold text-slate-500 tracking-tight uppercase">Roll up budgets</span>
               <Switch />
            </div>
 
            <div className="space-y-4">
-              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 px-2">Categories</p>
+              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 px-2">Categories</p>
               <div className="space-y-1">
                  {Object.keys(CATEGORY_BUDGETS).map((cat) => (
                     <button 
                       key={cat}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group",
-                        selectedCategory === cat ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-500 hover:bg-slate-50'
+                        selectedCategory === cat ? 'bg-amber-50 text-amber-700 font-bold' : 'text-slate-500 hover:bg-slate-50'
                       )}
                       onClick={() => setSelectedCategory(cat)}
                     >
-                       <div className={cn("w-1.5 h-1.5 rounded-full transition-all", selectedCategory === cat ? 'bg-indigo-500 scale-125' : 'bg-slate-300 group-hover:bg-slate-400')} />
-                       <span className="text-xs tracking-tight">{cat}</span>
-                       {selectedCategory === cat && <ChevronRight className="w-4 h-4 ml-auto text-indigo-400" />}
+                       <div className={cn("w-1.5 h-1.5 rounded-full transition-all", selectedCategory === cat ? 'bg-amber-500 scale-125' : 'bg-slate-300 group-hover:bg-slate-400')} />
+                       <span className="text-xs tracking-tight font-bold">{cat}</span>
+                       {selectedCategory === cat && <ChevronRight className="w-4 h-4 ml-auto text-amber-400" />}
                     </button>
                  ))}
               </div>
@@ -352,8 +352,8 @@ export default function TrendsReport() {
         </aside>
 
         {/* Main Chart Area */}
-        <main className="flex-1 overflow-y-auto p-12 pt-6 bg-[#F8F9FB]">
-           <div className="max-w-6xl mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto p-2 bg-[#F8F9FB]">
+           <div className="max-w-full mx-auto space-y-8">
               
               <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                   {/* Large Chart Card */}
@@ -465,22 +465,22 @@ export default function TrendsReport() {
                       className="bg-white border border-slate-200 rounded-[40px] p-10 shadow-sm h-full flex flex-col justify-between hover:shadow-xl transition-all duration-300"
                     >
                        <div>
-                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em] mb-4">Current Period Audit</p>
-                          <h3 className="text-2xl font-medium text-slate-900 mb-2 truncate">{selectedCategory}</h3>
-                          <p className="text-xs font-medium text-indigo-500 tracking-tight mb-10 flex items-center gap-2 uppercase tracking-wide">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Current Period Audit</p>
+                          <h3 className="text-2xl font-black text-slate-900 mb-2 truncate">{selectedCategory}</h3>
+                          <p className="text-[10px] font-bold text-amber-600 tracking-tight mb-10 flex items-center gap-2 uppercase tracking-[0.2em]">
                              {format(dateRange.from, "MMM")} - {format(dateRange.to, "MMM")} Cycle
                           </p>
                           
                  <div className="space-y-10">
                     <div className="space-y-2">
-                       <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Target</p>
-                       <p className="text-xl font-medium text-slate-900">{formatCurrency(stats.budgeted)}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Period Target</p>
+                       <p className="text-xl font-black text-slate-900">{formatCurrency(stats.budgeted)}</p>
                     </div>
 
                     <div className="space-y-6 pt-8 border-t border-slate-100">
                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Actual</p>
-                          <p className="text-xl font-medium text-indigo-600">{formatCurrency(stats.totalActual)}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Period Actual</p>
+                          <p className="text-xl font-black text-amber-600">{formatCurrency(stats.totalActual)}</p>
                        </div>
 
                        <div className="space-y-4 pt-2">

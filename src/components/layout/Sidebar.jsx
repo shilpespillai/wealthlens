@@ -69,7 +69,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 space-y-2">
         {isAdmin ? (
           <>
-            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Command center</p>
+            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Command center</p>
             <Link 
               to="/AdminDashboard" 
               className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/AdminDashboard') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
@@ -81,7 +81,7 @@ export default function Sidebar() {
           </>
         ) : (
           <>
-            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Command center</p>
+            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Command center</p>
             
             <Link 
               to="/Dashboard" 
@@ -113,7 +113,7 @@ export default function Sidebar() {
                   </Link>
                   
                   <div className="pt-2 pb-1 px-4">
-                    <p className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em]">Analysis Suite</p>
+                    <p className="text-[8px] font-medium text-slate-400 uppercase tracking-[0.2em]">Analysis Suite</p>
                   </div>
 
                   {[
@@ -200,7 +200,7 @@ export default function Sidebar() {
 
             {/* Intelligence Reports Section */}
             <div className="pt-8">
-              <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence Reports</p>
+              <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Intelligence Reports</p>
               <div className="space-y-1">
                 {[
                   { to: "/reports/IncomeExpense", icon: BarChart3, label: "Income & Expense" },
@@ -221,11 +221,11 @@ export default function Sidebar() {
                         });
                       }
                     }}
-                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive(item.to) ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
+                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive(item.to) ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-[#C5A059]/5'}`}
                   >
-                    <item.icon className={`w-3.5 h-3.5 ${isActive(item.to) ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                    <item.icon className={`w-3.5 h-3.5 ${isActive(item.to) ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
                     <span className="text-[10px] font-medium uppercase tracking-widest">{item.label}</span>
-                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
+                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
                   </Link>
                 ))}
               </div>
@@ -237,27 +237,27 @@ export default function Sidebar() {
       {/* Systems Section (Visible to all) */}
       <nav className="px-4 space-y-1">
         <div className="pt-8">
-          <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence</p>
+          <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Intelligence</p>
           <div className="space-y-1">
               <Link 
                  to="/PrivacyProtocol"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
               >
-                 <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                 <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
               </Link>
 
               <Link 
                  to="/HelpCenter"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
               >
-                 <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                 <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
               </Link>
 
               <Link 
                  to="/DataMaintenance"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-400' : ''}`}
+                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-400' : ''}`}
               >
                  <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
@@ -265,40 +265,40 @@ export default function Sidebar() {
 
              {!isAdmin && (
                <>
-                 <div 
-                    onClick={() => {
-                       if (isPaidUser) {
-                         setIntelOpen(true);
-                       } else {
-                         toast.error("Pro Feature", {
-                           description: "Configuring the AI Brain is reserved for Pro members."
-                         });
-                       }
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
-                 >
-                    <Sparkles className="w-4 h-4 text-gray-600 group-hover:text-indigo-400" />
-                    <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
-                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                 </div>
+                  <div 
+                     onClick={() => {
+                        if (isPaidUser) {
+                          setIntelOpen(true);
+                        } else {
+                          toast.error("Pro Feature", {
+                            description: "Configuring the AI Brain is reserved for Pro members."
+                          });
+                        }
+                     }}
+                     className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5"
+                  >
+                     <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
+                     {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
+                  </div>
 
-                 <div 
-                    onClick={() => setSupportOpen(true)}
-                    className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
-                 >
-                    <HelpCircle className="w-4 h-4 text-gray-600 group-hover:text-emerald-400" />
-                    <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
-                 </div>
+                  <div 
+                     onClick={() => setSupportOpen(true)}
+                     className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5"
+                  >
+                     <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-emerald-600" />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
+                  </div>
                </>
              )}
              
              {isAdmin && (
                 <Link 
                    to="/AdminSettings"
-                   className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/AdminSettings') ? 'bg-indigo-500/10 text-indigo-400' : ''}`}
+                   className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/AdminSettings') ? 'bg-amber-500/10 text-amber-600' : ''}`}
                 >
-                   <Settings className={`w-4 h-4 ${isActive('/AdminSettings') ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                   <span className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Control</span>
+                   <Settings className={`w-4 h-4 ${isActive('/AdminSettings') ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                   <span className="text-[10px] font-medium uppercase tracking-widest">Admin Control</span>
                 </Link>
              )}
 
@@ -316,7 +316,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-6 border-t border-white/5 bg-black/20 mt-auto">
+      <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#E5C48B] flex items-center justify-center text-[10px] font-medium text-[#111827]">
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}

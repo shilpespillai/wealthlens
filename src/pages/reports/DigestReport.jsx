@@ -194,24 +194,24 @@ export default function DigestReport() {
     <div id="digest-export-area" className="flex flex-col h-full bg-white font-sans text-slate-900 relative">
       {!isPaidUser && <PremiumOverlay featureName="Monthly Intelligence Digest" />}
       {/* Container for Navbar Area — purely white background */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white">
-        <div className="bg-[#1E293B] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between shadow-lg relative z-10">
+      <div className="w-full px-2 pt-4 pb-2 bg-white">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50 relative z-10">
             <div className="flex items-center gap-3">
-               <div className="p-2 bg-[#C5A059]/10 rounded-lg">
+               <div className="p-2 bg-amber-50 rounded-lg">
                   <FileText className="w-6 h-6 text-[#C5A059]" />
                </div>
-               <h1 className="text-xl font-medium text-white tracking-tight">Financial Digest</h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Financial Digest</h1>
             </div>
             <div className="flex items-center gap-3">
                <Popover>
                   <PopoverTrigger asChild>
-                    <button className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 px-5 py-2.5 text-xs text-slate-300 font-medium gap-3 hover:bg-slate-700 transition-all">
+                    <button className="flex items-center bg-slate-50 rounded-xl border border-slate-100 px-5 py-2.5 text-[10px] text-slate-600 font-bold uppercase tracking-widest gap-3 hover:bg-slate-100 transition-all shadow-sm">
                        <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                        Report for {format(selectedDate, "MMMM yyyy")}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-4 bg-[#1E293B] border-slate-700 shadow-2xl rounded-2xl" align="end">
+                  <PopoverContent className="w-64 p-4 bg-white border-slate-100 shadow-2xl rounded-2xl" align="end">
                     <div className="space-y-4">
                       <div className="flex flex-col gap-2">
                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Select month</label>
@@ -258,7 +258,7 @@ export default function DigestReport() {
                <Button 
                   onClick={handleExportPDF}
                   variant="outline" 
-                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+                  className="bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
                >
                  <Download className="w-4 h-4 text-[#C5A059]" />
                  Export
@@ -273,9 +273,9 @@ export default function DigestReport() {
         {/* Reports Navigation Sidebar */}
         <aside className="w-72 bg-white border-r border-slate-200 overflow-y-auto p-6 space-y-8 shadow-sm">
            <div className="space-y-4">
-              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Timeframe Coverage</p>
+              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Timeframe Coverage</p>
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
                     <div className="w-4 h-4 border-2 border-current rounded-sm flex items-center justify-center text-[10px] font-bold">M</div>
                  </div>
                  <div className="flex-1 overflow-hidden">
@@ -305,9 +305,9 @@ export default function DigestReport() {
 
          {/* 2. Executive KPIs Section */}
          <div className="space-y-4 pt-4 border-t border-slate-50">
-            <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400">Executive Overview</p>
+            <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Executive Overview</p>
             <div className="space-y-2">
-                <div className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-indigo-100 transition-colors group">
+                <div className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-amber-100 transition-colors group">
                     <div className="flex flex-col">
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Avg Daily Burn</span>
                        <span className="text-sm font-black text-slate-900 tabular-nums">
@@ -345,8 +345,8 @@ export default function DigestReport() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-12 bg-white">
-           <div className="max-w-4xl mx-auto space-y-24">
+        <main className="flex-1 overflow-y-auto p-2 bg-white">
+           <div className="max-w-full mx-auto space-y-24">
               
               {/* Header Title Section */}
               <div className="text-center space-y-4">

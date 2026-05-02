@@ -274,7 +274,7 @@ function PortfolioContent() {
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full mb-4"
+          className="w-12 h-12 border-4 border-amber-100 border-t-amber-600 rounded-full mb-4"
         />
         <p className="text-slate-500 font-medium animate-pulse">Loading secure portfolio data...</p>
       </div>
@@ -289,7 +289,7 @@ function PortfolioContent() {
         </div>
         <h2 className="text-2xl font-black text-slate-900 mb-2">Sync Error</h2>
         <p className="text-slate-500 text-center max-w-md mb-8">We couldn't securely load your portfolio data. To prevent overwriting your existing holdings, access has been temporarily disabled.</p>
-        <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 h-12 rounded-xl">
+        <Button onClick={() => window.location.reload()} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-8 h-12 rounded-xl">
           Try Again
         </Button>
       </div>
@@ -300,16 +300,19 @@ function PortfolioContent() {
     <div className="min-h-screen bg-white">
       {/* Rounded Navbar Panel - Full Length */}
       <div className="flex flex-col">
-        <div className="w-full px-6 pt-4 pb-2">
-          <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+        <div className="w-full px-2 pt-4 pb-2">
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 overflow-hidden border border-slate-100">
           {/* Header Area */}
-          <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Portfolio Dashboard</h1>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center border border-amber-100">
+                <PieChartIcon className="w-4 h-4 text-[#C5A059]" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Portfolio Dashboard</h1>
             </div>
             <div className="flex items-center gap-3">
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger className="w-28 h-9 text-sm bg-[#2D3748] border-[#C5A059]/20 text-[#C5A059]">
+                <SelectTrigger className="w-28 h-9 text-sm bg-white border-slate-200 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,14 +326,14 @@ function PortfolioContent() {
                 size="sm"
                 onClick={handleSave}
                 disabled={!hasChanges || isSaving}
-                className={`h-9 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all border-0 shadow-lg ${hasChanges ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-700 text-slate-400 cursor-default'}`}
+                className={`h-9 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all border-0 shadow-lg ${hasChanges ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' : 'bg-slate-100 text-slate-400 cursor-default'}`}
               >
                 {isSaving ? "Saving..." : "Save Portfolio"}
               </Button>
 
               <Button
                 size="sm"
-                className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
+                className="bg-[#C5A059] hover:bg-[#D4B06A] text-white font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
                 onClick={() => {
                   if (!isPremium) {
                     toast.error("Premium subscription required for PDF export");
@@ -344,31 +347,31 @@ function PortfolioContent() {
                   }
                 }}
               >
-                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-[#1A202C]/60" />}
+                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-white/60" />}
                 <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
-                {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
+                {!isPremium && <span className="text-[9px] bg-slate-900 text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
               </Button>
             </div>
           </div>
 
-          {/* Metric Banner Header - Institutional Dark Mode */}
-          <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
+          {/* Metric Banner Header - Institutional Light Mode */}
+          <div className="bg-slate-50/50 text-slate-900 py-4 px-6 relative z-0">
+            <div className="max-w-full mx-auto flex items-center justify-between">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalValue)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL PORTFOLIO VALUE</p>
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalValue)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL PORTFOLIO VALUE</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalInvested)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INVESTED</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalInvested)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL INVESTED</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalGain)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL GAIN / LOSS</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalGain)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL GAIN / LOSS</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{pct(metrics.totalReturnPct)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">OVERALL RETURN</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{pct(metrics.totalReturnPct)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">OVERALL RETURN</p>
               </div>
             </div>
           </div>
@@ -378,16 +381,16 @@ function PortfolioContent() {
 
 
       {/* Main Panel starts below Navbar */}
-      <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
+      <div className="bg-slate-50/50 min-h-screen">
+        <div className="max-w-full mx-auto px-2 py-12 space-y-10">
 
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Allocation Pie */}
-          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
-              <PieChartIcon className="w-4 h-4 text-[#E5C48B]" /> Asset Allocation
+          <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-[#C5A059]" /> Asset Allocation
             </h3>
             {metrics.pieData.length > 0 ? (
               <div className="flex items-center gap-6">
@@ -399,7 +402,7 @@ function PortfolioContent() {
                       </Pie>
                       <Tooltip 
                         formatter={(v) => fmt(v)}
-                        contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                        contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -409,7 +412,7 @@ function PortfolioContent() {
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
                       <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{entry.name}</span>
-                      <span className="text-[11px] font-medium text-white/90 ml-1">
+                      <span className="text-[11px] font-bold text-slate-900 ml-1">
                         {metrics.totalValue > 0 ? pct((entry.value / metrics.totalValue) * 100) : "0%"}
                       </span>
                     </div>
@@ -422,25 +425,25 @@ function PortfolioContent() {
           </div>
 
           {/* Bar Chart */}
-          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#B8D8BA]" /> Performance Blueprint
+          <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#C5A059]" /> Performance Blueprint
             </h3>
             {metrics.barData.length > 0 ? (
               <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={metrics.barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
                     <Tooltip 
                       formatter={(v) => fmt(v)}
-                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 10, paddingTop: '20px', color: '#94a3b8' }} />
-                    <Bar dataKey="invested" name="Invested Capital" fill="rgba(255,255,255,0.1)" radius={[4, 4, 0, 0]} barSize={12} />
-                    <Bar dataKey="value" name="Current Value" fill="#B8D8BA" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="invested" name="Invested Capital" fill="rgba(0,0,0,0.05)" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="value" name="Current Value" fill="#C5A059" radius={[4, 4, 0, 0]} barSize={12} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -505,10 +508,10 @@ function PortfolioContent() {
         {/* Holdings Editor */}
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-sm font-medium text-slate-900 flex items-center gap-2 uppercase tracking-widest">
-              <DollarSign className="w-4 h-4 text-slate-400" /> My Holdings
+            <h3 className="text-[10px] font-bold text-slate-800 flex items-center gap-2 uppercase tracking-[0.2em]">
+              <DollarSign className="w-4 h-4 text-[#C5A059]" /> My Holdings
             </h3>
-            <Button onClick={addHolding} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+            <Button onClick={addHolding} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-2 rounded-xl font-bold uppercase tracking-widest text-[10px] px-6 h-10 shadow-lg shadow-amber-500/10 transition-all">
               <Plus className="w-4 h-4" /> Add Holding
             </Button>
           </div>

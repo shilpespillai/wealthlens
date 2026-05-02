@@ -140,12 +140,12 @@ export default function CashflowsReport() {
     <div className="flex flex-col min-h-screen bg-white font-sans relative">
       {!isPaidUser && <PremiumOverlay featureName="Institutional Cashflow Analysis" />}
       {/* Premium Header - Moves up with scroll */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
-        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between">
+      <div className="w-full px-2 pt-4 pb-2 bg-white z-20">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
                <ArrowRightLeft className="w-6 h-6 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Cashflows</h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Cashflows</h1>
             </div>
             <div className="flex items-center gap-6">
                
@@ -155,7 +155,7 @@ export default function CashflowsReport() {
                     <Button 
                       variant="outline" 
                       className={cn(
-                        "bg-slate-800 border-slate-700 text-white hover:bg-slate-700 hover:text-white px-5 py-6 rounded-2xl gap-3 min-w-[320px] justify-start text-xs font-medium uppercase tracking-widest",
+                        "bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 px-5 py-6 rounded-2xl gap-3 min-w-[320px] justify-start text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm",
                         !dateRange && "text-muted-foreground"
                       )}
                     >
@@ -165,13 +165,13 @@ export default function CashflowsReport() {
                       ) : (
                         <span>Pick a date range</span>
                       )}
-                      <ChevronDown className="w-4 h-4 ml-auto text-slate-500" />
+                      <ChevronDown className="w-4 h-4 ml-auto text-slate-400" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4 bg-[#1E293B] border-slate-700 shadow-2xl rounded-2xl" align="end">
+                  <PopoverContent className="w-80 p-4 bg-white border-slate-100 shadow-2xl rounded-2xl" align="end">
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 gap-2">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Quick Selection</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest px-1">Quick Selection</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
                             { label: "Last 3 Months", months: 3 },
@@ -185,7 +185,7 @@ export default function CashflowsReport() {
                                 from: subMonths(startOfMonth(new Date()), preset.months - 1),
                                 to: endOfMonth(new Date())
                               })}
-                              className="py-2.5 rounded-xl text-[11px] font-semibold bg-slate-800/50 text-slate-300 border border-slate-700 hover:bg-[#C5A059] hover:text-white hover:border-[#C5A059] transition-all"
+                              className="py-2.5 rounded-xl text-[11px] font-bold bg-slate-50 text-slate-600 border border-slate-100 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all shadow-sm"
                             >
                               {preset.label}
                             </button>
@@ -193,8 +193,8 @@ export default function CashflowsReport() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-700/50">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Fiscal Years</label>
+                      <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-100">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest px-1">Fiscal Years</label>
                         <div className="flex gap-2">
                           {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map(year => (
                             <button
@@ -206,8 +206,8 @@ export default function CashflowsReport() {
                               className={cn(
                                 "flex-1 py-2 rounded-xl text-[11px] font-bold border transition-all",
                                 dateRange.from?.getFullYear() === year && dateRange.to?.getFullYear() === year
-                                  ? "bg-[#C5A059] border-[#C5A059] text-white"
-                                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700"
+                                  ? "bg-amber-600 border-amber-600 text-white shadow-md"
+                                  : "bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100"
                               )}
                             >
                               {year}
@@ -231,7 +231,7 @@ export default function CashflowsReport() {
         </div>
       </div>
 
-      <main id="cashflow-export-area" className="flex-1 p-12 pt-6 bg-[#F8F9FB]">
+      <main id="cashflow-export-area" className="flex-1 p-2 bg-[#F8F9FB]">
         <div className="w-full mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1200px]">

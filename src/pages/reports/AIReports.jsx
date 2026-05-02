@@ -270,42 +270,42 @@ export default function AIReports() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
       {/* Dynamic Header */}
-      <div className="bg-[#1E293B] pb-32 pt-12 px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C5A059]/5 rounded-full blur-[120px] -mr-48 -mt-48" />
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="bg-white pb-32 pt-12 px-2 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px] -mr-48 -mt-48" />
+        <div className="max-w-full mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20 text-[#C5A059] text-[10px] font-black uppercase tracking-widest mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-200 text-amber-600 text-[10px] font-black uppercase tracking-widest mb-4">
               <Sparkles className="w-3 h-3" /> Institutional Intelligence
             </div>
-            <h1 className="text-4xl font-black text-white tracking-tighter leading-none">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
               AI Insight <span className="text-[#C5A059]">Engine</span>
             </h1>
-            <p className="text-slate-400 mt-4 font-medium tracking-wide max-w-xl text-sm leading-relaxed">
+            <p className="text-slate-500 mt-4 font-medium tracking-wide max-w-xl text-sm leading-relaxed">
               Transforming raw ledger data into high-fidelity financial narratives and actionable institutional reporting.
             </p>
           </div>
           
-          <div className="flex items-center gap-6 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-2xl">
-            <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-[#C5A059] transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-[270deg]" /></button>
+          <div className="flex items-center gap-6 bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-sm">
+            <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-amber-600 transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-[270deg]" /></button>
             <div className="text-center min-w-[120px]">
-              <p className="text-[10px] font-bold text-[#C5A059] uppercase tracking-widest opacity-80">Analysis Period</p>
-              <span className="text-lg font-black text-white uppercase tracking-tight">
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest opacity-80">Analysis Period</p>
+              <span className="text-lg font-black text-slate-900 uppercase tracking-tight">
                 {format(selectedDate, 'MMM yyyy')}
               </span>
             </div>
-            <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-[#C5A059] transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-90" /></button>
+            <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-amber-600 transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-90" /></button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20">
+      <div className="max-w-full mx-auto px-2 -mt-20 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Column: Config */}
           <div className="lg:col-span-4 space-y-8">
             <div className="bg-white rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100">
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-[#1E293B] flex items-center justify-center shadow-lg shadow-slate-900/20">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
                   <Bot className="w-6 h-6 text-[#C5A059]" />
                 </div>
                 <div>
@@ -343,7 +343,7 @@ export default function AIReports() {
               <button
                 onClick={handleGenerateReport}
                 disabled={isGenerating || isLoading || transactions.length === 0}
-                className="w-full mt-8 bg-[#1E293B] hover:bg-[#0F172A] text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.97] disabled:opacity-50 flex justify-center items-center gap-3 uppercase tracking-[0.2em] text-[10px]"
+                className="w-full mt-8 bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.97] disabled:opacity-50 flex justify-center items-center gap-3 uppercase tracking-[0.2em] text-[10px]"
               >
                 {isGenerating ? <><Loader2 className="w-5 h-5 animate-spin text-[#C5A059]" /> Analyzing...</> : <><Sparkles className="w-5 h-5 text-[#C5A059]" /> Generate Narrative</>}
               </button>
@@ -372,7 +372,7 @@ export default function AIReports() {
                   <span>Intelligence_Output.md</span>
                 </div>
                 {reportMarkdown && (
-                  <button onClick={exportToPDF} className="flex items-center gap-2 text-[10px] font-black text-slate-600 hover:text-white hover:bg-[#1E293B] bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-widest transition-all">
+                  <button onClick={exportToPDF} className="flex items-center gap-2 text-[10px] font-black text-slate-600 hover:text-white hover:bg-slate-900 bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-widest transition-all">
                     <Download className="w-3.5 h-3.5" /> Export PDF
                   </button>
                 )}
