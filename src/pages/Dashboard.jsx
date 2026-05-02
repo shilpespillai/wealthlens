@@ -1783,11 +1783,11 @@ export function DashboardContent() {
   if (!isAuthenticated && !isLoadingAuth && !isLoading) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#ffedd5] to-[#fed7aa] pb-20 font-sans text-slate-900">
       {/* Top Section: Net Worth Hero */}
-      <section className="bg-white border-b border-slate-200 pt-10 shadow-sm mb-10 overflow-hidden relative">
+      <section className="border-b border-slate-900/5 pt-10 mb-10 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500" />
-        <div className="max-w-[1550px] mx-auto px-6 sm:px-10 pb-12 relative z-10">
+        <div className="max-w-full mx-auto px-6 sm:px-16 pb-12 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
             <div className="flex-1 space-y-10">
               <div className="space-y-4">
@@ -1882,9 +1882,9 @@ export function DashboardContent() {
 
           </div>
           
-              <div className="w-full flex-1 flex flex-col mt-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="w-full flex-1 flex flex-col mt-8 border border-white/20 rounded-2xl overflow-hidden bg-white/30 backdrop-blur-md shadow-xl shadow-orange-900/5">
             
-            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-5 border-b border-white/10 bg-white/20 gap-4">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-purple-600" />
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">Spending Performance: {selectedPeriod}</p>
@@ -2016,7 +2016,7 @@ export function DashboardContent() {
         </div>
       </section>
 
-      <div className="max-w-[1550px] mx-auto px-6 sm:px-10">
+      <div className="max-w-full mx-auto px-6 sm:px-16">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {Object.entries(columns).map(([colId, panelIds]) => (
