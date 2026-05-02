@@ -429,27 +429,9 @@ export function DashboardContent() {
         return d >= intStart && d <= intEnd && d >= start && d <= end;
       });
 
-      const actualSpent = periodTx.reduce((sum, t) => {
-        const category = resolveCanonicalCategory(t.category);
-        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
-        
-        const rawAmt = Number(t.amount || 0);
-        const isExpense = t.type === 'expense' || (t.type !== 'income' && rawAmt < 0);
-        return isExpense ? sum + Math.abs(rawAmt) : sum;
-      }, 0);
-
-      const actualEarned = periodTx.reduce((sum, t) => {
-        const category = resolveCanonicalCategory(t.category);
-        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
-        
-        const rawAmt = Number(t.amount || 0);
-        // Exclude Credit Card Payments from income totals (Account-aware filtering)
-        const isCreditCardIncome = t.account_id && accounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
-        if (isCreditCardIncome) return sum;
-
-        const isIncome = t.type === 'income' || (t.type !== 'expense' && rawAmt > 0);
-        return isIncome ? sum + Math.abs(rawAmt) : sum;
-      }, 0);
+      const { incomes, expenses } = getNormalizedLedger(periodTx, accounts);
+      const actualSpent = expenses.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+      const actualEarned = incomes.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
       // Scale Budgets into Bucket Interval:
       // We calculate the fraction of a month this bucket represents to show an accurate target line.
@@ -564,7 +546,7 @@ export function DashboardContent() {
         latestMonthlyTarget
       }
     };
-  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency]);
+  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData]);
 
   const currentPeriodMetrics = useMemo(() => {
     return {
