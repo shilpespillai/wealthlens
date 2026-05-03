@@ -280,8 +280,22 @@ function TransactionsContent() {
   const ACCOUNTS_SIDEBAR = useMemo(() => {
     const sidebar = dbAccounts.map(acc => {
       // Calculate current month delta for this account
-      const accIncomes = incomes.filter(i => i.account_id === acc.id).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-      const accExpenses = expenses.filter(e => e.account_id === acc.id).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      // Note: for 'sys-vault', we also include unassigned/null transactions
+      const isManualVault = String(acc.id) === 'sys-vault' || String(acc.id) === 'manual';
+      
+      const accIncomes = incomes.filter(i => {
+        if (isManualVault) {
+          return !i.account_id || String(i.account_id) === 'sys-vault' || String(i.account_id) === 'manual' || String(i.account_id) === 'null';
+        }
+        return String(i.account_id) === String(acc.id);
+      }).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      
+      const accExpenses = expenses.filter(e => {
+        if (isManualVault) {
+          return !e.account_id || String(e.account_id) === 'sys-vault' || String(e.account_id) === 'manual' || String(e.account_id) === 'null';
+        }
+        return String(e.account_id) === String(acc.id);
+      }).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       
       const liveBalance = accIncomes - accExpenses;
       
@@ -289,25 +303,26 @@ function TransactionsContent() {
         id: acc.id,
         name: acc.name,
         balance: liveBalance,
-        color: liveBalance < 0 ? "bg-rose-500" : "bg-emerald-500",
+        color: liveBalance < 0 ? "bg-rose-500" : (isManualVault ? "bg-slate-400" : "bg-emerald-500"),
         isVirtual: false,
         isSystem: !!acc.is_system
       };
     });
 
-    // Add Virtual "Manual Vault" for unassigned items
-    const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
-    const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const manualBal = manualIncs - manualExps;
-
-    sidebar.push({
-      id: "manual",
-      name: "Manual Vault",
-      balance: manualBal,
-      color: "bg-slate-400",
-      isVirtual: true,
-      isSystem: true
-    });
+    // Check if sys-vault exists in sidebar; if not (unlikely given defaults), add it as virtual
+    if (!sidebar.some(s => String(s.id) === 'sys-vault')) {
+      const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
+      const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      
+      sidebar.push({
+        id: "sys-vault",
+        name: "Manual Vault",
+        balance: manualIncs - manualExps,
+        color: "bg-slate-400",
+        isVirtual: true,
+        isSystem: true
+      });
+    }
 
     return sidebar;
   }, [dbAccounts, incomes, expenses]);
