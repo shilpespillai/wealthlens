@@ -1412,18 +1412,27 @@ export const base44 = {
       const rows = await base44.db.getTable(tableName);
       return base44.user.saveData(key, rows.filter(r => r.id !== id));
     },
-    deleteByFilter: async (tableName, column, value) => {
+    deleteByFilter: async (tableName, column, value, options = {}) => {
       // REDIRECT: Categories are now part of a single JSON array
-      if (tableName === 'categories' || tableName === 'user_categories') {
-        // Rule 1: Deletion only targets the "propagation source" (Latest Shard)
-        // No need to loop through historical shards.
-        const latestShard = await base44.db._getLatestShard();
-        if (latestShard && latestShard.categories) {
-          const original = latestShard.categories.length;
-          latestShard.categories = latestShard.categories.filter(r => r[column] !== value);
-          if (latestShard.categories.length !== original) {
-            const shardKey = latestShard.metadata?.month || base44.db._getShardKey();
-            await base44.db._saveShard(shardKey, latestShard);
+      if (tableName === 'categories' || tableName === 'user_categories' || tableName === 'user_accounts') {
+        const monthContext = typeof options === 'string' ? options : options?.month;
+        const shardKey = monthContext || base44.db._getShardKey();
+        const shard = await base44.db._loadShard(shardKey);
+        
+        if (shard) {
+          if (tableName === 'user_accounts') {
+            const original = shard.accounts?.length || 0;
+            shard.accounts = (shard.accounts || []).filter(r => String(r[column]) !== String(value));
+            if (shard.accounts.length !== original) {
+              await base44.db._saveShard(shardKey, shard);
+            }
+          } else {
+            // Categories logic
+            const original = shard.categories?.length || 0;
+            shard.categories = (shard.categories || []).filter(r => String(r[column]) !== String(value));
+            if (shard.categories.length !== original) {
+              await base44.db._saveShard(shardKey, shard);
+            }
           }
         }
 

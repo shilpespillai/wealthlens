@@ -666,9 +666,11 @@ function TransactionsContent() {
       const migrate = (items) => items.map(item => item.account_id === id ? { ...item, account_id: null, account: "Manual Vault" } : item);
       const updatedIncs = migrate(incomes);
       const updatedExps = migrate(expenses);
+      const updatedTransfers = migrate(transfers);
       
       setIncomes(updatedIncs);
       setExpenses(updatedExps);
+      setTransfers(updatedTransfers);
       setHasChanges(true); // Flag for Commit synchronization
 
       const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
