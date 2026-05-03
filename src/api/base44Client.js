@@ -1029,6 +1029,33 @@ export const base44 = {
         return newRows;
       }
 
+      if (tableName === 'transactions') {
+        console.log(`[base44.db] insertRows(transactions) -> Vault Redirect`);
+        const shards = {};
+        rows.forEach(r => {
+          const key = base44.db._getShardKey(r.date);
+          if (!shards[key]) shards[key] = [];
+          shards[key].push(r);
+        });
+
+        for (const [key, txs] of Object.entries(shards)) {
+          let shard = await base44.db._loadShard(key);
+          if (!shard) {
+            const latest = await base44.db._getLatestShard();
+            shard = { transactions: [], accounts: latest?.accounts || [], categories: latest?.categories || [], budget: null, metadata: { month: key } };
+          }
+          txs.forEach(tx => {
+            shard.transactions.push({ 
+              ...tx, 
+              id: tx.id || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              created_at: new Date().toISOString() 
+            });
+          });
+          await base44.db._saveShard(key, shard);
+        }
+        return rows;
+      }
+
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
       if (isSupabaseEnabled) {
         const { session } = await base44.db._getSession();
@@ -1228,6 +1255,39 @@ export const base44 = {
 
         const updatedList = Array.from(rowMap.values());
         return updatedList;
+      }
+
+      if (tableName === 'transactions') {
+        console.log(`[base44.db] upsertRows(transactions) -> Vault Redirect`);
+        const shards = {};
+        rows.forEach(r => {
+          const key = base44.db._getShardKey(r.date);
+          if (!shards[key]) shards[key] = [];
+          shards[key].push(r);
+        });
+
+        for (const [key, txs] of Object.entries(shards)) {
+          let shard = await base44.db._loadShard(key);
+          if (!shard) {
+            const latest = await base44.db._getLatestShard();
+            shard = { transactions: [], accounts: latest?.accounts || [], categories: latest?.categories || [], budget: null, metadata: { month: key } };
+          }
+          
+          txs.forEach(tx => {
+            const idx = shard.transactions.findIndex(t => t.id === tx.id);
+            if (idx !== -1) {
+              shard.transactions[idx] = { ...shard.transactions[idx], ...tx, updated_at: new Date().toISOString() };
+            } else {
+              shard.transactions.push({ 
+                ...tx, 
+                id: tx.id || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                created_at: new Date().toISOString() 
+              });
+            }
+          });
+          await base44.db._saveShard(key, shard);
+        }
+        return rows;
       }
 
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;

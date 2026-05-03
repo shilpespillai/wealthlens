@@ -96,12 +96,12 @@ export function DashboardContent() {
   });
 
   const ASSET_THEMES = {
-    'Cash & Savings': { color: '#6366f1', bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-600' },
+    'Cash & Savings': { color: '#475569', bg: 'bg-slate-50', border: 'border-slate-100', text: 'text-slate-600' },
     'Stocks / ETFs': { color: '#14b8a6', bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-600' },
     'Property': { color: '#f59e0b', bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-600' },
-    'Crypto': { color: '#8b5cf6', bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-600' },
+    'Crypto': { color: '#d97706', bg: 'bg-amber-50/50', border: 'border-amber-100/50', text: 'text-amber-700' },
     'Liabilities': { color: '#f43f5e', bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-600' },
-    'Other': { color: '#64748b', bg: 'bg-slate-50', border: 'border-slate-100', text: 'text-slate-600' }
+    'Other': { color: '#94a3b8', bg: 'bg-slate-50/30', border: 'border-slate-100/30', text: 'text-slate-500' }
   };
 
   const [columns, setColumns] = useState({
@@ -690,7 +690,7 @@ export function DashboardContent() {
         const defaultBuckets = [
           { id: 'emergency_fund', label: 'Emergency Fund', target: 10000, icon: 'ShieldCheck', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
           { id: 'travel_fund', label: 'Family Travel', target: 5000, icon: 'Plane', color: 'bg-blue-500', textColor: 'text-blue-600' },
-          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: 'Target', color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: 'Target', color: 'bg-amber-500', textColor: 'text-amber-600' },
           { id: 'medical_fund', label: 'Medical Fund', target: 5000, icon: 'Zap', color: 'bg-rose-500', textColor: 'text-rose-600' }
         ];
 

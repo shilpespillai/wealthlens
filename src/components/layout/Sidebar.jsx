@@ -257,40 +257,36 @@ export default function Sidebar() {
 
               <Link 
                  to="/DataMaintenance"
-                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-400' : ''}`}
+                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
               >
-                 <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                 <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
               </Link>
 
-             {!isAdmin && (
-               <>
-                  <div 
-                     onClick={() => {
-                        if (isPaidUser) {
-                          setIntelOpen(true);
-                        } else {
-                          toast.error("Pro Feature", {
-                            description: "Configuring the AI Brain is reserved for Pro members."
-                          });
-                        }
-                     }}
-                     className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5"
-                  >
-                     <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
-                     <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
-                     {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
-                  </div>
+              <div 
+                 onClick={() => {
+                    if (isPaidUser) {
+                      setIntelOpen(true);
+                    } else {
+                      toast.error("Pro Feature", {
+                        description: "Configuring the AI Brain is reserved for Pro members."
+                      });
+                    }
+                 }}
+                 className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
+              >
+                 <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
+                 {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
+              </div>
 
-                  <div 
-                     onClick={() => setSupportOpen(true)}
-                     className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5"
-                  >
-                     <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-emerald-600" />
-                     <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
-                  </div>
-               </>
-             )}
+              <div 
+                 onClick={() => setSupportOpen(true)}
+                 className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
+              >
+                 <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
+              </div>
              
              {isAdmin && (
                 <Link 
@@ -316,7 +312,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
+      <div className="p-6 border-t border-slate-100 bg-white mt-auto">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#E5C48B] flex items-center justify-center text-[10px] font-medium text-[#111827]">
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}

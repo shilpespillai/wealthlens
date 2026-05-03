@@ -37,6 +37,11 @@ export const useFinancialParser = () => {
       if (rules) setClassificationRules(rules);
     };
     loadRules();
+
+    // Re-load rules whenever DataMaintenance saves new ones (same-tab broadcast)
+    const handleRulesUpdated = () => loadRules();
+    window.addEventListener('wl_rules_updated', handleRulesUpdated);
+    return () => window.removeEventListener('wl_rules_updated', handleRulesUpdated);
   }, []);
 
   const matchRule = useCallback((tx, rule) => {
@@ -44,8 +49,13 @@ export const useFinancialParser = () => {
     
     const results = rule.conditions.map(c => {
       let txVal = '';
-      if (c.field === 'category') txVal = resolveCanonicalCategory(tx.category || tx.name);
-      if (c.field === 'account') txVal = String(tx.account_id || '');
+      if (c.field === 'category') {
+        // Fallback to merchant/name if category is missing or uncategorized
+        const rawCat = tx.category || tx.merchant || tx.name || '';
+        txVal = resolveCanonicalCategory(rawCat);
+      }
+      else if (c.field === 'merchant') txVal = String(tx.merchant || tx.name || '');
+      else if (c.field === 'account') txVal = String(tx.account_id || '');
       
       const target = c.value;
       switch (c.operator) {

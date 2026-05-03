@@ -82,6 +82,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import BankConnect from "@/components/calculator/BankConnect";
 import { useCategories } from "@/hooks/useCategories";
+import { useAccounts } from "@/hooks/useAccounts";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import SmartImporter from "@/components/SmartImporter";
@@ -206,6 +207,7 @@ function TransactionsContent() {
   }, [selectedDate]);
 
   const { categories, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey);
+  const { syncMonthlyWithMaster, addAccountToMaster, deleteAccountMonthly } = useAccounts(monthKey);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
   const initialSearch = searchParams.get("search") || "";
@@ -339,18 +341,32 @@ function TransactionsContent() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Rule 4 Synchronization: Ensure monthly shard has all master accounts
+      await syncMonthlyWithMaster(monthKey);
+
       // 0. Fetch accounts to enable attribution mapping
       let accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       
       // Default Account Provisioning Safety
-      if (!accounts || accounts.length === 0) {
-        const defaults = [
-          { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
-          { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
-        ];
-        for (const acc of defaults) {
-          await base44.db.upsertRow("user_accounts", acc, { month: monthKey });
+      const defaults = [
+        { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+        { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true },
+        { id: `sys-offset`, name: "Global Offset Account", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+        { id: `sys-vault`, name: "Manual Vault", type: "asset", category: "Savings", base_balance: 0, is_system: true }
+      ];
+
+      // Ensure all defaults exist for this month
+      let neededUpsert = false;
+      const currentIds = new Set((accounts || []).map(a => String(a.id)));
+      
+      for (const def of defaults) {
+        if (!currentIds.has(String(def.id))) {
+          await base44.db.upsertRow("user_accounts", def, { month: monthKey });
+          neededUpsert = true;
         }
+      }
+
+      if (neededUpsert) {
         accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       }
       
@@ -620,17 +636,21 @@ function TransactionsContent() {
   const handleAddAccount = async () => {
     if (!newAccount.name) return toast.error("Account name is required");
     try {
-      await base44.db.upsert("user_accounts", {
+      // Rule 1: Added account goes to central repository
+      const accPayload = {
         name: newAccount.name,
         type: newAccount.type,
         category: newAccount.category,
         base_balance: parseFloat(newAccount.balance) || 0
-      }, { month: monthKey });
+      };
+      
+      await addAccountToMaster(accPayload);
+      
       const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
       setIsAddAccountOpen(false);
       setNewAccount({ name: "", type: "asset", category: "Bank", balance: "" });
-      toast.success("Account created successfully");
+      toast.success("Account created and registered globally");
     } catch (err) {
       console.error("Add account failed:", err);
       toast.error("Failed to add account");
@@ -639,7 +659,8 @@ function TransactionsContent() {
 
   const handleDeleteAccount = async (id, name) => {
     try {
-      await base44.db.deleteRow('user_accounts', id, { month: monthKey });
+      // Rule 2: Delete from month only
+      await deleteAccountMonthly(id);
       
       // Migration Engine: Reassign all staged transactions to the Manual Vault
       const migrate = (items) => items.map(item => item.account_id === id ? { ...item, account_id: null, account: "Manual Vault" } : item);
@@ -652,7 +673,6 @@ function TransactionsContent() {
 
       const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
-      toast.success("Account deleted. Transactions migrated to Manual Vault.");
     } catch (err) {
       console.error("Delete account failed:", err);
       toast.error("Failed to delete account");
@@ -734,7 +754,20 @@ function TransactionsContent() {
   };
 
   const handleUpdateItem = async (id, updates, type) => {
-    const targetState = type === 'income' ? incomes : expenses;
+    let targetState;
+    let setState;
+    
+    if (type === 'income') {
+      targetState = incomes;
+      setState = setIncomes;
+    } else if (type === 'transfer') {
+      targetState = transfers;
+      setState = setTransfers;
+    } else {
+      targetState = expenses;
+      setState = setExpenses;
+    }
+
     const item = targetState.find(i => i.id === id);
     if (!item) return;
 
@@ -755,11 +788,7 @@ function TransactionsContent() {
       await base44.db.upsertRow('transactions', dbRecord);
 
       // 3. Update local state
-      if (type === 'income') {
-        setIncomes(incomes.map(i => i.id === id ? updatedItem : i));
-      } else {
-        setExpenses(expenses.map(e => e.id === id ? updatedItem : e));
-      }
+      setState(targetState.map(i => i.id === id ? updatedItem : i));
       toast.success("Transaction updated");
     } catch (err) {
       console.error("Inline update failed:", err);
@@ -785,11 +814,12 @@ function TransactionsContent() {
     if (type === 'income') {
       const updated = incomes.filter(i => i.id !== id);
       setIncomes(updated);
-      persistTransactionData(updated, expenses);
+    } else if (type === 'transfer') {
+      const updated = transfers.filter(i => i.id !== id);
+      setTransfers(updated);
     } else {
       const updated = expenses.filter(e => e.id !== id);
       setExpenses(updated);
-      persistTransactionData(incomes, updated);
     }
     toast.info("Transaction removed and purged from ledger");
   };

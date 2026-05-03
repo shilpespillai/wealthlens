@@ -27,7 +27,7 @@ export default function Layout({ children }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+    <div className="min-h-screen bg-white flex overflow-hidden">
       <style>{`
         :root {
           --font-sans: 'Inter', system-ui, -apple-system, sans-serif;

@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useCategories } from "@/hooks/useCategories";
+import { useAccounts } from "@/hooks/useAccounts";
 import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,9 +58,10 @@ export default function DataMaintenance() {
   const [vaultStats, setVaultStats] = useState({ keys: 0, size: '0 KB', cloudKeys: '...' });
   const { getClassificationRules, getDatabaseTable } = useFinancialParser();
   const { categories, addCategory, removeCategory } = useCategories(null, { global: true });
+  const { masterAccounts, addAccountToMaster, deleteAccountFromMaster } = useAccounts();
   const [classificationRules, setClassificationRules] = useState(null);
-  const [availableAccounts, setAvailableAccounts] = useState([]);
   const [isSavingRules, setIsSavingRules] = useState(false);
+  const [newAccountName, setNewAccountName] = useState('');
 
   const addLog = (message, type = 'info') => {
     setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 4)]);
@@ -71,29 +73,20 @@ export default function DataMaintenance() {
   }, []);
 
   const loadClassificationData = async () => {
-    const [rules, accounts] = await Promise.all([
-      getClassificationRules(),
-      getDatabaseTable('user_accounts')
-    ]);
+    const rules = await getClassificationRules();
     setClassificationRules(rules);
-    
-    // Unique accounts
-    const seen = new Set();
-    const unique = (accounts || []).filter(a => {
-      if (seen.has(a.id)) return false;
-      seen.add(a.id);
-      return true;
-    });
-    setAvailableAccounts(unique);
   };
 
-  // Auto-save classification rules when they change
+  // Auto-save classification rules when they change and broadcast to all hook instances
   useEffect(() => {
     if (!classificationRules) return;
     
     const timer = setTimeout(async () => {
       try {
         await base44.user.saveData('wl_classification_rules', classificationRules);
+        // Broadcast to all useFinancialParser instances on this page so they
+        // re-load immediately — without needing a page reload.
+        window.dispatchEvent(new CustomEvent('wl_rules_updated'));
       } catch (e) {
         console.error("Auto-save failed:", e);
       }
@@ -604,10 +597,10 @@ export default function DataMaintenance() {
                 </div>
               </div>
 
-              <div className="p-6 bg-indigo-50/40 rounded-3xl border border-indigo-100/50 flex items-start gap-4">
-                <Info className="w-5 h-5 text-indigo-500 mt-1" />
-                <p className="text-xs text-indigo-700/80 font-medium leading-relaxed">
-                  <span className="font-bold text-indigo-900 block mb-1 uppercase tracking-wider">Shard-Aware Processing</span>
+              <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 flex items-start gap-4">
+                <Info className="w-5 h-5 text-slate-400 mt-1" />
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  <span className="font-bold text-slate-900 block mb-1 uppercase tracking-wider">Shard-Aware Processing</span>
                   This operation optimizes your vault by grouping transaction removal by month. This reduces encryption overhead by 95% and ensures near-instant performance.
                 </p>
               </div>
@@ -681,7 +674,7 @@ export default function DataMaintenance() {
                   </div>
                   <div className="flex items-center justify-between">
                      <span className="text-[11px] text-slate-500 font-medium uppercase">Cloud Clusters</span>
-                     <span className="text-xs font-black text-indigo-600">{vaultStats.cloudKeys}</span>
+                     <span className="text-xs font-black text-slate-600">{vaultStats.cloudKeys}</span>
                   </div>
                   <div className="flex items-center justify-between">
                      <span className="text-[11px] text-slate-500 font-medium uppercase">Local Footprint</span>
@@ -697,7 +690,7 @@ export default function DataMaintenance() {
 
         {/* DYNAMIC CLASSIFICATION ENGINE */}
         <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50/30 rounded-full blur-[100px] -mr-48 -mt-48"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-slate-50/50 rounded-full blur-[100px] -mr-48 -mt-48"></div>
           
           <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between space-y-0 relative z-10">
             <div className="flex items-center gap-4">
@@ -786,8 +779,7 @@ export default function DataMaintenance() {
                           </SelectContent>
                         </Select>
 
-                        <div className="flex-1">
-                          {cond.field === 'category' ? (
+                        <div className="flex-1">                           {cond.field === 'category' ? (
                             <Select 
                               value={cond.value} 
                               onValueChange={(v) => {
@@ -805,7 +797,7 @@ export default function DataMaintenance() {
                                 ))}
                               </SelectContent>
                             </Select>
-                          ) : (
+                          ) : cond.field === 'account' ? (
                             <Select 
                               value={cond.value} 
                               onValueChange={(v) => {
@@ -818,11 +810,22 @@ export default function DataMaintenance() {
                                 <SelectValue placeholder="Select Account" />
                               </SelectTrigger>
                               <SelectContent>
-                                {availableAccounts.map(a => (
+                                {masterAccounts.map(a => (
                                   <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                          ) : (
+                            <Input 
+                               value={cond.value}
+                               onChange={(e) => {
+                                 const newConds = [...classificationRules.income.conditions];
+                                 newConds[idx].value = e.target.value;
+                                 updateRule('income', { conditions: newConds });
+                               }}
+                               className="h-10 rounded-xl bg-white border-slate-100 text-xs font-bold"
+                               placeholder="Description contains..."
+                            />
                           )}
                         </div>
 
@@ -914,8 +917,7 @@ export default function DataMaintenance() {
                           </SelectContent>
                         </Select>
 
-                        <div className="flex-1">
-                          {cond.field === 'category' ? (
+                        <div className="flex-1">                           {cond.field === 'category' ? (
                             <Select 
                               value={cond.value} 
                               onValueChange={(v) => {
@@ -933,7 +935,7 @@ export default function DataMaintenance() {
                                 ))}
                               </SelectContent>
                             </Select>
-                          ) : (
+                          ) : cond.field === 'account' ? (
                             <Select 
                               value={cond.value} 
                               onValueChange={(v) => {
@@ -946,11 +948,22 @@ export default function DataMaintenance() {
                                 <SelectValue placeholder="Select Account" />
                               </SelectTrigger>
                               <SelectContent>
-                                {availableAccounts.map(a => (
+                                {masterAccounts.map(a => (
                                   <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                          ) : (
+                            <Input 
+                               value={cond.value}
+                               onChange={(e) => {
+                                 const newConds = [...classificationRules.expense.conditions];
+                                 newConds[idx].value = e.target.value;
+                                 updateRule('expense', { conditions: newConds });
+                               }}
+                               className="h-10 rounded-xl bg-white border-slate-100 text-xs font-bold"
+                               placeholder="Description contains..."
+                            />
                           )}
                         </div>
 
@@ -1040,7 +1053,7 @@ export default function DataMaintenance() {
                       className="group flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all"
                     >
                       <div className="flex items-center gap-2.5 overflow-hidden">
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${cat.type === 'income' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${cat.type === 'income' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                         <span className="text-[10px] font-black uppercase tracking-tight text-slate-700 truncate">{cat.name}</span>
                       </div>
                       
@@ -1049,6 +1062,93 @@ export default function DataMaintenance() {
                           variant="ghost" 
                           size="icon" 
                           onClick={() => removeCategory(cat.name)}
+                          className="w-6 h-6 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      ) : (
+                        <ShieldCheck className="w-3 h-3 text-slate-200 group-hover:text-slate-400 transition-colors mr-1" />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ACCOUNT REPOSITORY */}
+        <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8">
+            <div className="w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
+          </div>
+          
+          <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center text-white shadow-xl shadow-amber-600/10">
+                <Database className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Account <span className="text-slate-400">Repository</span></CardTitle>
+                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Master registry for global account distribution</CardDescription>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+               <Input 
+                 placeholder="New account name..." 
+                 id="new-account-input"
+                 className="h-12 w-64 rounded-2xl border-slate-100 bg-slate-50/50 text-xs font-bold focus:bg-white transition-all px-6"
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter') {
+                     const val = e.currentTarget.value;
+                     if (val) {
+                        addAccountToMaster({ name: val, type: 'asset', base_balance: 0 });
+                        e.currentTarget.value = '';
+                     }
+                   }
+                 }}
+               />
+               <Button 
+                onClick={() => {
+                  const input = document.getElementById('new-account-input');
+                  if (input && input.value) {
+                    addAccountToMaster({ name: input.value, type: 'asset', base_balance: 0 });
+                    input.value = '';
+                  }
+                }}
+                className="h-12 px-6 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2"
+               >
+                 <PlusCircle className="w-4 h-4" />
+                 Register
+               </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-8 relative z-10">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              <AnimatePresence>
+                {masterAccounts.map((acc, i) => {
+                  const isSystem = acc.is_system;
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      key={acc.id}
+                      className="group flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${acc.type === 'debt' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                        <span className="text-[10px] font-black uppercase tracking-tight text-slate-700 truncate">{acc.name}</span>
+                      </div>
+                      
+                      {!isSystem ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => deleteAccountFromMaster(acc.id)}
                           className="w-6 h-6 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
                         >
                           <X className="w-3 h-3" />
