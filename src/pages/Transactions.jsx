@@ -406,7 +406,7 @@ function TransactionsContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [monthKey, selectedDate, getProductionLedger, getDatabaseTable]);
+  }, [monthKey, selectedDate, getProductionLedger, getNormalizedLedger, getDatabaseTable]);
 
   useEffect(() => {
     fetchData();

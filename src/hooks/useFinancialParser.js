@@ -60,7 +60,8 @@ export const useFinancialParser = () => {
 
     if (rule.logic === 'AND') return results.every(r => r === true);
     return results.some(r => r === true);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classificationRules]);
 
   const getClassificationRules = useCallback(async () => {
     const rules = await base44.user.loadData('wl_classification_rules');
