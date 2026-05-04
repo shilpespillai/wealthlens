@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { base44, invokeUniversalAI } from '@/api/base44Client';
 
+import { INITIAL_TESTIMONIALS } from './TestimonialsPage';
+
 export default function AdminSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -39,10 +41,21 @@ export default function AdminSettings() {
 
   const fetchTestimonials = async () => {
     try {
-      const data = await base44.user.loadData('wl_public_testimonials') || [];
-      setTestimonials(data);
+      const stored = await base44.user.loadData('wl_public_testimonials') || [];
+      
+      // Merge initial ones with stored ones
+      const merged = [...stored];
+      INITIAL_TESTIMONIALS.forEach(initial => {
+        if (!merged.find(m => m.id === initial.id)) {
+          merged.push(initial);
+        }
+      });
+      
+      setTestimonials(merged);
     } catch (error) {
       console.error('Failed to fetch testimonials:', error);
+      // Fallback to initial if DB fails
+      setTestimonials(INITIAL_TESTIMONIALS);
     }
   };
 

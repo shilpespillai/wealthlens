@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
-const INITIAL_TESTIMONIALS = [
+export const INITIAL_TESTIMONIALS = [
   {
     id: "sarah-m",
     name: "Sarah M.",
