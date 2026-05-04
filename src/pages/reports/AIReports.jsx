@@ -13,7 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, subMonths, startOfMonth } from 'date-fns';
 import { resolveCanonicalCategory } from '@/utils/constants';
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
@@ -62,6 +62,7 @@ export default function AIReports() {
   const [selectedPrompt, setSelectedPrompt] = useState(PROMPT_TEMPLATES[0].id);
   const [customQuery, setCustomQuery] = useState('');
   const [reportMarkdown, setReportMarkdown] = useState('');
+  const [historicalContext, setHistoricalContext] = useState([]);
   const reportRef = useRef(null);
 
   const monthKey = useMemo(() => {
@@ -76,17 +77,44 @@ export default function AIReports() {
       setIsLoading(true);
       try {
         const allBudgets = await getDatabaseTable("budgets");
-        const saved = (allBudgets || []).find(b => b.month === monthKey);
-        const ledger = await getProductionLedger({ month: monthKey });
         const accounts = await getDatabaseTable("user_accounts");
         setDbAccounts(accounts || []);
-        
+
+        // 1. Fetch Primary Month
+        const saved = (allBudgets || []).find(b => b.month === monthKey);
+        const ledger = await getProductionLedger({ month: monthKey });
         const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger, accounts || []);
         
         setTransactions(ledger);
         setIncomes(normIncs);
         setExpenses(normExps);
         if (saved?.currency) setCurrency(saved.currency);
+
+        // 2. Fetch Historical Context (Last 2 months)
+        const context = [];
+        for (let i = 1; i <= 2; i++) {
+          const d = subMonths(startOfMonth(selectedDate), i);
+          const mk = format(d, 'yyyy-MM');
+          const hLedger = await getProductionLedger({ month: mk });
+          const hBudget = (allBudgets || []).find(b => b.month === mk);
+          
+          if (hLedger.length > 0) {
+            const { incomes: hIncs, expenses: hExps } = normalizeTransactionData(hBudget, d, hLedger, accounts || []);
+            const hMetrics = calculateMetrics(hIncs, hExps, accounts || []);
+            context.push({
+              month: mk,
+              summary: {
+                income: hMetrics.totalIncomes,
+                expenses: hMetrics.totalExpenses,
+                surplus: hMetrics.surplus,
+                expenseCount: hExps.length
+              },
+              topExpenses: hExps.sort((a,b) => b.amount - a.amount).slice(0, 5).map(e => ({ cat: e.category || e.name, amt: e.amount }))
+            });
+          }
+        }
+        setHistoricalContext(context);
+
       } catch (err) {
         console.error("AI Report initialization failed:", err);
       } finally {
@@ -94,7 +122,7 @@ export default function AIReports() {
       }
     }
     initData();
-  }, [monthKey, selectedDate, isPaidUser]);
+  }, [monthKey, selectedDate, isPaidUser, getDatabaseTable, getProductionLedger, normalizeTransactionData, calculateMetrics]);
 
   const changeMonth = (offset) => {
     const next = new Date(selectedDate);
@@ -119,6 +147,7 @@ export default function AIReports() {
       
       const payload = {
         metrics,
+        historicalContext,
         expenses: expenses.map(e => ({ cat: e.category || e.name, amt: e.amount, count: e.count })),
         topTransactions: transactions
           .filter(t => {
