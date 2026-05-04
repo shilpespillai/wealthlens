@@ -239,33 +239,37 @@ export default function Sidebar() {
         <div className="pt-8">
           <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Intelligence</p>
           <div className="space-y-1">
-              <Link 
-                 to="/PrivacyProtocol"
-                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
-              >
-                 <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
-              </Link>
+              {!isAdmin && (
+                <>
+                  <Link 
+                     to="/PrivacyProtocol"
+                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+                  >
+                     <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
+                  </Link>
 
-              <Link 
-                 to="/HelpCenter"
-                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
-              >
-                 <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
-              </Link>
+                  <Link 
+                     to="/HelpCenter"
+                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+                  >
+                     <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
+                  </Link>
 
-              <Link 
-                 to="/DataMaintenance"
-                 className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
-              >
-                 <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
-              </Link>
+                  <Link 
+                     to="/DataMaintenance"
+                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
+                  >
+                     <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
+                  </Link>
+                </>
+              )}
 
               <div 
                  onClick={() => {
-                    if (isPaidUser) {
+                    if (isPaidUser || isAdmin) {
                       setIntelOpen(true);
                     } else {
                       toast.error("Pro Feature", {
@@ -277,16 +281,18 @@ export default function Sidebar() {
               >
                  <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
                  <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
-                 {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
+                 {!isPaidUser && !isAdmin && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
               </div>
 
-              <div 
-                 onClick={() => setSupportOpen(true)}
-                 className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
-              >
-                 <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
-              </div>
+              {!isAdmin && (
+                <div 
+                   onClick={() => setSupportOpen(true)}
+                   className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
+                >
+                   <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
+                   <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
+                </div>
+              )}
              
              {isAdmin && (
                 <Link 
