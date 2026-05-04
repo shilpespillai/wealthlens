@@ -270,9 +270,12 @@ export function DashboardContent() {
     if (cashTotal > 0) groups['Cash & Savings'] = cashTotal;
 
     // 2. Liabilities & Debt (Latest Truth)
-    const debtTotal = periodAccounts
+    const { totalMortgage } = getPortfolioMetrics(liveData.portfolio || []);
+    const consumerDebt = periodAccounts
       .filter(acc => acc.type === 'debt' || (!acc.type && Number(acc.base_balance || 0) < 0))
       .reduce((sum, acc) => sum + Math.abs(Number(acc.base_balance || 0)), 0);
+    
+    const debtTotal = consumerDebt + totalMortgage;
     if (debtTotal > 0) groups['Liabilities'] = -debtTotal;
 
     // 3. Portfolio assets — Fixed to TODAY'S snapshot for Treasury stability
@@ -482,10 +485,11 @@ export function DashboardContent() {
     const latestPortfolio = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
     const totalInvested = latestPortfolio.reduce((sum, p) => sum + (Number(p.current_value) || 0), 0);
       
+    const { totalMortgage: pMortgage } = getPortfolioMetrics(liveData.portfolio || []);
     const netWorth = latestAccounts.reduce((sum, a) => {
       const val = Math.abs(Number(a.base_balance || a.balance || 0));
       return a.type === 'debt' ? sum - val : sum + val;
-    }, 0) + totalInvested;
+    }, 0) + totalInvested - pMortgage;
 
     const totalMonthlyTarget = (horizonBudgets.length > 0) 
       ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
