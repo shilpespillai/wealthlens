@@ -72,6 +72,25 @@ export default function AIReports() {
     return `${y}-${m}`;
   }, [selectedDate]);
 
+  // 1. Auto-discover latest month on mount
+  useEffect(() => {
+    async function discover() {
+      if (!isPaidUser) return;
+      try {
+        const allBudgets = await getDatabaseTable("budgets");
+        if (allBudgets && allBudgets.length > 0) {
+          const sorted = [...allBudgets].sort((a,b) => b.month.localeCompare(a.month));
+          const latest = sorted[0].month;
+          const [y, m] = latest.split('-').map(Number);
+          setSelectedDate(new Date(y, m - 1, 1));
+        }
+      } catch (e) {
+        console.error("Month discovery failed", e);
+      }
+    }
+    discover();
+  }, [isPaidUser, getDatabaseTable]);
+
   useEffect(() => {
     async function initData() {
       if (!isPaidUser) return;
@@ -124,13 +143,6 @@ export default function AIReports() {
     }
     initData();
   }, [monthKey, selectedDate, isPaidUser, getDatabaseTable, getProductionLedger, normalizeTransactionData, calculateMetrics]);
-
-  const changeMonth = (offset) => {
-    const next = new Date(selectedDate);
-    next.setMonth(next.getMonth() + offset);
-    setSelectedDate(next);
-    setReportMarkdown(''); 
-  };
 
   const handleGenerateReport = async () => {
     if (!isPaidUser) return;
@@ -315,15 +327,14 @@ export default function AIReports() {
             </p>
           </div>
           
-          <div className="flex items-center gap-6 bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-sm">
-            <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-amber-600 transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-[270deg]" /></button>
-            <div className="text-center min-w-[120px]">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest opacity-80">Analysis Period</p>
-              <span className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                {format(selectedDate, 'MMM yyyy')}
+          <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+            <TrendingUp className="w-4 h-4 text-amber-600" />
+            <div className="text-left">
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest opacity-80">Latest Analysis Period</p>
+              <span className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                {format(selectedDate, 'MMMM yyyy')}
               </span>
             </div>
-            <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-amber-600 transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-90" /></button>
           </div>
         </div>
       </div>
