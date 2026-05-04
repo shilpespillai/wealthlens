@@ -125,6 +125,8 @@ export default function TestimonialsPage() {
   const [newQuote, setNewQuote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Load persisted testimonials on mount
   React.useEffect(() => {
@@ -139,7 +141,6 @@ export default function TestimonialsPage() {
               merged.push(initial);
             }
           });
-          // Sort by date or "isNew"
           setTestimonials(merged);
         }
       } catch (err) {
@@ -197,11 +198,19 @@ export default function TestimonialsPage() {
       setShowSuccess(true);
       
       setTimeout(() => setShowSuccess(false), 5000);
+      setCurrentPage(1); // Go to first page to see the new transmission
     } catch (err) {
       console.error("Failed to save testimony:", err);
       setIsSubmitting(false);
     }
   };
+
+  // Pagination Logic
+  const totalPages = Math.ceil(testimonials.length / itemsPerPage);
+  const currentItems = testimonials.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-indigo-100">
@@ -292,6 +301,16 @@ export default function TestimonialsPage() {
                 >
                   {isSubmitting ? "Transmitting..." : "Broadcast"}
                 </Button>
+
+                {showSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 text-[7px] font-black text-emerald-400 uppercase tracking-widest text-center"
+                  >
+                    Successfully broadcasted.
+                  </motion.div>
+                )}
               </form>
             </div>
           </div>
@@ -300,7 +319,7 @@ export default function TestimonialsPage() {
           <div className="lg:col-span-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AnimatePresence mode="popLayout">
-                {testimonials.map((t, idx) => (
+                {currentItems.map((t, idx) => (
                   <motion.div
                     key={t.id}
                     id={t.id}
@@ -346,6 +365,54 @@ export default function TestimonialsPage() {
                 ))}
               </AnimatePresence>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex items-center justify-center gap-3">
+                <Button 
+                  variant="outline" 
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage(prev => prev - 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="h-9 px-4 rounded-xl border-slate-100 text-[8px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all disabled:opacity-30"
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setCurrentPage(i + 1);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-9 h-9 rounded-xl text-[9px] font-black transition-all ${
+                        currentPage === i + 1 
+                        ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
+                        : "bg-white text-slate-400 border border-slate-100 hover:border-slate-900 hover:text-slate-900"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage(prev => prev + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="h-9 px-4 rounded-xl border-slate-100 text-[8px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all disabled:opacity-30"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
 
             <div className="mt-16 text-center opacity-30">
                <ShieldCheck className="w-6 h-6 text-slate-200 mx-auto mb-2" />
