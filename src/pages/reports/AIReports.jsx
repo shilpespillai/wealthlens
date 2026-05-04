@@ -22,25 +22,25 @@ const PROMPT_TEMPLATES = [
     id: 'lifestyle_audit',
     name: 'The Lifestyle Audit',
     description: 'Analyzes discretionary spending to detect lifestyle creep and inflation.',
-    systemText: 'Analyze the provided financial data to identify patterns of discretionary spending. Highlight areas where spending is increasing month-over-month. Generate a professional markdown report with clear headers and analysis.'
+    systemText: 'Analyze the provided financial data to identify patterns of discretionary spending. Highlight areas where spending is increasing month-over-month. MANDATORY: Present all data comparisons, spending breakdowns, and findings in clean Markdown Tables. Minimize conversational text. Focus on data-driven tabular analysis.'
   },
   {
     id: 'subscription_hunter',
     name: 'Subscription Leakage Hunter',
     description: 'Finds recurring payments and calculates long-term compounding loss.',
-    systemText: 'Act as a professional financial analyst. Identify recurring subscriptions or recurring fees in the provided data. Calculate the 10-year potential savings if the bottom 30% of these were redirected to a savings account. Output a detailed markdown report.'
+    systemText: 'Act as a professional financial analyst. Identify recurring subscriptions or recurring fees. MANDATORY: Provide the identification results, frequency analysis, and 10-year projection in Markdown Tables. Avoid long paragraphs. Use concise tabular formats.'
   },
   {
     id: 'stress_test',
     name: '50/30/20 Stress Test',
     description: 'Diagnoses exact transactions causing breaches in the 50/30/20 rule.',
-    systemText: 'Analyze the provided data against the 50/30/20 budgeting framework. Identify the key categories contributing to any budget overages. Generate a formal financial markdown report with suggested adjustments.'
+    systemText: 'Analyze the data against the 50/30/20 framework. MANDATORY: Present the budget breakdown (Target vs Actual) and the list of breach transactions in Markdown Tables. Summarize insights in a bulleted or tabular format. No verbose paragraphs.'
   },
   {
     id: 'custom',
     name: 'Custom Deep Dive',
     description: 'Ask any specific question against your ledger data.',
-    systemText: 'Analyze the provided ledger data to answer the user\'s specific question. Provide a detailed, data-driven markdown report.'
+    systemText: 'Analyze the provided ledger data to answer the user\'s specific question. MANDATORY: Structure your response primarily with Markdown Tables. Use text only for brief executive summaries.'
   }
 ];
 
@@ -412,53 +412,6 @@ export default function AIReports() {
                 {reportMarkdown ? (
                   <div ref={reportRef} className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     
-                    {/* Automated Visual Intelligence Header */}
-                    <div className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-[#C5A059]/5 rounded-full -mr-16 -mt-16 blur-2xl" />
-                       <div className="flex items-center gap-4 mb-10">
-                          <div className="w-12 h-12 rounded-2xl bg-[#C5A059]/10 flex items-center justify-center">
-                             <PieChart className="w-6 h-6 text-[#C5A059]" />
-                          </div>
-                          <div>
-                             <h2 className="text-2xl font-black text-slate-800 tracking-tight">{visualTitle}</h2>
-                             <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-[0.3em]">Automated Graphical Audit</p>
-                          </div>
-                       </div>
-
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                          <div className="space-y-6">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center border-b border-slate-50 pb-2">{radarLabel}</p>
-                             <div className="h-64 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={dynamicRadarData}>
-                                    <PolarGrid stroke="#E2E8F0" />
-                                    <PolarAngleAxis dataKey="subject" tick={{fontSize: 9, fontWeight: 900, fill: '#64748B'}} />
-                                    <Radar name="Budget" dataKey="A" stroke="#C5A059" fill="#C5A059" fillOpacity={0.5} />
-                                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontWeight: 800, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                  </RadarChart>
-                                </ResponsiveContainer>
-                             </div>
-                          </div>
-                          <div className="space-y-6">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center border-b border-slate-50 pb-2">{barLabel}</p>
-                             <div className="h-64 w-full flex items-center">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={dynamicBarData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
-                                    <XAxis dataKey="name" hide />
-                                    <YAxis hide />
-                                    <Tooltip cursor={{fill: 'transparent'}} formatter={(value) => `${sym}${value.toLocaleString()}`} contentStyle={{ borderRadius: '16px', border: 'none', fontWeight: 800, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                    <Bar dataKey="value" radius={[12, 12, 12, 12]} barSize={32}>
-                                      {dynamicBarData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                      ))}
-                                    </Bar>
-                                  </BarChart>
-                                </ResponsiveContainer>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
                     {/* AI Narrative Section */}
                     <div className="prose prose-slate max-w-none 
                         prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-[#1E293B]
@@ -468,6 +421,9 @@ export default function AIReports() {
                         prose-p:text-slate-600 prose-p:leading-relaxed prose-p:font-medium prose-p:text-base
                         prose-strong:text-[#1E293B] prose-strong:font-black
                         prose-ul:my-8 prose-li:text-slate-600 prose-li:font-medium
+                        prose-table:border-2 prose-table:border-slate-100 prose-table:rounded-3xl prose-table:overflow-hidden
+                        prose-thead:bg-slate-50 prose-th:px-6 prose-th:py-4 prose-th:text-[10px] prose-th:uppercase prose-th:tracking-widest prose-th:text-slate-500
+                        prose-td:px-6 prose-td:py-4 prose-td:border-t prose-td:border-slate-50 prose-td:text-sm prose-td:font-bold
                         prose-blockquote:border-l-8 prose-blockquote:border-[#C5A059] prose-blockquote:bg-[#F8FAFC] prose-blockquote:py-6 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:font-bold prose-blockquote:text-slate-700 prose-blockquote:italic
                         pb-20"
                     >
