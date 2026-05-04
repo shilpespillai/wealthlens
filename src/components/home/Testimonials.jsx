@@ -139,19 +139,21 @@ export default function Testimonials() {
             <CarouselContent className="-ml-4">
               {TESTIMONIALS.map((t, idx) => (
                 <CarouselItem key={idx} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                  <div className="bg-white rounded-[2rem] p-8 border border-gray-100 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 h-full flex flex-col group">
-                    <StarRating count={t.stars} />
-                    <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-8 italic">"{t.quote}"</p>
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg`}>
-                        {t.avatar}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{t.name}</p>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</p>
+                  <a href="/testimonials" className="block h-full group">
+                    <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-[#C5A059]/30 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 h-full flex flex-col group">
+                      <StarRating count={t.stars} />
+                      <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-8 italic">"{t.quote}"</p>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}>
+                          {t.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{t.name}</p>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </a>
                 </CarouselItem>
               ))}
             </CarouselContent>
