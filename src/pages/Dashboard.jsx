@@ -1676,7 +1676,7 @@ export function DashboardContent() {
           </div>
         );
 
-      case "budgets_short":
+      case "consumption_targets":
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="h-1 bg-indigo-600 w-full" />

@@ -560,7 +560,7 @@ export default function HelpCenter() {
                 </div>
              </div>
           </section>
-on>
+
 
           <section id="neural-bridge" className="mb-40 space-y-16 scroll-mt-32">
              <div className="flex items-center gap-4">
