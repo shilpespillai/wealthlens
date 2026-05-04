@@ -76,7 +76,8 @@ function PortfolioContent() {
               label: d.label || "",
               asset: d.asset_class,
               currentValue: Number(d.current_value),
-              invested: Number(d.invested_amount)
+              invested: Number(d.invested_amount),
+              mortgage: Number(d.mortgage_amount || 0)
             }));
 
           setHoldings(mapped);
@@ -156,7 +157,8 @@ function PortfolioContent() {
             label: h.label,
             asset_class: h.asset,
             current_value: h.currentValue,
-            invested_amount: h.invested
+            invested_amount: h.invested,
+            mortgage_amount: h.mortgage
           }))
         };
 
@@ -198,7 +200,7 @@ function PortfolioContent() {
   };
 
   const addHolding = () => {
-    setHoldings([...holdings, { id: nextId, asset: "stocks", currentValue: 0, invested: 0, label: "" }]);
+    setHoldings([...holdings, { id: nextId, asset: "stocks", currentValue: 0, invested: 0, mortgage: 0, label: "" }]);
     setNextId(nextId + 1);
   };
 
@@ -215,25 +217,32 @@ function PortfolioContent() {
   };
 
   const metrics = useMemo(() => {
-    const totalValue = holdings.reduce((s, h) => {
+    const totalGrossValue = holdings.reduce((s, h) => {
       const val = Number(h.currentValue || 0);
       return h.asset === 'liability' ? s - val : s + val;
     }, 0);
+
+    const totalMortgage = holdings.reduce((s, h) => {
+      return s + (Number(h.mortgage || 0));
+    }, 0);
+
+    const totalValue = totalGrossValue - totalMortgage;
 
     const totalInvested = holdings.reduce((s, h) => {
       const val = Number(h.invested || 0);
       return h.asset === 'liability' ? s - val : s + val;
     }, 0);
 
-    const totalGain = totalValue - totalInvested;
+    const totalGain = totalGrossValue - totalInvested;
     const totalReturnPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
-    // Pie chart data — group by asset class (Assets Only)
+    // Pie chart data — group by asset class (Net Equity Only)
     const grouped = {};
     holdings.forEach((h) => {
-      if (h.asset === 'liability') return; // Don't show debt in allocation pie
+      if (h.asset === 'liability') return; 
       if (!grouped[h.asset]) grouped[h.asset] = 0;
-      grouped[h.asset] += Number(h.currentValue || 0);
+      const netHValue = Number(h.currentValue || 0) - Number(h.mortgage || 0);
+      grouped[h.asset] += netHValue;
     });
     const pieData = Object.entries(grouped).map(([asset, value]) => {
       const cls = ASSET_CLASSES.find((a) => a.id === asset);
@@ -242,7 +251,7 @@ function PortfolioContent() {
  
     // Bar chart data — per holding
     const barData = holdings
-      .filter((h) => h.currentValue > 0 || h.invested > 0 || h.asset === 'liability')
+      .filter((h) => h.currentValue > 0 || h.invested > 0 || h.asset === 'liability' || h.mortgage > 0)
       .map((h) => {
         const cls = ASSET_CLASSES.find((a) => a.id === h.asset);
         const isLiability = h.asset === 'liability';
@@ -250,6 +259,8 @@ function PortfolioContent() {
           name: h.label || cls?.label,
           invested: isLiability ? -Number(h.invested || 0) : Number(h.invested || 0),
           value: isLiability ? -Number(h.currentValue || 0) : Number(h.currentValue || 0),
+          mortgage: Number(h.mortgage || 0),
+          equity: Number(h.currentValue || 0) - Number(h.mortgage || 0),
           gain: (Number(h.currentValue || 0) - Number(h.invested || 0)) * (isLiability ? -1 : 1),
         };
       });
@@ -257,15 +268,17 @@ function PortfolioContent() {
     // Per-class summary
     const classSummary = ASSET_CLASSES.map((cls) => {
       const clsHoldings = holdings.filter((h) => h.asset === cls.id);
-      const value = clsHoldings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
+      const grossValue = clsHoldings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
+      const mortgage = clsHoldings.reduce((s, h) => s + Number(h.mortgage || 0), 0);
+      const value = grossValue - mortgage;
       const invested = clsHoldings.reduce((s, h) => s + Number(h.invested || 0), 0);
-      const gain = value - invested;
+      const gain = grossValue - invested;
       const returnPct = invested > 0 ? (gain / invested) * 100 : 0;
       const allocation = totalValue > 0 ? (value / totalValue) * 100 : 0;
-      return { ...cls, value, invested, gain, returnPct, allocation, count: clsHoldings.length };
-    }).filter((c) => c.value > 0 || c.invested > 0);
+      return { ...cls, value, grossValue, mortgage, invested, gain, returnPct, allocation, count: clsHoldings.length };
+    }).filter((c) => c.grossValue > 0 || c.invested > 0);
 
-    return { totalValue, totalInvested, totalGain, totalReturnPct, pieData, barData, classSummary };
+    return { totalValue, totalGrossValue, totalMortgage, totalInvested, totalGain, totalReturnPct, pieData, barData, classSummary };
   }, [holdings]);
 
   if (!userLoaded) {
@@ -358,20 +371,20 @@ function PortfolioContent() {
           <div className="bg-slate-50/50 text-slate-900 py-4 px-6 relative z-0">
             <div className="max-w-full mx-auto flex items-center justify-between">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalValue)}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL PORTFOLIO VALUE</p>
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalGrossValue)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL ASSETS</p>
               </div>
               <div className="text-center border-l border-slate-200 w-full px-2">
-                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalInvested)}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL INVESTED</p>
+                <p className="text-[17px] font-black tracking-tight text-rose-600">{fmt(metrics.totalMortgage)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL SECURED DEBT</p>
               </div>
               <div className="text-center border-l border-slate-200 w-full px-2">
-                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalGain)}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL GAIN / LOSS</p>
+                <p className="text-[17px] font-black tracking-tight text-emerald-600">{fmt(metrics.totalValue)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">NET EQUITY VALUE</p>
               </div>
               <div className="text-center border-l border-slate-200 w-full px-2">
                 <p className="text-[17px] font-black tracking-tight text-slate-900">{pct(metrics.totalReturnPct)}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">OVERALL RETURN</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">PORTFOLIO YIELD</p>
               </div>
             </div>
           </div>
@@ -442,8 +455,8 @@ function PortfolioContent() {
                       contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 10, paddingTop: '20px', color: '#94a3b8' }} />
-                    <Bar dataKey="invested" name="Invested Capital" fill="rgba(0,0,0,0.05)" radius={[4, 4, 0, 0]} barSize={12} />
-                    <Bar dataKey="value" name="Current Value" fill="#C5A059" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="equity" name="Net Equity" fill="#C5A059" radius={[0, 0, 0, 0]} stackId="a" barSize={16} />
+                    <Bar dataKey="mortgage" name="Mortgage Debt" fill="#EF4444" radius={[4, 4, 0, 0]} stackId="a" barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -464,9 +477,9 @@ function PortfolioContent() {
                 <thead>
                   <tr className="text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-100">
                     <th className="text-left pb-4 font-medium">Asset Class</th>
-                    <th className="text-right pb-4 font-medium">Invested</th>
-                    <th className="text-right pb-4 font-medium">Current Value</th>
-                    <th className="text-right pb-4 font-medium">Gain / Loss</th>
+                    <th className="text-right pb-4 font-medium">Market Value</th>
+                    <th className="text-right pb-4 font-medium">Mortgage</th>
+                    <th className="text-right pb-4 font-medium">Net Equity</th>
                     <th className="text-right pb-4 font-medium">Return</th>
                     <th className="text-right pb-4 font-medium">Allocation</th>
                   </tr>
@@ -481,11 +494,9 @@ function PortfolioContent() {
                           <span className="text-[10px] text-slate-400 font-medium">({cls.count})</span>
                         </div>
                       </td>
-                      <td className="py-3 text-right text-slate-500 font-medium">{fmt(cls.invested)}</td>
+                      <td className="py-3 text-right text-slate-500 font-medium">{fmt(cls.grossValue)}</td>
+                      <td className="py-3 text-right text-rose-500 font-medium">-{fmt(cls.mortgage)}</td>
                       <td className="py-3 text-right font-medium text-slate-900">{fmt(cls.value)}</td>
-                      <td className={`py-3 text-right font-medium ${cls.gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                        {cls.gain >= 0 ? "+" : ""}{fmt(cls.gain)}
-                      </td>
                       <td className={`py-3 text-right font-medium ${cls.returnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {cls.returnPct >= 0 ? "+" : ""}{pct(cls.returnPct)}
                       </td>
@@ -522,17 +533,17 @@ function PortfolioContent() {
               const returnPct = h.invested > 0 ? (gain / h.invested) * 100 : 0;
               return (
                 <div key={h.id} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="col-span-12 sm:col-span-3">
+                  <div className="col-span-12 sm:col-span-2">
                     <Input
-                      placeholder="Label (e.g. US Stocks)"
+                      placeholder="Label"
                       value={h.label}
                       onChange={(e) => updateHolding(h.id, "label", e.target.value)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
                     <Select value={h.asset} onValueChange={(v) => updateHolding(h.id, "asset", v)}>
-                      <SelectTrigger className="h-9 text-sm bg-white">
+                      <SelectTrigger className="h-9 text-[11px] bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -545,26 +556,32 @@ function PortfolioContent() {
                   <div className="col-span-6 sm:col-span-2">
                     <Input
                       type="number"
-                      placeholder={`Invested (${sym})`}
+                      placeholder={`Invested`}
                       value={h.invested || ""}
                       onChange={(e) => updateHolding(h.id, "invested", parseFloat(e.target.value) || 0)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
                     <Input
                       type="number"
-                      placeholder={`Current Value (${sym})`}
+                      placeholder={`Market Value`}
                       value={h.currentValue || ""}
                       onChange={(e) => updateHolding(h.id, "currentValue", parseFloat(e.target.value) || 0)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white border-emerald-100"
                     />
                   </div>
-                  <div className="col-span-5 sm:col-span-2 text-right">
-                    <span className={`text-sm font-medium ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {gain >= 0 ? "+" : ""}{pct(returnPct)}
-                    </span>
-                    <p className={`text-xs ${gain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                  <div className="col-span-6 sm:col-span-2">
+                    <Input
+                      type="number"
+                      placeholder={`Mortgage / Debt`}
+                      value={h.mortgage || ""}
+                      onChange={(e) => updateHolding(h.id, "mortgage", parseFloat(e.target.value) || 0)}
+                      className="h-9 text-[11px] bg-white border-rose-100"
+                    />
+                  </div>
+                  <div className="col-span-5 sm:col-span-1 text-right">
+                    <p className={`text-[11px] font-bold ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {gain >= 0 ? "+" : ""}{fmt(gain)}
                     </p>
                   </div>

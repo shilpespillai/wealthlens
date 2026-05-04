@@ -88,7 +88,8 @@ export default function NetWorthReport() {
           name: s.label || s.name,
           category: s.asset_class === 'property' ? 'Property' : 'Investments',
           type: 'asset',
-          value: Number(s.current_value)
+          value: Number(s.current_value),
+          mortgage: Number(s.mortgage_amount || 0)
         }));
         merged = [...merged, ...converted];
       }
@@ -154,15 +155,19 @@ export default function NetWorthReport() {
         const baseVal = Number(a.value || a.base_balance || 0);
         return { ...a, value: baseVal + cumulativeSurplus };
       }
-      return { ...a, value: Number(a.value || a.base_balance || 0) };
+      return { ...a, value: Number(a.value || a.base_balance || 0), mortgage: Number(a.mortgage || 0) };
     });
   }, [accounts, cumulativeSurplus]);
+
+  const portfolioMortgages = useMemo(() => {
+    return temporalAccounts.reduce((sum, a) => sum + (Number(a.mortgage) || 0), 0);
+  }, [temporalAccounts]);
 
   const assets = temporalAccounts.filter(a => a.type === 'asset');
   const debts = temporalAccounts.filter(a => a.type === 'debt');
   
   const totalAssets = assets.reduce((s, a) => s + Math.abs(a.value || 0), 0);
-  const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0);
+  const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0) + portfolioMortgages;
   const netWorth = totalAssets - totalDebts;
 
   const handleExportPDF = async () => {
@@ -439,6 +444,23 @@ export default function NetWorthReport() {
                         </div>
                       </div>
                    ))}
+
+                   {portfolioMortgages > 0 && (
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg group transition-all">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-[#C5A059]">
+                                 <Building2 className="w-5 h-5" />
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-xs font-medium text-white">Portfolio Mortgages</span>
+                                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Secured Debt</span>
+                              </div>
+                           </div>
+                           <span className="text-sm font-medium text-white">({formatCurrency(portfolioMortgages)})</span>
+                        </div>
+                      </div>
+                   )}
 
                    <Dialog open={addMode === 'debt'} onOpenChange={(val) => setAddMode(val ? 'debt' : null)}>
                       <DialogTrigger asChild>

@@ -51,7 +51,10 @@ export const calculatePortfolioHoldings = (rows = [], endDate = new Date()) => {
 export const getPortfolioMetrics = (holdings = []) => {
   const totalValue = holdings.reduce((sum, h) => sum + (Number(h.current_value) || 0), 0);
   const totalInvested = holdings.reduce((sum, h) => sum + (Number(h.invested_amount) || 0), 0);
+  const totalMortgage = holdings.reduce((sum, h) => sum + (Number(h.mortgage_amount) || 0), 0);
+  
   const totalGain = totalValue - totalInvested;
+  const netValue = totalValue - totalMortgage;
   const returnPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
   // Group by asset class
@@ -65,7 +68,9 @@ export const getPortfolioMetrics = (holdings = []) => {
   return {
     totalValue,
     totalInvested,
+    totalMortgage,
     totalGain,
+    netValue,
     returnPct,
     classGroups,
     count: holdings.length
