@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Star, ArrowLeft, MessageCircle, ShieldCheck, Heart, Send, Sparkles, User, BadgeCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
 
 const INITIAL_TESTIMONIALS = [
   {
@@ -125,8 +126,28 @@ export default function TestimonialsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Scroll to hash on load
+  // Load persisted testimonials on mount
   React.useEffect(() => {
+    const loadTestimonials = async () => {
+      try {
+        const stored = await base44.user.loadData('wl_public_testimonials');
+        if (stored && Array.isArray(stored)) {
+          // Merge stored ones with initial ones, deduplicating by ID
+          const merged = [...stored];
+          INITIAL_TESTIMONIALS.forEach(initial => {
+            if (!merged.find(m => m.id === initial.id)) {
+              merged.push(initial);
+            }
+          });
+          // Sort by date or "isNew"
+          setTestimonials(merged);
+        }
+      } catch (err) {
+        console.error("Failed to load testimonials:", err);
+      }
+    };
+    loadTestimonials();
+
     const hash = window.location.hash;
     if (hash) {
       setTimeout(() => {
@@ -142,28 +163,33 @@ export default function TestimonialsPage() {
     }
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newName || !newQuote) return;
     
     setIsSubmitting(true);
     
-    // Simulate API delay
-    setTimeout(() => {
-      const newEntry = {
-        id: Date.now().toString(),
-        name: newName,
-        role: newRole || "Verified Investor",
-        avatar: newName.charAt(0).toUpperCase(),
-        avatarColor: "from-indigo-600 to-violet-600",
-        quote: newQuote,
-        stars: 5,
-        reply: "Thank you for sharing your experience with the community! Our team has received your testimony and we're honored to be part of your financial journey.",
-        date: "Just Now",
-        isNew: true
-      };
+    const newEntry = {
+      id: `user_${Date.now()}`,
+      name: newName,
+      role: newRole || "Verified Investor",
+      avatar: newName.charAt(0).toUpperCase(),
+      avatarColor: "from-indigo-600 to-violet-600",
+      quote: newQuote,
+      stars: 5,
+      reply: "Thank you for sharing your experience with the community! Our team has received your testimony and we're honored to be part of your financial journey.",
+      date: "Just Now",
+      isNew: true
+    };
+    
+    const updatedList = [newEntry, ...testimonials];
+    setTestimonials(updatedList);
+    
+    try {
+      // Save to base44 for persistence
+      const userTestimonials = updatedList.filter(t => t.id.startsWith('user_'));
+      await base44.user.saveData('wl_public_testimonials', userTestimonials);
       
-      setTestimonials([newEntry, ...testimonials]);
       setNewName("");
       setNewRole("");
       setNewQuote("");
@@ -171,7 +197,10 @@ export default function TestimonialsPage() {
       setShowSuccess(true);
       
       setTimeout(() => setShowSuccess(false), 5000);
-    }, 1200);
+    } catch (err) {
+      console.error("Failed to save testimony:", err);
+      setIsSubmitting(false);
+    }
   };
 
   return (
