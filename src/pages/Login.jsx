@@ -13,6 +13,7 @@ export default function Login() {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [honeypot, setHoneypot] = useState(""); // Bot protection (Honeypot)
 
   const getRedirectUrl = () => {
     const params = new URLSearchParams(window.location.search);
@@ -46,6 +47,7 @@ export default function Login() {
   // ── Email Sign In ──────────────────────────────────────────────────────────
   const handleSignIn = async (e) => {
     e.preventDefault();
+    if (honeypot) return; // Silent fail for bots
     if (!email || !password) return;
     setIsConnecting('signin');
     setError(null);
@@ -63,6 +65,7 @@ export default function Login() {
   // ── Email Sign Up ──────────────────────────────────────────────────────────
   const handleSignUp = async (e) => {
     e.preventDefault();
+    if (honeypot) return; // Silent fail for bots
     if (!email || !password) return;
     setIsConnecting('signup');
     setError(null);
@@ -170,6 +173,16 @@ export default function Login() {
               <input type="email" placeholder="Email address" value={email} required onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm"
               />
+              {/* Honeypot Field - Hidden from humans, visible to bots */}
+              <input 
+                type="text" 
+                name="user_website_auth_id" 
+                className="hidden" 
+                tabIndex="-1" 
+                autoComplete="off" 
+                value={honeypot} 
+                onChange={e => setHoneypot(e.target.value)} 
+              />
               <input type="password" placeholder="Password" value={password} required onChange={e => setPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm"
               />
@@ -190,6 +203,16 @@ export default function Login() {
               />
               <input type="email" placeholder="Email address" value={email} required onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm"
+              />
+              {/* Honeypot Field - Hidden from humans, visible to bots */}
+              <input 
+                type="text" 
+                name="user_website_auth_id" 
+                className="hidden" 
+                tabIndex="-1" 
+                autoComplete="off" 
+                value={honeypot} 
+                onChange={e => setHoneypot(e.target.value)} 
               />
               <input type="password" placeholder="Password (min 6 characters)" value={password} required minLength={6} onChange={e => setPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm"
