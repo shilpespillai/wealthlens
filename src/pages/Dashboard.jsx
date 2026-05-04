@@ -270,7 +270,8 @@ export function DashboardContent() {
     if (cashTotal > 0) groups['Cash & Savings'] = cashTotal;
 
     // 2. Liabilities & Debt (Latest Truth)
-    const { totalMortgage } = getPortfolioMetrics(liveData.portfolio || []);
+    const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
+    const { totalMortgage } = getPortfolioMetrics(latestHoldings);
     const consumerDebt = periodAccounts
       .filter(acc => acc.type === 'debt' || (!acc.type && Number(acc.base_balance || 0) < 0))
       .reduce((sum, acc) => sum + Math.abs(Number(acc.base_balance || 0)), 0);
@@ -481,11 +482,11 @@ export function DashboardContent() {
       .filter(a => a.type === 'asset' && Number(a.base_balance || 0) > 0)
       .reduce((sum, a) => sum + Number(a.base_balance || 0), 0);
     
-    // Total Invested (Latest Snapshot)
     const latestPortfolio = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
+    const { totalMortgage: pMortgage } = getPortfolioMetrics(latestPortfolio);
+    
+    // Total Invested (Latest Snapshot)
     const totalInvested = latestPortfolio.reduce((sum, p) => sum + (Number(p.current_value) || 0), 0);
-      
-    const { totalMortgage: pMortgage } = getPortfolioMetrics(liveData.portfolio || []);
     const netWorth = latestAccounts.reduce((sum, a) => {
       const val = Math.abs(Number(a.base_balance || a.balance || 0));
       return a.type === 'debt' ? sum - val : sum + val;
