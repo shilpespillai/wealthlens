@@ -79,6 +79,7 @@ import DevSeeder from './pages/DevSeeder';
 import AdminSettings from './pages/AdminSettings';
 import AdminDashboard from './pages/AdminDashboard';
 import DataMaintenance from './pages/DataMaintenance';
+import Testimonials from './pages/TestimonialsPage';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -114,6 +115,7 @@ export const PAGES = {
     "AdminSettings": AdminSettings,
     "AdminDashboard": AdminDashboard,
     "DataMaintenance": DataMaintenance,
+    "Testimonials": Testimonials,
 }
 
 export const pagesConfig = {
