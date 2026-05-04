@@ -10,6 +10,7 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
@@ -427,7 +428,7 @@ export default function AIReports() {
                         prose-blockquote:border-l-8 prose-blockquote:border-[#C5A059] prose-blockquote:bg-[#F8FAFC] prose-blockquote:py-6 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:font-bold prose-blockquote:text-slate-700 prose-blockquote:italic
                         pb-20"
                     >
-                      <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportMarkdown}</ReactMarkdown>
                     </div>
 
                   </div>
