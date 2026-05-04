@@ -306,6 +306,8 @@ export default function NetWorthReport() {
                         })}
                       </Pie>
                       <Tooltip 
+                        allowEscapeViewBox={{ x: true, y: true }}
+                        offset={20}
                         contentStyle={{ 
                           backgroundColor: 'rgba(255, 255, 255, 0.95)', 
                           border: '1px solid #F1F5F9', 

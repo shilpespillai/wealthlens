@@ -414,6 +414,8 @@ function PortfolioContent() {
                         {metrics.pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                       </Pie>
                       <Tooltip 
+                        allowEscapeViewBox={{ x: true, y: true }}
+                        offset={20}
                         formatter={(v) => fmt(v)}
                         contentStyle={{ 
                           borderRadius: '16px', 
@@ -458,6 +460,8 @@ function PortfolioContent() {
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       formatter={(v) => fmt(v)}
                       contentStyle={{ 
                         borderRadius: '16px', 

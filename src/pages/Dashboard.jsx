@@ -890,6 +890,8 @@ export function DashboardContent() {
                       ))}
                     </Pie>
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const theme = ASSET_THEMES[payload[0].name] || ASSET_THEMES['Other'];
@@ -1248,6 +1250,8 @@ export function DashboardContent() {
                       ))}
                     </Pie>
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
