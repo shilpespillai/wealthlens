@@ -306,17 +306,16 @@ export default function NetWorthReport() {
                         })}
                       </Pie>
                       <Tooltip 
-                        position={{ x: 10, y: -20 }}
                         contentStyle={{ 
                           backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                          border: '1px solid #E2E8F0', 
+                          border: '1px solid #F1F5F9', 
                           borderRadius: '16px', 
                           padding: '12px 16px',
                           color: '#0F172A', 
-                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
                           backdropFilter: 'blur(8px)'
                         }}
-                        itemStyle={{ fontSize: '11px', fontWeight: 'medium', color: '#334155' }}
+                        itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                         formatter={(value) => formatCurrency(value)}
                       />
                    </PieChart>

@@ -415,7 +415,14 @@ function PortfolioContent() {
                       </Pie>
                       <Tooltip 
                         formatter={(v) => fmt(v)}
-                        contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: '1px solid #F1F5F9', 
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
+                          backdropFilter: 'blur(8px)'
+                        }}
+                        itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -452,7 +459,14 @@ function PortfolioContent() {
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
                     <Tooltip 
                       formatter={(v) => fmt(v)}
-                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: '1px solid #F1F5F9', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
+                        backdropFilter: 'blur(8px)'
+                      }}
+                      itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 10, paddingTop: '20px', color: '#94a3b8' }} />
                     <Bar dataKey="equity" name="Net Equity" fill="#C5A059" radius={[0, 0, 0, 0]} stackId="a" barSize={16} />

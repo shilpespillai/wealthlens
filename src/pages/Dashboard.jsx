@@ -894,9 +894,9 @@ export function DashboardContent() {
                         if (active && payload && payload.length) {
                           const theme = ASSET_THEMES[payload[0].name] || ASSET_THEMES['Other'];
                           return (
-                            <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-xl shadow-2xl">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
-                              <p className={cn("text-xs font-black", theme.text.replace('text-', 'text-[#'))}>{formatAmount(payload[0].value)}</p>
+                            <div className="bg-white/95 backdrop-blur-md border border-slate-100 p-3 rounded-xl shadow-xl ring-1 ring-black/5">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
+                              <p className={cn("text-xs font-black", theme.text)}>{formatAmount(payload[0].value)}</p>
                             </div>
                           );
                         }
@@ -1251,9 +1251,9 @@ export function DashboardContent() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg shadow-xl">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
-                              <p className="text-sm font-black text-white">{formatAmount(payload[0].value)}</p>
+                            <div className="bg-white/95 backdrop-blur-md border border-slate-100 p-3 rounded-xl shadow-xl ring-1 ring-black/5">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
+                              <p className="text-sm font-black text-slate-900">{formatAmount(payload[0].value)}</p>
                             </div>
                           );
                         }
