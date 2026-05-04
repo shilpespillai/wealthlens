@@ -20,7 +20,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, isSameMonth, subMonths } from "date-fns";
@@ -204,56 +204,33 @@ export default function DigestReport() {
                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Financial Digest</h1>
             </div>
             <div className="flex items-center gap-3">
-               <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center bg-slate-50 rounded-xl border border-slate-100 px-5 py-2.5 text-[10px] text-slate-600 font-bold uppercase tracking-widest gap-3 hover:bg-slate-100 transition-all shadow-sm">
-                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
-                       Report for {format(selectedDate, "MMMM yyyy")}
+                <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm h-10">
+                    <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all h-full">
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-4 bg-white border-slate-100 shadow-2xl rounded-2xl" align="end">
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Select month</label>
-                        <div className="grid grid-cols-3 gap-1">
-                          {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
-                            <button
-                              key={m}
-                              onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), idx, 1))}
-                              className={cn(
-                                "py-2 rounded-lg text-xs font-medium transition-all",
-                                selectedDate.getMonth() === idx 
-                                  ? "bg-[#C5A059] text-white shadow-lg shadow-[#C5A059]/20" 
-                                  : "text-slate-400 hover:bg-slate-700 hover:text-slate-200"
-                              )}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 pt-2 border-t border-slate-700/50">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-1">Select year</label>
-                        <div className="flex items-center justify-between gap-2">
-                          {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map((y) => (
-                            <button
-                              key={y}
-                              onClick={() => setSelectedDate(new Date(y, selectedDate.getMonth(), 1))}
-                              className={cn(
-                                "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                selectedDate.getFullYear() === y 
-                                  ? "bg-slate-700 text-white" 
-                                  : "text-slate-500 hover:text-slate-300"
-                              )}
-                            >
-                              {y}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </PopoverContent>
-               </Popover>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="px-5 text-[10px] font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-100 transition-all h-full border-r border-slate-100 flex items-center gap-2">
+                          <CalendarIcon className="w-3.5 h-3.5 text-[#C5A059]" />
+                          {format(selectedDate, "MMM yyyy")}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(d) => d && setSelectedDate(d)}
+                          initialFocus
+                          className="bg-white"
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all h-full">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
 
                <Button 
                   onClick={handleExportPDF}

@@ -4,7 +4,7 @@ import {
   ChevronDown, 
   Download, 
   Plus, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Info,
   CheckCircle2,
   FileText,
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { isSameMonthYear } from "@/utils/dateParser";
 import { base44 } from "@/api/base44Client";
@@ -255,30 +257,31 @@ export default function IncomeExpenseReport() {
                     <h1 className="text-xl font-bold text-slate-900 tracking-tight">Income & Expense</h1>
                   </div>
                   <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-1.5 border border-slate-100">
-                        <Select value={selectedDate.getMonth().toString()} onValueChange={(v) => setSelectedDate(new Date(selectedDate.getFullYear(), parseInt(v), 1))}>
-                          <SelectTrigger className="w-[110px] h-7 text-[10px] text-slate-900 font-bold bg-transparent border-none focus:ring-0 uppercase tracking-widest">
-                            <SelectValue placeholder="Month" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {MONTHS.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Select value={selectedDate.getFullYear().toString()} onValueChange={(v) => setSelectedDate(new Date(parseInt(v), selectedDate.getMonth(), 1))}>
-                          <SelectTrigger className="w-[80px] h-7 text-[10px] text-slate-900 font-bold bg-transparent border-none focus:ring-0 uppercase tracking-widest">
-                            <SelectValue placeholder="Year" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear()].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex items-center border border-slate-100 rounded-lg shadow-sm overflow-hidden bg-slate-50">
-                        <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2 border-r border-slate-100 hover:bg-slate-100 transition-colors">
-                          <ChevronLeft className="w-4 h-4 text-slate-400" />
+                    <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm h-10">
+                        <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all h-full">
+                          <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2 hover:bg-slate-100 transition-colors">
-                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="px-4 text-[10px] font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-100 transition-all h-full border-r border-slate-100 flex items-center gap-2">
+                              <CalendarIcon className="w-3.5 h-3.5 text-[#C5A059]" />
+                              {format(selectedDate, "MMM yyyy")}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={(d) => d && setSelectedDate(d)}
+                              initialFocus
+                              className="bg-white"
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all h-full">
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                     <Button onClick={handleExport} variant="ghost" className="text-[#C5A059] hover:bg-[#C5A059]/10 text-[10px] font-bold uppercase tracking-widest gap-2">
