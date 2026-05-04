@@ -137,25 +137,28 @@ export default function Testimonials() {
             className="w-full"
           >
             <CarouselContent className="-ml-4">
-              {TESTIMONIALS.map((t, idx) => (
-                <CarouselItem key={idx} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                  <a href="/testimonials" className="block h-full group">
-                    <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-[#C5A059]/30 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 h-full flex flex-col group">
-                      <StarRating count={t.stars} />
-                      <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-8 italic">"{t.quote}"</p>
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}>
-                          {t.avatar}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{t.name}</p>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</p>
+              {TESTIMONIALS.map((t, idx) => {
+                const id = t.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+$/, '');
+                return (
+                  <CarouselItem key={idx} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                    <a href={`/testimonials#${id}`} className="block h-full group">
+                      <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-[#C5A059]/30 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 h-full flex flex-col group">
+                        <StarRating count={t.stars} />
+                        <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-8 italic">"{t.quote}"</p>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}>
+                            {t.avatar}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{t.name}</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </a>
-                </CarouselItem>
-              ))}
+                    </a>
+                  </CarouselItem>
+                );
+              })}
             </CarouselContent>
             
             <CarouselPrevious className="hidden md:flex -left-6 w-12 h-12 rounded-2xl bg-white border-gray-100 shadow-xl hover:bg-gray-900 hover:text-white transition-all duration-300" />
