@@ -12,7 +12,8 @@ import {
   Target,
   X,
   ArrowRightLeft,
-  Download
+  Download,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -133,6 +134,20 @@ export default function NetWorthReport() {
       toast.success(`${addMode === 'asset' ? 'Asset' : 'Debt'} added successfully`, { id: loadingToast });
     } else {
       toast.error("Failed to save account to database", { id: loadingToast });
+    }
+  };
+
+  const handleDeleteAccount = async (accountId) => {
+    if (!window.confirm("Are you sure you want to delete this account? This will remove it from all monthly snapshots.")) return;
+    
+    const loadingToast = toast.loading("Deleting account...");
+    const result = await base44.db.deleteRow("user_accounts", accountId);
+
+    if (result && !result.error) {
+      setAccounts(accounts.filter(a => a.id !== accountId));
+      toast.success("Account deleted successfully", { id: loadingToast });
+    } else {
+      toast.error("Failed to delete account", { id: loadingToast });
     }
   };
 
@@ -370,7 +385,15 @@ export default function NetWorthReport() {
                                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{asset.category}</span>
                               </div>
                            </div>
-                           <span className="text-sm font-medium text-slate-800">{formatCurrency(asset.value)}</span>
+                           <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-slate-800">{formatCurrency(asset.value)}</span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAccount(asset.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all text-slate-300"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
                         </div>
                       </div>
                    ))}
@@ -441,7 +464,15 @@ export default function NetWorthReport() {
                                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{debt.category}</span>
                               </div>
                            </div>
-                           <span className="text-sm font-medium text-slate-800">({formatCurrency(debt.value)})</span>
+                           <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-slate-800">({formatCurrency(debt.value)})</span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAccount(debt.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all text-slate-300"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
                         </div>
                       </div>
                    ))}
