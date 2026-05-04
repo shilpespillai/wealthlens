@@ -70,7 +70,7 @@ function PortfolioContent() {
 
           // Filter for valid labeled holdings to prevent 'ghost rows'
           mapped = latestHoldings
-            .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0)
+            .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0 || Number(d.mortgage_amount) > 0)
             .map((d, index) => ({
               id: d.id || `rec_${index}`,
               label: d.label || "",
@@ -128,7 +128,7 @@ function PortfolioContent() {
     const today = new Date().toISOString().split('T')[0];
     try {
       // 0. Garbage Collection: Filter out uninitialized rows (no label and zero value)
-      const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0);
+      const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0 || Number(h.mortgage) > 0);
       
       // 1. Permanent Purge: Delete records for items removed during this session
       if (removedHoldings.length > 0) {
