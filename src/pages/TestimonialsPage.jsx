@@ -204,155 +204,111 @@ export default function TestimonialsPage() {
         </div>
       </nav>
 
-      <main className="relative z-10 max-w-6xl mx-auto px-6 py-20 lg:py-32">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-          
-          {/* Left Column: Heading & Form */}
-          <div className="lg:col-span-5 space-y-16">
-            <div className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-[0.3em] rounded-md"
-              >
-                <Sparkles className="w-3 h-3" />
-                Investor Feedback
-              </motion.div>
-              <h1 className="text-6xl lg:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9] uppercase italic">
-                Trusted by <br />
-                <span className="text-transparent" style={{ WebkitTextStroke: '1.5px #0f172a' }}>Global Leaders.</span>
-              </h1>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md border-l-2 border-indigo-600/20 pl-6">
-                Institutional-grade analytics meet private-sector privacy. Join the community of investors building their legacy with WealthLens.
-              </p>
-            </div>
+      <main className="relative z-10 max-w-7xl mx-auto px-6 py-12 lg:py-20">
+        <div className="text-center mb-16 space-y-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white text-[8px] font-black uppercase tracking-[0.3em] rounded-md mx-auto"
+          >
+            <Sparkles className="w-3 h-3" />
+            Investor Wall of Love
+          </motion.div>
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-tight uppercase italic">
+            Trusted by the <br />
+            <span className="text-transparent" style={{ WebkitTextStroke: '1px #0f172a' }}>Global Community.</span>
+          </h1>
+        </div>
 
-            {/* Submission Form Section */}
-            <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl shadow-indigo-900/20 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-indigo-500/20 transition-all duration-700" />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          
+          {/* Submission Form Section - Compact Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-28 bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-16 -mt-16" />
               
-              <h3 className="text-xl font-black mb-8 uppercase tracking-tight flex items-center gap-3">
-                <Send className="w-5 h-5 text-indigo-400" />
-                Share Your Story
+              <h3 className="text-xs font-black mb-6 uppercase tracking-tight flex items-center gap-3">
+                <Send className="w-4 h-4 text-indigo-400" />
+                Add Your Voice
               </h3>
               
-              <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Full Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="e.g. Michael R."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-white/20"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Investment Focus</label>
-                    <input 
-                      type="text" 
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      placeholder="e.g. ETF Specialist"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-white/20"
-                    />
-                  </div>
+              <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
+                <div className="space-y-1">
+                  <label className="text-[8px] font-black uppercase tracking-widest text-slate-400">Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Michael R."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition-all"
+                  />
                 </div>
                 
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Your Experience</label>
+                <div className="space-y-1">
+                  <label className="text-[8px] font-black uppercase tracking-widest text-slate-400">Your Story</label>
                   <textarea 
                     required
                     value={newQuote}
                     onChange={(e) => setNewQuote(e.target.value)}
-                    rows={4}
-                    placeholder="How has WealthLens changed your financial perspective?"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-white/20 resize-none"
+                    rows={3}
+                    placeholder="Short summary..."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition-all resize-none"
                   />
                 </div>
 
                 <Button 
                   disabled={isSubmitting}
-                  className="w-full h-14 bg-white text-slate-900 hover:bg-indigo-500 hover:text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-xl transition-all shadow-xl shadow-black/20"
+                  className="w-full h-10 bg-white text-slate-900 hover:bg-indigo-500 hover:text-white font-black uppercase tracking-[0.2em] text-[8px] rounded-lg transition-all"
                 >
-                  {isSubmitting ? "Processing Transaction..." : "Transmit Testimony"}
+                  {isSubmitting ? "Transmitting..." : "Broadcast"}
                 </Button>
-
-                <AnimatePresence>
-                  {showSuccess && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 p-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
-                    >
-                      Testimony successfully broadcast to the Wall of Love.
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </form>
             </div>
           </div>
 
-          {/* Right Column: Wall of Love Feed */}
-          <div className="lg:col-span-7">
-            <div className="space-y-8">
+          {/* Wall of Love Feed - Compact Grid */}
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AnimatePresence mode="popLayout">
                 {testimonials.map((t, idx) => (
                   <motion.div
                     key={t.id}
                     id={t.id}
                     layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: t.isNew ? 0 : idx * 0.1 }}
-                    className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 transition-all duration-500 relative overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4, delay: t.isNew ? 0 : idx * 0.05 }}
+                    className="bg-white rounded-[1.5rem] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative flex flex-col justify-between"
                   >
-                    {t.isNew && (
-                      <div className="absolute top-6 right-8 bg-indigo-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
-                        New Transmission
-                      </div>
-                    )}
-                    
-                    <div className="space-y-8">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-xl font-black shadow-lg`}>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-xs font-black shadow-md`}>
                             {t.avatar}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                            <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight flex items-center gap-1">
                               {t.name}
-                              <BadgeCheck className="w-3.5 h-3.5 text-indigo-500" />
+                              <BadgeCheck className="w-3 h-3 text-indigo-500" />
                             </p>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.role}</p>
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.role}</p>
                           </div>
                         </div>
-                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t.date}</div>
+                        <div className="text-[8px] font-black text-slate-200 uppercase tracking-widest">{t.date}</div>
                       </div>
 
-                      <p className="text-xl text-slate-700 leading-relaxed font-medium italic">
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium italic">
                         "{t.quote}"
                       </p>
 
-                      <div className="flex gap-1">
-                        {Array.from({ length: t.stars }).map((_, i) => (
-                          <Star key={i} className="w-3.5 h-3.5 fill-indigo-500 text-indigo-500" />
-                        ))}
-                      </div>
-
-                      {/* Professional Reply Block */}
-                      <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 space-y-4 relative group/reply">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-indigo-600" />
-                             <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em]">WealthLens Protocol Response</span>
-                          </div>
-                          <MessageCircle className="w-4 h-4 text-slate-200 group-hover/reply:text-indigo-400 transition-colors" />
+                      {/* Professional Reply Block - Condensed */}
+                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
+                        <div className="flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                           <span className="text-[8px] font-black text-slate-900 uppercase tracking-[0.2em]">Team WealthLens</span>
                         </div>
-                        <p className="text-[11px] text-slate-500 font-bold leading-relaxed tracking-tight">
+                        <p className="text-[9px] text-slate-500 font-bold leading-snug tracking-tight">
                           {t.reply}
                         </p>
                       </div>
@@ -362,21 +318,21 @@ export default function TestimonialsPage() {
               </AnimatePresence>
             </div>
 
-            <div className="mt-20 text-center space-y-8 opacity-50">
-               <ShieldCheck className="w-10 h-10 text-slate-200 mx-auto" />
-               <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em]">
-                 Zero-Knowledge Testimonials Hub • Elite v4.2.0
+            <div className="mt-16 text-center opacity-30">
+               <ShieldCheck className="w-6 h-6 text-slate-200 mx-auto mb-2" />
+               <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.4em]">
+                 Zero-Knowledge Hub • Elite v4.2.0
                </p>
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="py-12 bg-white border-t border-slate-50 relative z-10">
-        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-           <p>© 2026 WealthLens Inc. Confidential Institutional Specification</p>
-           <div className="flex gap-8">
-              <Link to="/privacypolicy" className="hover:text-slate-900 transition-colors">Privacy Infrastructure</Link>
+      <footer className="py-8 bg-white border-t border-slate-50 relative z-10">
+        <div className="max-w-7xl mx-auto px-8 flex justify-between items-center text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+           <p>© 2026 WealthLens Inc.</p>
+           <div className="flex gap-6">
+              <Link to="/privacypolicy" className="hover:text-slate-900 transition-colors">Privacy</Link>
               <Link to="/termsofuse" className="hover:text-slate-900 transition-colors">Compliance</Link>
            </div>
         </div>
