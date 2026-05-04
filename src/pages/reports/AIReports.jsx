@@ -72,24 +72,41 @@ export default function AIReports() {
     return `${y}-${m}`;
   }, [selectedDate]);
 
-  // 1. Auto-discover latest month on mount
+  // 1. Auto-discover latest month with actual transaction data on mount
   useEffect(() => {
     async function discover() {
       if (!isPaidUser) return;
       try {
-        const allBudgets = await getDatabaseTable("budgets");
-        if (allBudgets && allBudgets.length > 0) {
-          const sorted = [...allBudgets].sort((a,b) => b.month.localeCompare(a.month));
-          const latest = sorted[0].month;
-          const [y, m] = latest.split('-').map(Number);
-          setSelectedDate(new Date(y, m - 1, 1));
+        // Scan the entire ledger to find the "truth" about which months have data
+        const allTransactions = await getProductionLedger(); 
+        if (allTransactions && allTransactions.length > 0) {
+          const months = allTransactions.map(t => {
+            const d = new Date(t.date || t.actualDate);
+            return isNaN(d.getTime()) ? null : format(d, 'yyyy-MM');
+          }).filter(Boolean);
+          
+          const uniqueMonths = [...new Set(months)].sort((a,b) => b.localeCompare(a));
+          const latest = uniqueMonths[0];
+          if (latest) {
+            const [y, m] = latest.split('-').map(Number);
+            setSelectedDate(new Date(y, m - 1, 1));
+          }
+        } else {
+          // Fallback to budget discovery if no transactions exist yet
+          const allBudgets = await getDatabaseTable("budgets");
+          if (allBudgets && allBudgets.length > 0) {
+            const sorted = [...allBudgets].sort((a,b) => b.month.localeCompare(a.month));
+            const latest = sorted[0].month;
+            const [y, m] = latest.split('-').map(Number);
+            setSelectedDate(new Date(y, m - 1, 1));
+          }
         }
       } catch (e) {
         console.error("Month discovery failed", e);
       }
     }
     discover();
-  }, [isPaidUser, getDatabaseTable]);
+  }, [isPaidUser, getDatabaseTable, getProductionLedger]);
 
   useEffect(() => {
     async function initData() {
