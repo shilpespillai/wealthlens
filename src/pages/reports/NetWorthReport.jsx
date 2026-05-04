@@ -233,28 +233,33 @@ export default function NetWorthReport() {
             </div>
             
             <div className="flex items-center gap-6">
-               <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm">
-                      <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
-                      {format(selectedDate, "MMMM yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(d) => d && setSelectedDate(d)}
-                      initialFocus
-                      className="bg-white"
-                    />
-                  </PopoverContent>
-               </Popover>
-               
-               <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm">
-                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all"><ChevronLeft className="w-4 h-4" /></button>
-                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"><ChevronRight className="w-4 h-4" /></button>
-               </div>
+                <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm h-10">
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all h-full">
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="px-4 text-[10px] font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-100 transition-all h-full border-r border-slate-100 flex items-center gap-2">
+                        <CalendarIcon className="w-3.5 h-3.5 text-[#C5A059]" />
+                        {format(selectedDate, "MMM yyyy")}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(d) => d && setSelectedDate(d)}
+                        initialFocus
+                        className="bg-white"
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all h-full">
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
 
                <Button 
                   onClick={handleExportPDF}
