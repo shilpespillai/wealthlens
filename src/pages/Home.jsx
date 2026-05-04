@@ -499,44 +499,18 @@ export default function Home() {
       <PricingSection price={price} />
       <FAQ />
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-8 text-center text-white">
 
-          <Zap className="w-10 h-10 mx-auto mb-4 opacity-90" />
-          <h2 className="text-3xl font-black mb-4">Ready to Master Your Investments?</h2>
-          <p className="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
-            Join thousands of investors using WealthLens to make smarter financial decisions with AI-powered insights.
-          </p>
-          <Button
-            onClick={handleLogin}
-            className="bg-white text-indigo-600 hover:bg-gray-100 font-bold px-8 py-3 rounded-xl text-lg shadow-xl">
-            Start Your Free Analysis
-          </Button>
-        </motion.div>
-      </section>
 
       <footer className="bg-gray-900 text-gray-400 py-12 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div className="col-span-1 md:col-span-1">
+            <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-xl font-black bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">WealthLens</span>
               </div>
-              <p className="text-sm text-gray-500 leading-relaxed">
+              <p className="text-sm text-gray-500 leading-relaxed max-w-sm">
                 Empowering investors with professional-grade analysis tools and AI-driven insights to build sustainable wealth.
               </p>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-bold text-gray-300 mb-4 uppercase tracking-wider">Product</h4>
-              <ul className="space-y-3 text-sm">
-                <li><a href="/methodology" className="hover:text-indigo-400 transition-colors">Methodology</a></li>
-                <li><a href="/assumptions" className="hover:text-indigo-400 transition-colors">Assumptions</a></li>
-              </ul>
             </div>
             
             <div>
@@ -544,8 +518,6 @@ export default function Home() {
               <ul className="space-y-3 text-sm">
                 <li><a href="/about" className="hover:text-indigo-400 transition-colors">About Us</a></li>
                 <li><a href="/contact" className="hover:text-indigo-400 transition-colors">Contact</a></li>
-                <li><a href="/helpcenter" className="hover:text-indigo-400 transition-colors">Help Center</a></li>
-                <li><a href="/communityforum" className="hover:text-indigo-400 transition-colors">Community Forum</a></li>
               </ul>
             </div>
             

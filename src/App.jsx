@@ -84,8 +84,8 @@ const MainContent = () => {
 
   const isPublicPage = (path) => [
     '/login', '/auth/callback', '/about', '/methodology', '/contact', 
-    '/privacy-policy', '/terms', '/disclaimer', '/assumptions', 
-    '/cookie-policy', '/security-policy', '/'
+    '/privacypolicy', '/termsofuse', '/disclaimer', '/assumptions', 
+    '/cookiepolicy', '/securitypolicy', '/'
   ].includes(path.toLowerCase());
 
   // 3. Global Loading State (Public Pages only)

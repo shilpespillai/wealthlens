@@ -118,9 +118,7 @@ export default function SecurityPolicy() {
                   <p className="text-[9px] text-slate-500 leading-relaxed font-bold uppercase italic">
                     All core financial engines undergo quarterly external penetration testing. Current Status: <span className="text-emerald-500 NOT-italic">PASS [v4.2.0-ELITE]</span>
                   </p>
-                  <button className="w-full bg-slate-900 text-white h-12 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] hover:bg-[#C5A059] transition-all">
-                    Request Audit Log
-                  </button>
+
                </div>
             </aside>
           </div>
