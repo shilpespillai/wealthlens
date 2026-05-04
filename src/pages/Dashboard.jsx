@@ -280,7 +280,6 @@ export function DashboardContent() {
     if (debtTotal > 0) groups['Liabilities'] = -debtTotal;
 
     // 3. Portfolio assets — Fixed to TODAY'S snapshot for Treasury stability
-    const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
 
     latestHoldings.forEach(p => {
       const label = ASSET_LABELS[p.asset_class] || (p.asset_class ? p.asset_class.charAt(0).toUpperCase() + p.asset_class.slice(1) : 'Other');
