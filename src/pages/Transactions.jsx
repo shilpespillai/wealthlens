@@ -285,17 +285,25 @@ function TransactionsContent() {
       const isManualVault = String(acc.id) === 'sys-vault' || String(acc.id) === 'manual';
       
       const accIncomes = incomes.filter(i => {
+        const matchesId = String(i.account_id) === String(acc.id);
+        const matchesName = i.account && i.account === acc.name;
+        if (matchesId || matchesName) return true;
+        
         if (isManualVault) {
           return !i.account_id || String(i.account_id) === 'sys-vault' || String(i.account_id) === 'manual' || String(i.account_id) === 'null';
         }
-        return String(i.account_id) === String(acc.id);
+        return false;
       }).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
       
-      const accExpenses = expenses.filter(e => {
+      const accExpenses = [...expenses, ...uncategorized, ...transfers].filter(e => {
+        const matchesId = String(e.account_id) === String(acc.id);
+        const matchesName = e.account && e.account === acc.name;
+        if (matchesId || matchesName) return true;
+
         if (isManualVault) {
           return !e.account_id || String(e.account_id) === 'sys-vault' || String(e.account_id) === 'manual' || String(e.account_id) === 'null';
         }
-        return String(e.account_id) === String(acc.id);
+        return false;
       }).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       
       const liveBalance = accIncomes - accExpenses;
@@ -313,7 +321,7 @@ function TransactionsContent() {
     // Check if sys-vault exists in sidebar; if not (unlikely given defaults), add it as virtual
     if (!sidebar.some(s => String(s.id) === 'sys-vault')) {
       const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
-      const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const manualExps = [...expenses, ...uncategorized, ...transfers].filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
       
       sidebar.push({
         id: "sys-vault",
@@ -326,7 +334,7 @@ function TransactionsContent() {
     }
 
     return sidebar;
-  }, [dbAccounts, incomes, expenses]);
+  }, [dbAccounts, incomes, expenses, uncategorized, transfers]);
 
 
   const [manualForm, setManualForm] = useState({
@@ -538,8 +546,19 @@ function TransactionsContent() {
       await base44.db.upsertRow('transactions', dbRecord);
 
       // 3. Update local state
-      const targetState = editingTransaction.type === 'income' ? incomes : expenses;
-      const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
+      let targetState = expenses;
+      let setState = setExpenses;
+      
+      if (editingTransaction.type === 'income') {
+        targetState = incomes;
+        setState = setIncomes;
+      } else if (editingTransaction.type === 'transfer') {
+        targetState = transfers;
+        setState = setTransfers;
+      } else if (editingTransaction.type === 'uncategorized') {
+        targetState = uncategorized;
+        setState = setUncategorized;
+      }
       
       const newState = targetState.map(item => 
         item.id === editingTransaction.id ? { ...editingTransaction } : item
@@ -680,7 +699,8 @@ function TransactionsContent() {
 
       if (tx.type === 'income') {
         totalIncome += absAmt;
-      } else if (tx.type === 'expense') {
+      } else {
+        // Fallback for expense, uncategorized, and transfer
         totalExpense += absAmt;
       }
 
@@ -692,7 +712,7 @@ function TransactionsContent() {
 
       if (tx.type === 'income') {
         categoryTotals[cat].income += absAmt;
-      } else if (tx.type === 'expense') {
+      } else {
         categoryTotals[cat].expense += absAmt;
       }
     });
@@ -835,8 +855,8 @@ function TransactionsContent() {
   };
 
   const handleUpdateItem = async (id, updates, type) => {
-    let targetState;
-    let setState;
+    let targetState = expenses;
+    let setState = setExpenses;
     
     if (type === 'income') {
       targetState = incomes;
@@ -844,9 +864,9 @@ function TransactionsContent() {
     } else if (type === 'transfer') {
       targetState = transfers;
       setState = setTransfers;
-    } else {
-      targetState = expenses;
-      setState = setExpenses;
+    } else if (type === 'uncategorized') {
+      targetState = uncategorized;
+      setState = setUncategorized;
     }
 
     const item = targetState.find(i => i.id === id);
@@ -901,6 +921,9 @@ function TransactionsContent() {
     } else if (type === 'transfer') {
       const updated = transfers.filter(i => i.id !== id);
       setTransfers(updated);
+    } else if (type === 'uncategorized') {
+      const updated = uncategorized.filter(i => i.id !== id);
+      setUncategorized(updated);
     } else {
       const updated = expenses.filter(e => e.id !== id);
       setExpenses(updated);
@@ -1800,8 +1823,8 @@ function TransactionsContent() {
                         </TableCell>
                         <TableCell className="p-4">
                           <Select 
-                            value={tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
-                            onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
+                            value={tx.spend_type || tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
+                            onValueChange={(v) => handleUpdateItem(tx.id, { spend_type: v }, tx.type)}
                             disabled={tx.type === 'income'}
                           >
                             <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-amber-300 transition-all">
