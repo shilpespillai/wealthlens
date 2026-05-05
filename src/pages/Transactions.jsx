@@ -1620,13 +1620,13 @@ function TransactionsContent() {
                <div className="flex items-center gap-8">
                   <div className="flex flex-col">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">
-                      {(searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? "Total Amount" : "Total Spent"}
+                      {searchTotals.isSpecificCategory ? "Total Amount" : "Total Spent"}
                     </span>
-                    <span className={`text-sm font-black tabular-nums ${(searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? 'text-slate-900' : 'text-rose-600'}`}>
-                      {formatAmount((searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? searchTotals.totalAmount : searchTotals.totalExpense)}
+                    <span className={`text-sm font-black tabular-nums ${searchTotals.isSpecificCategory ? 'text-slate-900' : 'text-rose-600'}`}>
+                      {formatAmount(searchTotals.isSpecificCategory ? searchTotals.totalAmount : searchTotals.totalExpense)}
                     </span>
                   </div>
-                  {searchTotals.totalIncome > 0 && !searchTotals.isSpecificCategory && !searchTotals.selectedAccountId && (
+                  {(searchTotals.totalIncome > 0 || searchTotals.selectedAccountId) && !searchTotals.isSpecificCategory && (
                     <div className="flex flex-col">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Income</span>
                       <span className="text-sm font-black text-emerald-600 tabular-nums">{formatAmount(searchTotals.totalIncome)}</span>
