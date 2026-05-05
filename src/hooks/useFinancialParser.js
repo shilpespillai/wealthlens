@@ -20,11 +20,8 @@ const DEFAULT_CLASSIFICATION_RULES = {
     ]
   },
   expense: {
-    logic: 'AND',
-    conditions: [
-      { field: 'category', operator: 'not_equals', value: 'Income' },
-      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES }
-    ]
+    logic: 'OR',
+    conditions: []
   }
 };
 
@@ -50,12 +47,10 @@ export const useFinancialParser = () => {
     const results = rule.conditions.map(c => {
       let txVal = '';
       if (c.field === 'category') {
-        // Fallback to merchant/name if category is missing or uncategorized
-        const rawCat = tx.category || tx.merchant || tx.name || '';
-        txVal = resolveCanonicalCategory(rawCat);
+        txVal = resolveCanonicalCategory(tx.category || "");
       }
-      else if (c.field === 'merchant') txVal = String(tx.merchant || tx.name || '');
-      else if (c.field === 'account') txVal = String(tx.account_id || '');
+      else if (c.field === 'merchant') txVal = String(tx.merchant || tx.name || "");
+      else if (c.field === 'account') txVal = String(tx.account_id || "");
       
       const target = c.value;
       switch (c.operator) {
