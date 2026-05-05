@@ -22,7 +22,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { useCategories } from "@/hooks/useCategories";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth, subMonths, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -33,22 +35,48 @@ import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
-// Mock Budget Data (Institutional Defaults)
-const CATEGORY_BUDGETS = {
-  "Salary and Wages": 5500,
-  "Household": 1850,
-  "Food": 600,
-  "Entertainment": 1500,
-  "Fuel / Gas": 120,
-  "Healthcare": 210,
-  "All categories": 2500
-};
-
 // Mock generation removed per user request for production data integrity.
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl space-y-3 min-w-[200px]">
+        <p className="font-bold text-slate-800 border-b border-slate-100 pb-2 text-xs uppercase tracking-widest">{label}</p>
+        
+        <div className="space-y-2">
+          {payload.map((entry, index) => {
+            if (!entry.value || entry.value === 0 || entry.dataKey === 'budgeted') return null;
+            return (
+              <div key={index} className="flex justify-between items-center gap-6 text-xs">
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                   <span className="text-slate-500 font-medium capitalize">{entry.name}</span>
+                </div>
+                <span className="font-bold text-slate-700">
+                   {formatCurrency(entry.value)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-slate-100 pt-2 space-y-1">
+           <div className="flex justify-between items-center gap-6 text-xs">
+              <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Budgeted</span>
+              <span className="font-black text-[#4C1D95]">{formatCurrency(data.budgeted)}</span>
+           </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function TrendsReport() {
   const { isPaidUser } = useAuth();
   const { formatAmount, getProductionLedger } = useFinancialParser();
+  const { categories } = useCategories({ global: true });
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState("All categories");
   const [showType, setShowType] = useState('expense'); // expense or income
@@ -58,6 +86,10 @@ export default function TrendsReport() {
     from: subMonths(new Date(), 6),
     to: new Date()
   });
+
+  const categoryNames = useMemo(() => {
+    return ["All categories", ...categories.map(c => c.name).sort()];
+  }, [categories]);
 
   const [allTransactions, setAllTransactions] = useState([]);
   const [dbBudgets, setDbBudgets] = useState({}); // { '2026-01': payload, ... }
@@ -120,7 +152,7 @@ export default function TrendsReport() {
       const monthBudgetPayload = dbBudgets[monthKey];
       
       let actual = 0;
-      let budgeted = CATEGORY_BUDGETS[selectedCategory] || 2500;
+      let budgeted = selectedCategory === "All categories" ? 2500 : 0;
 
       // Try to find the real budget from DB first
       if (monthBudgetPayload) {
@@ -159,17 +191,15 @@ export default function TrendsReport() {
       const overspent = isPending ? 0 : Math.max(0, actual - budgeted);
       const saved = isPending ? 0 : Math.max(0, budgeted - actual);
       const pending = isPending ? budgeted : 0;
-      const spent = 0; // Removed hardcoded 'Nov' start segment for production accuracy
 
       return {
         month: format(month, "MMM d"),
-        within,
-        overspent,
-        saved,
-        pending,
-        spent,
-        budgeted,
-        totalActual: actual
+        within: Math.round(within * 100) / 100,
+        overspent: Math.round(overspent * 100) / 100,
+        saved: Math.round(saved * 100) / 100,
+        pending: Math.round(pending * 100) / 100,
+        budgeted: Math.round(budgeted * 100) / 100,
+        totalActual: Math.round(actual * 100) / 100
       };
     });
   }, [allTransactions, activeInterval, selectedCategory, showType, dbBudgets]);
@@ -199,7 +229,7 @@ export default function TrendsReport() {
     const monthKey = format(start, "yyyy-MM");
     const monthBudgetPayload = dbBudgets[monthKey];
     
-    let budget = CATEGORY_BUDGETS[selectedCategory] || (showType === 'income' ? 5500 : 2800);
+    let budget = selectedCategory === "All categories" ? (showType === 'income' ? 5500 : 2800) : 0;
     
     if (monthBudgetPayload) {
       if (selectedCategory === "All categories") {
@@ -238,8 +268,8 @@ export default function TrendsReport() {
       
       return {
         day: format(day, "d"),
-        remaining: Math.max(0, budget - cumulativeSpend),
-        ideal: budget - (idx * (budget / (days.length - 1)))
+        remaining: Math.round(Math.max(0, budget - cumulativeSpend) * 100) / 100,
+        ideal: Math.round((budget - (idx * (budget / (days.length - 1)))) * 100) / 100
       };
     });
   }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
@@ -297,6 +327,17 @@ export default function TrendsReport() {
                   </PopoverContent>
                </Popover>
 
+               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                 <SelectTrigger className="w-[200px] h-10 bg-slate-50 border-slate-100 rounded-xl shadow-sm text-xs font-bold text-slate-700">
+                   <SelectValue placeholder="Select category" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {categoryNames.map(cat => (
+                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+
                {selectedCategory === "All categories" && (
                  <Button 
                    onClick={() => setShowType(prev => prev === 'expense' ? 'income' : 'expense')}
@@ -323,34 +364,6 @@ export default function TrendsReport() {
       </div>
 
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
-        {/* Category Sidebar */}
-        <aside className="w-80 bg-white border-r border-slate-100 overflow-y-auto p-8 space-y-8 shadow-sm transition-all hidden lg:block">
-           <div className="flex items-center justify-between bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-              <span className="text-xs font-bold text-slate-500 tracking-tight uppercase">Roll up budgets</span>
-              <Switch />
-           </div>
-
-           <div className="space-y-4">
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 px-2">Categories</p>
-              <div className="space-y-1">
-                 {Object.keys(CATEGORY_BUDGETS).map((cat) => (
-                    <button 
-                      key={cat}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group",
-                        selectedCategory === cat ? 'bg-amber-50 text-amber-700 font-bold' : 'text-slate-500 hover:bg-slate-50'
-                      )}
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                       <div className={cn("w-1.5 h-1.5 rounded-full transition-all", selectedCategory === cat ? 'bg-amber-500 scale-125' : 'bg-slate-300 group-hover:bg-slate-400')} />
-                       <span className="text-xs tracking-tight font-bold">{cat}</span>
-                       {selectedCategory === cat && <ChevronRight className="w-4 h-4 ml-auto text-amber-400" />}
-                    </button>
-                 ))}
-              </div>
-           </div>
-        </aside>
-
         {/* Main Chart Area */}
         <main className="flex-1 overflow-y-auto p-2 bg-[#F8F9FB]">
            <div className="max-w-full mx-auto space-y-8">
@@ -380,12 +393,7 @@ export default function TrendsReport() {
                                 tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }} 
                                 tickFormatter={(val) => `$${val/1000}k`}
                              />
-                             <Tooltip 
-                                contentStyle={{ backgroundColor: 'rgba(255,255,255,0.98)', border: '1px solid #E2E8F0', borderRadius: '16px', color: '#1E293B', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', backdropFilter: 'blur(12px)' }}
-                                cursor={{ fill: '#F8F9FB' }}
-                                itemStyle={{ fontSize: 11, fontWeight: 500 }}
-                             />
-                             <Bar dataKey="spent" stackId="a" fill="#7C3AED" radius={[4, 4, 0, 0]} barSize={40} />
+                             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F8F9FB' }} />
                              <Bar dataKey="within" stackId="a" fill="#3B82F6" barSize={40} />
                              <Bar dataKey="saved" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} barSize={40} />
                              <Bar dataKey="overspent" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} barSize={40} />
@@ -430,10 +438,6 @@ export default function TrendsReport() {
                              <div className="flex items-center gap-3">
                                 <div className="w-3.5 h-3.5 bg-[#F43F5E] rounded-sm" />
                                 <span className="text-xs font-medium text-slate-600 tracking-tight">Overspent limit</span>
-                             </div>
-                             <div className="flex items-center gap-3">
-                                <div className="w-3.5 h-3.5 bg-[#7C3AED] rounded-sm" />
-                                <span className="text-xs font-medium text-slate-600 tracking-tight">Total actual spend</span>
                              </div>
                           </div>
                        </div>

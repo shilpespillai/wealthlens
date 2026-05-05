@@ -141,8 +141,6 @@ const SIDEBAR_ITEMS = [
   { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
-  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-amber-600", bg: "bg-amber-50" },
-  { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
 ];
 
 // Dynamic Categories and Accounts will be computed in the component

@@ -13,7 +13,9 @@ import {
   Download,
   ShieldCheck,
   Lock,
-  Zap
+  Zap,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { 
   AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip 
@@ -23,7 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { base44 } from "@/api/base44Client";
-import { format, startOfMonth, endOfMonth, isSameMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, isSameMonth, subMonths, addMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
