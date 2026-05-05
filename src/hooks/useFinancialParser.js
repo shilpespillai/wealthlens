@@ -194,11 +194,11 @@ export const useFinancialParser = () => {
       .reduce((sum, e) => sum + (Number(e.amount !== undefined ? e.amount : (e.monthly_target || 0))), 0);
     
     return {
-      totalIncome,
-      totalExpenses,
-      balance: totalIncome - totalExpenses,
-      savings,
-      hasIncome: totalIncome > 0
+      totalIncome: Math.abs(totalIncome),
+      totalExpenses: Math.abs(totalExpenses),
+      balance: totalIncome + totalExpenses, // Netted balance
+      savings: Math.abs(savings),
+      hasIncome: Math.abs(totalIncome) > 0
     };
   }, []);
 
@@ -493,7 +493,7 @@ export const useFinancialParser = () => {
     const transfers = [];
 
     (transactions || []).forEach(t => {
-      const rawAmt = Math.abs(Number(t.amount || 0));
+      const rawAmt = Number(t.amount || 0);
       const category = resolveCanonicalCategory(t.category || t.name);
 
       if (matchRule(t, activeRules.income)) {
