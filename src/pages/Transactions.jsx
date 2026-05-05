@@ -627,8 +627,9 @@ function TransactionsContent() {
         }
 
         // 3. Category Filter
-        if (selectedCategory) {
-          if (tx.category?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+        if (selectedCategory && selectedCategory !== 'all') {
+          const canonical = resolveCanonicalCategory(tx.category);
+          if (canonical.toLowerCase() !== selectedCategory.toLowerCase()) return false;
         }
 
         // 4. Search Filter
