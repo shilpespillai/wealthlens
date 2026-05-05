@@ -264,7 +264,7 @@ export const useFinancialParser = () => {
       const isCorrectMonth = ignoreMonthFilter || isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear);
       if (!isCorrectMonth) return false;
       
-      const canonical = resolveCanonicalCategory(t.category || t.merchant || t.name).toLowerCase().trim();
+      const canonical = resolveCanonicalCategory(t.category).toLowerCase().trim();
       return !mutedSet.has(canonical);
     });
     
@@ -297,13 +297,6 @@ export const useFinancialParser = () => {
       
       const filtered = rawTransactions.filter(t => {
         const transactionCategory = resolveCanonicalCategory(t.category);
-        const amount = Number(t.amount) || 0;
-        
-        // Polarity check: Expenses are negative in DB
-        // If amount is positive (>0), it's a refund/income, skip it for expense aggregation
-        if (type === 'expense' && amount > 0) return false;
-        if (type === 'income' && amount < 0) return false;
-
         return transactionCategory.toLowerCase() === canonicalTarget.toLowerCase();
       });
       

@@ -34,6 +34,7 @@ import {
   Calendar as CalendarIcon
 } from "lucide-react";
 import { CategoryIcon } from "@/utils/iconMap";
+import { resolveCanonicalCategory } from "@/utils/constants";
 import { 
   Table, 
   TableBody, 
