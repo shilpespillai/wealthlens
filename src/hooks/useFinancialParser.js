@@ -296,12 +296,12 @@ export const useFinancialParser = () => {
       const canonicalTarget = resolveCanonicalCategory(categoryName);
       
       const filtered = rawTransactions.filter(t => {
-        const transactionCategory = resolveCanonicalCategory(t.category);
+        const rawCat = t.category || t.merchant || t.name || '';
+        const transactionCategory = resolveCanonicalCategory(rawCat);
         
         const amount = Number(t.amount) || 0;
         
         // 2. Robust Type Detection: Force strict polarity to prevent leakage
-        // Expenses MUST be negative (outflow), Income MUST be positive (inflow)
         const rawType = (t.type || t.spend_type || "").toLowerCase();
         let detectedType = rawType;
         
@@ -309,7 +309,7 @@ export const useFinancialParser = () => {
           detectedType = amount > 0 ? 'income' : 'expense';
         }
         
-        // Final Safety: Even if tagged as expense, if it's a large positive amount, it's likely a refund/transfer
+        // Final Safety
         if (detectedType === 'expense' && amount > 0) return false; 
         if (detectedType === 'income' && amount < 0) return false;
 

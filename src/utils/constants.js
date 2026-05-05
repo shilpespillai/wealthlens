@@ -13,7 +13,7 @@ export const CORE_CATEGORY_REGISTRY = [
   { name: "Fuel & Transport", type: "expense", iconId: "fuel", color: "purple", aliases: ["fuel", "gas", "petrol", "transport", "fuel & gas", "fuel & transport", "uber", "train", "bus", "parking"] },
   { name: "Healthcare", type: "expense", iconId: "activity", color: "yellow", aliases: ["medical", "health", "doctor", "pharmacy", "dentist"] },
   { name: "Lifestyle", type: "expense", iconId: "heart", color: "rose", aliases: ["fun", "entertainment", "lifestyle", "gym", "hobbies", "netflix", "spotify"] },
-  { name: "Insurance", type: "expense", iconId: "shield", color: "blue", aliases: ["insurance", "health insurance", "car insurance", "home insurance"] },
+  { name: "Insurance", type: "expense", iconId: "shield", color: "blue", aliases: ["insurance", "health insurance", "car insurance", "home insurance", "budget direct", "tal", "life"] },
   { name: "Education", type: "expense", iconId: "graduation-cap", color: "violet", aliases: ["school", "uni", "education", "books", "tuition", "course"] },
   { name: "Travel", type: "expense", iconId: "plane", color: "cyan", aliases: ["holiday", "travel", "flights", "hotel", "vacation"] },
   { name: "Shopping", type: "expense", iconId: "shopping-bag", color: "pink", aliases: ["shopping", "clothes", "amazon", "electronics", "gifts"] },
