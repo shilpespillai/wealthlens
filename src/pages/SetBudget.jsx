@@ -314,6 +314,7 @@ export default function SetBudget() {
   const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
   const [expectedIncome, setExpectedIncome] = useState(0);
+  const [actualIncome, setActualIncome] = useState(0);
   const [actualsMap, setActualsMap] = useState({});
   const [monthTransactions, setMonthTransactions] = useState([]);
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
@@ -350,7 +351,7 @@ export default function SetBudget() {
       }
 
       // 2. Normalize data using the UNIFIED PARSER for 100% parity
-      const { expenses: normExps } = normalizeTransactionData(saved, selectedDate, txResults, categories);
+      const { expenses: normExps, incomes: normIncs } = normalizeTransactionData(saved, selectedDate, txResults, categories);
       
       // Aggressively deduplicate and ensure every category has its actual total
       const currentActuals = {};
@@ -359,6 +360,8 @@ export default function SetBudget() {
         currentActuals[key] = (currentActuals[key] || 0) + (Number(e.actual) || 0);
       });
 
+      const totalActualInc = normIncs.reduce((sum, i) => sum + (Number(i.actual) || 0), 0);
+      setActualIncome(totalActualInc);
       setActualsMap(currentActuals);
       setMonthTransactions(txResults);
 
@@ -369,16 +372,7 @@ export default function SetBudget() {
         if (saved && saved.payload && saved.payload.expectedIncome !== undefined) {
            setExpectedIncome(Number(saved.payload.expectedIncome));
         } else {
-           // Fallback to summing income transactions for actuals
-           const actualIncome = (txResults || []).reduce((sum, tx) => {
-             const category = resolveCanonicalCategory(tx.category);
-             const EXCLUDED = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment', 'Reimbursement'];
-             if (EXCLUDED.includes(category)) return sum;
-             const rawAmt = Number(tx.amount || 0);
-             const isIncome = tx.type === 'income' || (tx.type !== 'expense' && rawAmt > 0);
-             return isIncome ? sum + Math.abs(rawAmt) : sum;
-           }, 0);
-           setExpectedIncome(actualIncome);
+           setExpectedIncome(totalActualInc);
         }
 
         const structuralData = normalizeStructure(
@@ -722,6 +716,14 @@ export default function SetBudget() {
       </AuthGuard>
     );
   }
+
+  const totals = {
+    income: expectedIncome,
+    actualIncome: actualIncome,
+    expense: data.reduce((sum, item) => sum + (parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0), 0),
+    actualExpense: Object.values(actualsMap).reduce((sum, val) => sum + val, 0),
+    actualNet: actualIncome - Object.values(actualsMap).reduce((sum, val) => sum + val, 0)
+  };
 
   return (
     <AuthGuard>
