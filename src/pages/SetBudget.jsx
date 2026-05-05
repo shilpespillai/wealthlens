@@ -535,23 +535,22 @@ export default function SetBudget() {
   
   const totals = useMemo(() => {
     let plannedExpense = 0;
-    let actualExpense = 0;
     
     flatItems.forEach(item => {
       const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
       plannedExpense += val;
-      
-      const canonical = resolveCanonicalCategory(item.category || item.name);
-      actualExpense += (actualsMap[canonical.toLowerCase()] || 0);
     });
+
+    // Rule: Total Actual Expense must include ALL expenses, including those not explicitly budgeted
+    const globalActualExpense = Object.values(actualsMap).reduce((sum, val) => sum + (Number(val) || 0), 0);
 
     return {
       income: expectedIncome,
       actualIncome: actualIncome,
       expense: plannedExpense,
-      actualExpense: actualExpense,
+      actualExpense: globalActualExpense,
       net: expectedIncome - plannedExpense,
-      actualNet: actualIncome - actualExpense
+      actualNet: actualIncome - globalActualExpense
     };
   }, [flatItems, expectedIncome, actualIncome, parseCurrency, actualsMap]);
 
