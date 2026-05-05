@@ -47,10 +47,22 @@ export const useFinancialParser = () => {
     const results = rule.conditions.map(c => {
       let txVal = '';
       if (c.field === 'category') {
-        txVal = resolveCanonicalCategory(tx.category || "");
+        // Fallback to merchant/name if category is missing or uncategorized
+        const rawCat = tx.category || tx.merchant || tx.name || '';
+        txVal = resolveCanonicalCategory(rawCat);
       }
       else if (c.field === 'merchant') txVal = String(tx.merchant || tx.name || "");
-      else if (c.field === 'account') txVal = String(tx.account_id || "");
+      else if (c.field === 'account') {
+        // Match against both ID and Name to be robust
+        const accId = String(tx.account_id || "");
+        const accName = String(tx.account || "");
+        
+        const matchesId = accId.toLowerCase() === String(target).toLowerCase();
+        const matchesName = accName.toLowerCase() === String(target).toLowerCase();
+        
+        if (matchesId || matchesName) txVal = String(target); // Force match
+        else txVal = accId; // Fallback for other operators
+      }
       
       const target = c.value;
       switch (c.operator) {
@@ -286,12 +298,16 @@ export const useFinancialParser = () => {
       return found ? found.id : 'sys-vault';
     };
 
+    // 1. Pre-classify everything using the Master Rule Engine
+    const { incomes: classifiedIncomes, expenses: classifiedExpenses } = getNormalizedLedger(rawTransactions, accounts, classificationRules);
+
     // Aggregation Helper
     const aggregateByCategory = (categoryName, type) => {
       const canonicalTarget = resolveCanonicalCategory(categoryName);
+      const targetPool = type === 'income' ? classifiedIncomes : classifiedExpenses;
       
-      const filtered = rawTransactions.filter(t => {
-        const transactionCategory = resolveCanonicalCategory(t.category);
+      const filtered = targetPool.filter(t => {
+        const transactionCategory = resolveCanonicalCategory(t.category || t.merchant || t.name);
         return transactionCategory.toLowerCase() === canonicalTarget.toLowerCase();
       });
       
