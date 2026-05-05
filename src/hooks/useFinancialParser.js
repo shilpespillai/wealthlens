@@ -10,7 +10,7 @@ import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/datePars
  * Centralized hook for financial calculations, parsing, and data persistence.
  * Follows the WealthLens Premium Design System standards.
  */
-const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment', 'Reimbursement'];
+const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
 
 const DEFAULT_CLASSIFICATION_RULES = {
   income: {
@@ -496,13 +496,9 @@ export const useFinancialParser = () => {
       const rawAmt = Math.abs(Number(t.amount || 0));
       const category = resolveCanonicalCategory(t.category || t.name);
 
-      const isIncome = matchRule(t, activeRules.income);
-      const isExpense = matchRule(t, activeRules.expense) || 
-                        (!isIncome && category && !['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'].includes(category));
-
-      if (isIncome) {
+      if (matchRule(t, activeRules.income)) {
         incomes.push({ ...t, type: 'income', amount: rawAmt, category });
-      } else if (isExpense) {
+      } else if (matchRule(t, activeRules.expense)) {
         expenses.push({ ...t, type: 'expense', amount: rawAmt, category });
       } else {
         transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
