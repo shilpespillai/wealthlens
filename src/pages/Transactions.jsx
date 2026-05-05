@@ -257,6 +257,7 @@ function TransactionsContent() {
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [uncategorized, setUncategorized] = useState([]);
   const [currency, setCurrency] = useState("USD");
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
@@ -392,7 +393,7 @@ function TransactionsContent() {
       const ledger = await getProductionLedger({ month: monthKey });
 
       // 2. Use the CENTRALIZED normalization engine (The "Common Place")
-      const { incomes: normIncs, expenses: normExps, transfers: normTrans } = getNormalizedLedger(ledger, accounts || []);
+      const { incomes: normIncs, expenses: normExps, transfers: normTrans, uncategorized: normUncat } = getNormalizedLedger(ledger, accounts || []);
 
       const resolveAccount = (tx) => {
         if (tx.account_id) {
@@ -425,6 +426,16 @@ function TransactionsContent() {
           account:    resolveAccount(t),
           amount:     Math.abs(Number(t.amount) || 0),
           type:       'transfer'
+        }))
+      );
+
+      setUncategorized(
+        normUncat.map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Uncategorized Item',
+          account:    resolveAccount(t),
+          amount:     Math.abs(Number(t.amount) || 0),
+          type:       'uncategorized'
         }))
       );
 
@@ -597,9 +608,16 @@ function TransactionsContent() {
         amount: t.amount || 0,
         merchant: t.name || t.merchant || t.category || 'Transfer Item',
         date: (t.date && t.date !== 'Monthly') ? t.date : fallbackDate
+      })),
+      ...uncategorized.map(u => ({
+        ...u,
+        type: 'uncategorized',
+        amount: u.amount || 0,
+        merchant: u.name || u.merchant || u.category || 'Uncategorized Item',
+        date: (u.date && u.date !== 'Monthly') ? u.date : fallbackDate
       }))
     ];
-  }, [incomes, expenses, transfers, selectedDate]);
+  }, [incomes, expenses, transfers, uncategorized, selectedDate]);
 
   const filteredTransactions = useMemo(() => {
     return allTransactions
@@ -619,12 +637,7 @@ function TransactionsContent() {
 
         // 2. Tab Filter (Income/Expense/Uncategorized)
         if (selectedTab !== 'all') {
-          if (selectedTab === 'uncategorized') {
-            if (tx.category?.toLowerCase() !== 'uncategorized') return false;
-          } else {
-            // Strict type matching for Income/Expense tabs
-            if (tx.type !== selectedTab) return false;
-          }
+          if (tx.type !== selectedTab) return false;
         }
 
         // 3. Category Filter

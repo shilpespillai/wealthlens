@@ -486,6 +486,7 @@ export const useFinancialParser = () => {
     const incomes = [];
     const expenses = [];
     const transfers = [];
+    const uncategorized = [];
 
     (transactions || []).forEach(t => {
       const rawAmt = Math.abs(Number(t.amount || 0));
@@ -495,12 +496,14 @@ export const useFinancialParser = () => {
         incomes.push({ ...t, type: 'income', amount: rawAmt, category });
       } else if (matchRule(t, activeRules.expense)) {
         expenses.push({ ...t, type: 'expense', amount: rawAmt, category });
-      } else {
+      } else if (['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'].includes(category)) {
         transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
+      } else {
+        uncategorized.push({ ...t, type: 'uncategorized', amount: rawAmt, category });
       }
     });
 
-    return { incomes, expenses, transfers };
+    return { incomes, expenses, transfers, uncategorized };
   }, [matchRule]);
 
   return {
