@@ -16,6 +16,8 @@ export default function TaxOptimization({ params, instrument, results }) {
       const sym = getCurrencySymbol(params.currency);
       const result = await base44.integrations.Core.InvokeLLM({
         type: 'tax',
+        currency: params.currency,
+        instrument: instrument,
         prompt: `As a tax optimization expert, provide specific strategies for minimizing taxes on a ${instrument} investment with the following details:
         - Initial Investment: ${sym}${params.initialAmount.toLocaleString()}
         - Monthly Contribution: ${sym}${params.monthlyContribution.toLocaleString()}

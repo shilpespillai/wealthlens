@@ -16,14 +16,16 @@ const DEFAULT_CLASSIFICATION_RULES = {
   income: {
     logic: 'OR',
     conditions: [
-      { field: 'category', operator: 'equals', value: 'Income' }
+      { field: 'category', operator: 'equals', value: 'Income' },
+      { field: 'amount', operator: 'greater_than', value: 0 }
     ]
   },
   expense: {
     logic: 'AND',
     conditions: [
       { field: 'category', operator: 'not_equals', value: 'Income' },
-      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES }
+      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES },
+      { field: 'amount', operator: 'less_than', value: 0 }
     ]
   }
 };
@@ -62,6 +64,8 @@ export const useFinancialParser = () => {
         case 'equals': return txVal === target;
         case 'not_equals': return txVal !== target;
         case 'contains': return String(txVal).toLowerCase().includes(String(target).toLowerCase());
+        case 'greater_than': return (Number(tx.amount) || 0) > Number(target);
+        case 'less_than': return (Number(tx.amount) || 0) < Number(target);
         case 'in': return Array.isArray(target) ? target.includes(txVal) : (String(txVal) === String(target));
         case 'not_in': return Array.isArray(target) ? !target.includes(txVal) : (String(txVal) !== String(target));
         default: return false;
@@ -70,8 +74,7 @@ export const useFinancialParser = () => {
 
     if (rule.logic === 'AND') return results.every(r => r === true);
     return results.some(r => r === true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classificationRules]);
+  }, []);
 
   const getClassificationRules = useCallback(async () => {
     const rules = await base44.user.loadData('wl_classification_rules');
@@ -263,18 +266,26 @@ export const useFinancialParser = () => {
     );
     
     // Support both legacy flat structure and new relational payload structure
-    const data = saved?.payload || saved || {};
-    // FORCE IGNORE incomes from budget records - income is a ledger-only funding source.
-    const budgetData = { ...data, incomes: [] };
+    const budgetData = saved?.payload || saved || {};
 
     
     // Account Resolution Helper
     const resolveAccountId = (tx) => {
-      if (tx.account_id) return tx.account_id;
-      if (!tx.account || tx.account === 'Manual Vault') return null;
-      // Try to find ID by name
-      const found = accounts.find(a => a.name === tx.account);
-      return found ? found.id : null;
+      if (tx.account_id && tx.account_id !== 'null' && tx.account_id !== '') return tx.account_id;
+      if (!tx.account || tx.account === 'Manual Vault') return 'sys-vault';
+      
+      const accName = String(tx.account).toLowerCase();
+      
+      // Prioritize System Mappings
+      if (accName.includes('primary credit card') || accName.includes('credit card')) return 'sys-credit';
+      if (accName.includes('salary') || accName.includes('savings')) return 'sys-savings';
+      if (accName.includes('offset')) return 'sys-offset';
+      
+      // Try to find ID by name (Case-Insensitive)
+      const found = accounts.find(a => 
+        String(a.name).toLowerCase() === accName
+      );
+      return found ? found.id : 'sys-vault';
     };
 
     // Aggregation Helper
@@ -387,6 +398,8 @@ export const useFinancialParser = () => {
     const baseExps = Array.from(expenseMap.values());
 
     const missingExps = rawTransactions.filter(m => {
+      const amount = Number(m.amount) || 0;
+      if (amount >= 0) return false; // Hard stop for income leaking into expenses
       return matchRule(m, activeRules.expense) && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);

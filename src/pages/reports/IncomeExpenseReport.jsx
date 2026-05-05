@@ -24,6 +24,7 @@ import { addMonths, subMonths, format } from "date-fns";
 import { generateIncomeExpensePdf } from "@/components/reports/generateIncomeExpensePdf";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
+import { useAccounts } from "@/hooks/useAccounts";
 import PremiumOverlay from "@/components/layout/PremiumOverlay";
 
 // Mock generation removed for production data integrity.
@@ -44,39 +45,43 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 export default function IncomeExpenseReport() {
   const { isPaidUser } = useAuth();
   const { formatAmount, normalizeTransactionData, getProductionLedger, getDatabaseTable } = useFinancialParser();
+  const { syncMonthlyWithMaster } = useAccounts();
   const [selectedDate, setSelectedDate] = useState(new Date()); // Default to current month
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [nestCategories, setNestCategories] = useState(false);
   const [showPercentages, setShowPercentages] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState([]);
-  const [selectedAccountId, setSelectedAccountId] = useState(null);
 
   const monthKey = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}`;
-  const [dbAccounts, setDbAccounts] = useState([]);
 
   useEffect(() => {
     async function load() {
       setIncomes([]);
       setExpenses([]);
+      
+      // 0. Ensure master accounts are synced to this month's shard
+      await syncMonthlyWithMaster(monthKey);
+
       // 1. Load accounts first as they are needed for normalization
       const rawAccounts = await getDatabaseTable("user_accounts", { month: monthKey });
       const seen = new Set();
       const unique = (rawAccounts || []).filter(a => {
         if (seen.has(a.id)) return false;
+        // Filter out any system-added or redundant manual vaults to prevent duplicates
+        if (a.name === 'Manual Vault' || a.id === 'sys-vault' || a.id === 'manual') return false;
         seen.add(a.id);
         return true;
       });
-      // Add Virtual "Manual Vault" for unassigned items
-      const virtualManual = { id: "manual", name: "Manual Vault", is_system: true };
-      setDbAccounts([virtualManual, ...unique]);
 
       // 2. Load budgets and ledger
       const allBudgets = await getDatabaseTable("budgets");
-      const saved = (allBudgets || []).find((b) => b.month === monthKey);
-
+      const saved = (allBudgets || []).find(b => b.month === monthKey);
       const productionLedger = await getProductionLedger({ month: monthKey });
+
+      // 3. Normalize and set data
       const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, productionLedger, unique);
+      
       setIncomes(normIncs);
       setExpenses(normExps);
     }
@@ -100,20 +105,8 @@ export default function IncomeExpenseReport() {
       return Object.values(cats);
     };
 
-    const filteredIncs = incomes.filter(i => {
-      if (!selectedAccountId) return true;
-      if (selectedAccountId === 'manual') return !i.account_id || String(i.account_id) === 'manual' || String(i.account_id) === 'null' || i.account_id === '';
-      return String(i.account_id) === String(selectedAccountId);
-    });
-    
-    const filteredExps = expenses.filter(e => {
-      if (!selectedAccountId) return true;
-      if (selectedAccountId === 'manual') return !e.account_id || String(e.account_id) === 'manual' || String(e.account_id) === 'null' || e.account_id === '';
-      return String(e.account_id) === String(selectedAccountId);
-    });
-
-    const rawIncs = processGroup(filteredIncs);
-    const rawExps = processGroup(filteredExps);
+    const rawIncs = processGroup(incomes);
+    const rawExps = processGroup(expenses);
 
     if (!nestCategories) return { incomes: rawIncs, expenses: rawExps };
 
@@ -146,7 +139,7 @@ export default function IncomeExpenseReport() {
     };
 
     return { incomes: rawIncs, expenses: nest(rawExps) };
-  }, [incomes, expenses, nestCategories, selectedAccountId]);
+  }, [incomes, expenses, nestCategories]);
 
   const totalActualIncome = reportData.incomes.reduce((s, i) => s + Number(i.actual || 0), 0);
   const totalActualExpense = reportData.expenses.reduce((s, e) => s + Math.abs(Number(e.actual || 0)), 0);
@@ -205,57 +198,34 @@ export default function IncomeExpenseReport() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans relative">
-      {!isPaidUser && <PremiumOverlay featureName="Income & Expense Report" />}
-      <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
-        {/* Unified Analysis Sidebar */}
-        <aside className="w-80 bg-white border-r border-slate-100 p-8 space-y-10 overflow-y-auto">
-           <div className="space-y-6">
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Analysis Options</p>
-              <div className="space-y-5">
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Nest categories</span>
-                    <Switch checked={nestCategories} onCheckedChange={setNestCategories} />
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Show % of total</span>
-                    <Switch checked={showPercentages} onCheckedChange={setShowPercentages} />
-                 </div>
-              </div>
-           </div>
+      <div className="flex-1 overflow-y-auto bg-[#F8F9FB] p-6">
+        <div className="max-w-7xl mx-auto mb-6">
 
-            <div className="space-y-4">
-               <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">Accounts</p>
-               <div className="space-y-2">
-                {dbAccounts.map((acc, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
-                    className={`p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer border ${selectedAccountId === acc.id ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-[#C5A059]/30'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Checkbox checked={selectedAccountId === acc.id || !selectedAccountId} />
-                      <span className={`text-[10px] font-bold uppercase transition-colors ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-500'}`}>{acc.name}</span>
-                    </div>
-                    {(selectedAccountId === acc.id || !selectedAccountId) && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                  </div>
-                ))}
-                {dbAccounts.length === 0 && (
-                  <p className="text-[9px] text-slate-400 text-center italic">No accounts linked</p>
-                )}
-               </div>
-            </div>
-        </aside>
 
-        <main className="flex-1 overflow-y-auto p-2 bg-[#F8F9FB]">
+
             {/* Premium Header - Now part of the scroll flow */}
             <div className="max-w-full mx-auto mb-4">
               <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
                 <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
+                <div className="flex items-center gap-8">
                   <div className="flex items-center gap-3">
                     <FileText className="w-6 h-6 text-[#C5A059]" />
                     <h1 className="text-xl font-bold text-slate-900 tracking-tight">Income & Expense</h1>
                   </div>
+
+                  <div className="h-8 w-px bg-slate-100 hidden md:block" />
+
+                  <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Nest Categories</span>
+                      <Switch checked={nestCategories} onCheckedChange={setNestCategories} className="data-[state=checked]:bg-[#C5A059]" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Show %</span>
+                      <Switch checked={showPercentages} onCheckedChange={setShowPercentages} className="data-[state=checked]:bg-[#C5A059]" />
+                    </div>
+                  </div>
+                </div>
                   <div className="flex items-center gap-6">
                     <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm h-10">
                         <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all h-full">
@@ -291,7 +261,7 @@ export default function IncomeExpenseReport() {
                 </div>
               </div>
             </div>
-           <div className="max-w-full mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
+           <div className="max-w-7xl mx-auto bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/50">
               <table className="w-full text-left border-collapse">
                  <thead>
                     <tr className="bg-slate-50/50">
@@ -340,7 +310,6 @@ export default function IncomeExpenseReport() {
                  </tbody>
               </table>
            </div>
-        </main>
       </div>
     </div>
   );
