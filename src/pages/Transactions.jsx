@@ -645,6 +645,47 @@ function TransactionsContent() {
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [allTransactions, selectedTab, searchQuery, selectedAccountId, selectedCategory, dbAccounts]);
+  
+  // --- Search & Filter Aggregator (Institutional Engine) ---
+  const searchTotals = useMemo(() => {
+    const isFiltered = searchQuery || selectedCategory || selectedAccountId || selectedTab !== 'all';
+    if (!isFiltered || filteredTransactions.length === 0) return null;
+    
+    const categoryTotals = {};
+    let totalExpense = 0;
+    let totalIncome = 0;
+
+    filteredTransactions.forEach(tx => {
+      const cat = tx.category || "Uncategorized";
+      const amt = Number(tx.amount) || 0;
+      
+      if (tx.type === 'income') {
+        totalIncome += amt;
+      } else if (tx.type === 'expense') {
+        totalExpense += amt;
+      }
+
+      if (!categoryTotals[cat]) {
+        categoryTotals[cat] = { expense: 0, income: 0, count: 0 };
+      }
+      categoryTotals[cat].count++;
+      if (tx.type === 'income') {
+        categoryTotals[cat].income += amt;
+      } else if (tx.type === 'expense') {
+        categoryTotals[cat].expense += amt;
+      }
+    });
+
+    return {
+      totalExpense,
+      totalIncome,
+      categories: Object.entries(categoryTotals)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => (b.expense + b.income) - (a.expense + a.income)),
+      count: filteredTransactions.length,
+      isSpecificCategory: !!selectedCategory
+    };
+  }, [filteredTransactions, searchQuery, selectedCategory, selectedAccountId, selectedTab]);
 
 
 
@@ -1545,13 +1586,66 @@ function TransactionsContent() {
               </div>
             </div>
 
-          <div className="px-6 py-3 bg-white border-t border-slate-100 text-center">
+          {/* Search Intelligence Bar (Dynamic Aggregator) */}
+          {searchTotals && (
+            <div className="px-8 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-6 shadow-[inner_0_1px_2px_rgba(0,0,0,0.02)]">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Search Results</p>
+                    <p className="text-xs font-bold text-slate-900">{searchTotals.count} items filtered</p>
+                  </div>
+               </div>
+
+               <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
+
+               <div className="flex items-center gap-8">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Spent</span>
+                    <span className="text-sm font-black text-rose-600 tabular-nums">{formatAmount(searchTotals.totalExpense)}</span>
+                  </div>
+                  {searchTotals.totalIncome > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Income</span>
+                      <span className="text-sm font-black text-emerald-600 tabular-nums">{formatAmount(searchTotals.totalIncome)}</span>
+                    </div>
+                  )}
+               </div>
+
+               {!searchTotals.isSpecificCategory && searchTotals.categories.length > 1 && (
+                 <>
+                   <div className="h-8 w-[1px] bg-slate-200 hidden lg:block" />
+                   <div className="flex items-center gap-3 overflow-hidden">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Breakdown:</span>
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                        {searchTotals.categories.slice(0, 3).map(cat => (
+                          <div key={cat.name} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg shrink-0">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat.name) }} />
+                            <span className="text-[10px] font-bold text-slate-700 whitespace-nowrap">{cat.name}:</span>
+                            <span className="text-[10px] font-medium text-slate-500 tabular-nums">{formatAmount(cat.expense || cat.income)}</span>
+                          </div>
+                        ))}
+                        {searchTotals.categories.length > 3 && (
+                          <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-1 rounded-lg shrink-0">
+                            +{searchTotals.categories.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                   </div>
+                 </>
+               )}
+            </div>
+          )}
+
+          <div className="px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between">
             <p className="text-[10px] font-bold text-slate-400 italic">
               Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} items.
             </p>
             {selectedTransactions.length > 0 && (
-              <span className="bg-amber-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-amber-100 animate-in zoom-in-50">
-                {selectedTransactions.length} selected
+              <span className="bg-amber-600 text-white px-3 py-1 rounded-full text-[11px] font-bold shadow-lg shadow-amber-100 animate-in zoom-in-50">
+                {selectedTransactions.length} transactions selected
               </span>
             )}
           </div>
