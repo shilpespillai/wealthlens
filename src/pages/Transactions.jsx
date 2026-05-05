@@ -850,6 +850,9 @@ function TransactionsContent() {
       // 3. Update local state
       setState(targetState.map(i => i.id === id ? updatedItem : i));
       toast.success("Transaction updated");
+      
+      // 4. Force full data refresh for accurate totals
+      await fetchData();
     } catch (err) {
       console.error("Inline update failed:", err);
       toast.error("Update failed");
@@ -882,6 +885,9 @@ function TransactionsContent() {
       setExpenses(updated);
     }
     toast.info("Transaction removed and purged from ledger");
+    
+    // 3. Force full data refresh
+    await fetchData();
   };
 
   const handleBankSync = async (newItems) => {
