@@ -16,16 +16,14 @@ const DEFAULT_CLASSIFICATION_RULES = {
   income: {
     logic: 'OR',
     conditions: [
-      { field: 'category', operator: 'equals', value: 'Income' },
-      { field: 'amount', operator: 'greater_than', value: 0 }
+      { field: 'category', operator: 'equals', value: 'Income' }
     ]
   },
   expense: {
     logic: 'AND',
     conditions: [
       { field: 'category', operator: 'not_equals', value: 'Income' },
-      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES },
-      { field: 'amount', operator: 'less_than', value: 0 }
+      { field: 'category', operator: 'not_in', value: EXCLUDED_CATEGORIES }
     ]
   }
 };
@@ -398,8 +396,6 @@ export const useFinancialParser = () => {
     const baseExps = Array.from(expenseMap.values());
 
     const missingExps = rawTransactions.filter(m => {
-      const amount = Number(m.amount) || 0;
-      if (amount >= 0) return false; // Hard stop for income leaking into expenses
       return matchRule(m, activeRules.expense) && !consumedTransactionIds.has(m.id);
     }).map(t => {
       const resolvedAccId = resolveAccountId(t);
