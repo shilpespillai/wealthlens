@@ -296,7 +296,7 @@ const normalizeStructure = (savedItems = [], userCategories = [], currentActuals
 };
 
 export default function SetBudget() {
-  const { parseCurrency, formatAmount } = useFinancialParser();
+  const { parseCurrency, formatAmount, normalizeTransactionData } = useFinancialParser();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const monthKey = useMemo(() => {
     const y = selectedDate.getFullYear();
@@ -360,10 +360,10 @@ export default function SetBudget() {
       const currentActuals = {};
       normExps.forEach(e => {
         const key = resolveCanonicalCategory(e.category).trim().toLowerCase();
-        currentActuals[key] = (currentActuals[key] || 0) + (Number(e.actual) || 0);
+        currentActuals[key] = (currentActuals[key] || 0) + (Number(e.amount) || 0);
       });
 
-      const totalActualInc = normIncs.reduce((sum, i) => sum + (Number(i.actual) || 0), 0);
+      const totalActualInc = normIncs.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
       setActualIncome(totalActualInc);
       setActualsMap(currentActuals);
       setMonthTransactions(txResults);
