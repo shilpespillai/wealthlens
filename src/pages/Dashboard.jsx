@@ -71,7 +71,8 @@ export function DashboardContent() {
     getDatabaseTable,
     calculateMetrics,
     getNormalizedLedger,
-    normalizeTransactionData 
+    normalizeTransactionData,
+    rulesLoaded 
   } = useFinancialParser();
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const [params, setParams] = useState(null);
@@ -327,7 +328,7 @@ export function DashboardContent() {
     
     const focusDate = new Date(periodInfo.focusMonthKey + '-01');
     return normalizeTransactionData(budgetRow, focusDate, liveData.currentMonthTransactions || [], liveData.accounts || []);
-  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, liveData.accounts, periodInfo.focusMonthKey, normalizeTransactionData]);
+  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, liveData.accounts, periodInfo.focusMonthKey, normalizeTransactionData, rulesLoaded]);
 
   // Consumption Target summary ALWAYS anchored to the CURRENT MONTH'S PRE-CALCULATED STATE
   const budgetSummary = useMemo(() => {
@@ -393,7 +394,7 @@ export function DashboardContent() {
       remaining,
       breakdown: [...breakdown.filter(b => b.value > 0 || b.total > 0), { name: 'Remaining', value: remaining, isRemaining: true }]
     };
-  }, [liveData.budgets, liveData.transactions, liveData.accounts, periodInfo, getNormalizedLedger]);
+  }, [liveData.budgets, liveData.transactions, liveData.accounts, periodInfo, getNormalizedLedger, rulesLoaded]);
 
   // --- HOLISTIC LOGIC ---
   const { chartData, holisticMetrics } = useMemo(() => {
@@ -564,7 +565,7 @@ export function DashboardContent() {
         latestMonthlyTarget
       }
     };
-  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics]);
+  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics, rulesLoaded]);
 
   const currentPeriodMetrics = useMemo(() => {
     return {
@@ -729,7 +730,7 @@ export function DashboardContent() {
   // Effect 2: Dynamic Horizon Synchronization
   useEffect(() => {
     async function syncHorizon() {
-      if (isLoading || !isAuthenticated) return; 
+      if (isLoading || !isAuthenticated || !rulesLoaded) return; 
       if (document.visibilityState !== 'visible') return;
 
       try {
@@ -772,7 +773,7 @@ export function DashboardContent() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading, isAuthenticated, getProductionLedger]);
+  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading, isAuthenticated, getProductionLedger, rulesLoaded]);
 
   const saveLayout = async (newColumns) => {
     try {

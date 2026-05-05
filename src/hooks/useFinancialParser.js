@@ -27,11 +27,18 @@ const DEFAULT_CLASSIFICATION_RULES = {
 
 export const useFinancialParser = () => {
   const [classificationRules, setClassificationRules] = useState(DEFAULT_CLASSIFICATION_RULES);
+  const [rulesLoaded, setRulesLoaded] = useState(false);
 
   useEffect(() => {
     const loadRules = async () => {
-      const rules = await base44.user.loadData('wl_classification_rules');
-      if (rules) setClassificationRules(rules);
+      try {
+        const rules = await base44.user.loadData('wl_classification_rules');
+        if (rules) setClassificationRules(rules);
+      } catch (err) {
+        console.error("Failed to load classification rules:", err);
+      } finally {
+        setRulesLoaded(true);
+      }
     };
     loadRules();
 
@@ -45,34 +52,41 @@ export const useFinancialParser = () => {
     if (!rule || !rule.conditions || rule.conditions.length === 0) return false;
     
     const results = rule.conditions.map(c => {
+      const field = c.field;
+      const operator = c.operator;
+      const target = String(c.value || "").toLowerCase().trim();
+      
+      // Safety: Empty rules should not match everything
+      if (!target && operator !== 'not_equals') return false;
+      
       let txVal = '';
-      if (c.field === 'category') {
-        // Fallback to merchant/name if category is missing or uncategorized
+      if (field === 'category') {
         const rawCat = tx.category || tx.merchant || tx.name || '';
         txVal = resolveCanonicalCategory(rawCat);
       }
-      else if (c.field === 'merchant') txVal = String(tx.merchant || tx.name || "");
-      else if (c.field === 'account') {
-        // Match against both ID and Name to be robust
-        const accId = String(tx.account_id || "");
-        const accName = String(tx.account || "");
+      else if (field === 'merchant') txVal = String(tx.merchant || tx.name || "");
+      else if (field === 'account') {
+        const accId = String(tx.account_id || "").toLowerCase().trim();
+        const accName = String(tx.account || "").toLowerCase().trim();
         
-        const matchesId = accId.toLowerCase() === String(target).toLowerCase();
-        const matchesName = accName.toLowerCase() === String(target).toLowerCase();
-        
-        if (matchesId || matchesName) txVal = String(target); // Force match
-        else txVal = accId; // Fallback for other operators
+        // Use inclusive matching for account names/IDs
+        if (accId.includes(target) || accName.includes(target)) {
+          txVal = c.value; // Force match
+        } else {
+          txVal = accId;
+        }
       }
       
-      const target = c.value;
-      switch (c.operator) {
-        case 'equals': return txVal === target;
-        case 'not_equals': return txVal !== target;
-        case 'contains': return String(txVal).toLowerCase().includes(String(target).toLowerCase());
-        case 'greater_than': return (Number(tx.amount) || 0) > Number(target);
-        case 'less_than': return (Number(tx.amount) || 0) < Number(target);
-        case 'in': return Array.isArray(target) ? target.includes(txVal) : (String(txVal) === String(target));
-        case 'not_in': return Array.isArray(target) ? !target.includes(txVal) : (String(txVal) !== String(target));
+      const val = String(txVal || "").toLowerCase().trim();
+      
+      switch (operator) {
+        case 'equals': return val === target;
+        case 'not_equals': return val !== target;
+        case 'contains': return val.includes(target);
+        case 'greater_than': return (Number(tx.amount) || 0) > Number(c.value);
+        case 'less_than': return (Number(tx.amount) || 0) < Number(c.value);
+        case 'in': return Array.isArray(c.value) ? c.value.some(v => String(v).toLowerCase().trim() === val) : (val === target);
+        case 'not_in': return Array.isArray(c.value) ? !c.value.some(v => String(v).toLowerCase().trim() === val) : (val !== target);
         default: return false;
       }
     });
@@ -507,11 +521,16 @@ export const useFinancialParser = () => {
     (transactions || []).forEach(t => {
       const rawAmt = Math.abs(Number(t.amount || 0));
       const category = resolveCanonicalCategory(t.category || t.name);
+      
+      // Hydrate transaction with account name for robust matching
+      const acc = accounts.find(a => String(a.id) === String(t.account_id));
+      const txWithAcc = { ...t, account: acc?.name || t.account || 'Manual Vault' };
 
-      if (matchRule(t, activeRules.income)) {
-        incomes.push({ ...t, type: 'income', amount: rawAmt, category });
-      } else if (matchRule(t, activeRules.expense)) {
-        expenses.push({ ...t, type: 'expense', amount: rawAmt, category });
+      // Rule Engine: Expense rules take absolute priority to ensure account-based rules are followed
+      if (matchRule(txWithAcc, activeRules.expense)) {
+        expenses.push({ ...txWithAcc, type: 'expense', amount: rawAmt, category });
+      } else if (matchRule(txWithAcc, activeRules.income)) {
+        incomes.push({ ...txWithAcc, type: 'income', amount: rawAmt, category });
       } else if (['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'].includes(category)) {
         transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
       } else {
@@ -520,7 +539,7 @@ export const useFinancialParser = () => {
     });
 
     return { incomes, expenses, transfers, uncategorized };
-  }, [matchRule]);
+  }, [matchRule, classificationRules]);
 
   return {
     parseCurrency,
@@ -537,9 +556,9 @@ export const useFinancialParser = () => {
     getNormalizedLedger,
     getClassificationRules,
     purgeProductionLedger,
-    matchRule
+    matchRule,
+    rulesLoaded
   };
 };
-
 
 export default useFinancialParser;

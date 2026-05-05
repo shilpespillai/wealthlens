@@ -198,7 +198,8 @@ function TransactionsContent() {
     normalizeTransactionData,
     getProductionLedger,
     getDatabaseTable,
-    getNormalizedLedger
+    getNormalizedLedger,
+    rulesLoaded
   } = useFinancialParser();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const monthKey = useMemo(() => {
@@ -452,21 +453,22 @@ function TransactionsContent() {
   }, [monthKey, selectedDate, getProductionLedger, getNormalizedLedger, getDatabaseTable]);
 
   useEffect(() => {
+    if (!rulesLoaded) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, rulesLoaded]);
 
   // Re-fetch once Supabase auth session is confirmed ready.
   // Without this, fetchData fires before the PKCE session resolves,
   // falls through to the empty localStorage fallback, and shows $0.
   useEffect(() => {
     const { data: { subscription } } = supabase?.auth?.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && rulesLoaded) {
         fetchData();
       }
     }) || { data: { subscription: null } };
 
     return () => subscription?.unsubscribe();
-  }, [fetchData]);
+  }, [fetchData, rulesLoaded]);
 
 
   // Load Saved Searches on mount

@@ -88,7 +88,8 @@ function FamilyBudgetContent() {
     normalizeTransactionData,
     getDatabaseTable,
     getProductionLedger,
-    getNormalizedLedger
+    getNormalizedLedger,
+    rulesLoaded
   } = useFinancialParser();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ function FamilyBudgetContent() {
   // Load from server
   useEffect(() => {
     async function initData() {
+      if (!rulesLoaded) return;
       setIsLoading(true);
       try {
         // 1. Fetch budget for this month from the centralized table
@@ -138,7 +140,7 @@ function FamilyBudgetContent() {
       }
     }
     initData();
-  }, [monthKey, normalizeTransactionData, selectedDate, getDatabaseTable, getProductionLedger]);
+  }, [monthKey, normalizeTransactionData, selectedDate, getDatabaseTable, getProductionLedger, getNormalizedLedger, rulesLoaded]);
 
   const changeMonth = (offset) => {
     const next = new Date(selectedDate);
