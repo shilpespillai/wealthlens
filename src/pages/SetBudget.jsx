@@ -1005,42 +1005,49 @@ export default function SetBudget() {
               ))}
             </div>
 
-            {/* Institutional Signature Summary */}
-            <div className="mx-0 my-0 p-8 pt-10 pb-12 bg-white border-t border-slate-100 flex items-center relative overflow-hidden">
-               <div className="flex-1 flex items-center gap-10 px-12">
-                  <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Target Surplus</p>
-                     <p className={`text-xl font-black tabular-nums tracking-tighter ${totals.net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-                        {formatAmount(totals.net)}
-                     </p>
-                  </div>
-               </div>
-
-               {/* Right: Aligned Total Amount with Institutional Accents */}
-               <div className="flex items-center">
-                  <div className="w-80 flex justify-end pr-12">
-                     <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 text-right leading-tight">
-                        TOTAL MONTHLY<br />EXPENSE TARGET
-                     </p>
-                  </div>
+            {/* Institutional Pulse Bar */}
+            <div className="mx-0 my-0 p-10 bg-slate-50/30 border-t border-slate-100 relative overflow-hidden">
+               <div className="max-w-7xl mx-auto flex items-center justify-between gap-12">
                   
-                  {/* The Figure: Aligned to Amount Column */}
-                  <div className="w-80 px-6 text-right relative">
-                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-[#C5A059] rounded-full opacity-30" />
-                     <div className="flex flex-col items-end">
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Actual Spent</span>
-                       <p className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">
-                          {formatAmount(totals.actualExpense)}
-                       </p>
-                       <div className="mt-2">
-                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">of {formatAmount(totals.expense)} target</span>
-                       </div>
+                  {/* Pillar 1: Allocation Target */}
+                  <div className="flex-1 flex flex-col gap-2">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Total Target Allocation</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter">
+                           {formatAmount(totals.expense)}
+                        </p>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Planned</span>
                      </div>
                   </div>
-                  
-                  <div className="w-16 flex items-center justify-center">
-                     <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.5)]" />
+
+                  <div className="h-12 w-px bg-slate-200" />
+
+                  {/* Pillar 2: Actual Performance */}
+                  <div className="flex-1 flex flex-col gap-2">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Actual Monthly Spending</p>
+                     <div className="flex items-baseline gap-3">
+                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-slate-900'}`}>
+                           {formatAmount(totals.actualExpense)}
+                        </p>
+                        <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter ${totals.actualExpense > totals.expense ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                           {totals.actualExpense > totals.expense ? 'Over Budget' : 'On Track'}
+                        </div>
+                     </div>
                   </div>
+
+                  <div className="h-12 w-px bg-slate-200" />
+
+                  {/* Pillar 3: Realized Surplus */}
+                  <div className="flex-1 flex flex-col gap-2 items-end">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 text-right">Realized Monthly Surplus</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualNet >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                           {formatAmount(totals.actualNet)}
+                        </p>
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.4)]" />
+                     </div>
+                  </div>
+
                </div>
             </div>
 
