@@ -196,7 +196,7 @@ export const useFinancialParser = () => {
     return {
       totalIncome: Math.abs(totalIncome),
       totalExpenses: Math.abs(totalExpenses),
-      balance: totalIncome + totalExpenses, // Netted balance
+      balance: Math.abs(totalIncome) - Math.abs(totalExpenses),
       savings: Math.abs(savings),
       hasIncome: Math.abs(totalIncome) > 0
     };
@@ -493,7 +493,7 @@ export const useFinancialParser = () => {
     const transfers = [];
 
     (transactions || []).forEach(t => {
-      const rawAmt = Number(t.amount || 0);
+      const rawAmt = Math.abs(Number(t.amount || 0));
       const category = resolveCanonicalCategory(t.category || t.name);
 
       if (matchRule(t, activeRules.income)) {
