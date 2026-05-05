@@ -118,7 +118,6 @@ export default function Sidebar() {
 
                   {[
                     { id: "coach", label: "AI Coach", icon: Sparkles },
-                    { id: "pillars", label: "8-Pillars", icon: BarChart3 },
                     { id: "fairvalue", label: "Fair Value", icon: Target },
                     { id: "retirement", label: "Retirement", icon: Palmtree },
                     { id: "chart", label: "Growth Chart", icon: LineChart },
@@ -247,14 +246,6 @@ export default function Sidebar() {
                   >
                      <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
                      <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
-                  </Link>
-
-                  <Link 
-                     to="/HelpCenter"
-                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
-                  >
-                     <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
-                     <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
                   </Link>
 
                   <Link 

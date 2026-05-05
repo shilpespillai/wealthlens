@@ -168,7 +168,7 @@ export default function HelpCenter() {
                   <span className="text-slate-400 font-medium NOT-italic">Technical Spec.</span>
                 </h1>
                 <p className="text-slate-500 text-xs font-medium uppercase tracking-[0.1em] max-w-xl leading-relaxed">
-                  Comprehensive documentation of the WealthLens v4.2.0-ELITE architecture, including data flow protocols, neural bridge connectivity, and 8-pillar financial logic.
+                  Comprehensive documentation of the WealthLens v4.2.0-ELITE architecture, including data flow protocols, neural bridge connectivity, and advanced financial logic.
                 </p>
              </div>
 
@@ -407,9 +407,9 @@ export default function HelpCenter() {
                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 pt-16 border-t border-slate-200">
                       <div className="lg:col-span-1 space-y-8">
                          <div className="space-y-4">
-                            <h5 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">The 8-Pillar Strategy Audit</h5>
+                            <h5 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Institutional Risk Management</h5>
                             <p className="text-[12px] text-slate-500 font-semibold uppercase leading-relaxed tracking-tight">
-                               Every plan is automatically stress-tested against eight institutional-grade pillars. This is our "Risk Management" layer.
+                               Every plan is automatically stress-tested against our institutional-grade risk models.
                             </p>
                          </div>
                          <ul className="space-y-4">

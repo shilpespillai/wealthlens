@@ -21,7 +21,7 @@ import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import PortfolioOverview from "@/components/calculator/PortfolioOverview";
 import RetirementPlanner from "@/components/calculator/RetirementPlanner";
-import StockPillarAnalyzer from "@/components/calculator/StockPillarAnalyzer";
+
 import FairValueCalculator from "@/components/calculator/FairValueCalculator";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
@@ -342,11 +342,7 @@ function CalculatorContent() {
                 </PremiumGate>
               </TabsContent>
 
-              <TabsContent value="pillars" className="mt-6">
-                <PremiumGate featureName="8-Pillar Stock Analysis" isPremium={isPremium}>
-                  <StockPillarAnalyzer onOpenFairValue={() => setActiveTab("fairvalue")} />
-                </PremiumGate>
-              </TabsContent>
+
 
               <TabsContent value="fairvalue" className="mt-6">
                 <PremiumGate featureName="Fair Value Calculator" isPremium={isPremium}>
