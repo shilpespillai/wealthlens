@@ -1007,11 +1007,11 @@ export default function SetBudget() {
 
             {/* Institutional Pulse Bar */}
             <div className="mx-0 my-0 p-10 bg-slate-50/30 border-t border-slate-100 relative overflow-hidden">
-               <div className="max-w-7xl mx-auto flex items-center justify-between gap-12">
+               <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
                   
                   {/* Pillar 1: Allocation Target */}
                   <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Total Target Allocation</p>
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Total Target</p>
                      <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter">
                            {formatAmount(totals.expense)}
@@ -1024,7 +1024,7 @@ export default function SetBudget() {
 
                   {/* Pillar 2: Actual Performance */}
                   <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Actual Monthly Spending</p>
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Actual Spent</p>
                      <div className="flex items-baseline gap-3">
                         <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-slate-900'}`}>
                            {formatAmount(totals.actualExpense)}
@@ -1037,9 +1037,24 @@ export default function SetBudget() {
 
                   <div className="h-12 w-px bg-slate-200" />
 
-                  {/* Pillar 3: Realized Surplus */}
+                  {/* Pillar 3: Budget Variance (The Overspend) */}
+                  <div className="flex-1 flex flex-col gap-2">
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Budget Variance</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
+                           {formatAmount(Math.abs(totals.expense - totals.actualExpense))}
+                        </p>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${totals.actualExpense > totals.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
+                           {totals.actualExpense > totals.expense ? 'Overspend' : 'Savings'}
+                        </span>
+                     </div>
+                  </div>
+
+                  <div className="h-12 w-px bg-slate-200" />
+
+                  {/* Pillar 4: Realized Profit */}
                   <div className="flex-1 flex flex-col gap-2 items-end">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 text-right">Realized Monthly Surplus</p>
+                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 text-right">Net Monthly Surplus</p>
                      <div className="flex items-baseline gap-2">
                         <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualNet >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                            {formatAmount(totals.actualNet)}
