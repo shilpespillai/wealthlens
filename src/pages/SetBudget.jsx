@@ -995,12 +995,12 @@ export default function SetBudget() {
                   
                   {/* Pillar 1: Allocation Target */}
                   <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Total Target</p>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Total Target</p>
                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter">
+                        <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
                            {formatAmount(totals.expense)}
                         </p>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Planned</span>
+                        <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Target</span>
                      </div>
                   </div>
 
@@ -1008,12 +1008,12 @@ export default function SetBudget() {
 
                   {/* Pillar 2: Actual Performance */}
                   <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Actual Spent</p>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Actual Spent</p>
                      <div className="flex items-baseline gap-3">
-                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-slate-900'}`}>
+                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-slate-900'}`}>
                            {formatAmount(totals.actualExpense)}
                         </p>
-                        <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter ${totals.actualExpense > totals.expense ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight ${totals.actualExpense > totals.expense ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                            {totals.actualExpense > totals.expense ? 'Over Budget' : 'On Track'}
                         </div>
                      </div>
@@ -1023,9 +1023,9 @@ export default function SetBudget() {
 
                   {/* Pillar 3: Budget Variance (The Overspend) */}
                   <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Budget Variance</p>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Budget Variance</p>
                      <div className="flex items-baseline gap-2">
-                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
                            {formatAmount(Math.abs(totals.expense - totals.actualExpense))}
                         </p>
                         <span className={`text-[10px] font-bold uppercase tracking-widest ${totals.actualExpense > totals.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -1038,9 +1038,9 @@ export default function SetBudget() {
 
                   {/* Pillar 4: Realized Profit */}
                   <div className="flex-1 flex flex-col gap-2 items-end">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 text-right">Net Monthly Surplus</p>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 text-right">Net Monthly Surplus</p>
                      <div className="flex items-baseline gap-2">
-                        <p className={`text-3xl font-black tabular-nums tracking-tighter ${totals.actualNet >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualNet >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                            {formatAmount(totals.actualNet)}
                         </p>
                         <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.4)]" />
