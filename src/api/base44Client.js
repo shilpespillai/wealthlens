@@ -87,6 +87,7 @@ export const invokeUniversalAI = async (prompt, type, params = {}) => {
     IF type is 'categorize': { "categories": { "merchant_name_exactly_as_provided": "Canonical_Category_Name" } }
     IF type is 'report': { "markdownContent": "The full formatted markdown report string containing all analysis. Use # for headers, - for bullets, and ** for bold text." }
     IF type is 'market': { "sentiment": "bullish|neutral|bearish", "summary": "2-sentence overview", "key_trends": ["trend 1", "trend 2"], "outlook": { "shortTerm_6_12_months": "...", "longTerm_15_years": "..." }, "risks": ["risk 1"], "recommended_rates": { "conservative": number, "moderate": number, "aggressive": number } }
+    IF type is 'tax': { "summary": "...", "strategies": [{ "title": "...", "description": "...", "estimated_savings": "...", "timeframe": "...", "difficulty": "Easy|Moderate|Complex" }], "account_recommendations": [{ "account_type": "...", "benefits": "...", "contribution_limits": "..." }], "withdrawal_strategy": "...", "key_tips": ["tip 1"] }
     Return ONLY valid JSON.`;
 
     if (userProvider === 'gemini') {
@@ -274,6 +275,47 @@ const runSmartHeuristics = async (type, params) => {
       recommendations: recs,
       key_insights: [`Your runway currently sits at ${runway.toFixed(1)} months.`],
       closing_motivation: "Stay focused on the long-term compounding effect."
+    };
+  }
+
+  if (type === 'tax') {
+    const instrument = params.instrument || 'Investment';
+    return {
+      summary: "Your portfolio has significant potential for multi-generational tax optimization. Strategic allocation across varied tax buckets can enhance your effective CAGR by 1.2% - 2.5%.",
+      strategies: [
+        {
+          title: "Strategic Asset Location",
+          description: "Placing high-growth, high-turnover assets in tax-advantaged accounts while keeping tax-efficient index funds in taxable brokerage accounts.",
+          estimated_savings: "15-20% of tax drag",
+          timeframe: "Long-term (5+ years)",
+          difficulty: "Moderate"
+        },
+        {
+          title: "Institutional Loss Harvesting",
+          description: "Systematically realizing capital losses to offset future gains and up to $3,000 of ordinary income annually.",
+          estimated_savings: "3-5% annual yield increase",
+          timeframe: "Annual",
+          difficulty: "Easy"
+        }
+      ],
+      account_recommendations: [
+        {
+          account_type: "Tax-Exempt (Roth) Structures",
+          benefits: "Total elimination of future capital gains tax on growth.",
+          contribution_limits: "Standard annual limits apply based on jurisdiction."
+        },
+        {
+          account_type: "Tax-Deferred (Traditional) Vehicles",
+          benefits: "Immediate reduction in current-year taxable income.",
+          contribution_limits: "High-limit institutional access recommended."
+        }
+      ],
+      withdrawal_strategy: "Prioritize taxable account liquidation first to allow tax-advantaged buckets maximum compounding time, followed by deferred accounts, and finally exempt accounts.",
+      key_tips: [
+        "Avoid short-term capital gains realization wherever possible.",
+        "Utilize dividend reinvestment plans (DRIP) to maintain cost-basis tracking.",
+        "Consider charitable contributions of highly appreciated assets."
+      ]
     };
   }
 
