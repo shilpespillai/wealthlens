@@ -656,36 +656,44 @@ function TransactionsContent() {
     const categoryTotals = {};
     let totalExpense = 0;
     let totalIncome = 0;
+    let totalAmount = 0;
 
     filteredTransactions.forEach(tx => {
       const cat = tx.category || "Uncategorized";
       const amt = Number(tx.amount) || 0;
+      const absAmt = Math.abs(amt);
       
+      totalAmount += absAmt;
+
       if (tx.type === 'income') {
-        totalIncome += amt;
+        totalIncome += absAmt;
       } else if (tx.type === 'expense') {
-        totalExpense += amt;
+        totalExpense += absAmt;
       }
 
       if (!categoryTotals[cat]) {
-        categoryTotals[cat] = { expense: 0, income: 0, count: 0 };
+        categoryTotals[cat] = { total: 0, expense: 0, income: 0, count: 0 };
       }
       categoryTotals[cat].count++;
+      categoryTotals[cat].total += absAmt;
+
       if (tx.type === 'income') {
-        categoryTotals[cat].income += amt;
+        categoryTotals[cat].income += absAmt;
       } else if (tx.type === 'expense') {
-        categoryTotals[cat].expense += amt;
+        categoryTotals[cat].expense += absAmt;
       }
     });
 
     return {
       totalExpense,
       totalIncome,
+      totalAmount,
       categories: Object.entries(categoryTotals)
         .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => (b.expense + b.income) - (a.expense + a.income)),
+        .sort((a, b) => b.total - a.total),
       count: filteredTransactions.length,
-      isSpecificCategory: !!selectedCategory
+      isSpecificCategory: !!selectedCategory,
+      selectedAccountId
     };
   }, [filteredTransactions, searchQuery, selectedCategory, selectedAccountId, selectedTab]);
 
@@ -1611,10 +1619,14 @@ function TransactionsContent() {
 
                <div className="flex items-center gap-8">
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Spent</span>
-                    <span className="text-sm font-black text-rose-600 tabular-nums">{formatAmount(searchTotals.totalExpense)}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">
+                      {(searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? "Total Amount" : "Total Spent"}
+                    </span>
+                    <span className={`text-sm font-black tabular-nums ${(searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? 'text-slate-900' : 'text-rose-600'}`}>
+                      {formatAmount((searchTotals.isSpecificCategory || searchTotals.selectedAccountId) ? searchTotals.totalAmount : searchTotals.totalExpense)}
+                    </span>
                   </div>
-                  {searchTotals.totalIncome > 0 && (
+                  {searchTotals.totalIncome > 0 && !searchTotals.isSpecificCategory && !searchTotals.selectedAccountId && (
                     <div className="flex flex-col">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Income</span>
                       <span className="text-sm font-black text-emerald-600 tabular-nums">{formatAmount(searchTotals.totalIncome)}</span>
@@ -1622,22 +1634,22 @@ function TransactionsContent() {
                   )}
                </div>
 
-               {!searchTotals.isSpecificCategory && searchTotals.categories.length > 1 && (
+               {searchTotals.categories.length > 0 && (
                  <>
                    <div className="h-8 w-[1px] bg-slate-200 hidden lg:block" />
                    <div className="flex items-center gap-3 overflow-hidden">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Breakdown:</span>
                       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                        {searchTotals.categories.slice(0, 3).map(cat => (
-                          <div key={cat.name} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg shrink-0">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat.name) }} />
+                        {searchTotals.categories.slice(0, 5).map(cat => (
+                          <div key={cat.name} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: (typeof getCategoryColor === 'function' ? getCategoryColor(cat.name) : '#f59e0b') }} />
                             <span className="text-[10px] font-bold text-slate-700 whitespace-nowrap">{cat.name}:</span>
-                            <span className="text-[10px] font-medium text-slate-500 tabular-nums">{formatAmount(cat.expense || cat.income)}</span>
+                            <span className="text-[10px] font-black text-slate-900 tabular-nums">{formatAmount(cat.total)}</span>
                           </div>
                         ))}
-                        {searchTotals.categories.length > 3 && (
-                          <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-1 rounded-lg shrink-0">
-                            +{searchTotals.categories.length - 3} more
+                        {searchTotals.categories.length > 5 && (
+                          <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+                            +{searchTotals.categories.length - 5} more
                           </span>
                         )}
                       </div>
