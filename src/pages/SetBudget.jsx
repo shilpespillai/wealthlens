@@ -350,7 +350,10 @@ export default function SetBudget() {
         }
       }
 
-      // 2. Normalize data using the UNIFIED PARSER for 100% parity
+      // 2. Fetch actual transactions for this month to calculate consumption
+      const txResults = await base44.db.getTable("transactions", { month: monthKey });
+      
+      // 3. Normalize data using the UNIFIED PARSER for 100% parity
       const { expenses: normExps, incomes: normIncs } = normalizeTransactionData(saved, selectedDate, txResults, categories);
       
       // Aggressively deduplicate and ensure every category has its actual total
@@ -542,28 +545,15 @@ export default function SetBudget() {
       actualExpense += (actualsMap[canonical.toLowerCase()] || 0);
     });
 
-    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
-    // Actually, it's easier to just sum all actuals from monthTransactions that are income
-    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
-    const actualIncome = monthTransactions.reduce((sum, tx) => {
-       const category = resolveCanonicalCategory(tx.category);
-       const EXCLUDED = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment', 'Reimbursement'];
-       if (EXCLUDED.includes(category)) return sum;
-       
-       const rawAmt = Number(tx.amount || 0);
-       const isIncome = tx.type === 'income' || (tx.type !== 'expense' && rawAmt > 0);
-       return isIncome ? sum + Math.abs(rawAmt) : sum;
-    }, 0);
-    
     return {
       income: expectedIncome,
-      actualIncome,
+      actualIncome: actualIncome,
       expense: plannedExpense,
-      actualExpense,
+      actualExpense: actualExpense,
       net: expectedIncome - plannedExpense,
       actualNet: actualIncome - actualExpense
     };
-  }, [flatItems, expectedIncome, parseCurrency, actualsMap, monthTransactions]);
+  }, [flatItems, expectedIncome, actualIncome, parseCurrency, actualsMap]);
 
 
   const handleEditItem = (item) => {
@@ -716,14 +706,6 @@ export default function SetBudget() {
       </AuthGuard>
     );
   }
-
-  const totals = {
-    income: expectedIncome,
-    actualIncome: actualIncome,
-    expense: data.reduce((sum, item) => sum + (parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0), 0),
-    actualExpense: Object.values(actualsMap).reduce((sum, val) => sum + val, 0),
-    actualNet: actualIncome - Object.values(actualsMap).reduce((sum, val) => sum + val, 0)
-  };
 
   return (
     <AuthGuard>
