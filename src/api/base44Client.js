@@ -86,6 +86,7 @@ export const invokeUniversalAI = async (prompt, type, params = {}) => {
     IF type is 'pillar': { "stockName": "Full Name", "currentPrice": number, "pillars": [{ "id": "pe|roic|rev|net_income|shares|fcf|liabilities|price_fcf", "passed": boolean, "current": "data value", "target": "threshold", "rationale": "one-sentence explanation" }], "summary": "2-sentence overview", "overallScore": number, "recommendation": "Verdict" }
     IF type is 'categorize': { "categories": { "merchant_name_exactly_as_provided": "Canonical_Category_Name" } }
     IF type is 'report': { "markdownContent": "The full formatted markdown report string containing all analysis. Use # for headers, - for bullets, and ** for bold text." }
+    IF type is 'market': { "sentiment": "bullish|neutral|bearish", "summary": "2-sentence overview", "key_trends": ["trend 1", "trend 2"], "outlook": { "shortTerm_6_12_months": "...", "longTerm_15_years": "..." }, "risks": ["risk 1"], "recommended_rates": { "conservative": number, "moderate": number, "aggressive": number } }
     Return ONLY valid JSON.`;
 
     if (userProvider === 'gemini') {
@@ -273,6 +274,33 @@ const runSmartHeuristics = async (type, params) => {
       recommendations: recs,
       key_insights: [`Your runway currently sits at ${runway.toFixed(1)} months.`],
       closing_motivation: "Stay focused on the long-term compounding effect."
+    };
+  }
+
+  if (type === 'market') {
+    const instrument = params.instrument || 'Global Markets';
+    return {
+      sentiment: "neutral",
+      summary: "Market conditions are currently in a state of high-fidelity stabilization. Institutional capital flows remain steady across major asset classes.",
+      key_trends: [
+        "Increasing demand for tax-efficient accumulation vehicles.",
+        "Shift towards automated, rule-based rebalancing strategies.",
+        "Growth in private, non-custodial financial management protocols."
+      ],
+      outlook: {
+        shortTerm_6_12_months: "Expect localized volatility as interest rate regimes recalibrate. Core asset classes are positioned for defensive resilience.",
+        longTerm_15_years: "The 15-year horizon remains exceptionally strong for diversified portfolios, supported by generational technology tailwinds."
+      },
+      risks: [
+        "Inflationary drag on low-yield cash instruments.",
+        "Regulatory shifts in global financial data sharding.",
+        "Systemic market correlation during black-swan events."
+      ],
+      recommended_rates: {
+        conservative: 4,
+        moderate: 7,
+        aggressive: 10
+      }
     };
   }
 
@@ -1588,7 +1616,7 @@ export const base44 = {
   integrations: {
     Core: { 
       InvokeLLM: async (p) => {
-        return await invokeUniversalAI(p.prompt, 'pillar', p);
+        return await invokeUniversalAI(p.prompt, p.type || 'market', p);
       }
     }
   }

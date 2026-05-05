@@ -43,6 +43,7 @@ export default function MarketSentiment({ instrument, currency, params }) {
         
         Keep it concise and actionable for investors.`,
         add_context_from_internet: true,
+        type: 'market',
         response_json_schema: {
           type: "object",
           properties: {
