@@ -279,7 +279,154 @@ const runSmartHeuristics = async (type, params) => {
   }
 
   if (type === 'tax') {
+    const currency = params.currency || 'USD';
     const instrument = params.instrument || 'Investment';
+    
+    // --- Australia (AUD) ---
+    if (currency === 'AUD') {
+      return {
+        summary: "The Australian tax system offers significant incentives for long-term capital accumulation, primarily through the Superannuation environment and Capital Gains concessions.",
+        strategies: [
+          {
+            title: "Superannuation Salary Sacrifice",
+            description: "Redirecting pre-tax income into your Super fund to be taxed at a flat 15% rate instead of your marginal tax rate.",
+            estimated_savings: "Up to 32% per dollar",
+            timeframe: "Ongoing",
+            difficulty: "Easy"
+          },
+          {
+            title: "CGT 50% Discount Utilization",
+            description: "Ensuring assets are held for at least 12 months to trigger the 50% capital gains tax discount for individuals.",
+            estimated_savings: "50% reduction in tax liability",
+            timeframe: "12+ months",
+            difficulty: "Easy"
+          },
+          {
+            title: "Franking Credit Reinvestment",
+            description: "Leveraging fully franked dividends to reduce your total taxable income through the associated corporate tax credits.",
+            estimated_savings: "30% corporate tax offset",
+            timeframe: "Quarterly/Annual",
+            difficulty: "Moderate"
+          }
+        ],
+        account_recommendations: [
+          {
+            account_type: "Concessional Super Contributions",
+            benefits: "Immediate tax deduction and low 15% internal tax rate.",
+            contribution_limits: "$30,000 per annum (2024/25 limit)."
+          },
+          {
+            account_type: "Investment Bonds",
+            benefits: "Tax-effective 'wrapper' for high-income earners if held for 10 years.",
+            contribution_limits: "Unlimited initial, 125% rule applies thereafter."
+          }
+        ],
+        withdrawal_strategy: "Consider drawing down from taxable accounts first, preserving your Super balance for the tax-free 'Pension Phase' after age 60.",
+        key_tips: [
+          "Check your 'Carry Forward' unused concessional contribution caps.",
+          "Keep records of all brokerage fees to add to your cost base.",
+          "Offset capital gains with any carried-forward capital losses."
+        ]
+      };
+    }
+
+    // --- United States (USD) ---
+    if (currency === 'USD') {
+      return {
+        summary: "US tax optimization focuses on navigating the distinction between tax-deferred (Traditional) and tax-exempt (Roth) growth environments.",
+        strategies: [
+          {
+            title: "Roth Conversion Ladder",
+            description: "Strategically converting Traditional IRA funds to Roth IRA during low-income years to lock in tax-free growth.",
+            estimated_savings: "Lifetime tax elimination",
+            timeframe: "5-10 years",
+            difficulty: "Complex"
+          },
+          {
+            title: "Tax-Loss Harvesting (TLH)",
+            description: "Selling underwater positions to offset capital gains and up to $3,000 of ordinary income.",
+            estimated_savings: "$3,000 deduction/year",
+            timeframe: "Annual (Year-end)",
+            difficulty: "Moderate"
+          },
+          {
+            title: "Backdoor Roth Contribution",
+            description: "Utilizing non-deductible IRA contributions to fund a Roth IRA for high-income earners.",
+            estimated_savings: "Unlocks tax-free growth",
+            timeframe: "Annual",
+            difficulty: "Moderate"
+          }
+        ],
+        account_recommendations: [
+          {
+            account_type: "401(k) / 403(b)",
+            benefits: "Pre-tax contributions and potential employer matching.",
+            contribution_limits: "$23,000 per annum (2024 limit)."
+          },
+          {
+            account_type: "Health Savings Account (HSA)",
+            benefits: "Triple tax advantage: pre-tax in, tax-free growth, tax-free out for medical.",
+            contribution_limits: "$4,150 (Individual) / $8,300 (Family)."
+          }
+        ],
+        withdrawal_strategy: "Follow the standard sequencing: Taxable accounts first, then Traditional accounts, and Roth accounts last to maximize tax-free compounding.",
+        key_tips: [
+          "Avoid 'Wash Sales' by waiting 30 days before rebuying a sold asset.",
+          "Hold assets for >1 year to qualify for lower Long-Term Capital Gains rates.",
+          "Direct dividends to a settlement fund in taxable accounts to control basis."
+        ]
+      };
+    }
+
+    // --- India (INR) ---
+    if (currency === 'INR') {
+      return {
+        summary: "The Indian tax regime provides specific 'Sections' (like 80C) to incentivize long-term savings in approved instruments.",
+        strategies: [
+          {
+            title: "Section 80C Maximization",
+            description: "Full utilization of the ₹1.5 Lakh limit through PPF, ELSS, and Life Insurance premiums.",
+            estimated_savings: "Up to ₹46,800 annually",
+            timeframe: "Annual",
+            difficulty: "Easy"
+          },
+          {
+            title: "Tax-Free LTCG Harvesting",
+            description: "Realizing up to ₹1 Lakh in equity capital gains annually to take advantage of the tax-free threshold.",
+            estimated_savings: "10% tax avoidance on ₹1L",
+            timeframe: "Annual",
+            difficulty: "Easy"
+          },
+          {
+            title: "NPS Tier-I Extra Deduction",
+            description: "Utilizing the additional ₹50,000 deduction under Section 80CCD(1B) specifically for the National Pension System.",
+            estimated_savings: "Tax relief on ₹50,000",
+            timeframe: "Long-term",
+            difficulty: "Moderate"
+          }
+        ],
+        account_recommendations: [
+          {
+            account_type: "Public Provident Fund (PPF)",
+            benefits: "Exempt-Exempt-Exempt (EEE) status: no tax on investment, interest, or maturity.",
+            contribution_limits: "₹1.5 Lakh per annum."
+          },
+          {
+            account_type: "Equity Linked Savings Scheme (ELSS)",
+            benefits: "Shortest lock-in (3 years) among all tax-saving instruments.",
+            contribution_limits: "Unlimited (but 80C cap is ₹1.5L)."
+          }
+        ],
+        withdrawal_strategy: "Exit debt instruments after 3 years for indexation benefits (if applicable in your regime) and maintain equity for >1 year to qualify for LTCG.",
+        key_tips: [
+          "Always opt for the 'Growth' option in ELSS/Mutual Funds to defer tax.",
+          "Use the Standard Deduction effectively in your salary structure.",
+          "Keep an eye on the New vs Old tax regime suitability annually."
+        ]
+      };
+    }
+
+    // --- Default / Standard ---
     return {
       summary: "Your portfolio has significant potential for multi-generational tax optimization. Strategic allocation across varied tax buckets can enhance your effective CAGR by 1.2% - 2.5%.",
       strategies: [
