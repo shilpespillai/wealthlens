@@ -496,9 +496,13 @@ export const useFinancialParser = () => {
       const rawAmt = Math.abs(Number(t.amount || 0));
       const category = resolveCanonicalCategory(t.category || t.name);
 
-      if (matchRule(t, activeRules.income)) {
+      const isIncome = matchRule(t, activeRules.income);
+      const isExpense = matchRule(t, activeRules.expense) || 
+                        (!isIncome && category && !['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'].includes(category));
+
+      if (isIncome) {
         incomes.push({ ...t, type: 'income', amount: rawAmt, category });
-      } else if (matchRule(t, activeRules.expense)) {
+      } else if (isExpense) {
         expenses.push({ ...t, type: 'expense', amount: rawAmt, category });
       } else {
         transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
