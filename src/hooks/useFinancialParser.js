@@ -257,11 +257,16 @@ export const useFinancialParser = () => {
     const targetMonth = targetDate.getMonth() + 1; // 1-12
     const targetYear = targetDate.getFullYear();
 
-    const { ignoreMonthFilter = false } = options;
+    const { ignoreMonthFilter = false, hiddenCategories = [] } = options;
+    const mutedSet = new Set(hiddenCategories.map(c => c.toLowerCase().trim()));
 
-    const rawTransactions = (transactions || []).filter(t => 
-      ignoreMonthFilter || isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear)
-    );
+    const rawTransactions = (transactions || []).filter(t => {
+      const isCorrectMonth = ignoreMonthFilter || isSameMonthYear(t.date || t.actualDate, targetMonth, targetYear);
+      if (!isCorrectMonth) return false;
+      
+      const canonical = resolveCanonicalCategory(t.category || t.merchant || t.name).toLowerCase().trim();
+      return !mutedSet.has(canonical);
+    });
     
     // Support both legacy flat structure and new relational payload structure
     const budgetData = saved?.payload || saved || {};
@@ -292,9 +297,6 @@ export const useFinancialParser = () => {
       
       const filtered = rawTransactions.filter(t => {
         const transactionCategory = resolveCanonicalCategory(t.category);
-        
-        // 1. HARD EXCLUSION: Never count transfers or credit card payments as realization against budget targets
-        if (EXCLUDED_CATEGORIES.includes(transactionCategory)) return false;
         
         const amount = Number(t.amount) || 0;
         

@@ -208,17 +208,17 @@ const flattenCategories = (items) => {
 };
 
 // Utility: Normalize structure against the core registry AND user's personal registry
-const normalizeStructure = (savedItems = [], userCategories = [], currentActuals = {}, formatAmount) => {
+const normalizeStructure = (savedItems = [], userCategories = [], currentActuals = {}, formatAmount, hiddenCategories = []) => {
   const finalMap = new Map();
   const hasSavedItems = savedItems.length > 0;
+  const mutedSet = new Set(hiddenCategories.map(c => c.toLowerCase().trim()));
   
-  // 1. Initialize with Saved Items (The user's defined budget targets)
-  // This is now the authoritative source of truth for the budget structure.
+  // 1. Initialize with Saved Items
   savedItems.forEach(s => {
     const name = s.category || s.name || "Uncategorized";
     const canonical = resolveCanonicalCategory(name).trim();
     const key = canonical.toLowerCase();
-    if (!key) return;
+    if (!key || mutedSet.has(key)) return;
     
     finalMap.set(key, { 
       ...s, 
@@ -228,9 +228,10 @@ const normalizeStructure = (savedItems = [], userCategories = [], currentActuals
     });
   });
 
-  // 2. Add Active Spending (Ensures visibility of unbudgeted expenses)
+  // 2. Add Active Spending
   Object.keys(currentActuals).forEach(rawKey => {
     const key = rawKey.trim().toLowerCase();
+    if (mutedSet.has(key)) return;
     const spent = currentActuals[rawKey] || 0;
     
     if (spent > 0) {
@@ -252,17 +253,16 @@ const normalizeStructure = (savedItems = [], userCategories = [], currentActuals
     }
   });
 
-  // 3. Registry Baseline: Ensure all core AND user-defined categories exist in the view.
-  // This makes custom categories "sticky" across months even if they aren't in the template.
+  // 3. Registry Baseline
   const registries = [...CORE_CATEGORY_REGISTRY, ...userCategories];
   registries.forEach(reg => {
-    if (reg.type === 'income') return; // Income is handled separately
+    if (reg.type === 'income') return;
     
     const name = reg.name || reg.category;
     const canonical = resolveCanonicalCategory(name).trim();
     const key = canonical.toLowerCase();
     
-    if (key && !finalMap.has(key)) {
+    if (key && !finalMap.has(key) && !mutedSet.has(key)) {
       finalMap.set(key, {
         id: `reg-${key}`,
         ...reg,
@@ -311,8 +311,10 @@ export default function SetBudget() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
+  const [hiddenCategories, setHiddenCategories] = useState([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [editingItem, setEditingItem] = useState(null);
   const [expectedIncome, setExpectedIncome] = useState(0);
   const [actualIncome, setActualIncome] = useState(0);
   const [actualsMap, setActualsMap] = useState({});
@@ -328,6 +330,9 @@ export default function SetBudget() {
     if (isSaving) return;
     try {
       setIsInitialLoading(true);
+      // CRITICAL: Reset identifiers to prevent cross-month data leakage
+      setBudgetId(null);
+      setHiddenCategories([]);
       
       // 1. Fetch budget definition
       let results = await base44.db.query("budgets", {
@@ -341,12 +346,18 @@ export default function SetBudget() {
         // DATA INTEGRITY: If multiple records exist for the same month, 
         // always prioritize the most recently updated one.
         saved = results.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
+        setBudgetId(saved.id);
+        const savedHidden = saved.payload?.hiddenCategories || [];
+        setHiddenCategories(savedHidden);
       } else {
         const allBudgets = await base44.db.getTable("budgets", { month: monthKey });
         if (allBudgets && allBudgets.length > 0) {
           const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
           saved = sorted[0];
           isTemplate = true;
+          setHiddenCategories([]); // Do not inherit hidden status from templates
+        } else {
+          setHiddenCategories([]);
         }
       }
 
@@ -354,7 +365,10 @@ export default function SetBudget() {
       const txResults = await base44.db.getTable("transactions", { month: monthKey });
       
       // 3. Normalize data using the UNIFIED PARSER for 100% parity
-      const { expenses: normExps, incomes: normIncs } = normalizeTransactionData(saved, selectedDate, txResults, categories);
+      const effectiveHidden = isTemplate ? [] : (saved?.payload?.hiddenCategories || []);
+      const { expenses: normExps, incomes: normIncs } = normalizeTransactionData(saved, selectedDate, txResults, categories, {
+        hiddenCategories: effectiveHidden
+      });
       
       // Aggressively deduplicate and ensure every category has its actual total
       const currentActuals = {};
@@ -382,7 +396,8 @@ export default function SetBudget() {
           (saved?.payload?.visualData || saved?.payload?.expenses || []).filter(item => item.type !== 'income'), 
           categories,
           currentActuals,
-          formatAmount
+          formatAmount,
+          effectiveHidden
         );
         
         // Inject actuals into the loaded data
@@ -404,7 +419,7 @@ export default function SetBudget() {
 
         setData(finalArray);
       } else {
-        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount);
+        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount, hiddenCategories);
         setData(structuralData);
         setBudgetId(null);
       }
@@ -461,10 +476,11 @@ export default function SetBudget() {
     }
   };
 
-  const handleSaveBudget = async (overrideData = null) => {
+  const handleSaveBudget = async (overrideData = null, overrideHidden = null) => {
     setIsSaving(true);
     try {
       const activeData = overrideData || data;
+      const activeHidden = overrideHidden || hiddenCategories;
       const flatItems = flattenCategories(activeData);
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
@@ -474,7 +490,8 @@ export default function SetBudget() {
         month: monthKey, 
         payload: { 
           visualData: expensesToSave,
-          expenses: expensesToSave.map(i => ({ ...i, icon: null }))
+          expenses: expensesToSave.map(i => ({ ...i, icon: null })),
+          hiddenCategories: activeHidden
         } 
       });
 
@@ -582,22 +599,24 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    const itemToDelete = data.find(i => i.id === targetId);
+    const itemToDelete = flatItems.find(i => i.id === targetId);
     if (!itemToDelete) return;
     
-    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category).toLowerCase().trim();
+    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category || itemToDelete.name).toLowerCase().trim();
     
     const updated = data.filter(item => {
-      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
-      // Remove both the specific ID and any canonical duplicates
+      const itemCanonical = resolveCanonicalCategory(item.category || item.name).toLowerCase().trim();
       return item.id !== targetId && itemCanonical !== canonicalToDelete;
     });
+
+    const updatedHidden = [...new Set([...hiddenCategories, canonicalToDelete])];
+    setHiddenCategories(updatedHidden);
     
-    const sorted = updated.sort((a, b) => a.category.localeCompare(b.category));
-    setData(sorted);
+    setData(updated);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
-    handleSaveBudget(updated);
+    
+    handleSaveBudget(updated, updatedHidden);
     toast.success(`Removed ${itemToDelete.category} from budget.`);
   };
 
@@ -644,14 +663,17 @@ export default function SetBudget() {
 
     updatedData = [...filteredData, budgetItem];
 
+    const updatedHidden = hiddenCategories.filter(c => c !== targetCanonical);
+    setHiddenCategories(updatedHidden);
+
     const sorted = updatedData.sort((a, b) => a.category.localeCompare(b.category));
     setData(sorted);
     toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Auto-saving...`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
     
-    // Trigger automated save
-    handleSaveBudget(updatedData);
+    // Trigger automated save with updated data AND updated hidden list
+    handleSaveBudget(updatedData, updatedHidden);
   };
 
   const toggleGroup = (id) => {
@@ -990,59 +1012,47 @@ export default function SetBudget() {
 
             {/* Institutional Pulse Bar */}
             <div className="mx-0 my-0 p-10 bg-slate-50/30 border-t border-slate-100 relative overflow-hidden">
-               <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
+               <div className="max-w-7xl mx-auto flex items-center justify-between w-full bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm">
                   
-                  {/* Pillar 1: Allocation Target */}
+                  {/* Pillar 1: Total Target */}
                   <div className="flex-1 flex flex-col gap-2">
                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Total Target</p>
                      <div className="flex items-baseline gap-2">
                         <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
                            {formatAmount(totals.expense)}
                         </p>
-                        <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Target</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Target</span>
                      </div>
                   </div>
 
-                  <div className="h-12 w-px bg-slate-200" />
+                  <div className="h-12 w-px bg-slate-100" />
 
-                  {/* Pillar 2: Actual Performance */}
-                  <div className="flex-1 flex flex-col gap-2">
+                  {/* Pillar 2: Actual Spent */}
+                  <div className="flex-1 flex flex-col gap-2 px-12">
                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Actual Spent</p>
-                     <div className="flex items-baseline gap-3">
-                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-slate-900'}`}>
+                     <div className="flex items-baseline gap-2">
+                        <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
                            {formatAmount(totals.actualExpense)}
                         </p>
-                        <div className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight ${totals.actualExpense > totals.expense ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                           {totals.actualExpense > totals.expense ? 'Over Budget' : 'On Track'}
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 rounded-lg">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                           <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">On Track</span>
                         </div>
                      </div>
                   </div>
 
-                  <div className="h-12 w-px bg-slate-200" />
+                  <div className="h-12 w-px bg-slate-100" />
 
-                  {/* Pillar 3: Budget Variance (The Overspend) */}
-                  <div className="flex-1 flex flex-col gap-2">
-                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Budget Variance</p>
-                     <div className="flex items-baseline gap-2">
-                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualExpense > totals.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
-                           {formatAmount(Math.abs(totals.expense - totals.actualExpense))}
-                        </p>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${totals.actualExpense > totals.expense ? 'text-rose-400' : 'text-emerald-400'}`}>
-                           {totals.actualExpense > totals.expense ? 'Overspend' : 'Savings'}
-                        </span>
-                     </div>
-                  </div>
-
-                  <div className="h-12 w-px bg-slate-200" />
-
-                  {/* Pillar 4: Realized Profit */}
+                  {/* Pillar 3: Budget Variance */}
                   <div className="flex-1 flex flex-col gap-2 items-end">
-                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 text-right">Net Monthly Surplus</p>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 text-right">Budget Variance</p>
                      <div className="flex items-baseline gap-2">
-                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.actualNet >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-                           {formatAmount(totals.actualNet)}
+                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.expense - totals.actualExpense >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                           {formatAmount(totals.expense - totals.actualExpense)}
                         </p>
-                        <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.4)]" />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${totals.expense - totals.actualExpense >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                           {totals.expense - totals.actualExpense >= 0 ? 'Savings' : 'Overspend'}
+                        </span>
                      </div>
                   </div>
 
