@@ -15,13 +15,19 @@ const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit
 const DEFAULT_CLASSIFICATION_RULES = {
   income: {
     logic: 'OR',
-    conditions: [
-      { field: 'category', operator: 'equals', value: 'Income' }
+    groups: [
+      {
+        id: 'legacy-inc',
+        logic: 'AND',
+        conditions: [
+          { field: 'category', operator: 'equals', value: 'Income' }
+        ]
+      }
     ]
   },
   expense: {
     logic: 'OR',
-    conditions: []
+    groups: []
   }
 };
 
@@ -49,54 +55,83 @@ export const useFinancialParser = () => {
   }, []);
 
   const matchRule = useCallback((tx, rule) => {
-    if (!rule || !rule.conditions || rule.conditions.length === 0) return false;
+    if (!rule) return false;
     
-    const results = rule.conditions.map(c => {
-      const field = c.field;
-      const operator = c.operator;
-      const target = String(c.value || "").toLowerCase().trim();
+    // Support legacy flat conditions if any missed migration
+    const groupsToEval = rule.groups || [{ logic: 'AND', conditions: rule.conditions || [] }];
+    if (groupsToEval.length === 0) return false;
+
+    const groupResults = groupsToEval.map(group => {
+      if (!group.conditions || group.conditions.length === 0) return false;
       
-      // Safety: Empty rules should not match everything
-      if (!target && operator !== 'not_equals') return false;
-      
-      let txVal = '';
-      if (field === 'category') {
-        const rawCat = tx.category || tx.merchant || tx.name || '';
-        txVal = resolveCanonicalCategory(rawCat);
-      }
-      else if (field === 'merchant') txVal = String(tx.merchant || tx.name || "");
-      else if (field === 'account') {
-        const accId = String(tx.account_id || "").toLowerCase().trim();
-        const accName = String(tx.account || "").toLowerCase().trim();
+      const condResults = group.conditions.map(c => {
+        const field = c.field;
+        const operator = c.operator;
+        const target = String(c.value || "").toLowerCase().trim();
         
-        // Use inclusive matching for account names/IDs
-        if (accId.includes(target) || accName.includes(target)) {
-          txVal = c.value; // Force match
-        } else {
-          txVal = accId;
+        // Safety: Empty rules should not match everything
+        if (!target && operator !== 'not_equals') return false;
+        
+        let txVal = '';
+        if (field === 'category') {
+          const rawCat = tx.category || tx.merchant || tx.name || '';
+          txVal = resolveCanonicalCategory(rawCat);
         }
-      }
-      
-      const val = String(txVal || "").toLowerCase().trim();
-      
-      switch (operator) {
-        case 'equals': return val === target;
-        case 'not_equals': return val !== target;
-        case 'contains': return val.includes(target);
-        case 'greater_than': return (Number(tx.amount) || 0) > Number(c.value);
-        case 'less_than': return (Number(tx.amount) || 0) < Number(c.value);
-        case 'in': return Array.isArray(c.value) ? c.value.some(v => String(v).toLowerCase().trim() === val) : (val === target);
-        case 'not_in': return Array.isArray(c.value) ? !c.value.some(v => String(v).toLowerCase().trim() === val) : (val !== target);
-        default: return false;
-      }
+        else if (field === 'merchant') txVal = String(tx.merchant || tx.name || "");
+        else if (field === 'account') {
+          const accId = String(tx.account_id || "").toLowerCase().trim();
+          const accName = String(tx.account || "").toLowerCase().trim();
+          
+          if (accId.includes(target) || accName.includes(target)) {
+            txVal = c.value; 
+          } else {
+            txVal = accId;
+          }
+        }
+        
+        const val = String(txVal || "").toLowerCase().trim();
+        
+        switch (operator) {
+          case 'equals': return val === target;
+          case 'not_equals': return val !== target;
+          case 'contains': return val.includes(target);
+          case 'greater_than': return (Number(tx.amount) || 0) > Number(c.value);
+          case 'less_than': return (Number(tx.amount) || 0) < Number(c.value);
+          case 'in': return Array.isArray(c.value) ? c.value.some(v => String(v).toLowerCase().trim() === val) : (val === target);
+          case 'not_in': return Array.isArray(c.value) ? !c.value.some(v => String(v).toLowerCase().trim() === val) : (val !== target);
+          default: return false;
+        }
+      });
+
+      if (group.logic === 'AND') return condResults.every(r => r === true);
+      return condResults.some(r => r === true);
     });
 
-    if (rule.logic === 'AND') return results.every(r => r === true);
-    return results.some(r => r === true);
+    if (rule.logic === 'AND') return groupResults.every(r => r === true);
+    return groupResults.some(r => r === true);
   }, []);
 
   const getClassificationRules = useCallback(async () => {
-    const rules = await base44.user.loadData('wl_classification_rules');
+    let rules = await base44.user.loadData('wl_classification_rules');
+    
+    // Auto-migrate legacy rules to groups schema
+    if (rules) {
+      let migrated = false;
+      if (rules.income && rules.income.conditions && !rules.income.groups) {
+        rules.income.groups = [{ id: 'legacy-inc', logic: 'AND', conditions: rules.income.conditions }];
+        delete rules.income.conditions;
+        migrated = true;
+      }
+      if (rules.expense && rules.expense.conditions && !rules.expense.groups) {
+        rules.expense.groups = [{ id: 'legacy-exp', logic: 'AND', conditions: rules.expense.conditions }];
+        delete rules.expense.conditions;
+        migrated = true;
+      }
+      if (migrated) {
+        await base44.user.saveData('wl_classification_rules', rules);
+      }
+    }
+
     return rules || DEFAULT_CLASSIFICATION_RULES;
   }, []);
 

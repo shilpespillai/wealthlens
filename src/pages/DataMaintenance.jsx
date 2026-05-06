@@ -95,21 +95,59 @@ export default function DataMaintenance() {
     return () => clearTimeout(timer);
   }, [classificationRules]);
 
-  const updateRule = (type, update) => {
+  const updateRuleLogic = (type, logic) => {
     setClassificationRules(prev => ({
       ...prev,
-      [type]: { ...prev[type], ...update }
+      [type]: { ...prev[type], logic }
     }));
   };
 
-  const addCondition = (type) => {
-    const newRules = [...classificationRules[type].conditions, { field: 'category', operator: 'equals', value: '' }];
-    updateRule(type, { conditions: newRules });
+  const addGroup = (type) => {
+    const newGroup = { id: `group-${Date.now()}`, logic: 'AND', conditions: [{ field: 'category', operator: 'equals', value: '' }] };
+    setClassificationRules(prev => ({
+      ...prev,
+      [type]: { ...prev[type], groups: [...(prev[type].groups || []), newGroup] }
+    }));
   };
 
-  const removeCondition = (type, index) => {
-    const newRules = classificationRules[type].conditions.filter((_, i) => i !== index);
-    updateRule(type, { conditions: newRules });
+  const removeGroup = (type, groupIndex) => {
+    setClassificationRules(prev => {
+      const newGroups = prev[type].groups.filter((_, i) => i !== groupIndex);
+      return { ...prev, [type]: { ...prev[type], groups: newGroups } };
+    });
+  };
+
+  const updateGroupLogic = (type, groupIndex, logic) => {
+    setClassificationRules(prev => {
+      const newGroups = [...prev[type].groups];
+      newGroups[groupIndex] = { ...newGroups[groupIndex], logic };
+      return { ...prev, [type]: { ...prev[type], groups: newGroups } };
+    });
+  };
+
+  const addCondition = (type, groupIndex) => {
+    setClassificationRules(prev => {
+      const newGroups = [...prev[type].groups];
+      newGroups[groupIndex].conditions = [...newGroups[groupIndex].conditions, { field: 'category', operator: 'equals', value: '' }];
+      return { ...prev, [type]: { ...prev[type], groups: newGroups } };
+    });
+  };
+
+  const removeCondition = (type, groupIndex, condIndex) => {
+    setClassificationRules(prev => {
+      const newGroups = [...prev[type].groups];
+      newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter((_, i) => i !== condIndex);
+      return { ...prev, [type]: { ...prev[type], groups: newGroups } };
+    });
+  };
+
+  const updateCondition = (type, groupIndex, condIndex, field, value) => {
+    setClassificationRules(prev => {
+      const newGroups = [...prev[type].groups];
+      newGroups[groupIndex].conditions[condIndex] = { ...newGroups[groupIndex].conditions[condIndex], [field]: value };
+      if (field === 'field') newGroups[groupIndex].conditions[condIndex].value = ''; // reset value when field changes
+      return { ...prev, [type]: { ...prev[type], groups: newGroups } };
+    });
   };
 
   const updateVaultStats = async () => {
@@ -711,282 +749,133 @@ export default function DataMaintenance() {
                 <p className="text-xs font-black uppercase tracking-widest">Hydrating rule set...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                {/* INCOME RULES */}
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                           <TrendingUp className="w-4 h-4" />
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+                {(() => {
+                  const renderRuleBlock = (type, title, Icon, colorClass, bgClass) => {
+                    const ruleObj = classificationRules[type];
+                    return (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-xl ${bgClass} flex items-center justify-center ${colorClass}`}>
+                                 <Icon className="w-4 h-4" />
+                              </div>
+                              <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">{title}</h3>
+                           </div>
+                           <Select value={ruleObj.logic} onValueChange={(v) => updateRuleLogic(type, v)}>
+                             <SelectTrigger className="w-36 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase bg-slate-50">
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY Group</SelectItem>
+                               <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL Groups</SelectItem>
+                             </SelectContent>
+                           </Select>
                         </div>
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Income Classification</h3>
-                     </div>
-                     <Select 
-                      value={classificationRules.income.logic} 
-                      onValueChange={(v) => updateRule('income', { logic: v })}
-                     >
-                       <SelectTrigger className="w-24 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase">
-                         <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY (OR)</SelectItem>
-                         <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL (AND)</SelectItem>
-                       </SelectContent>
-                     </Select>
-                  </div>
 
-                  <div className="space-y-3">
-                    {classificationRules.income.conditions.map((cond, idx) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        key={idx} 
-                        className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl group"
-                      >
-                        <Select 
-                          value={cond.field} 
-                          onValueChange={(v) => {
-                            const newConds = [...classificationRules.income.conditions];
-                            newConds[idx].field = v;
-                            newConds[idx].value = ''; 
-                            updateRule('income', { conditions: newConds });
-                          }}
-                        >
-                          <SelectTrigger className="w-28 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="category" className="text-[10px] font-black uppercase tracking-widest">Category</SelectItem>
-                            <SelectItem value="account" className="text-[10px] font-black uppercase tracking-widest">Account</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-6">
+                          {ruleObj.groups.map((group, gIdx) => (
+                            <motion.div key={group.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 bg-white border border-slate-200 rounded-3xl space-y-4 shadow-sm relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-slate-100" />
+                              <div className="flex items-center justify-between pb-4 border-b border-slate-50">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Group Logic:</span>
+                                  <Select value={group.logic} onValueChange={(v) => updateGroupLogic(type, gIdx, v)}>
+                                    <SelectTrigger className="w-32 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase bg-slate-50">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY (OR)</SelectItem>
+                                      <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL (AND)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => removeGroup(type, gIdx)} className="w-8 h-8 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
 
-                        <Select 
-                          value={cond.operator} 
-                          onValueChange={(v) => {
-                            const newConds = [...classificationRules.income.conditions];
-                            newConds[idx].operator = v;
-                            updateRule('income', { conditions: newConds });
-                          }}
-                        >
-                          <SelectTrigger className="w-32 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="equals" className="text-[10px] font-black uppercase tracking-widest">Equals</SelectItem>
-                            <SelectItem value="not_equals" className="text-[10px] font-black uppercase tracking-widest">Not Equals</SelectItem>
-                            <SelectItem value="contains" className="text-[10px] font-black uppercase tracking-widest">Contains</SelectItem>
-                          </SelectContent>
-                        </Select>
+                              <div className="space-y-3">
+                                {group.conditions.map((cond, cIdx) => (
+                                  <div key={cIdx} className="flex items-center gap-2">
+                                    <Select value={cond.field} onValueChange={(v) => updateCondition(type, gIdx, cIdx, 'field', v)}>
+                                      <SelectTrigger className="w-28 h-10 rounded-xl bg-slate-50 border-slate-100 text-[10px] font-bold uppercase">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="category" className="text-[10px] font-bold uppercase">Category</SelectItem>
+                                        <SelectItem value="account" className="text-[10px] font-bold uppercase">Account</SelectItem>
+                                      </SelectContent>
+                                    </Select>
 
-                        <div className="flex-1">                           {cond.field === 'category' ? (
-                            <Select 
-                              value={cond.value} 
-                              onValueChange={(v) => {
-                                const newConds = [...classificationRules.income.conditions];
-                                newConds[idx].value = v;
-                                updateRule('income', { conditions: newConds });
-                              }}
-                            >
-                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                                <SelectValue placeholder="Select Category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map(c => (
-                                  <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
+                                    <Select value={cond.operator} onValueChange={(v) => updateCondition(type, gIdx, cIdx, 'operator', v)}>
+                                      <SelectTrigger className="w-32 h-10 rounded-xl bg-slate-50 border-slate-100 text-[10px] font-bold uppercase">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="equals" className="text-[10px] font-bold uppercase">Equals</SelectItem>
+                                        <SelectItem value="not_equals" className="text-[10px] font-bold uppercase">Not Equals</SelectItem>
+                                        <SelectItem value="contains" className="text-[10px] font-bold uppercase">Contains</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+
+                                    <div className="flex-1">
+                                      {cond.field === 'category' ? (
+                                        <Select value={cond.value} onValueChange={(v) => updateCondition(type, gIdx, cIdx, 'value', v)}>
+                                          <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-slate-100 text-[10px] font-bold uppercase">
+                                            <SelectValue placeholder="Select Category" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {categories.map(c => <SelectItem key={c.name} value={c.name} className="text-[10px] font-bold uppercase">{c.name}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : cond.field === 'account' ? (
+                                        <Select value={cond.value} onValueChange={(v) => updateCondition(type, gIdx, cIdx, 'value', v)}>
+                                          <SelectTrigger className="h-10 rounded-xl bg-slate-50 border-slate-100 text-[10px] font-bold uppercase">
+                                            <SelectValue placeholder="Select Account" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {masterAccounts.map(a => <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-bold uppercase">{a.name}</SelectItem>)}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        <Input value={cond.value} onChange={(e) => updateCondition(type, gIdx, cIdx, 'value', e.target.value)} className="h-10 rounded-xl bg-slate-50 border-slate-100 text-xs font-bold" placeholder="Description contains..." />
+                                      )}
+                                    </div>
+                                    
+                                    <Button variant="ghost" size="icon" onClick={() => removeCondition(type, gIdx, cIdx)} className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 ))}
-                              </SelectContent>
-                            </Select>
-                          ) : cond.field === 'account' ? (
-                            <Select 
-                              value={cond.value} 
-                              onValueChange={(v) => {
-                                const newConds = [...classificationRules.income.conditions];
-                                newConds[idx].value = v;
-                                updateRule('income', { conditions: newConds });
-                              }}
-                            >
-                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                                <SelectValue placeholder="Select Account" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {masterAccounts.map(a => (
-                                  <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input 
-                               value={cond.value}
-                               onChange={(e) => {
-                                 const newConds = [...classificationRules.income.conditions];
-                                 newConds[idx].value = e.target.value;
-                                 updateRule('income', { conditions: newConds });
-                               }}
-                               className="h-10 rounded-xl bg-white border-slate-100 text-xs font-bold"
-                               placeholder="Description contains..."
-                            />
+                                <Button variant="ghost" onClick={() => addCondition(type, gIdx)} className="w-full h-10 mt-2 border-dashed border-2 border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all">
+                                  <Plus className="w-3 h-3 mr-2" /> Add Condition
+                                </Button>
+                              </div>
+                            </motion.div>
+                          ))}
+                          
+                          {ruleObj.groups.length === 0 && (
+                            <div className="h-32 rounded-3xl border border-slate-100 border-dashed flex items-center justify-center text-slate-400 text-[10px] font-black uppercase tracking-widest bg-slate-50/50">
+                               No active groups
+                            </div>
                           )}
+
+                          <Button variant="outline" onClick={() => addGroup(type)} className="w-full h-12 border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 shadow-sm transition-all group">
+                            <Layers className="w-4 h-4 mr-2 text-slate-400 group-hover:text-slate-700 transition-colors" /> Add Logic Group
+                          </Button>
                         </div>
+                      </div>
+                    );
+                  };
 
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => removeCondition('income', idx)}
-                          className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </motion.div>
-                    ))}
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => addCondition('income')}
-                      className="w-full h-10 border-dashed border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:border-slate-200 transition-all"
-                    >
-                      <Plus className="w-3 h-3 mr-2" />
-                      Add Condition
-                    </Button>
-                  </div>
-                </div>
-
-                {/* EXPENSE RULES */}
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-                           <TrendingDown className="w-4 h-4" />
-                        </div>
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Expense Classification</h3>
-                     </div>
-                     <Select 
-                      value={classificationRules.expense.logic} 
-                      onValueChange={(v) => updateRule('expense', { logic: v })}
-                     >
-                       <SelectTrigger className="w-24 h-8 rounded-lg border-slate-100 text-[10px] font-black uppercase">
-                         <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="OR" className="text-[10px] font-black uppercase">Match ANY (OR)</SelectItem>
-                         <SelectItem value="AND" className="text-[10px] font-black uppercase">Match ALL (AND)</SelectItem>
-                       </SelectContent>
-                     </Select>
-                  </div>
-
-                  <div className="space-y-3">
-                    {classificationRules.expense.conditions.map((cond, idx) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        key={idx} 
-                        className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl group"
-                      >
-                        <Select 
-                          value={cond.field} 
-                          onValueChange={(v) => {
-                            const newConds = [...classificationRules.expense.conditions];
-                            newConds[idx].field = v;
-                            newConds[idx].value = ''; 
-                            updateRule('expense', { conditions: newConds });
-                          }}
-                        >
-                          <SelectTrigger className="w-28 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="category" className="text-[10px] font-black uppercase tracking-widest">Category</SelectItem>
-                            <SelectItem value="account" className="text-[10px] font-black uppercase tracking-widest">Account</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select 
-                          value={cond.operator} 
-                          onValueChange={(v) => {
-                            const newConds = [...classificationRules.expense.conditions];
-                            newConds[idx].operator = v;
-                            updateRule('expense', { conditions: newConds });
-                          }}
-                        >
-                          <SelectTrigger className="w-32 h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="equals" className="text-[10px] font-black uppercase tracking-widest">Equals</SelectItem>
-                            <SelectItem value="not_equals" className="text-[10px] font-black uppercase tracking-widest">Not Equals</SelectItem>
-                            <SelectItem value="contains" className="text-[10px] font-black uppercase tracking-widest">Contains</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <div className="flex-1">                           {cond.field === 'category' ? (
-                            <Select 
-                              value={cond.value} 
-                              onValueChange={(v) => {
-                                const newConds = [...classificationRules.expense.conditions];
-                                newConds[idx].value = v;
-                                updateRule('expense', { conditions: newConds });
-                              }}
-                            >
-                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                                <SelectValue placeholder="Select Category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map(c => (
-                                  <SelectItem key={c.name} value={c.name} className="text-[10px] font-black uppercase tracking-widest">{c.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : cond.field === 'account' ? (
-                            <Select 
-                              value={cond.value} 
-                              onValueChange={(v) => {
-                                const newConds = [...classificationRules.expense.conditions];
-                                newConds[idx].value = v;
-                                updateRule('expense', { conditions: newConds });
-                              }}
-                            >
-                              <SelectTrigger className="h-10 rounded-xl bg-white border-slate-100 text-[10px] font-black uppercase">
-                                <SelectValue placeholder="Select Account" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {masterAccounts.map(a => (
-                                  <SelectItem key={a.id} value={String(a.id)} className="text-[10px] font-black uppercase tracking-widest">{a.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input 
-                               value={cond.value}
-                               onChange={(e) => {
-                                 const newConds = [...classificationRules.expense.conditions];
-                                 newConds[idx].value = e.target.value;
-                                 updateRule('expense', { conditions: newConds });
-                               }}
-                               className="h-10 rounded-xl bg-white border-slate-100 text-xs font-bold"
-                               placeholder="Description contains..."
-                            />
-                          )}
-                        </div>
-
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => removeCondition('expense', idx)}
-                          className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </motion.div>
-                    ))}
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => addCondition('expense')}
-                      className="w-full h-10 border-dashed border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:border-slate-200 transition-all"
-                    >
-                      <Plus className="w-3 h-3 mr-2" />
-                      Add Condition
-                    </Button>
-                  </div>
-                </div>
+                  return (
+                    <>
+                      {renderRuleBlock('income', 'Income Classification', TrendingUp, 'text-emerald-600', 'bg-emerald-50')}
+                      {renderRuleBlock('expense', 'Expense Classification', TrendingDown, 'text-rose-600', 'bg-rose-50')}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
