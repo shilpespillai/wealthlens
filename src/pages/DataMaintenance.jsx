@@ -697,12 +697,7 @@ export default function DataMaintenance() {
                     {isSyncing ? "Syncing..." : "Force Sync"}
                   </Button>
                </div>
-               <Button 
-                  onClick={handleResetSystem}
-                  className="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-widest text-[8px] mt-2 border border-rose-100/50 transition-all active:scale-95"
-               >
-                  Reset System
-               </Button>
+
             </div>
 
             <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
