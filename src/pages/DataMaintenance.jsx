@@ -679,15 +679,21 @@ export default function DataMaintenance() {
                <div className="grid grid-cols-2 gap-3">
                   <Button 
                     variant="outline" 
+                    onClick={() => {
+                      updateVaultStats();
+                      toast.success("Integrity Check Complete");
+                    }}
                     className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all"
                   >
                     Integrity Check
                   </Button>
                   <Button 
                     variant="outline" 
+                    onClick={pushToCloud}
+                    disabled={isSyncing}
                     className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all"
                   >
-                    Force Sync
+                    {isSyncing ? "Syncing..." : "Force Sync"}
                   </Button>
                </div>
                <Button 
