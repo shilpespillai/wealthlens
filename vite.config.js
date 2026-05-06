@@ -49,6 +49,12 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
+      },
+      '/basiq': {
+        target: 'https://au-api.basiq.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/basiq/, ''),
+        secure: false,
       }
     }
   },

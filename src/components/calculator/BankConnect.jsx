@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Landmark, Loader2, CheckCircle2, AlertCircle, Calendar } from "lucide-react";
+import { Landmark, Loader2, CheckCircle2, AlertCircle, Calendar, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { fetchBasiqTransactions, normalizeBasiqToWealthLens } from '@/api/basiqAdapter';
+import { 
+  getBasiqToken, 
+  getOrCreateBasiqUser, 
+  getBasiqAuthLink, 
+  pollLatestJob,
+  fetchBasiqTransactions, 
+  normalizeBasiqToWealthLens 
+} from '@/api/basiqAdapter';
 
 import {
   Dialog,
@@ -24,33 +31,91 @@ export default function BankConnect({ onSyncSuccess, className }) {
   const [isOpen, setIsOpen] = useState(false);
   const [months, setMonths] = useState("3");
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState('idle');
+  const [status, setStatus] = useState('idle'); // idle | connecting | waiting | syncing | success | error
+  const [jobId, setJobId] = useState(null);
+  
+  const pollIntervalRef = useRef(null);
 
-  const handleConnect = async () => {
-    setIsLoading(true);
-    setStatus('linking');
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  const startPolling = (token, userId) => {
+    setStatus('waiting');
+    toast.info("Waiting for you to complete the bank login...");
+    
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const job = await pollLatestJob(token, userId);
+        if (!job) return;
+
+        console.log("[Basiq Job Status]:", job.status);
+
+        if (job.status === 'success') {
+          clearInterval(pollIntervalRef.current);
+          handleSyncData(token, userId);
+        } else if (job.status === 'failed') {
+          clearInterval(pollIntervalRef.current);
+          setStatus('error');
+          toast.error("Bank connection failed. Please try again.");
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 3000); // Poll every 3 seconds
+  };
+
+  const handleSyncData = async (token, userId) => {
+    setStatus('syncing');
+    toast.loading("Fetching transaction data...");
     
     try {
-      // 1. Fetch raw mock transactions from our Basiq Simulator
-      const rawData = await fetchBasiqTransactions(Number(months));
-      
-      // 2. Normalize the Basiq schema into our internal WealthLens schema
+      const rawData = await fetchBasiqTransactions(token, userId, Number(months));
       const normalizedData = normalizeBasiqToWealthLens(rawData);
       
       if (normalizedData && normalizedData.length > 0) {
-        // 3. Pass data to Transactions.jsx via the existing prop
         onSyncSuccess(normalizedData);
         setStatus('success');
-        toast.success(`Connected! Synced ${months} month(s) of history.`);
+        toast.success(`Success! Imported ${normalizedData.length} transactions.`);
         setIsOpen(false);
       } else {
-        throw new Error("No data returned");
+        toast.info("No new transactions found in this timeframe.");
+        setStatus('idle');
       }
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      toast.error("Failed to fetch transactions from Basiq.");
+    }
+  };
+
+  const handleConnectInitiation = async () => {
+    setIsLoading(true);
+    setStatus('connecting');
+    
+    try {
+      // 1. Get the current user email (from mock session or actual auth)
+      const session = JSON.parse(localStorage.getItem('mockUser') || '{}');
+      const email = session.email || "dev@wealthlens.info";
+
+      // 2. Get tokens and Setup User
+      const token = await getBasiqToken('SERVER_ACCESS');
+      const userId = await getOrCreateBasiqUser(token, email);
+      const authLink = await getBasiqAuthLink(token, userId);
+
+      // 3. Open Basiq Connect in a new tab
+      window.open(authLink, '_blank');
+
+      // 4. Start polling for the job success
+      startPolling(token, userId);
+
     } catch (error) {
       console.error(error);
       setStatus('error');
-      toast.error("Failed to connect to bank via Basiq.");
-    } finally {
+      toast.error(error.message || "Failed to initialize Basiq connection.");
       setIsLoading(false);
     }
   };
@@ -59,7 +124,7 @@ export default function BankConnect({ onSyncSuccess, className }) {
     return (
       <div className={`flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 h-8 rounded-lg border border-emerald-100 animate-in zoom-in-95 duration-300 ${className}`}>
         <CheckCircle2 className="w-3.5 h-3.5" />
-        <span className="text-xs font-semibold uppercase tracking-wider">Bank Linked</span>
+        <span className="text-xs font-semibold uppercase tracking-wider">Synced</span>
       </div>
     );
   }
@@ -75,10 +140,16 @@ export default function BankConnect({ onSyncSuccess, className }) {
           <div className="flex items-center gap-1.5">
             {status === 'error' ? (
               <AlertCircle className="w-3.5 h-3.5" />
+            ) : status === 'waiting' || status === 'syncing' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Landmark className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
             )}
-            <span>{status === 'error' ? 'Try Again' : 'Link Bank'}</span>
+            <span>
+              {status === 'error' ? 'Try Again' : 
+               status === 'waiting' ? 'Waiting...' : 
+               status === 'syncing' ? 'Syncing...' : 'Link Bank'}
+            </span>
           </div>
         </Button>
       </DialogTrigger>
@@ -87,10 +158,10 @@ export default function BankConnect({ onSyncSuccess, className }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-black tracking-tight">
             <Landmark className="w-6 h-6 text-indigo-600" />
-            Open Banking Connection
+            Real-Time Bank Sync
           </DialogTitle>
           <DialogDescription className="text-sm font-medium">
-            Connect your bank securely via Basiq API to automate your ledger.
+            Link your bank via Basiq Open Banking for automated, encrypted transaction fetching.
           </DialogDescription>
         </DialogHeader>
         
@@ -98,12 +169,12 @@ export default function BankConnect({ onSyncSuccess, className }) {
           <div className="space-y-3">
             <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5" />
-              Historical Data Range
+              Sync Timeframe
             </label>
             <p className="text-xs text-slate-500 font-medium">
-              How far back should we pull transactions from your accounts?
+              How much historical data should we fetch once connected?
             </p>
-            <Select value={months} onValueChange={setMonths}>
+            <Select value={months} onValueChange={setMonths} disabled={status !== 'idle' && status !== 'error'}>
               <SelectTrigger className="w-full font-bold h-11 border-slate-200">
                 <SelectValue placeholder="Select timeframe" />
               </SelectTrigger>
@@ -116,10 +187,18 @@ export default function BankConnect({ onSyncSuccess, className }) {
             </Select>
           </div>
           
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-            <p className="text-xs text-amber-800 font-medium leading-relaxed">
-              <strong className="font-bold text-amber-900 block mb-1">Developer Mode Active</strong>
-              This will simulate the Basiq connection flow and generate mock transactions using our <code className="bg-amber-100 px-1 rounded">basiqAdapter.js</code> middle layer.
+          <div className={`p-4 rounded-xl border transition-all ${
+            status === 'waiting' ? 'bg-indigo-50 border-indigo-100 animate-pulse' : 'bg-slate-50 border-slate-100'
+          }`}>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              {status === 'waiting' ? (
+                <span className="flex items-center gap-2 text-indigo-700 font-black">
+                  <ExternalLink className="w-3 h-3" />
+                  Please complete the login in the new tab...
+                </span>
+              ) : (
+                "Upon clicking connect, a secure Basiq window will open for you to choose your institution and provide consent."
+              )}
             </p>
           </div>
         </div>
@@ -129,17 +208,19 @@ export default function BankConnect({ onSyncSuccess, className }) {
             Cancel
           </Button>
           <Button 
-            onClick={handleConnect} 
-            disabled={isLoading}
+            onClick={handleConnectInitiation} 
+            disabled={status === 'waiting' || status === 'syncing' || isLoading}
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest px-6"
           >
-            {isLoading ? (
+            {status === 'connecting' ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Connecting...
+                Initializing...
               </>
+            ) : status === 'waiting' ? (
+              "Waiting for Login"
             ) : (
-              "Connect via Basiq"
+              "Open Secure Connection"
             )}
           </Button>
         </div>
