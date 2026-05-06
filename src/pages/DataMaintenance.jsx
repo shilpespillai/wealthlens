@@ -679,12 +679,13 @@ export default function DataMaintenance() {
                <div className="grid grid-cols-2 gap-3">
                   <Button 
                     variant="outline" 
-                    onClick={() => {
-                      updateVaultStats();
+                    onClick={async () => {
+                      await updateVaultStats();
                       toast.success("Integrity Check Complete");
                     }}
-                    className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all"
+                    className="h-10 rounded-xl border-slate-200 text-[8px] font-black uppercase tracking-widest hover:bg-white transition-all gap-2"
                   >
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
                     Integrity Check
                   </Button>
                   <Button 
