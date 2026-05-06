@@ -81,7 +81,6 @@ export default function TrendsReport() {
   const [selectedCategory, setSelectedCategory] = useState("All categories");
   const [showType, setShowType] = useState('expense'); // expense or income
   const [isBurndownOpen, setIsBurndownOpen] = useState(false);
-  
   const [dateRange, setDateRange] = useState({
     from: subMonths(new Date(), 6),
     to: new Date()
@@ -103,12 +102,13 @@ export default function TrendsReport() {
 
   const activeInterval = useMemo(() => {
     try {
-      if (!dateRange.from || !dateRange.to) return [new Date()];
+      if (!dateRange || !dateRange.from || !dateRange.to) return [new Date()];
       return eachMonthOfInterval({ start: dateRange.from, end: dateRange.to });
     } catch (e) {
       return [new Date()];
     }
   }, [dateRange]);
+
 
   useEffect(() => {
     async function load() {
@@ -193,7 +193,7 @@ export default function TrendsReport() {
       const pending = isPending ? budgeted : 0;
 
       return {
-        month: format(month, "MMM d"),
+        month: format(month, "MMM yyyy"),
         within: Math.round(within * 100) / 100,
         overspent: Math.round(overspent * 100) / 100,
         saved: Math.round(saved * 100) / 100,
@@ -221,58 +221,70 @@ export default function TrendsReport() {
   }, [chartData]);
 
   const burndownData = useMemo(() => {
-    // Sync with the end of the selected date range for the burndown view
-    const refMonth = dateRange.to || new Date();
-    const start = startOfMonth(refMonth);
-    const end = endOfMonth(refMonth);
-    const days = eachDayOfInterval({ start, end });
-    const monthKey = format(start, "yyyy-MM");
-    const monthBudgetPayload = dbBudgets[monthKey];
-    
-    let budget = selectedCategory === "All categories" ? (showType === 'income' ? 5500 : 2800) : 0;
-    
-    if (monthBudgetPayload) {
-      if (selectedCategory === "All categories") {
-        const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
-        if (budgetsArray) {
-          budget = budgetsArray.reduce((sum, b) => sum + (Number(b.monthly_target) || 0), 0);
-        }
-      } else {
-        const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-        const found = flatBudgets.find(b => 
-          String(b.category || "") === String(selectedCategory || "") || 
-          String(b.id || "") === String(selectedCategory || "")
-        );
-        if (found) {
-          budget = Number(found.monthly_target) || 0;
+    // 1. Calculate total budget across the entire activeInterval
+    let totalBudget = 0;
+    const monthlyBudgets = activeInterval.map(month => {
+      const monthKey = format(month, "yyyy-MM");
+      const monthBudgetPayload = dbBudgets[monthKey];
+      let b = selectedCategory === "All categories" ? (showType === 'income' ? 5500 : 2800) : 0;
+      
+      if (monthBudgetPayload) {
+        if (selectedCategory === "All categories") {
+          const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
+          if (budgetsArray) {
+            b = budgetsArray.reduce((sum, item) => sum + (Number(item.monthly_target) || 0), 0);
+          }
+        } else {
+          const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
+          const found = flatBudgets.find(item => 
+            String(item.category || "") === String(selectedCategory || "") || 
+            String(item.id || "") === String(selectedCategory || "")
+          );
+          if (found) {
+            b = Number(found.monthly_target) || 0;
+          }
         }
       }
-    }
-    
-    // Filter transactions for the selected category in the reference month
-    const monthTxs = allTransactions.filter(t => {
-      const d = new Date(t.date || t.actualDate);
-      const categoryMatch = selectedCategory === "All categories" 
-        ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
-        : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
-      return isSameMonth(d, start) && categoryMatch;
+      totalBudget += b;
+      return { month, budget: b };
     });
 
+    // 2. Map over each month to calculate cumulative spend and ideal burndown
     let cumulativeSpend = 0;
-    return days.map((day, idx) => {
-      const daySpend = monthTxs
-        .filter(t => format(new Date(t.date || t.actualDate), "d") === format(day, "d"))
-        .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-      
-      cumulativeSpend += daySpend;
-      
-      return {
-        day: format(day, "d"),
-        remaining: Math.round(Math.max(0, budget - cumulativeSpend) * 100) / 100,
-        ideal: Math.round((budget - (idx * (budget / (days.length - 1)))) * 100) / 100
-      };
+    let idealRemaining = totalBudget;
+    
+    // We want to show a data point for the "Start" (before any spend) to make the chart look like a true burndown.
+    const result = [];
+    result.push({
+      day: "Start",
+      remaining: totalBudget,
+      ideal: totalBudget
     });
-  }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
+
+    activeInterval.forEach((month, idx) => {
+      const monthTxs = allTransactions.filter(t => {
+        const d = new Date(t.date || t.actualDate);
+        const categoryMatch = selectedCategory === "All categories" 
+          ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
+          : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
+        return isSameMonth(d, month) && categoryMatch;
+      });
+
+      const monthSpend = monthTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+      cumulativeSpend += monthSpend;
+      
+      const currentMonthBudget = monthlyBudgets[idx].budget;
+      idealRemaining -= currentMonthBudget;
+
+      result.push({
+        day: format(month, "MMM ''yy"),
+        remaining: Math.round(Math.max(0, totalBudget - cumulativeSpend) * 100) / 100,
+        ideal: Math.round(idealRemaining * 100) / 100
+      });
+    });
+    
+    return result;
+  }, [allTransactions, activeInterval, selectedCategory, showType, dbBudgets]);
 
   return (
     <div id="trends-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
@@ -292,7 +304,7 @@ export default function TrendsReport() {
                     <Button variant="outline" className="bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 h-10 px-5 rounded-xl gap-3 text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm">
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                       {dateRange?.from ? (
-                        format(dateRange.from, "MMM dd, yyyy") + (dateRange.to ? ` - ${format(dateRange.to, "MMM dd, yyyy")}` : "")
+                        format(dateRange.from, "MMM yyyy") + (dateRange?.to ? ` - ${format(dateRange.to, "MMM yyyy")}` : "")
                       ) : "Pick date range"}
                     </Button>
                   </PopoverTrigger>
@@ -320,8 +332,40 @@ export default function TrendsReport() {
                            </button>
                          ))}
                       </div>
-                      <div className="p-2">
-                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="bg-white" />
+                      <div className="p-6 flex flex-col gap-6 justify-center w-64">
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Custom Range</p>
+                         <div className="space-y-4">
+                           <div>
+                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Start Month</label>
+                             <input 
+                               type="month" 
+                               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                               value={dateRange?.from ? format(dateRange.from, "yyyy-MM") : ""}
+                               onChange={(e) => {
+                                 const val = e.target.value;
+                                 if (val) {
+                                   const [y, m] = val.split('-');
+                                   setDateRange(prev => ({ ...prev, from: new Date(y, m - 1, 1) }));
+                                 }
+                               }}
+                             />
+                           </div>
+                           <div>
+                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">End Month</label>
+                             <input 
+                               type="month" 
+                               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                               value={dateRange?.to ? format(dateRange.to, "yyyy-MM") : ""}
+                               onChange={(e) => {
+                                 const val = e.target.value;
+                                 if (val) {
+                                   const [y, m] = val.split('-');
+                                   setDateRange(prev => ({ ...prev, to: new Date(y, m - 1, 1) }));
+                                 }
+                               }}
+                             />
+                           </div>
+                         </div>
                       </div>
                     </div>
                   </PopoverContent>
@@ -472,7 +516,7 @@ export default function TrendsReport() {
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Current Period Audit</p>
                           <h3 className="text-2xl font-black text-slate-900 mb-2 truncate">{selectedCategory}</h3>
                           <p className="text-[10px] font-bold text-amber-600 tracking-tight mb-10 flex items-center gap-2 uppercase tracking-[0.2em]">
-                             {format(dateRange.from, "MMM")} - {format(dateRange.to, "MMM")} Cycle
+                             {dateRange?.from ? format(dateRange.from, "MMM") : ""} - {dateRange?.to ? format(dateRange.to, "MMM") : ""} Cycle
                           </p>
                           
                  <div className="space-y-10">
@@ -517,7 +561,7 @@ export default function TrendsReport() {
                              <DialogHeader className="mb-10">
                                 <DialogTitle className="text-2xl font-medium text-slate-900 tracking-tight flex items-center gap-3 underline decoration-teal-500/20 underline-offset-8">
                                    <Activity className="w-6 h-6 text-teal-500" />
-                                   Spending Velocity: {selectedCategory}
+                                   Cumulative Trajectory: {selectedCategory}
                                 </DialogTitle>
                              </DialogHeader>
                              <div className="w-full h-[400px]">
@@ -539,12 +583,12 @@ export default function TrendsReport() {
                                 </ResponsiveContainer>
                              </div>
                              <div className="mt-8 flex items-center justify-between text-[10px] text-slate-400 font-medium uppercase tracking-widest border-t border-slate-50 pt-8">
-                                <span>Day 1 of Month</span>
+                                <span>Start of Period</span>
                                 <div className="flex items-center gap-8">
-                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 bg-teal-500" /> Actual Spend Path</div>
-                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 border-t-2 border-dashed border-slate-300" /> Ideal Velocity</div>
+                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 bg-teal-500" /> Actual Cumulative Path</div>
+                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 border-t-2 border-dashed border-slate-300" /> Ideal Trajectory</div>
                                 </div>
-                                <span>Day 31 of Month</span>
+                                <span>End of Period</span>
                              </div>
                           </DialogContent>
                        </Dialog>

@@ -60,7 +60,7 @@ export default function CashflowsReport() {
 
   const intervalMonths = useMemo(() => {
     try {
-      if (!dateRange.from || !dateRange.to) return [new Date()];
+      if (!dateRange || !dateRange.from || !dateRange.to) return [new Date()];
       return eachMonthOfInterval({ start: dateRange.from, end: dateRange.to });
     } catch (e) {
       return [dateRange.from || new Date()];
@@ -161,7 +161,7 @@ export default function CashflowsReport() {
                     >
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                       {dateRange?.from && dateRange?.to ? (
-                        <>{format(dateRange.from, "MMMM yyyy")} — {format(dateRange.to, "MMMM yyyy")}</>
+                        <>{dateRange?.from ? format(dateRange.from, "MMMM yyyy") : ""} — {dateRange?.to ? format(dateRange.to, "MMMM yyyy") : ""}</>
                       ) : (
                         <span>Pick a date range</span>
                       )}
@@ -205,7 +205,7 @@ export default function CashflowsReport() {
                               })}
                               className={cn(
                                 "flex-1 py-2 rounded-xl text-[11px] font-bold border transition-all",
-                                dateRange.from?.getFullYear() === year && dateRange.to?.getFullYear() === year
+                                dateRange?.from?.getFullYear() === year && dateRange?.to?.getFullYear() === year
                                   ? "bg-amber-600 border-amber-600 text-white shadow-md"
                                   : "bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100"
                               )}

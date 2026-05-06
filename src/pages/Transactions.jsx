@@ -343,9 +343,22 @@ function TransactionsContent() {
     category: "",
     spendType: "variable",
     type: "expense",
-    date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0],
     account_id: ""
   });
+
+  // Keep manual form date synced with the currently selected month
+  useEffect(() => {
+    // If they are viewing the current month, use today. If a past/future month, use the 1st of that month.
+    const now = new Date();
+    const isCurrentMonth = now.getFullYear() === selectedDate.getFullYear() && now.getMonth() === selectedDate.getMonth();
+    const targetDate = isCurrentMonth ? now : new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    
+    setManualForm(prev => ({
+      ...prev,
+      date: new Date(targetDate.getTime() - (targetDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+    }));
+  }, [selectedDate]);
 
   // Deep Link Handling
   useEffect(() => {
@@ -818,6 +831,7 @@ function TransactionsContent() {
       spend_type: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
       date:       manualForm.date,
       account_id: manualForm.account_id || null,
+      month:      monthKey,
     };
     console.log('[handleManualAdd] Saving transaction:', newItem);
 
