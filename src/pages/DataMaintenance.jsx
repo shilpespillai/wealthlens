@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { Badge } from "@/components/ui/badge";
 import { 
   Cloud,
   ArrowRightLeft,
@@ -14,6 +15,7 @@ import {
   Plus,
   X,
   PlusCircle,
+  Building2,
   TrendingUp,
   TrendingDown,
   Layers,
@@ -32,7 +34,8 @@ import {
   AlertTriangle,
   Clock,
   Shield,
-  Crown
+  Crown,
+  RefreshCw
 } from 'lucide-react';
 import { 
   Select, 
@@ -41,12 +44,23 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
 import { useCategories } from "@/hooks/useCategories";
 import { useAccounts } from "@/hooks/useAccounts";
 import { CORE_CATEGORY_REGISTRY } from "@/utils/constants";
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import BankConnect from "@/components/calculator/BankConnect";
+import SmartImporter from "@/components/SmartImporter";
+import { getBasiqToken, getBasiqConnections, refreshBasiqUser } from "@/api/basiqAdapter";
 
 export default function DataMaintenance() {
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
@@ -56,6 +70,10 @@ export default function DataMaintenance() {
   const [confirmText, setConfirmText] = useState('');
   const [logs, setLogs] = useState([]);
   const [vaultStats, setVaultStats] = useState({ keys: 0, size: '0 KB', cloudKeys: '...' });
+  const [bankConnections, setBankConnections] = useState([]);
+  const [isLoadingBanks, setIsLoadingBanks] = useState(false);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { getClassificationRules, getDatabaseTable } = useFinancialParser();
   const { categories, addCategory, removeCategory } = useCategories(null, { global: true });
   const { masterAccounts, addAccountToMaster, deleteAccountFromMaster } = useAccounts();
@@ -70,7 +88,49 @@ export default function DataMaintenance() {
   useEffect(() => {
     updateVaultStats();
     loadClassificationData();
+    loadBankConnections();
   }, []);
+
+  const loadBankConnections = async () => {
+    setIsLoadingBanks(true);
+    try {
+      const userId = await base44.user.loadData('wl_basiq_id');
+      if (!userId) {
+        setIsLoadingBanks(false);
+        return;
+      }
+      const token = await getBasiqToken('SERVER_ACCESS');
+      const connections = await getBasiqConnections(token, userId);
+      setBankConnections(connections);
+    } catch (e) {
+      console.error("Failed to load bank connections:", e);
+    } finally {
+      setIsLoadingBanks(false);
+    }
+  };
+
+  const handleRefreshAll = async () => {
+    setIsRefreshingAll(true);
+    addLog("Requesting global bank refresh from Basiq...", "info");
+    try {
+      const userId = await base44.user.loadData('wl_basiq_id');
+      if (!userId) throw new Error("No Basiq account linked");
+      
+      const token = await getBasiqToken('SERVER_ACCESS');
+      await refreshBasiqUser(token, userId);
+      
+      addLog("Refresh command broadcasted successfully.", "success");
+      toast.success("Sync Requested", { description: "Banks are now updating in the background." });
+      
+      // Reload connections after a short delay
+      setTimeout(loadBankConnections, 3000);
+    } catch (err) {
+      addLog("Refresh failed: " + err.message, "error");
+      toast.error("Sync Failed", { description: err.message });
+    } finally {
+      setIsRefreshingAll(false);
+    }
+  };
 
   const loadClassificationData = async () => {
     const rules = await getClassificationRules();
@@ -566,8 +626,8 @@ export default function DataMaintenance() {
                   {syncEnabled ? 'Live Sync' : 'Local Only'}
                </div>
             </div>
-            <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase">Maintenance <span className="text-slate-400">Hub</span></h1>
-            <p className="text-slate-500 font-medium max-w-lg">Advanced structural cleanup and data lifecycle management console.</p>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase">Data Management <span className="text-slate-400">Hub</span></h1>
+            <p className="text-slate-500 font-medium max-w-lg">Advanced structural cleanup, bank connectivity, and data lifecycle management console.</p>
           </div>
           
           <div className="flex items-center gap-3 bg-white p-3 rounded-3xl border border-slate-100 shadow-sm">
@@ -609,6 +669,123 @@ export default function DataMaintenance() {
             </div>
           </div>
         </div>
+
+        {/* INSTITUTIONAL CONNECTIVITY */}
+        <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50 overflow-hidden">
+          <CardHeader className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10">
+                <Database className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Institutional Connectivity</CardTitle>
+                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">Global bank data aggregation & sync management</CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <Button 
+                 onClick={handleRefreshAll}
+                 disabled={isRefreshingAll || bankConnections.length === 0}
+                 variant="outline"
+                 className="h-12 px-6 rounded-2xl border-slate-200 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all gap-2"
+               >
+                 {isRefreshingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 text-emerald-500" />}
+                 Sync All Banks
+               </Button>
+
+               <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      className="relative overflow-hidden group transition-all duration-500 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 px-8 rounded-2xl shadow-lg shadow-orange-500/20 border-t border-white/20"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      <div className="flex items-center gap-2 relative z-10">
+                        <Download className="w-4 h-4 text-orange-200" />
+                        Import (CSV/PDF)
+                      </div>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2rem]">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-black tracking-tighter">Institutional Data Importer</DialogTitle>
+                    </DialogHeader>
+                    <SmartImporter 
+                      accounts={masterAccounts}
+                      onComplete={() => {
+                        setIsImportModalOpen(false);
+                        toast.success("Import successful");
+                        updateVaultStats();
+                      }} 
+                      onCancel={() => setIsImportModalOpen(false)}
+                    />
+                  </DialogContent>
+               </Dialog>
+
+               <BankConnect onSyncSuccess={() => {
+                 toast.success("Connection established");
+                 loadBankConnections();
+               }} className="h-12 px-8 bg-slate-900 hover:bg-black text-white rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200" />
+            </div>
+          </CardHeader>
+          
+          <CardContent className="p-8 bg-slate-50/30">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isLoadingBanks ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="h-32 bg-white rounded-3xl border border-slate-100 animate-pulse" />
+                ))
+              ) : bankConnections.length > 0 ? (
+                bankConnections.map((conn) => (
+                  <motion.div 
+                    key={conn.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between group hover:border-slate-300 transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                          <Building2 className="w-5 h-5 text-slate-400 group-hover:text-slate-900 transition-colors" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">{conn.institution.name}</h4>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Connection ID: {conn.id.substring(0, 8)}...</span>
+                        </div>
+                      </div>
+                      <Badge className={`rounded-full px-2 py-0 text-[8px] font-black uppercase tracking-tighter ${
+                        conn.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                      }`}>
+                        {conn.status}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                       <div className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 text-slate-300" />
+                          <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">
+                            Refreshed: {conn.lastSynced ? format(new Date(conn.lastSynced), 'MMM dd, HH:mm') : 'Pending'}
+                          </span>
+                       </div>
+                       <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg hover:bg-slate-50 text-slate-300 hover:text-slate-900">
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                       </Button>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="lg:col-span-3 py-12 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-[2rem] bg-slate-50 flex items-center justify-center border border-slate-100">
+                    <Database className="w-8 h-8 text-slate-200" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-900">No active connections</h4>
+                    <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto mt-1">Connect your first bank to begin secure, automated financial data aggregation.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* TOP TOOLS GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

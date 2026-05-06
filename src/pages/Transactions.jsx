@@ -23,6 +23,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  Circle,
   Save,
   Clock,
   LayoutGrid,
@@ -81,15 +82,14 @@ import { Badge } from "@/components/ui/badge";
 import { useSearchParams } from "react-router-dom";
 import AuthGuard from "@/components/AuthGuard";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import BankConnect from "@/components/calculator/BankConnect";
 import { useCategories } from "@/hooks/useCategories";
 import { useAccounts } from "@/hooks/useAccounts";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import SmartImporter from "@/components/SmartImporter";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, setMonth, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import { enrichTransactions } from '@/utils/txScanner';
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
@@ -141,6 +141,7 @@ const SIDEBAR_ITEMS = [
   { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "uncategorized", label: "Uncategorized", icon: Circle, color: "text-slate-400", bg: "bg-slate-50" },
 ];
 
 // Dynamic Categories and Accounts will be computed in the component
@@ -217,7 +218,6 @@ function TransactionsContent() {
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState([]);
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
@@ -669,13 +669,27 @@ function TransactionsContent() {
 
         // 2. Tab Filter (Income/Expense/Uncategorized)
         if (selectedTab !== 'all') {
-          if (tx.type !== selectedTab) return false;
+          if (selectedTab === 'expense') {
+            if (tx.type !== 'expense' && tx.type !== 'uncategorized') return false;
+          } else {
+            if (tx.type !== selectedTab) return false;
+          }
         }
 
         // 3. Category Filter
         if (selectedCategory && selectedCategory !== 'all') {
-          const canonical = resolveCanonicalCategory(tx.category);
-          if (canonical.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+          const target = selectedCategory.toLowerCase().trim();
+          const current = (tx.category || "").toLowerCase().trim();
+          const canonical = resolveCanonicalCategory(tx.category).toLowerCase().trim();
+          
+          if (target === 'uncategorized') {
+            // If we are looking for Uncategorized, EXCLUDE anything that has a real category
+            const isCategorized = current !== "" && current !== 'uncategorized' && canonical !== 'uncategorized';
+            if (isCategorized) return false;
+          } else {
+            // Standard category match
+            if (canonical !== target && current !== target) return false;
+          }
         }
 
         // 4. Search Filter
@@ -796,7 +810,8 @@ function TransactionsContent() {
   const handlePurgeMonth = async () => {
     setIsLoading(true);
     try {
-      // 1. Purge raw transactions for the month using a bounded date range deletion
+      // 1. Purge raw transactions for the month using both central month filter and date prefix (safety fallback)
+      await base44.db.deleteByFilter('transactions', 'month', monthKey);
       await base44.db.deleteByDatePrefix('transactions', 'date', monthKey);
       
       // 2. Purge budget state
@@ -813,7 +828,7 @@ function TransactionsContent() {
       console.error("Purge failed:", err);
       toast.error("Failed to purge: " + (err.message || err));
     } finally {
-      setIsLoading(true);
+      setIsLoading(false);
     }
   };
 
@@ -949,42 +964,49 @@ function TransactionsContent() {
   };
 
   const handleBankSync = async (newItems) => {
-    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
-    const formatted = newItems.map(item => ({
-      id: Date.now() + Math.random(),
-      name: item.name || item.merchant || item.description || "Synced Transaction",
-      category: item.category || "Uncategorized",
-      amount: item.amount,
-      date: item.date || `${fallbackDate} 01`
-    }));
-    const existing = new Set(expenses.map(e => `${e.name}-${e.amount}`));
-    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.amount}`));
-    
-    if (uniqueNew.length > 0) {
-      try {
-        // Map to DB schema
-        const toInsert = uniqueNew.map(item => ({
-          merchant: item.name,
-          amount: item.amount,
-          category: item.category,
-          date: item.date,
-          spend_type: 'variable', // Default for bank sync
-          type: 'expense'
-        }));
+    try {
+      // 1. Get existing ledger for deduplication and learning
+      const existingLedger = await base44.db.getTable('transactions') || [];
+      
+      // 2. Run the AI Scanner Engine
+      const enriched = await enrichTransactions(newItems, existingLedger, selectedAccountId);
+      
+      // 3. Filter out duplicates
+      const toInsertRaw = enriched.filter(item => !item.isDuplicate);
+
+      if (toInsertRaw.length > 0) {
+        // 4. Map to DB schema with dynamic month assignment
+        const toInsert = toInsertRaw.map(item => {
+          // Extract YYYY-MM from the date string (handles both ISO and other formats)
+          let txMonth = monthKey; 
+          if (item.date) {
+            const dateMatch = item.date.match(/(\d{4})-(\d{2})/);
+            if (dateMatch) txMonth = `${dateMatch[1]}-${dateMatch[2]}`;
+          }
+
+          return {
+            merchant: item.name || item.merchant,
+            amount: item.amount,
+            category: item.category || "Uncategorized",
+            date: item.date,
+            spend_type: 'variable',
+            type: item.type || 'expense',
+            month: txMonth,
+            account_id: selectedAccountId // Track which account it came from
+          };
+        });
         
-        // Bulk insert to production ledger
+        // 5. Bulk insert to production ledger
         await base44.db.insertRows('transactions', toInsert);
         
-        const updated = [...expenses, ...uniqueNew];
-        setExpenses(updated);
-        toast.success(`Synced ${uniqueNew.length} new transactions to ledger!`);
-        fetchData(); // Refresh to get DB IDs
-      } catch (err) {
-        console.error("Bank sync persistence failed:", err);
-        toast.error("Failed to save synced transactions");
+        toast.success(`AI successfully categorized and synced ${toInsert.length} new transactions!`);
+        fetchData(); // Refresh UI
+      } else {
+        toast.info("No new transactions to sync.");
       }
-    } else {
-      toast.info("No new transactions found.");
+    } catch (err) {
+      console.error("Bank sync engine failure:", err);
+      toast.error("AI scanning failed during sync.");
     }
   };
 
@@ -1345,28 +1367,7 @@ function TransactionsContent() {
             
             <div className="flex items-center gap-2 ml-auto">
 
-                <BankConnect onSyncSuccess={handleBankSync} className="h-9 w-36 justify-center" />
                 
-                <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 w-36 justify-center gap-1.5 text-xs font-medium border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all">
-                      <Download className="w-4 h-4" /> Import (CSV/PDF)
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-black tracking-tighter">Institutional Data Importer</DialogTitle>
-                    </DialogHeader>
-                    <SmartImporter 
-                      accounts={dbAccounts}
-                      onComplete={() => {
-                        setIsImportModalOpen(false);
-                        fetchData();
-                      }}
-                      onCancel={() => setIsImportModalOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
 
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
@@ -1451,32 +1452,6 @@ function TransactionsContent() {
                   </DialogContent>
                 </Dialog>
 
-                <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={(e) => {
-                  if (e.currentTarget.dataset.confirmed === 'true') {
-                    handlePurgeMonth();
-                  } else {
-                    e.currentTarget.dataset.confirmed = 'true';
-                    e.currentTarget.classList.add('bg-rose-600', 'text-white', 'border-rose-600');
-                    e.currentTarget.classList.remove('bg-rose-50', 'text-rose-600', 'border-rose-200');
-                    e.currentTarget.querySelector('span').innerText = 'Click again to confirm';
-                    setTimeout(() => {
-                      if (e.currentTarget) {
-                        e.currentTarget.dataset.confirmed = 'false';
-                        e.currentTarget.classList.remove('bg-rose-600', 'text-white', 'border-rose-600');
-                        e.currentTarget.classList.add('border-rose-200', 'text-rose-600');
-                        e.currentTarget.querySelector('span').innerText = 'Purge Month';
-                      }
-                    }, 3000);
-                  }
-                }}
-                className="h-9 w-36 justify-center border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Purge Month</span>
-              </Button>
 
 
               </div>

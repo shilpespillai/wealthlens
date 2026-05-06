@@ -1631,26 +1631,60 @@ export const base44 = {
     },
     deleteByFilter: async (tableName, column, value, options = {}) => {
       // REDIRECT: Categories are now part of a single JSON array
-      if (tableName === 'categories' || tableName === 'user_categories' || tableName === 'user_accounts') {
+      if (tableName === 'categories' || tableName === 'user_categories' || tableName === 'user_accounts' || tableName === 'transactions' || tableName === 'budgets') {
+        const { session } = await base44.db._getSession();
+        if (!session?.user) return { success: false };
+        const userId = session.user.id;
+
         const monthContext = typeof options === 'string' ? options : options?.month;
-        const shardKey = monthContext || base44.db._getShardKey();
-        const shard = await base44.db._loadShard(shardKey);
         
-        if (shard) {
-          if (tableName === 'user_accounts') {
-            const original = shard.accounts?.length || 0;
-            shard.accounts = (shard.accounts || []).filter(r => String(r[column]) !== String(value));
-            if (shard.accounts.length !== original) {
-              await base44.db._saveShard(shardKey, shard);
+        // 1. Identify which shards to process
+        let shardKeys = [];
+        if (column === 'month' || column === 'date') {
+            shardKeys = [String(value).substring(0, 7)];
+        } else if (monthContext) {
+            shardKeys = [monthContext];
+        } else {
+            // Global Filter: Must scan all local and cloud keys
+            const localKeys = Object.keys(localStorage).filter(k => k.startsWith('wl_shard_') && k.includes(userId));
+            shardKeys = localKeys.map(k => k.split('_')[2]);
+            
+            const { data: cloudKeys } = await supabase.from('wealthlens_vault').select('shard_key').eq('user_id', userId);
+            if (cloudKeys) cloudKeys.forEach(ck => { if (!shardKeys.includes(ck.shard_key)) shardKeys.push(ck.shard_key); });
+        }
+
+        for (const shardKey of shardKeys) {
+          const shard = await base44.db._loadShard(shardKey);
+          if (shard) {
+            let changed = false;
+            if (tableName === 'transactions' && shard.transactions) {
+                const original = shard.transactions.length;
+                shard.transactions = shard.transactions.filter(r => String(r[column]) !== String(value));
+                if (shard.transactions.length !== original) changed = true;
+            } else if (tableName === 'user_accounts') {
+                const original = shard.accounts?.length || 0;
+                shard.accounts = (shard.accounts || []).filter(r => String(r[column]) !== String(value));
+                if (shard.accounts.length !== original) changed = true;
+            } else if (tableName === 'budgets' && shard.budget) {
+                // If the whole budget for the month matches the filter, clear it
+                if (column === 'month' && String(value) === shardKey) {
+                    shard.budget = null;
+                    changed = true;
+                }
+            } else if (shard.categories) {
+                const original = shard.categories?.length || 0;
+                shard.categories = (shard.categories || []).filter(r => String(r[column]) !== String(value));
+                if (shard.categories.length !== original) changed = true;
             }
-          } else {
-            // Categories logic
-            const original = shard.categories?.length || 0;
-            shard.categories = (shard.categories || []).filter(r => String(r[column]) !== String(value));
-            if (shard.categories.length !== original) {
-              await base44.db._saveShard(shardKey, shard);
-            }
+
+            if (changed) await base44.db._saveShard(shardKey, shard);
           }
+        }
+
+        // 2. Also wipe from legacy tables for safety
+        if (column === 'month' || column === 'date') {
+            const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;
+            await supabase.from(sqlTable).delete().eq(column, value).eq('user_id', userId);
         }
 
         return { success: true };
@@ -1675,18 +1709,20 @@ export const base44 = {
     // Perform bulk deletions for a specific month (e.g., '2026-04')
     deleteByDatePrefix: async (tableName, column, monthKey) => {
       // ── REDIRECT: Secure Unified Shards ──────────────────────────────────
-      if (tableName === 'transactions' || tableName === 'budgets') {
-          const { session } = await base44.db._getSession();
-          if (!session?.user) return { success: false };
-
-          // A date prefix delete in the vault is just a shard delete or shard clear
-          const { error } = await supabase
-              .from('wealthlens_vault')
-              .delete()
-              .eq('user_id', session.user.id)
-              .eq('shard_key', monthKey);
-
-          return { success: !error };
+      if (tableName === 'transactions' || tableName === 'budgets' || tableName === 'portfolio_holdings') {
+          const shard = await base44.db._loadShard(monthKey);
+          if (shard) {
+            if (tableName === 'transactions') shard.transactions = [];
+            else if (tableName === 'budgets') shard.budget = null;
+            else if (tableName === 'portfolio_holdings') shard.holdings = [];
+            
+            await base44.db._saveShard(monthKey, shard);
+            console.log(`[base44.db] Surgical purge of ${tableName} for shard: ${monthKey}`);
+            return { success: true };
+          }
+          
+          // If no shard exists, technically it's already "purged"
+          return { success: true };
       }
 
       const sqlTable = base44.db.TABLE_MAP[tableName] || tableName;

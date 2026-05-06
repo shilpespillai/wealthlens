@@ -25,7 +25,8 @@ import {
   BookOpen,
   Lock,
   Crown,
-  Trash2
+  Trash2,
+  Database
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import IntelligenceDialog from "../intelligence/IntelligenceDialog";
@@ -121,7 +122,7 @@ export default function Sidebar() {
                     { id: "fairvalue", label: "Fair Value", icon: Target },
                     { id: "retirement", label: "Retirement", icon: Palmtree },
                     { id: "chart", label: "Growth Chart", icon: LineChart },
-                    { id: "market", label: "Market analysis", icon: TrendingUp },
+                    { id: 'maintenance', label: 'Data Management Hub', icon: Database, path: '/maintenance' },
                     { id: "tax", label: "Tax Strategies", icon: Shield },
                     { id: "scenarios", label: "Scenarios", icon: Layers },
                     { id: "table", label: "Breakdown", icon: Table2 },
@@ -252,8 +253,8 @@ export default function Sidebar() {
                      to="/DataMaintenance"
                      className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
                   >
-                     <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                     <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
+                     <Database className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Data Management Hub</span>
                   </Link>
                 </>
               )}
