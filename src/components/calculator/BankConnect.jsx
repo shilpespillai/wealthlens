@@ -31,7 +31,7 @@ import {
 import { base44 } from '@/api/base44Client';
 import { Badge } from "@/components/ui/badge";
 
-export default function BankConnect({ onSyncSuccess, className }) {
+export default function BankConnect({ onSyncSuccess, className, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const [months, setMonths] = useState("3");
   const [mobile, setMobile] = useState("");
@@ -135,17 +135,26 @@ export default function BankConnect({ onSyncSuccess, className }) {
       if (!val) setStatus('idle');
     }}>
       <DialogTrigger asChild>
-        <Button className={`
-          relative overflow-hidden group transition-all duration-500
-          bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500
-          text-white font-black uppercase tracking-[0.2em] text-[10px] h-12 px-8 rounded-2xl
-          shadow-lg shadow-emerald-500/20 border-t border-white/20
-          ${className}
-        `}>
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+        <Button 
+          disabled={disabled}
+          className={`
+            relative overflow-hidden group transition-all duration-500
+            ${disabled ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white'}
+            font-black uppercase tracking-[0.2em] text-[10px] h-12 px-8 rounded-2xl
+            ${disabled ? 'shadow-none border-slate-300' : 'shadow-lg shadow-emerald-500/20 border-t border-white/20'}
+            ${className}
+          `}
+        >
+          {!disabled && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />}
           <div className="flex items-center gap-2.5 relative z-10">
-            {status === 'syncing' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 fill-emerald-300" />}
-            {status === 'syncing' ? 'Syncing...' : 'Link Bank'}
+            {status === 'syncing' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : disabled ? (
+              <Lock className="w-4 h-4 text-slate-300" />
+            ) : (
+              <Zap className="w-4 h-4 fill-emerald-300" />
+            )}
+            {status === 'syncing' ? 'Syncing...' : disabled ? 'Link Bank (Coming Soon)' : 'Link Bank'}
           </div>
         </Button>
       </DialogTrigger>

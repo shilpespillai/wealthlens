@@ -774,10 +774,14 @@ export default function DataMaintenance() {
                   </DialogContent>
                </Dialog>
 
-               <BankConnect onSyncSuccess={() => {
-                 toast.success("Connection established");
-                 loadBankConnections();
-               }} className="h-12 px-8 bg-slate-900 hover:bg-black text-white rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200" />
+               <BankConnect 
+                 disabled={true}
+                 onSyncSuccess={() => {
+                   toast.success("Connection established");
+                   loadBankConnections();
+                 }} 
+                 className="h-12 px-8 bg-slate-900 hover:bg-black text-white rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200" 
+               />
             </div>
           </CardHeader>
           
