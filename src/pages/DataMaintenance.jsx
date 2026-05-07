@@ -167,10 +167,12 @@ export default function DataMaintenance() {
       console.info("[Sync] Persisting ruleset:", cleanedRules);
       await base44.user.saveData('wl_classification_rules', cleanedRules);
       
-      console.log("[Sync] Broadcasting update event...");
       window.dispatchEvent(new CustomEvent('wl_rules_updated', { 
         detail: { timestamp: Date.now(), source: 'DataMaintenance' } 
       }));
+      
+      // AUTO-DEPLOY: Force a global re-classification of all transactions
+      window.dispatchEvent(new CustomEvent('re-classify-all'));
 
       if (manual) toast.success("Classification Rules Persistent", { id: tId });
     } catch (e) {
@@ -184,9 +186,9 @@ export default function DataMaintenance() {
   // Auto-save classification rules when they change
   useEffect(() => {
     if (!classificationRules) return;
-    const timer = setTimeout(() => handleSaveRules(false), 2000);
+    const timer = setTimeout(() => handleSaveRules(false), 1000);
     return () => clearTimeout(timer);
-  }, [classificationRules]);
+  }, [classificationRules, handleSaveRules]);
 
   const updateRuleLogic = (type, logic) => {
     setClassificationRules(prev => ({
@@ -971,17 +973,10 @@ export default function DataMaintenance() {
             </div>
 
             <div className="flex items-center gap-3 relative z-[999]">
-              <Button 
-                onClick={() => {
-                  console.warn("COMMIT BUTTON CLICKED");
-                  handleSaveRules(true);
-                }}
-                disabled={isSavingRules}
-                className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-600/20 transition-all border-t border-white/20"
-              >
-                {isSavingRules ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <ShieldCheck className="w-3.5 h-3.5 mr-2" />}
-                Commit Rules to Cloud
-              </Button>
+              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-full border border-emerald-100">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Auto-Sync Active</span>
+              </div>
 
               <Button 
                 variant="ghost" 
@@ -990,7 +985,7 @@ export default function DataMaintenance() {
                 className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-rose-100/50"
               >
                 <Trash2 className="w-3.5 h-3.5 mr-2" />
-                Factory Reset Engine
+                Reset Engine
               </Button>
             </div>
           </CardHeader>
@@ -1134,18 +1129,6 @@ export default function DataMaintenance() {
               </div>
             )}
             
-            {classificationRules && (
-              <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-center">
-                <Button 
-                  onClick={() => handleSaveRules(true)}
-                  disabled={isSavingRules}
-                  className="h-14 px-12 bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-2xl shadow-slate-200 transition-all active:scale-95 flex items-center gap-3"
-                >
-                  {isSavingRules ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5 text-emerald-400" />}
-                  Deploy Classification Logic
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
