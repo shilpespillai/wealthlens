@@ -141,6 +141,7 @@ const SIDEBAR_ITEMS = [
   { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
+  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-indigo-600", bg: "bg-indigo-50" },
   { id: "uncategorized", label: "Uncategorized", icon: Circle, color: "text-slate-400", bg: "bg-slate-50" },
 ];
 
@@ -295,7 +296,7 @@ function TransactionsContent() {
         return false;
       }).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
       
-      const accExpenses = [...expenses, ...uncategorized, ...transfers].filter(e => {
+      const accExpenses = (expenses || []).filter(e => {
         const matchesId = String(e.account_id) === String(acc.id);
         const matchesName = e.account && e.account === acc.name;
         if (matchesId || matchesName) return true;
@@ -306,6 +307,13 @@ function TransactionsContent() {
         return false;
       }).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
       
+      const accTransfers = (transfers || []).filter(t => {
+        const matchesId = String(t.account_id) === String(acc.id);
+        if (matchesId) return true;
+        if (isManualVault) return !t.account_id || String(t.account_id) === 'sys-vault';
+        return false;
+      }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
       const liveBalance = accIncomes - accExpenses;
       
       return {
@@ -669,11 +677,7 @@ function TransactionsContent() {
 
         // 2. Tab Filter (Income/Expense/Uncategorized)
         if (selectedTab !== 'all') {
-          if (selectedTab === 'expense') {
-            if (tx.type !== 'expense' && tx.type !== 'uncategorized') return false;
-          } else {
-            if (tx.type !== selectedTab) return false;
-          }
+          if (tx.type !== selectedTab) return false;
         }
 
         // 3. Category Filter
@@ -726,8 +730,7 @@ function TransactionsContent() {
 
       if (tx.type === 'income') {
         totalIncome += absAmt;
-      } else {
-        // Fallback for expense, uncategorized, and transfer
+      } else if (tx.type === 'expense') {
         totalExpense += absAmt;
       }
 
@@ -1713,6 +1716,7 @@ function TransactionsContent() {
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Amount</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Category</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Type</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Nature</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Account</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Balance</TableHead>
                   </TableRow>
@@ -1811,22 +1815,43 @@ function TransactionsContent() {
                           </div>
                         </TableCell>
                         <TableCell className="p-4">
-                          <Select 
-                            value={tx.spend_type || tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
-                            onValueChange={(v) => handleUpdateItem(tx.id, { spend_type: v }, tx.type)}
-                            disabled={tx.type === 'income'}
-                          >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-amber-300 transition-all">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
-                              <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
-                              <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
-                              <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
+                           <Select 
+                             value={tx.type} 
+                             onValueChange={(v) => handleUpdateItem(tx.id, { type: v }, tx.type)}
+                           >
+                             <SelectTrigger className={cn(
+                               "h-7 text-[10px] font-bold px-2 py-0.5 w-[100px] rounded-md transition-all border shadow-sm",
+                               tx.type === 'income' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                               tx.type === 'transfer' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                               "bg-rose-50 text-rose-700 border-rose-200"
+                             )}>
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="income" className="text-[10px] font-bold text-emerald-600">Income</SelectItem>
+                               <SelectItem value="expense" className="text-[10px] font-bold text-rose-600">Expense</SelectItem>
+                               <SelectItem value="transfer" className="text-[10px] font-bold text-indigo-600">Transfer</SelectItem>
+                               <SelectItem value="uncategorized" className="text-[10px] font-bold text-slate-400">Uncategorized</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </TableCell>
+                         <TableCell className="p-4">
+                           <Select 
+                             value={tx.spend_type || tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
+                             onValueChange={(v) => handleUpdateItem(tx.id, { spend_type: v }, tx.type)}
+                             disabled={tx.type === 'income'}
+                           >
+                             <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-amber-300 transition-all text-slate-600">
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
+                               <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
+                               <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
+                               <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </TableCell>
                         <TableCell className="p-4">
                           <Select 
                             value={tx.account_id || "manual"} 

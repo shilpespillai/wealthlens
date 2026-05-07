@@ -13,22 +13,9 @@ import { getYearMonth, isSameMonthYear, robustParseDate } from "@/utils/datePars
 const EXCLUDED_CATEGORIES = ['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
 
 const DEFAULT_CLASSIFICATION_RULES = {
-  income: {
-    logic: 'OR',
-    groups: [
-      {
-        id: 'legacy-inc',
-        logic: 'AND',
-        conditions: [
-          { field: 'category', operator: 'equals', value: 'Income' }
-        ]
-      }
-    ]
-  },
-  expense: {
-    logic: 'OR',
-    groups: []
-  }
+  income: { logic: 'OR', groups: [{ id: 'legacy-inc', logic: 'AND', conditions: [{ field: 'category', operator: 'equals', value: 'Income' }] }] },
+  expense: { logic: 'OR', groups: [] },
+  transfer: { logic: 'OR', groups: [] }
 };
 
 export const useFinancialParser = () => {
@@ -39,7 +26,13 @@ export const useFinancialParser = () => {
     const loadRules = async () => {
       try {
         const rules = await base44.user.loadData('wl_classification_rules');
-        if (rules) setClassificationRules(rules);
+        if (rules) {
+          // Merge with defaults to ensure new buckets (like 'transfer') exist
+          setClassificationRules(prev => ({
+            ...DEFAULT_CLASSIFICATION_RULES,
+            ...rules
+          }));
+        }
       } catch (err) {
         console.error("Failed to load classification rules:", err);
       } finally {
@@ -49,7 +42,13 @@ export const useFinancialParser = () => {
     loadRules();
 
     // Re-load rules whenever DataMaintenance saves new ones (same-tab broadcast)
-    const handleRulesUpdated = () => loadRules();
+    const handleRulesUpdated = (e) => {
+      // Prevent infinite loop if this update came from our own maintenance screen
+      if (e.detail?.source === 'DataMaintenance') return;
+      
+      console.log(`[Parser] Rules updated at ${e.detail?.timestamp || 'unknown'}. Refreshing engine...`);
+      loadRules();
+    };
     window.addEventListener('wl_rules_updated', handleRulesUpdated);
     return () => window.removeEventListener('wl_rules_updated', handleRulesUpdated);
   }, []);
@@ -57,11 +56,14 @@ export const useFinancialParser = () => {
   const matchRule = useCallback((tx, rule) => {
     if (!rule) return false;
     
-    // Support legacy flat conditions if any missed migration
-    const groupsToEval = rule.groups || [{ logic: 'AND', conditions: rule.conditions || [] }];
+    // Support both new Group structure and legacy flat structures
+    const groupsToEval = rule.groups || (rule.conditions ? [{ logic: 'AND', conditions: rule.conditions }] : []);
+    
+    // CRITICAL: If there are zero groups/conditions, it's NOT a match.
     if (groupsToEval.length === 0) return false;
-
+    
     const groupResults = groupsToEval.map(group => {
+      // CRITICAL: An empty group MUST NOT match anything. 
       if (!group.conditions || group.conditions.length === 0) return false;
       
       const condResults = group.conditions.map(c => {
@@ -69,46 +71,49 @@ export const useFinancialParser = () => {
         const operator = c.operator;
         const target = String(c.value || "").toLowerCase().trim();
         
-        // Safety: Empty rules should not match everything
         if (!target && operator !== 'not_equals') return false;
         
         let txVal = '';
+        let matched = false;
+
         if (field === 'category') {
-          const rawCat = tx.category || tx.merchant || tx.name || '';
-          txVal = resolveCanonicalCategory(rawCat);
+          txVal = resolveCanonicalCategory(tx.category || tx.merchant || tx.name || '');
         }
-        else if (field === 'merchant') txVal = String(tx.merchant || tx.name || "");
+        else if (field === 'merchant') {
+          txVal = String(tx.merchant || tx.name || "");
+        }
         else if (field === 'account') {
-          const accId = String(tx.account_id || "").toLowerCase().trim();
-          const accName = String(tx.account || "").toLowerCase().trim();
+          const clean = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+          const currentAccName = clean(tx.account);
+          const currentAccId = clean(tx.account_id);
+          const cleanTarget = clean(target);
           
-          if (accId.includes(target) || accName.includes(target)) {
-            txVal = c.value; 
-          } else {
-            txVal = accId;
+          if (operator === 'equals' || operator === 'contains') {
+            matched = currentAccName.includes(cleanTarget) || currentAccId.includes(cleanTarget) || cleanTarget.includes(currentAccName);
+          } else if (operator === 'not_equals') {
+            matched = !currentAccName.includes(cleanTarget) && !currentAccId.includes(cleanTarget);
           }
         }
-        
-        const val = String(txVal || "").toLowerCase().trim();
-        
-        switch (operator) {
-          case 'equals': return val === target;
-          case 'not_equals': return val !== target;
-          case 'contains': return val.includes(target);
-          case 'greater_than': return (Number(tx.amount) || 0) > Number(c.value);
-          case 'less_than': return (Number(tx.amount) || 0) < Number(c.value);
-          case 'in': return Array.isArray(c.value) ? c.value.some(v => String(v).toLowerCase().trim() === val) : (val === target);
-          case 'not_in': return Array.isArray(c.value) ? !c.value.some(v => String(v).toLowerCase().trim() === val) : (val !== target);
-          default: return false;
+        else {
+          const val = String(txVal || "").toLowerCase().trim();
+          switch (operator) {
+            case 'equals': matched = val === target; break;
+            case 'not_equals': matched = val !== target; break;
+            case 'contains': matched = val.includes(target); break;
+            case 'greater_than': matched = (Number(tx.amount) || 0) > Number(c.value); break;
+            case 'less_than': matched = (Number(tx.amount) || 0) < Number(c.value); break;
+          }
         }
+
+        return matched;
       });
 
-      if (group.logic === 'AND') return condResults.every(r => r === true);
-      return condResults.some(r => r === true);
+      return group.logic === 'AND' ? condResults.every(r => r === true) : condResults.some(r => r === true);
     });
 
-    if (rule.logic === 'AND') return groupResults.every(r => r === true);
-    return groupResults.some(r => r === true);
+    // FINAL GUARD: If we have zero results, it's false.
+    if (groupResults.length === 0) return false;
+    return rule.logic === 'AND' ? groupResults.every(r => r === true) : groupResults.some(r => r === true);
   }, []);
 
   const getClassificationRules = useCallback(async () => {
@@ -132,7 +137,7 @@ export const useFinancialParser = () => {
       }
     }
 
-    return rules || DEFAULT_CLASSIFICATION_RULES;
+    return { ...DEFAULT_CLASSIFICATION_RULES, ...(rules || {}) };
   }, []);
 
 
@@ -348,7 +353,12 @@ export const useFinancialParser = () => {
     };
 
     // 1. Pre-classify everything using the Master Rule Engine
-    const { incomes: classifiedIncomes, expenses: classifiedExpenses } = getNormalizedLedger(rawTransactions, accounts, classificationRules);
+    const { 
+      incomes: classifiedIncomes, 
+      expenses: classifiedExpenses,
+      transfers: classifiedTransfers,
+      uncategorized: classifiedUncategorized 
+    } = getNormalizedLedger(rawTransactions, accounts, classificationRules);
 
     // Aggregation Helper
     const aggregateByCategory = (categoryName, type) => {
@@ -368,105 +378,77 @@ export const useFinancialParser = () => {
       };
     };
 
-    // Keep track of all "consumed" transactions to prevent double-counting in 'missing' lists
-    const consumedTransactionIds = new Set();
-
-    const activeRules = classificationRules;
+    const { incomes: classifiedIncs, expenses: classifiedExps, uncategorized: classifiedUncats } = getNormalizedLedger(rawTransactions, accounts);
 
     // 1. Process Incomes
     const incomeMap = new Map();
     (budgetData.incomes || []).forEach(i => {
-      const agg = aggregateByCategory(i.category || i.name || 'Income', 'income');
-      const resolvedAccId = resolveAccountId(i);
       const cat = resolveCanonicalCategory(i.category || i.name || 'Income');
-      const target = Number(i.monthly_target || i.amount || 0);
-      
+      incomeMap.set(cat, {
+        ...i,
+        amount: 0,
+        monthly_target: Number(i.monthly_target || i.amount || 0),
+        type: 'income',
+        category: cat,
+        transactionIds: []
+      });
+    });
+
+    classifiedIncs.forEach(tx => {
+      const cat = resolveCanonicalCategory(tx.category || 'Uncategorized Income');
       const existing = incomeMap.get(cat);
       if (existing) {
-        existing.amount = (Number(existing.amount) || 0) + agg.amount;
-        existing.monthly_target = (Number(existing.monthly_target) || 0) + target;
-        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
+        existing.amount += tx.amount;
+        existing.transactionIds = [...(existing.transactionIds || []), tx.id];
       } else {
-        incomeMap.set(cat, { 
-          ...i, 
-          amount: agg.amount, // Set to ACTUAL from ledger
-          monthly_target: target, // Preserve TARGET
-          date: agg.lastDate || i.date,
-          name: i.name || i.merchant || i.category || 'Income',
+        incomeMap.set(cat, {
+          id: `unmatched-inc-${cat}`,
+          name: tx.merchant || tx.name || cat,
           category: cat,
+          amount: tx.amount,
+          monthly_target: 0,
           type: 'income',
-          account_id: resolvedAccId,
-          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+          transactionIds: [tx.id]
         });
-        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       }
     });
-    const baseIncs = Array.from(incomeMap.values());
 
-    const missingIncs = rawTransactions.filter(m => {
-      return matchRule(m, activeRules.income) && !consumedTransactionIds.has(m.id);
-    }).map(t => {
-      const resolvedAccId = resolveAccountId(t);
-      return { 
-        ...t,
-        name: t.merchant || t.name || t.category || 'Income Item',
-        category: 'Income', 
-        type: 'income',
-        spendType: 'income',
-        amount: Math.abs(Number(t.amount || 0)),
-        monthly_target: 0,
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
-    });
-    
     // 2. Process Expenses
     const expenseMap = new Map();
     (budgetData.expenses || []).forEach(e => {
-      const agg = aggregateByCategory(e.category || e.name || 'Expense', 'expense');
-      const resolvedAccId = resolveAccountId(e);
       const cat = resolveCanonicalCategory(e.category || e.name || 'Expense');
-      const target = Number(e.monthly_target || e.amount || 0);
-      
+      expenseMap.set(cat, {
+        ...e,
+        amount: 0,
+        monthly_target: Number(e.monthly_target || e.amount || 0),
+        type: 'expense',
+        category: cat,
+        transactionIds: []
+      });
+    });
+
+    classifiedExps.forEach(tx => {
+      const cat = resolveCanonicalCategory(tx.category || 'Uncategorized Expense');
       const existing = expenseMap.get(cat);
       if (existing) {
-        existing.amount = (Number(existing.amount) || 0) + agg.amount;
-        existing.monthly_target = (Number(existing.monthly_target) || 0) + target;
-        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
+        existing.amount += tx.amount;
+        existing.transactionIds = [...(existing.transactionIds || []), tx.id];
       } else {
-        expenseMap.set(cat, { 
-          ...e, 
-          amount: agg.amount, // Set to ACTUAL from ledger
-          monthly_target: target, // Preserve TARGET
-          date: agg.lastDate || e.date,
-          name: e.name || e.merchant || e.category || 'Expense',
+        expenseMap.set(cat, {
+          id: `unmatched-exp-${cat}`,
+          name: tx.merchant || tx.name || cat,
           category: cat,
+          amount: tx.amount,
+          monthly_target: 0,
           type: 'expense',
-          account_id: resolvedAccId,
-          account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
+          transactionIds: [tx.id]
         });
-        agg.transactionIds.forEach(id => consumedTransactionIds.add(id));
       }
-    });
-    const baseExps = Array.from(expenseMap.values());
-
-    const missingExps = rawTransactions.filter(m => {
-      return matchRule(m, activeRules.expense) && !consumedTransactionIds.has(m.id);
-    }).map(t => {
-      const resolvedAccId = resolveAccountId(t);
-      return { 
-        ...t,
-        name: t.merchant || t.name || t.category || 'Expense Item',
-        type: 'expense',
-        amount: Math.abs(t.amount || 0),
-        account_id: resolvedAccId,
-        account: (accounts.find(a => String(a.id) === String(resolvedAccId))?.name) || 'Manual Vault'
-      };
     });
 
     return {
-      incomes: [...baseIncs, ...missingIncs],
-      expenses: [...baseExps, ...missingExps]
+      incomes: Array.from(incomeMap.values()),
+      expenses: Array.from(expenseMap.values())
     };
   }, [classificationRules, matchRule]);
   /**
@@ -554,22 +536,30 @@ export const useFinancialParser = () => {
     const uncategorized = [];
 
     (transactions || []).forEach(t => {
-      const rawAmt = Math.abs(Number(t.amount || 0));
+      const amount = Number(t.amount || 0);
+      const rawAmt = Math.abs(amount);
       const category = resolveCanonicalCategory(t.category || t.name);
       
-      // Hydrate transaction with account name for robust matching
       const acc = accounts.find(a => String(a.id) === String(t.account_id));
       const txWithAcc = { ...t, account: acc?.name || t.account || 'Manual Vault' };
 
-      // Rule Engine: Expense rules take absolute priority to ensure account-based rules are followed
-      if (matchRule(txWithAcc, activeRules.expense)) {
+      // PRIORITY SHARDING: 1. Manual Overrides -> 2. Transfer Rules -> 3. Expense/Income Rules
+      if (t.type && t.type !== 'uncategorized' && t.type !== 'null') {
+        if (t.type === 'income') incomes.push({ ...txWithAcc, amount: rawAmt });
+        else if (t.type === 'expense') expenses.push({ ...txWithAcc, amount: rawAmt });
+        else if (t.type === 'transfer') transfers.push({ ...txWithAcc, amount: rawAmt, category: 'Transfer' });
+      }
+      else if (matchRule(txWithAcc, activeRules.transfer)) {
+        transfers.push({ ...t, type: 'transfer', amount: rawAmt, category: 'Transfer' });
+      } 
+      else if (matchRule(txWithAcc, activeRules.expense)) {
         expenses.push({ ...txWithAcc, type: 'expense', amount: rawAmt, category });
-      } else if (matchRule(txWithAcc, activeRules.income)) {
+      } 
+      else if (matchRule(txWithAcc, activeRules.income)) {
         incomes.push({ ...txWithAcc, type: 'income', amount: rawAmt, category });
-      } else if (['Transfer', 'Payment', 'Internal Transfer', 'Credit Card Payment'].includes(category)) {
-        transfers.push({ ...t, type: 'transfer', amount: rawAmt, category });
-      } else {
-        uncategorized.push({ ...t, type: 'uncategorized', amount: rawAmt, category });
+      } 
+      else {
+        uncategorized.push({ ...t, type: 'uncategorized', amount: rawAmt, category: category || 'Uncategorized' });
       }
     });
 

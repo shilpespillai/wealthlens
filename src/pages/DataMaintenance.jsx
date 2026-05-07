@@ -137,21 +137,54 @@ export default function DataMaintenance() {
     setClassificationRules(rules);
   };
 
-  // Auto-save classification rules when they change and broadcast to all hook instances
+  const handleSaveRules = async (manual = false) => {
+    console.warn(`[Sync] handleSaveRules triggered (manual=${manual})`);
+    if (!classificationRules) {
+      console.error("[Sync] Aborting save: classificationRules state is null");
+      if (manual) toast.error("Rule Engine not initialized.");
+      return;
+    }
+    
+    setIsSavingRules(true);
+    const tId = manual ? toast.loading("Syncing rules to cloud...") : null;
+    
+    try {
+      const cleanedRules = {
+        income: { 
+          ...(classificationRules.income || {}), 
+          groups: (classificationRules.income?.groups || []).filter(g => g.conditions && g.conditions.length > 0) 
+        },
+        expense: { 
+          ...(classificationRules.expense || {}), 
+          groups: (classificationRules.expense?.groups || []).filter(g => g.conditions && g.conditions.length > 0) 
+        },
+        transfer: { 
+          ...(classificationRules.transfer || {}), 
+          groups: (classificationRules.transfer?.groups || []).filter(g => g.conditions && g.conditions.length > 0) 
+        }
+      };
+
+      console.info("[Sync] Persisting ruleset:", cleanedRules);
+      await base44.user.saveData('wl_classification_rules', cleanedRules);
+      
+      console.log("[Sync] Broadcasting update event...");
+      window.dispatchEvent(new CustomEvent('wl_rules_updated', { 
+        detail: { timestamp: Date.now(), source: 'DataMaintenance' } 
+      }));
+
+      if (manual) toast.success("Classification Rules Persistent", { id: tId });
+    } catch (e) {
+      console.error("[Sync] CRITICAL FAILURE:", e);
+      if (manual) toast.error("Sync failed: " + e.message, { id: tId });
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
+  // Auto-save classification rules when they change
   useEffect(() => {
     if (!classificationRules) return;
-    
-    const timer = setTimeout(async () => {
-      try {
-        await base44.user.saveData('wl_classification_rules', classificationRules);
-        // Broadcast to all useFinancialParser instances on this page so they
-        // re-load immediately — without needing a page reload.
-        window.dispatchEvent(new CustomEvent('wl_rules_updated'));
-      } catch (e) {
-        console.error("Auto-save failed:", e);
-      }
-    }, 1000); // 1s debounce
-
+    const timer = setTimeout(() => handleSaveRules(false), 2000);
     return () => clearTimeout(timer);
   }, [classificationRules]);
 
@@ -175,6 +208,24 @@ export default function DataMaintenance() {
       const newGroups = prev[type].groups.filter((_, i) => i !== groupIndex);
       return { ...prev, [type]: { ...prev[type], groups: newGroups } };
     });
+  };
+
+  const factoryResetRules = async () => {
+    if (!window.confirm("WARNING: This will delete ALL custom classification rules and reset to institutional defaults. This cannot be undone. Proceed?")) return;
+    
+    try {
+      const defaultRules = {
+        income: { logic: 'OR', groups: [{ id: 'default-inc', logic: 'AND', conditions: [{ field: 'category', operator: 'equals', value: 'Income' }] }] },
+        expense: { logic: 'OR', groups: [] },
+        transfer: { logic: 'OR', groups: [] }
+      };
+      setClassificationRules(defaultRules);
+      await base44.user.saveData('wl_classification_rules', defaultRules);
+      window.dispatchEvent(new CustomEvent('wl_rules_updated', { detail: { timestamp: Date.now() } }));
+      toast.success("Rule Engine Factory Reset Successful");
+    } catch (e) {
+      toast.error("Reset failed: " + e.message);
+    }
   };
 
   const updateGroupLogic = (type, groupIndex, logic) => {
@@ -904,7 +955,6 @@ export default function DataMaintenance() {
             </Card>
           </div>
         </div>
-
         {/* DYNAMIC CLASSIFICATION ENGINE */}
         <Card className="border-none shadow-sm rounded-[2.5rem] bg-white border border-slate-100/50 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-96 h-96 bg-slate-50/50 rounded-full blur-[100px] -mr-48 -mt-48"></div>
@@ -919,6 +969,30 @@ export default function DataMaintenance() {
                 <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Global logic overrides for income and expense detection</CardDescription>
               </div>
             </div>
+
+            <div className="flex items-center gap-3 relative z-[999]">
+              <Button 
+                onClick={() => {
+                  console.warn("COMMIT BUTTON CLICKED");
+                  handleSaveRules(true);
+                }}
+                disabled={isSavingRules}
+                className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-emerald-600/20 transition-all border-t border-white/20"
+              >
+                {isSavingRules ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <ShieldCheck className="w-3.5 h-3.5 mr-2" />}
+                Commit Rules to Cloud
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={factoryResetRules}
+                className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-rose-100/50"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                Factory Reset Engine
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent className="p-8 relative z-10">
@@ -932,6 +1006,7 @@ export default function DataMaintenance() {
                 {(() => {
                   const renderRuleBlock = (type, title, Icon, colorClass, bgClass) => {
                     const ruleObj = classificationRules[type];
+                    if (!ruleObj) return null;
                     return (
                       <div className="space-y-6">
                         <div className="flex items-center justify-between">
@@ -1052,9 +1127,23 @@ export default function DataMaintenance() {
                     <>
                       {renderRuleBlock('income', 'Income Classification', TrendingUp, 'text-emerald-600', 'bg-emerald-50')}
                       {renderRuleBlock('expense', 'Expense Classification', TrendingDown, 'text-rose-600', 'bg-rose-50')}
+                      {renderRuleBlock('transfer', 'Transfer Detection', ArrowRightLeft, 'text-indigo-600', 'bg-indigo-50')}
                     </>
                   );
                 })()}
+              </div>
+            )}
+            
+            {classificationRules && (
+              <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-center">
+                <Button 
+                  onClick={() => handleSaveRules(true)}
+                  disabled={isSavingRules}
+                  className="h-14 px-12 bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-2xl shadow-slate-200 transition-all active:scale-95 flex items-center gap-3"
+                >
+                  {isSavingRules ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5 text-emerald-400" />}
+                  Deploy Classification Logic
+                </Button>
               </div>
             )}
           </CardContent>
