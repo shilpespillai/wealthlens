@@ -828,7 +828,9 @@ export default function SetBudget() {
                       <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
                         <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
                           <div className="space-y-0.5">
-                            <DialogTitle className="text-[22px] font-medium text-slate-700 tracking-tight">New budget</DialogTitle>
+                             <DialogTitle className="text-[22px] font-medium text-slate-700 tracking-tight">
+                               {editingItem ? "Edit budget" : "New budget"}
+                             </DialogTitle>
                             <p className="text-[11px] font-medium text-slate-400">Scheduled for Apr 10, 2026</p>
                           </div>
                           <div className="text-right">
