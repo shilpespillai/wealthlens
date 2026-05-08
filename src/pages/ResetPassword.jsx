@@ -11,40 +11,32 @@ export default function ResetPassword() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
-  const [view, setView] = useState('request'); // 'request' or 'update'
-  const navigate = useNavigate();
+  // Determine initial view based on URL
+  const [view, setView] = useState(() => {
+    const hasToken = 
+      window.location.hash.includes('access_token=') || 
+      window.location.hash.includes('type=recovery') ||
+      window.location.search.includes('type=recovery') ||
+      window.location.search.includes('access_token=');
+    
+    return hasToken ? 'update' : 'request';
+  });
 
   useEffect(() => {
-    // Aggressive Token Detection
-    const checkToken = () => {
+    // Secondary check for delayed hydration (some browsers/frameworks might delay hash populating)
+    const checkAgain = () => {
       const hash = window.location.hash || "";
       const search = window.location.search || "";
+      const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery');
       
-      console.log("[ResetPassword] Checking for tokens...", { hash: !!hash, search: !!search });
-
-      const isRecovery = 
-        hash.includes('type=recovery') || 
-        hash.includes('access_token=') || 
-        search.includes('type=recovery') ||
-        search.includes('access_token=');
-
-      if (isRecovery) {
-        console.log("[ResetPassword] Recovery token confirmed! Entering Update Mode.");
+      if (isRecovery && view !== 'update') {
         setView('update');
-        return true;
       }
-      return false;
     };
 
-    // Run immediately
-    const found = checkToken();
-
-    // If not found immediately, wait a split second for Supabase to hydrate the hash
-    if (!found) {
-      const timer = setTimeout(checkToken, 500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    const timer = setTimeout(checkAgain, 100);
+    return () => clearTimeout(timer);
+  }, [view]);
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
