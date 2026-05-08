@@ -144,6 +144,56 @@ export const AuthProvider = ({ children }) => {
     window.location.href = url.toString();
   };
 
+  const refreshUser = async () => {
+    if (!isSupabaseEnabled) return;
+    try {
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      if (session?.user) {
+        const mappedUser = await mapUserWithPremium(session.user);
+        setUser(mappedUser);
+        localStorage.setItem('mockUser', JSON.stringify(mappedUser));
+        return mappedUser;
+      }
+    } catch (err) {
+      console.error("[Auth] Forced refresh failed:", err);
+    }
+    return null;
+  };
+
+  const checkPremiumStatus = async () => {
+    if (!user?.id) return false;
+    try {
+      const { data: { user: freshUser }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      const mapped = await mapUserWithPremium(freshUser);
+      setUser(mapped);
+      localStorage.setItem('mockUser', JSON.stringify(mapped));
+      return mapped.is_premium;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const syncProStatus = async () => {
+    if (!user?.id || !user?.email) return false;
+    try {
+      const resp = await fetch('/api/sync-pro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, userId: user.id })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        await refreshUser();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -165,6 +215,9 @@ export const AuthProvider = ({ children }) => {
       activateLaunchPass,
       logout,
       navigateToLogin,
+      refreshUser,
+      checkPremiumStatus,
+      syncProStatus,
       checkAppState
     }}>
       {children}

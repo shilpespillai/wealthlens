@@ -82,6 +82,33 @@ export function DashboardContent() {
   const [selectedPeriod, setSelectedPeriod] = useState("This Month");
   const [isEditingFire, setIsEditingFire] = useState(false);
   const [isEditingBuckets, setIsEditingBuckets] = useState(false);
+  const { refreshUser } = useAuth();
+  
+  // ── RAPID SYNC ENGINE: Detect payment success and force metadata refresh ──
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+      console.log("[Dashboard] Success Handshake: Polling for institutional status update...");
+      
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        const updatedUser = await refreshUser();
+        
+        // If we detect the premium flag, or have tried for 15 seconds, stop polling
+        if (updatedUser?.is_premium || attempts >= 5) {
+          console.log("[Dashboard] Status Synchronized:", updatedUser?.is_premium ? "PRO ACTIVE" : "STILL SYNCING");
+          clearInterval(interval);
+          
+          // Clean up the URL to prevent re-triggering on refresh
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }, 3000); // Check every 3 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [refreshUser]);
   
   const hasInitializedLayout = React.useRef(false);
   

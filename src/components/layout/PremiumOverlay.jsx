@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Lock, ArrowRight, Check, Loader2 } from "lucide-react";
+import { Sparkles, Lock, ArrowRight, Check, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { loadStripe } from "@stripe/stripe-js";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const PREMIUM_FEATURES = [
@@ -18,7 +20,9 @@ const PREMIUM_FEATURES = [
 
 export default function PremiumOverlay({ featureName = "Intelligence Report" }) {
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const { syncProStatus } = useAuth();
   const [price, setPrice] = useState(10);
 
   useEffect(() => {
@@ -62,7 +66,7 @@ export default function PremiumOverlay({ featureName = "Intelligence Report" }) 
         priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
         email: user.email,
         amount: price,
-        successUrl: window.location.href + "?upgraded=true",
+        successUrl: window.location.origin + "/Dashboard?payment=success",
         cancelUrl: window.location.href,
       });
 
@@ -142,6 +146,26 @@ export default function PremiumOverlay({ featureName = "Intelligence Report" }) 
                 >
                   Explore Pro Architecture
                 </button>
+              </div>
+
+              <div className="pt-4">
+                 <button
+                   onClick={async () => {
+                     setSyncing(true);
+                     const success = await syncProStatus();
+                     if (success) {
+                        toast.success("Identity Verified", { description: "Pro Status activated. Refreshing terminal..." });
+                     } else {
+                        toast.error("Sync Failed", { description: "No active payment found for this email yet. Please try again in 30s." });
+                     }
+                     setSyncing(false);
+                   }}
+                   disabled={syncing}
+                   className="text-[9px] font-black text-[#C5A059]/60 hover:text-[#C5A059] uppercase tracking-[0.2em] transition-all flex items-center gap-2 mx-auto"
+                 >
+                   {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                   Already Paid? Synchronize Status
+                 </button>
               </div>
             </div>
           </div>

@@ -339,7 +339,7 @@ export default function Sidebar() {
                       priceId: "price_1T7w6sJkmG8taKBQqIH4PxqD",
                       email: u.email.trim(),
                       amount: price,
-                      successUrl: window.location.origin + "/Dashboard",
+                      successUrl: window.location.origin + "/Dashboard?payment=success",
                       cancelUrl: window.location.origin + "/Dashboard"
                     });
                     if (response.data?.url) {
