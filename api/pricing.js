@@ -20,12 +20,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    const SYSTEM_ID = '00000000-0000-0000-0000-000000000000'; // System-level identifier for global settings
+    const PRICING_KEY = 'wl_public_app_pricing';
+
     if (req.method === 'GET') {
-      // Use the generic user_data vault for global settings
       const { data, error } = await supabase
         .from('user_data')
         .select('payload')
-        .eq('key', 'global_app_pricing')
+        .eq('key', PRICING_KEY)
         .maybeSingle();
 
       const price = data?.payload?.price || "29.99";
@@ -39,13 +41,14 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      // Store in the global app settings vault
+      // Store in the global app settings vault with system ID
       const { error } = await supabase
         .from('user_data')
         .upsert({ 
-          key: 'global_app_pricing', 
-          payload: { price: price.toString(), updated_by: adminEmail }
-        }, { onConflict: 'key' });
+          user_id: SYSTEM_ID,
+          key: PRICING_KEY, 
+          payload: { price: price.toString(), updated_by: adminEmail, updated_at: new Date().toISOString() }
+        }, { onConflict: 'user_id,key' });
 
       if (error) throw error;
       return res.status(200).json({ success: true });

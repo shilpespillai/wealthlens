@@ -656,14 +656,25 @@ export const base44 = {
   user: {
     loadData: async (key) => {
       const { session } = await base44.db._getSession();
+      const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
       const userId = session?.user?.id || 'anonymous';
       
-      // PUBLIC ACCESS: Allow fetching of institutional settings without a session
-      if (!session?.user && key.startsWith('wl_public_')) {
+      // PUBLIC ACCESS: Allow fetching of institutional settings without a session or from System Vault
+      if (key.startsWith('wl_public_')) {
         if (isSupabaseEnabled) {
           try {
-            // Fetch from a known 'System' record or the first available record for this public key
+            // First attempt to fetch from the System ID (Production source of truth)
             const { data, error } = await supabase
+              .from('user_data')
+              .select('payload')
+              .eq('user_id', SYSTEM_ID)
+              .eq('key', key)
+              .maybeSingle();
+            
+            if (!error && data) return data.payload;
+
+            // Fallback: Fetch from any record for this public key (Legacy compatibility)
+            const { data: fallbackData } = await supabase
               .from('user_data')
               .select('payload')
               .eq('key', key)
@@ -671,7 +682,7 @@ export const base44 = {
               .limit(1)
               .maybeSingle();
             
-            if (!error && data) return data.payload;
+            if (fallbackData) return fallbackData.payload;
           } catch (e) {
             console.warn("[base44] Public loadData failed:", e);
           }
@@ -726,10 +737,13 @@ export const base44 = {
       }
 
       if (isSupabaseEnabled && session?.user) {
+        const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
+        const targetUserId = key.startsWith('wl_public_') ? SYSTEM_ID : userId;
+
         const { error } = await supabase
           .from('user_data')
           .upsert(
-            { user_id: userId, key: key, payload: data, updated_at: new Date() }, 
+            { user_id: targetUserId, key: key, payload: data, updated_at: new Date() }, 
             { onConflict: 'user_id,key' }
           );
         
