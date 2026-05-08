@@ -58,32 +58,32 @@ export default function Login() {
     setError(null);
 
     // Optional: Validate Launch Code if provided
-    if (launchCode) {
-      try {
-        const config = await base44.user.loadData('wl_public_launch_config');
-        if (config && config.code) {
-          const isExpired = config.expiry && new Date(config.expiry) < new Date();
-          if (isExpired) {
-            setError("Launch Access Period has ended. Standard authentication required.");
-            setIsConnecting(null);
-            return;
-          }
-          if (launchCode.toUpperCase() === config.code.toUpperCase()) {
-            activateLaunchPass();
-          } else {
-            setError("Invalid Launch Access Code. Please verify your credentials.");
-            setIsConnecting(null);
-            return;
-          }
-        }
-      } catch (err) {
-        console.error("Launch code validation error:", err);
-      }
-    }
-
     if (isSupabaseEnabled) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setError(error.message); setIsConnecting(null); return; }
+      // 1. IDENTITY FIRST: We MUST verify the user exists before doing anything with launch codes
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (authError) {
+        setError("Invalid credentials. If you are a new user, please click 'Create one' below first.");
+        setIsConnecting(null);
+        return;
+      }
+
+      // 2. PRIVILEGE ESCALATION: Only now that identity is verified, we apply the launch pass if provided
+      if (launchCode) {
+        try {
+          const config = await base44.user.loadData('wl_public_launch_config');
+          if (config && config.code && launchCode.toUpperCase() === config.code.toUpperCase()) {
+            const isExpired = config.expiry && new Date(config.expiry) < new Date();
+            if (!isExpired) {
+              console.log("[Auth] Activating valid Launch Pass for verified identity.");
+              activateLaunchPass();
+            }
+          }
+        } catch (err) {
+          console.error("Launch code cleanup error:", err);
+        }
+      }
+
       const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
       window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
     } else {
