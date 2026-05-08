@@ -47,6 +47,17 @@ const MainContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // 0. Global Recovery Interceptor
+  useEffect(() => {
+    const hash = window.location.hash || "";
+    if (hash.includes('type=recovery') || hash.includes('access_token=')) {
+      console.log("[App] Recovery token detected in hash. Routing to ResetPassword.");
+      if (window.location.pathname.toLowerCase() !== '/resetpassword') {
+        navigate('/ResetPassword' + window.location.hash, { replace: true });
+      }
+    }
+  }, [navigate]);
+
   // 1. Handle Successful Upgrade
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
