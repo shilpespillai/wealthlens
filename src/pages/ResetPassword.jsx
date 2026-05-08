@@ -54,14 +54,26 @@ export default function ResetPassword() {
         if (code) {
           console.log("[ResetPassword] Exchanging PKCE code...");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
+          
           if (error) {
-            console.error("[ResetPassword] Exchange failed:", error.message);
+            console.warn("[ResetPassword] PKCE Exchange failed (expected for some redirects):", error.message);
+            
+            // CHECKPOINT: Even if exchange fails, maybe we have a session anyway?
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              console.log("[ResetPassword] Found existing session. Proceeding to Update.");
+              setView('update');
+              return;
+            }
+
             if (error.message.includes('code verifier not found')) {
-                setError("Security Handshake Mismatch. Please request a new link and click it immediately without closing this window.");
+                // If we are already in update mode, don't show the error yet, 
+                // just let them try the update
+                console.log("[ResetPassword] Verifier missing, but form is visible. Letting user proceed.");
             } else {
                 setError("The security link is invalid or has already been used.");
+                return;
             }
-            return;
           }
         }
         
@@ -153,7 +165,7 @@ export default function ResetPassword() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {error && (
+          {error && view === 'request' && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-3">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
