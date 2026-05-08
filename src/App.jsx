@@ -47,16 +47,22 @@ const MainContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // 0. Global Recovery Interceptor
+  // 0. High-Priority Recovery Interceptor (Deep Freeze)
   useEffect(() => {
     const hash = window.location.hash || "";
-    if (hash.includes('type=recovery') || hash.includes('access_token=')) {
-      console.log("[App] Recovery token detected in hash. Routing to ResetPassword.");
-      if (window.location.pathname.toLowerCase() !== '/resetpassword') {
-        navigate('/ResetPassword' + window.location.hash, { replace: true });
+    const search = window.location.search || "";
+    const hasToken = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || search.includes('access_token=') || search.includes('code=');
+
+    if (hasToken) {
+      console.log("[App] CRITICAL: Recovery token detected. Freezing app to ResetPassword.");
+      const currentPath = window.location.pathname.toLowerCase();
+      if (currentPath !== '/resetpassword') {
+        // Preserve the full token string during the redirect
+        const tokenData = hash || search;
+        window.location.replace('/ResetPassword' + tokenData);
       }
     }
-  }, [navigate]);
+  }, []);
 
   // 1. Handle Successful Upgrade
   useEffect(() => {
