@@ -255,6 +255,7 @@ export default function Sidebar() {
                   >
                      <Database className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
                      <span className="text-[10px] font-medium uppercase tracking-widest">Data Management Hub</span>
+                     {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
                   </Link>
                 </>
               )}
