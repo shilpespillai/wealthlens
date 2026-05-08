@@ -27,9 +27,15 @@ export default async function handler(req, res) {
 
   let event;
   try {
+    console.log('[Webhook] Attempting signature verification...');
+    console.log('[Webhook] Secret Length:', process.env.STRIPE_WEBHOOK_SECRET?.length || 0);
+    console.log('[Webhook] Signature Header Present:', !!sig);
+    
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    console.log('[Webhook] Signature Verified! Event Type:', event.type);
   } catch (err) {
-    console.error('[Webhook Signature Error]', err.message);
+    console.error('[Webhook Signature Error] FAILED:', err.message);
+    console.log('[Webhook] Expected Secret Starts With:', process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 7));
     return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
   }
 
