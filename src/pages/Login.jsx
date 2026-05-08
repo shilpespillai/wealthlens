@@ -84,8 +84,10 @@ export default function Login() {
         }
       }
 
-      const r = new URLSearchParams(window.location.search).get('redirect_to') || '/';
-      window.location.replace(r.toLowerCase().includes('login') ? '/' : r);
+      const r = new URLSearchParams(window.location.search).get('redirect_to') || '/Dashboard';
+      // Safety: If redirecting to root or login, force Dashboard for authenticated users
+      const target = (r === '/' || r === '' || r.toLowerCase().includes('login')) ? '/Dashboard' : r;
+      window.location.replace(target);
     } else {
       setError("Production Auth Required: Sign In is only available when Supabase is configured.");
       setIsConnecting(null);
