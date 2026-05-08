@@ -133,21 +133,21 @@ export default function ResetPassword() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-violet-50 rounded-full blur-[100px] opacity-40" />
       </div>
 
-      <div className="w-full max-w-sm space-y-8 relative z-10">
+      <div className="w-full max-w-md space-y-12 relative z-10">
         <Link 
           to="/Login" 
           onClick={() => localStorage.removeItem('recovery_vault_v2')}
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors group mb-4"
+          className="inline-flex items-center gap-3 text-slate-400 hover:text-slate-900 transition-colors group mb-6"
         >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Back to Terminal</span>
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-[12px] font-black uppercase tracking-widest">Back to Terminal</span>
         </Link>
 
-        <div className="text-center lg:text-left space-y-2">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">
+        <div className="text-center lg:text-left space-y-4">
+          <h2 className="text-5xl font-black text-slate-900 tracking-tight uppercase italic">
             {view === 'request' ? 'Key Recovery' : 'Reset Security Key'}
           </h2>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+          <p className="text-slate-400 text-[12px] font-bold uppercase tracking-widest">
             {view === 'request' ? 'Initialize institutional access restoration.' : 'Establish your new credentials.'}
           </p>
         </div>
@@ -155,48 +155,48 @@ export default function ResetPassword() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="space-y-8"
         >
           {error && view === 'request' && (
-            <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-3">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-5 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[12px] font-bold uppercase tracking-widest flex items-center gap-4">
+              <AlertCircle className="w-5 h-5 shrink-0" />
               {error}
             </div>
           )}
           {successMsg && (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest flex items-center gap-3">
-              <BadgeCheck className="w-4 h-4 shrink-0" />
+            <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[12px] font-bold uppercase tracking-widest flex items-center gap-4">
+              <BadgeCheck className="w-5 h-5 shrink-0" />
               {successMsg}
             </div>
           )}
 
           {view === 'request' ? (
-            <form onSubmit={handleRequestReset} className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">Registered Email</label>
+            <form onSubmit={handleRequestReset} className="space-y-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Registered Email</label>
                 <input 
                   type="email" 
                   placeholder="name@institutional.com" 
                   value={email} 
                   required 
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                  className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-bold"
                 />
               </div>
 
               <button 
                 type="submit" 
                 disabled={isConnecting}
-                className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
+                className="w-full h-16 rounded-2xl bg-slate-900 text-white font-black text-[12px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-4 shadow-xl shadow-slate-200"
               >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                {isConnecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Key className="w-5 h-5" />}
                 Request Recovery Link
               </button>
             </form>
           ) : (
-            <form onSubmit={handleUpdatePassword} className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">New Security Key</label>
+            <form onSubmit={handleUpdatePassword} className="space-y-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">New Security Key</label>
                 <input 
                   type="password" 
                   placeholder="••••••••" 
@@ -204,28 +204,28 @@ export default function ResetPassword() {
                   required 
                   minLength={6}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                  className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-bold"
                 />
               </div>
 
               <button 
                 type="submit" 
                 disabled={isConnecting}
-                className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
+                className="w-full h-16 rounded-2xl bg-slate-900 text-white font-black text-[12px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-4 shadow-xl shadow-slate-200"
               >
-                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                {isConnecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
                 Establish New Key
               </button>
             </form>
           )}
         </motion.div>
 
-        <div className="pt-10 flex flex-col items-center gap-4">
-           <div className="flex gap-4">
-              <ShieldCheck className="w-4 h-4 text-slate-200" />
-              <Lock className="w-4 h-4 text-slate-200" />
+        <div className="pt-16 flex flex-col items-center gap-6">
+           <div className="flex gap-6">
+              <ShieldCheck className="w-5 h-5 text-slate-200" />
+              <Lock className="w-5 h-5 text-slate-200" />
            </div>
-           <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.4em] text-center leading-loose">
+           <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] text-center leading-loose">
              © 2026 WealthLens Global Sharding. <br />
              Secure Institutional Recovery Protocol.
            </p>

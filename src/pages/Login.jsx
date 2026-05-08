@@ -145,49 +145,49 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-indigo-100 flex flex-col lg:flex-row overflow-hidden">
       {/* ── Left Institutional Branding Panel ────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-white flex-col justify-center p-20 border-r border-slate-100">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-white flex-col justify-center p-24 border-r border-slate-100">
         {/* Background Patterns */}
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-[0.02]" 
                style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] opacity-40" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-violet-50 rounded-full blur-[100px] opacity-40" />
+          <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-50 rounded-full blur-[120px] opacity-40" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-violet-50 rounded-full blur-[120px] opacity-40" />
         </div>
 
-        <div className="relative z-10 max-w-md">
-          <Link to="/" className="flex items-center gap-3 mb-16 group">
-            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-xl group-hover:scale-105 transition-all">W</div>
-            <span className="text-[12px] font-black text-slate-900 tracking-[0.4em] uppercase">WealthLens</span>
+        <div className="relative z-10 max-w-lg">
+          <Link to="/" className="flex items-center gap-4 mb-20 group">
+            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-xl group-hover:scale-105 transition-all">W</div>
+            <span className="text-[14px] font-black text-slate-900 tracking-[0.5em] uppercase">WealthLens</span>
           </Link>
 
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="space-y-6"
+            className="space-y-8"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 text-white text-[8px] font-black uppercase tracking-[0.3em] rounded-md">
-              <Sparkles className="w-3 h-3" />
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-md">
+              <Sparkles className="w-4 h-4" />
               Institutional Access
             </div>
             
-            <h1 className="text-5xl font-black tracking-tighter leading-[1.1] uppercase italic text-slate-900">
+            <h1 className="text-7xl font-black tracking-tighter leading-[1.0] uppercase italic text-slate-900">
               Access the <br />
-              <span className="text-transparent" style={{ WebkitTextStroke: '1px #0f172a' }}>Financial Hub.</span>
+              <span className="text-transparent" style={{ WebkitTextStroke: '2px #0f172a' }}>Financial Hub.</span>
             </h1>
 
-            <p className="text-slate-500 text-base font-medium leading-relaxed max-w-sm">
+            <p className="text-slate-500 text-xl font-medium leading-relaxed max-w-md">
               Enter the WealthLens ecosystem to coordinate your capital, optimize tax strategies, and visualize your financial horizon.
             </p>
 
-            <div className="space-y-4 pt-8">
+            <div className="space-y-6 pt-10">
               {[
-                { icon: <Globe className="w-4 h-4" />, text: "Global Asset Coordination" },
-                { icon: <ShieldCheck className="w-4 h-4" />, text: "Zero-Knowledge Data Vault" },
-                { icon: <TrendingUp className="w-4 h-4" />, text: "AI-Powered Strategy Engine" },
+                { icon: <Globe className="w-5 h-5" />, text: "Global Asset Coordination" },
+                { icon: <ShieldCheck className="w-5 h-5" />, text: "Zero-Knowledge Data Vault" },
+                { icon: <TrendingUp className="w-5 h-5" />, text: "AI-Powered Strategy Engine" },
               ].map(({ icon, text }, i) => (
-                <div key={i} className="flex items-center gap-4 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900">{icon}</div>
+                <div key={i} className="flex items-center gap-5 text-slate-400 text-[12px] font-black uppercase tracking-widest">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900">{icon}</div>
                   {text}
                 </div>
               ))}
@@ -195,25 +195,25 @@ export default function Login() {
           </motion.div>
         </div>
 
-        <div className="absolute bottom-10 left-20 opacity-20">
-           <p className="text-[8px] font-black text-slate-900 uppercase tracking-[0.5em]">System Version v4.2.0 • Elite</p>
+        <div className="absolute bottom-10 left-24 opacity-30">
+           <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.6em]">System Version v4.2.0 • Elite</p>
         </div>
       </div>
 
       {/* ── Right Form Panel ────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-20 relative bg-white">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 sm:p-24 relative bg-white">
         {/* Mobile Header */}
-        <div className="lg:hidden flex flex-col items-center gap-4 mb-12">
-          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-xl">W</div>
-          <span className="text-[10px] font-black text-slate-900 tracking-[0.4em] uppercase">WealthLens</span>
+        <div className="lg:hidden flex flex-col items-center gap-6 mb-16">
+          <div className="w-14 h-14 bg-black rounded-xl flex items-center justify-center text-white font-bold text-3xl shadow-xl">W</div>
+          <span className="text-[12px] font-black text-slate-900 tracking-[0.4em] uppercase">WealthLens</span>
         </div>
 
-        <div className="w-full max-w-sm space-y-8">
-          <div className="text-center lg:text-left space-y-2">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">
+        <div className="w-full max-w-md space-y-12">
+          <div className="text-center lg:text-left space-y-4">
+            <h2 className="text-5xl font-black text-slate-900 tracking-tight uppercase italic">
               {mode === 'signin' ? 'System Login' : 'Create Terminal'}
             </h2>
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+            <p className="text-slate-400 text-[12px] font-bold uppercase tracking-widest">
               {mode === 'signin' ? 'Access your private financial shard.' : 'Initialize your institutional profile.'}
             </p>
           </div>
@@ -224,17 +224,17 @@ export default function Login() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className="space-y-8"
             >
               {error && (
-                <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-3">
-                  <BadgeCheck className="w-4 h-4 shrink-0" />
+                <div className="p-5 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[12px] font-bold uppercase tracking-widest flex items-center gap-4">
+                  <BadgeCheck className="w-5 h-5 shrink-0" />
                   {error}
                 </div>
               )}
               {successMsg && (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-widest flex items-center gap-3">
-                  <BadgeCheck className="w-4 h-4 shrink-0" />
+                <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[12px] font-bold uppercase tracking-widest flex items-center gap-4">
+                  <BadgeCheck className="w-5 h-5 shrink-0" />
                   {successMsg}
                 </div>
               )}
@@ -243,10 +243,10 @@ export default function Login() {
               <button 
                 onClick={handleGoogleLogin} 
                 disabled={!!isConnecting}
-                className="w-full flex items-center justify-center gap-4 h-14 rounded-2xl bg-white border border-slate-100 text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] shadow-sm hover:border-slate-300 transition-all disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-5 h-16 rounded-2xl bg-white border border-slate-100 text-slate-900 font-black text-[12px] uppercase tracking-[0.2em] shadow-sm hover:border-slate-300 transition-all disabled:opacity-60"
               >
-                {isConnecting === 'google' ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                {isConnecting === 'google' ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                  <svg className="w-6 h-6" viewBox="0 0 24 24">
                     <path fill="#EA4335" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#4285F4" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.67-.35-1.39-.35-2.09s.13-1.42.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
@@ -258,38 +258,38 @@ export default function Login() {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-50" /></div>
-                <div className="relative flex justify-center"><span className="bg-white px-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">Secure Credentials</span></div>
+                <div className="relative flex justify-center"><span className="bg-white px-6 text-[10px] font-black text-slate-300 uppercase tracking-widest">Secure Credentials</span></div>
               </div>
 
-              <form onSubmit={mode === 'signin' ? handleSignIn : handleSignUp} className="space-y-4">
+              <form onSubmit={mode === 'signin' ? handleSignIn : handleSignUp} className="space-y-6">
                 {mode === 'signup' && (
-                  <div className="space-y-1">
-                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">Full Name</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Full Name</label>
                     <input 
                       type="text" 
                       placeholder="Michael Ross" 
                       value={name} 
                       onChange={e => setName(e.target.value)}
-                      className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                      className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-bold"
                     />
                   </div>
                 )}
                 
-                <div className="space-y-1">
-                  <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">Email Identity</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Email Identity</label>
                   <input 
                     type="email" 
                     placeholder="name@institutional.com" 
                     value={email} 
                     required 
                     onChange={e => setEmail(e.target.value)}
-                    className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                    className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-bold"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between ml-2">
-                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Security Key</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between ml-3 mr-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Key</label>
                     <Link 
                       to="/ResetPassword" 
                       id="forgot-password-link" 
@@ -297,7 +297,7 @@ export default function Login() {
                         localStorage.removeItem('recovery_vault_v2');
                         sessionStorage.removeItem('recovery_vault');
                       }}
-                      className="text-[7px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
+                      className="text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
                     >
                       Forgot Key?
                     </Link>
@@ -309,20 +309,20 @@ export default function Login() {
                     required 
                     minLength={6}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                    className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-bold"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between ml-2">
-                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Launch Access Code (Optional)</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between ml-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Launch Access Code (Optional)</label>
                   </div>
                   <input 
                     type="text" 
                     placeholder="E.G. WEALTH2026" 
                     value={launchCode} 
                     onChange={e => setLaunchCode(e.target.value.toUpperCase())}
-                    className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-black tracking-widest"
+                    className="w-full h-16 px-6 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-sm font-black tracking-widest"
                   />
                 </div>
 
@@ -331,31 +331,31 @@ export default function Login() {
                 <button 
                   type="submit" 
                   disabled={!!isConnecting}
-                  className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
+                  className="w-full h-16 rounded-2xl bg-slate-900 text-white font-black text-[12px] uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-60 flex items-center justify-center gap-4 shadow-xl shadow-slate-200"
                 >
-                  {isConnecting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isConnecting && <Loader2 className="w-5 h-5 animate-spin" />}
                   {mode === 'signin' ? 'Initialize Session' : 'Create Credentials'}
                 </button>
               </form>
             </motion.div>
           </AnimatePresence>
 
-          <div className="text-center pt-4">
+          <div className="text-center pt-6">
             <button 
               onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setSuccessMsg(null); }}
-              className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-indigo-600 transition-colors"
+              className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-indigo-600 transition-colors"
             >
               {mode === 'signin' ? "Don't have a terminal? Create one" : "Already have a terminal? Sign in"}
             </button>
           </div>
 
-          <div className="pt-10 flex flex-col items-center gap-4">
-             <div className="flex gap-4">
-                <ShieldCheck className="w-4 h-4 text-slate-200" />
-                <Globe className="w-4 h-4 text-slate-200" />
-                <Lock className="w-4 h-4 text-slate-200" />
+          <div className="pt-16 flex flex-col items-center gap-6">
+             <div className="flex gap-6">
+                <ShieldCheck className="w-5 h-5 text-slate-200" />
+                <Globe className="w-5 h-5 text-slate-200" />
+                <Lock className="w-5 h-5 text-slate-200" />
              </div>
-             <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.4em] text-center leading-loose">
+             <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] text-center leading-loose">
                By initializing, you agree to our <a href="/terms" className="text-slate-900 hover:underline">Terms</a> & <a href="/privacy" className="text-slate-900 hover:underline">Privacy Protocol</a>. <br />
                © 2026 WealthLens Global Sharding.
              </p>
