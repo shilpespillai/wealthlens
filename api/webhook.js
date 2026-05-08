@@ -36,10 +36,11 @@ export default async function handler(req, res) {
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const userId = session.client_reference_id;
+    // Check both client_reference_id and metadata for the userId (Stripe redundancy)
+    const userId = session.client_reference_id || session.metadata?.userId;
 
     if (!userId) {
-      console.error('[Webhook] Missing client_reference_id in session:', session.id);
+      console.error('[Webhook] Missing userId in session (checked client_reference_id and metadata):', session.id);
       return res.status(400).json({ error: 'Missing userId' });
     }
 
