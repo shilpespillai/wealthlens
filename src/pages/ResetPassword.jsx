@@ -13,7 +13,7 @@ export default function ResetPassword() {
   const [successMsg, setSuccessMsg] = useState(null);
   const [view, setView] = useState(() => {
     const url = window.location.href.toLowerCase();
-    const vault = (sessionStorage.getItem('recovery_vault') || "").toLowerCase();
+    const vault = (localStorage.getItem('recovery_vault_v2') || "").toLowerCase();
     const hasToken = 
       url.includes('access_token=') || 
       url.includes('type=recovery') ||
@@ -29,7 +29,7 @@ export default function ResetPassword() {
     // High-Priority Handshake Detection
     const runHandshake = async () => {
       const url = window.location.href;
-      const vault = sessionStorage.getItem('recovery_vault') || "";
+      const vault = localStorage.getItem('recovery_vault_v2') || "";
       const hash = window.location.hash || "";
       const search = window.location.search || "";
       
@@ -47,7 +47,7 @@ export default function ResetPassword() {
         
         // Save to vault if it's in the URL
         if (hash || search) {
-            sessionStorage.setItem('recovery_vault', hash + search);
+            localStorage.setItem('recovery_vault_v2', hash + search);
         }
 
         if (code) {
@@ -64,8 +64,8 @@ export default function ResetPassword() {
           }
         }
         
-        // Success! We can clear the vault now that we are in update mode
-        sessionStorage.removeItem('recovery_vault');
+        // Success! We can clear the vault now
+        localStorage.removeItem('recovery_vault_v2');
         setView('update');
       }
     };

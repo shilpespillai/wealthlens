@@ -55,8 +55,8 @@ const MainContent = () => {
 
     if (hasToken) {
       console.log("[App] CRITICAL: Recovery token detected. Vaulting and Freezing.");
-      // Lock the token in a vault (sessionStorage) so it can't be lost during redirect
-      sessionStorage.setItem('recovery_vault', hash + search);
+      // Lock the token in a PERMANENT vault (localStorage) to survive reloads/domain shifts
+      localStorage.setItem('recovery_vault_v2', hash + search);
       
       const currentPath = window.location.pathname.toLowerCase();
       if (currentPath !== '/resetpassword') {
