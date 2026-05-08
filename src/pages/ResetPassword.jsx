@@ -42,7 +42,8 @@ export default function ResetPassword() {
       const isRecovery = combinedSource.includes('type=recovery') || combinedSource.includes('access_token=') || !!code;
 
       if (isRecovery) {
-        console.log("[ResetPassword] Recovery signal detected in vault or URL. Mode: Update.");
+        console.log("[ResetPassword] Recovery signal detected. Mode: Update.");
+        setView('update');
         
         // Save to vault if it's in the URL
         if (hash || search) {
@@ -54,8 +55,11 @@ export default function ResetPassword() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
             console.error("[ResetPassword] Exchange failed:", error.message);
-            // Don't clear vault yet, might be a temporary network error
-            setError("The security link is invalid or has already been used.");
+            if (error.message.includes('code verifier not found')) {
+                setError("Security Handshake Mismatch. Please request a new link and click it immediately without closing this window.");
+            } else {
+                setError("The security link is invalid or has already been used.");
+            }
             return;
           }
         }
