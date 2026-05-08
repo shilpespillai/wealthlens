@@ -23,6 +23,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  Circle,
   Save,
   Clock,
   LayoutGrid,
@@ -34,6 +35,7 @@ import {
   Calendar as CalendarIcon
 } from "lucide-react";
 import { CategoryIcon } from "@/utils/iconMap";
+import { resolveCanonicalCategory } from "@/utils/constants";
 import { 
   Table, 
   TableBody, 
@@ -80,14 +82,14 @@ import { Badge } from "@/components/ui/badge";
 import { useSearchParams } from "react-router-dom";
 import AuthGuard from "@/components/AuthGuard";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
-import BankConnect from "@/components/calculator/BankConnect";
 import { useCategories } from "@/hooks/useCategories";
+import { useAccounts } from "@/hooks/useAccounts";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import SmartImporter from "@/components/SmartImporter";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, setMonth, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import { enrichTransactions } from '@/utils/txScanner';
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
@@ -139,8 +141,8 @@ const SIDEBAR_ITEMS = [
   { id: "all", label: "All Activity", icon: List, color: "text-slate-600", bg: "bg-slate-50" },
   { id: "income", label: "Income", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-50" },
   { id: "expense", label: "Expenses", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-50" },
-  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-purple-600", bg: "bg-purple-50" },
-  { id: "uncategorized", label: "Uncategorized", icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
+  { id: "transfer", label: "Transfers", icon: ArrowRightLeft, color: "text-indigo-600", bg: "bg-indigo-50" },
+  { id: "uncategorized", label: "Uncategorized", icon: Circle, color: "text-slate-400", bg: "bg-slate-50" },
 ];
 
 // Dynamic Categories and Accounts will be computed in the component
@@ -151,7 +153,7 @@ const CATEGORY_COLORS = {
   "Food": "#ef4444", // Red
   "Utilities": "#f59e0b", // Amber/Light Yellow
   "Healthcare": "#10b981", // Emerald
-  "Insurance": "#6366f1", // Indigo
+  "Insurance": "#C5A059", // Amber
   "Entertainment": "#d946ef", // Fuchsia
   "Personal": "#f43f5e", // Rose
   "Education": "#8b5cf6", // Violet
@@ -196,9 +198,18 @@ function TransactionsContent() {
     normalizeTransactionData,
     getProductionLedger,
     getDatabaseTable,
-    getNormalizedLedger
+    getNormalizedLedger,
+    rulesLoaded
   } = useFinancialParser();
-  const { categories, seedCategories, isLoading: categoriesLoading } = useCategories();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
+
+  const { categories, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey);
+  const { syncMonthlyWithMaster, addAccountToMaster, deleteAccountMonthly } = useAccounts(monthKey);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("all");
   const initialSearch = searchParams.get("search") || "";
@@ -208,8 +219,6 @@ function TransactionsContent() {
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [savedSearches, setSavedSearches] = useState([]);
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
@@ -217,6 +226,7 @@ function TransactionsContent() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   // Deep filter helpers
   const handleSidebarFilter = (type, value = "") => {
@@ -246,6 +256,8 @@ function TransactionsContent() {
   
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [transfers, setTransfers] = useState([]);
+  const [uncategorized, setUncategorized] = useState([]);
   const [currency, setCurrency] = useState("USD");
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
@@ -270,43 +282,68 @@ function TransactionsContent() {
   const ACCOUNTS_SIDEBAR = useMemo(() => {
     const sidebar = dbAccounts.map(acc => {
       // Calculate current month delta for this account
-      const accIncomes = incomes.filter(i => i.account_id === acc.id).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-      const accExpenses = expenses.filter(e => e.account_id === acc.id).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      // Note: for 'sys-vault', we also include unassigned/null transactions
+      const isManualVault = String(acc.id) === 'sys-vault' || String(acc.id) === 'manual';
       
+      const accIncomes = incomes.filter(i => {
+        const matchesId = String(i.account_id) === String(acc.id);
+        const matchesName = i.account && i.account === acc.name;
+        if (matchesId || matchesName) return true;
+        
+        if (isManualVault) {
+          return !i.account_id || String(i.account_id) === 'sys-vault' || String(i.account_id) === 'manual' || String(i.account_id) === 'null';
+        }
+        return false;
+      }).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      
+      const accExpenses = (expenses || []).filter(e => {
+        const matchesId = String(e.account_id) === String(acc.id);
+        const matchesName = e.account && e.account === acc.name;
+        if (matchesId || matchesName) return true;
+
+        if (isManualVault) {
+          return !e.account_id || String(e.account_id) === 'sys-vault' || String(e.account_id) === 'manual' || String(e.account_id) === 'null';
+        }
+        return false;
+      }).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      
+      const accTransfers = (transfers || []).filter(t => {
+        const matchesId = String(t.account_id) === String(acc.id);
+        if (matchesId) return true;
+        if (isManualVault) return !t.account_id || String(t.account_id) === 'sys-vault';
+        return false;
+      }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
       const liveBalance = accIncomes - accExpenses;
       
       return {
         id: acc.id,
         name: acc.name,
         balance: liveBalance,
-        color: liveBalance < 0 ? "bg-rose-500" : "bg-emerald-500",
+        color: liveBalance < 0 ? "bg-rose-500" : (isManualVault ? "bg-slate-400" : "bg-emerald-500"),
         isVirtual: false,
         isSystem: !!acc.is_system
       };
     });
 
-    // Add Virtual "Manual Vault" for unassigned items
-    const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
-    const manualExps = expenses.filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const manualBal = manualIncs - manualExps;
-
-    sidebar.push({
-      id: "manual",
-      name: "Manual Vault",
-      balance: manualBal,
-      color: "bg-slate-400",
-      isVirtual: true,
-      isSystem: true
-    });
+    // Check if sys-vault exists in sidebar; if not (unlikely given defaults), add it as virtual
+    if (!sidebar.some(s => String(s.id) === 'sys-vault')) {
+      const manualIncs = incomes.filter(i => !i.account_id || String(i.account_id) === "manual" || String(i.account_id) === "null" || i.account_id === "").reduce((s, i) => s + (Number(i.amount) || 0), 0);
+      const manualExps = [...expenses, ...uncategorized, ...transfers].filter(e => !e.account_id || String(e.account_id) === "manual" || String(e.account_id) === "null" || e.account_id === "").reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      
+      sidebar.push({
+        id: "sys-vault",
+        name: "Manual Vault",
+        balance: manualIncs - manualExps,
+        color: "bg-slate-400",
+        isVirtual: true,
+        isSystem: true
+      });
+    }
 
     return sidebar;
-  }, [dbAccounts, incomes, expenses]);
+  }, [dbAccounts, incomes, expenses, uncategorized, transfers]);
 
-  const monthKey = useMemo(() => {
-    const y = selectedDate.getFullYear();
-    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-    return `${y}-${m}`;
-  }, [selectedDate]);
 
   const [manualForm, setManualForm] = useState({
     merchant: "",
@@ -314,9 +351,22 @@ function TransactionsContent() {
     category: "",
     spendType: "variable",
     type: "expense",
-    date: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0],
     account_id: ""
   });
+
+  // Keep manual form date synced with the currently selected month
+  useEffect(() => {
+    // If they are viewing the current month, use today. If a past/future month, use the 1st of that month.
+    const now = new Date();
+    const isCurrentMonth = now.getFullYear() === selectedDate.getFullYear() && now.getMonth() === selectedDate.getMonth();
+    const targetDate = isCurrentMonth ? now : new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    
+    setManualForm(prev => ({
+      ...prev,
+      date: new Date(targetDate.getTime() - (targetDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+    }));
+  }, [selectedDate]);
 
   // Deep Link Handling
   useEffect(() => {
@@ -336,19 +386,33 @@ function TransactionsContent() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Rule 4 Synchronization: Ensure monthly shard has all master accounts
+      await syncMonthlyWithMaster(monthKey);
+
       // 0. Fetch accounts to enable attribution mapping
-      let accounts = await base44.db.getTable("user_accounts");
+      let accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       
       // Default Account Provisioning Safety
-      if (!accounts || accounts.length === 0) {
-        const defaults = [
-          { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
-          { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true }
-        ];
-        for (const acc of defaults) {
-          await base44.db.upsertRow("user_accounts", acc);
+      const defaults = [
+        { id: `sys-savings`, name: "Salary / Savings", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+        { id: `sys-credit`, name: "Primary Credit Card", type: "debt", category: "Credit Cards", base_balance: 0, is_system: true },
+        { id: `sys-offset`, name: "Global Offset Account", type: "asset", category: "Bank", base_balance: 0, is_system: true },
+        { id: `sys-vault`, name: "Manual Vault", type: "asset", category: "Savings", base_balance: 0, is_system: true }
+      ];
+
+      // Ensure all defaults exist for this month
+      let neededUpsert = false;
+      const currentIds = new Set((accounts || []).map(a => String(a.id)));
+      
+      for (const def of defaults) {
+        if (!currentIds.has(String(def.id))) {
+          await base44.db.upsertRow("user_accounts", def, { month: monthKey });
+          neededUpsert = true;
         }
-        accounts = await base44.db.getTable("user_accounts");
+      }
+
+      if (neededUpsert) {
+        accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       }
       
       setDbAccounts(accounts || []);
@@ -357,7 +421,7 @@ function TransactionsContent() {
       const ledger = await getProductionLedger({ month: monthKey });
 
       // 2. Use the CENTRALIZED normalization engine (The "Common Place")
-      const { incomes: normIncs, expenses: normExps, transfers: normTrans } = getNormalizedLedger(ledger, accounts || []);
+      const { incomes: normIncs, expenses: normExps, transfers: normTrans, uncategorized: normUncat } = getNormalizedLedger(ledger, accounts || []);
 
       const resolveAccount = (tx) => {
         if (tx.account_id) {
@@ -374,21 +438,34 @@ function TransactionsContent() {
         amount:     Math.abs(Number(t.amount) || 0)
       })));
 
-      setExpenses([
-        ...normExps.map(t => ({
+      setExpenses(
+        normExps.map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Expense Item',
           account:    resolveAccount(t),
           amount:     Math.abs(Number(t.amount) || 0)
-        })),
-        ...normTrans.map(t => ({
+        }))
+      );
+
+      setTransfers(
+        normTrans.map(t => ({
           ...t,
           name:       t.merchant || t.name || t.category || 'Transfer Item',
           account:    resolveAccount(t),
           amount:     Math.abs(Number(t.amount) || 0),
           type:       'transfer'
         }))
-      ]);
+      );
+
+      setUncategorized(
+        normUncat.map(t => ({
+          ...t,
+          name:       t.merchant || t.name || t.category || 'Uncategorized Item',
+          account:    resolveAccount(t),
+          amount:     Math.abs(Number(t.amount) || 0),
+          type:       'uncategorized'
+        }))
+      );
 
       // Preserve currency preference from budget if set
       const allBudgets = await getDatabaseTable("budgets");
@@ -400,24 +477,25 @@ function TransactionsContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [monthKey, selectedDate, getProductionLedger, getDatabaseTable]);
+  }, [monthKey, selectedDate, getProductionLedger, getNormalizedLedger, getDatabaseTable]);
 
   useEffect(() => {
+    if (!rulesLoaded) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, rulesLoaded]);
 
   // Re-fetch once Supabase auth session is confirmed ready.
   // Without this, fetchData fires before the PKCE session resolves,
   // falls through to the empty localStorage fallback, and shows $0.
   useEffect(() => {
     const { data: { subscription } } = supabase?.auth?.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && rulesLoaded) {
         fetchData();
       }
     }) || { data: { subscription: null } };
 
     return () => subscription?.unsubscribe();
-  }, [fetchData]);
+  }, [fetchData, rulesLoaded]);
 
 
   // Load Saved Searches on mount
@@ -489,8 +567,19 @@ function TransactionsContent() {
       await base44.db.upsertRow('transactions', dbRecord);
 
       // 3. Update local state
-      const targetState = editingTransaction.type === 'income' ? incomes : expenses;
-      const setState = editingTransaction.type === 'income' ? setIncomes : setExpenses;
+      let targetState = expenses;
+      let setState = setExpenses;
+      
+      if (editingTransaction.type === 'income') {
+        targetState = incomes;
+        setState = setIncomes;
+      } else if (editingTransaction.type === 'transfer') {
+        targetState = transfers;
+        setState = setTransfers;
+      } else if (editingTransaction.type === 'uncategorized') {
+        targetState = uncategorized;
+        setState = setUncategorized;
+      }
       
       const newState = targetState.map(item => 
         item.id === editingTransaction.id ? { ...editingTransaction } : item
@@ -552,9 +641,23 @@ function TransactionsContent() {
         target: e.monthly_target, 
         merchant: e.name || e.merchant || e.category || 'Expense Item', 
         date: (e.date && e.date !== 'Monthly') ? e.date : fallbackDate 
+      })),
+      ...transfers.map(t => ({
+        ...t,
+        type: 'transfer',
+        amount: t.amount || 0,
+        merchant: t.name || t.merchant || t.category || 'Transfer Item',
+        date: (t.date && t.date !== 'Monthly') ? t.date : fallbackDate
+      })),
+      ...uncategorized.map(u => ({
+        ...u,
+        type: 'uncategorized',
+        amount: u.amount || 0,
+        merchant: u.name || u.merchant || u.category || 'Uncategorized Item',
+        date: (u.date && u.date !== 'Monthly') ? u.date : fallbackDate
       }))
     ];
-  }, [incomes, expenses, selectedDate]);
+  }, [incomes, expenses, transfers, uncategorized, selectedDate]);
 
   const filteredTransactions = useMemo(() => {
     return allTransactions
@@ -574,17 +677,23 @@ function TransactionsContent() {
 
         // 2. Tab Filter (Income/Expense/Uncategorized)
         if (selectedTab !== 'all') {
-          if (selectedTab === 'uncategorized') {
-            if (tx.category?.toLowerCase() !== 'uncategorized') return false;
-          } else {
-            // Strict type matching for Income/Expense tabs
-            if (tx.type !== selectedTab) return false;
-          }
+          if (tx.type !== selectedTab) return false;
         }
 
         // 3. Category Filter
-        if (selectedCategory) {
-          if (tx.category?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+        if (selectedCategory && selectedCategory !== 'all') {
+          const target = selectedCategory.toLowerCase().trim();
+          const current = (tx.category || "").toLowerCase().trim();
+          const canonical = resolveCanonicalCategory(tx.category).toLowerCase().trim();
+          
+          if (target === 'uncategorized') {
+            // If we are looking for Uncategorized, EXCLUDE anything that has a real category
+            const isCategorized = current !== "" && current !== 'uncategorized' && canonical !== 'uncategorized';
+            if (isCategorized) return false;
+          } else {
+            // Standard category match
+            if (canonical !== target && current !== target) return false;
+          }
         }
 
         // 4. Search Filter
@@ -601,23 +710,76 @@ function TransactionsContent() {
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [allTransactions, selectedTab, searchQuery, selectedAccountId, selectedCategory, dbAccounts]);
+  
+  // --- Search & Filter Aggregator (Institutional Engine) ---
+  const searchTotals = useMemo(() => {
+    const isFiltered = searchQuery || selectedCategory || selectedAccountId || selectedTab !== 'all';
+    if (!isFiltered || filteredTransactions.length === 0) return null;
+    
+    const categoryTotals = {};
+    let totalExpense = 0;
+    let totalIncome = 0;
+    let totalAmount = 0;
+
+    filteredTransactions.forEach(tx => {
+      const cat = tx.category || "Uncategorized";
+      const amt = Number(tx.amount) || 0;
+      const absAmt = Math.abs(amt);
+      
+      totalAmount += absAmt;
+
+      if (tx.type === 'income') {
+        totalIncome += absAmt;
+      } else if (tx.type === 'expense') {
+        totalExpense += absAmt;
+      }
+
+      if (!categoryTotals[cat]) {
+        categoryTotals[cat] = { total: 0, expense: 0, income: 0, count: 0 };
+      }
+      categoryTotals[cat].count++;
+      categoryTotals[cat].total += absAmt;
+
+      if (tx.type === 'income') {
+        categoryTotals[cat].income += absAmt;
+      } else {
+        categoryTotals[cat].expense += absAmt;
+      }
+    });
+
+    return {
+      totalExpense,
+      totalIncome,
+      totalAmount,
+      categories: Object.entries(categoryTotals)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.total - a.total),
+      count: filteredTransactions.length,
+      isSpecificCategory: !!selectedCategory,
+      selectedAccountId
+    };
+  }, [filteredTransactions, searchQuery, selectedCategory, selectedAccountId, selectedTab]);
 
 
 
   const handleAddAccount = async () => {
     if (!newAccount.name) return toast.error("Account name is required");
     try {
-      await base44.db.upsert("user_accounts", {
+      // Rule 1: Added account goes to central repository
+      const accPayload = {
         name: newAccount.name,
         type: newAccount.type,
         category: newAccount.category,
         base_balance: parseFloat(newAccount.balance) || 0
-      });
-      const accounts = await base44.db.getTable("user_accounts");
+      };
+      
+      await addAccountToMaster(accPayload);
+      
+      const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
       setIsAddAccountOpen(false);
       setNewAccount({ name: "", type: "asset", category: "Bank", balance: "" });
-      toast.success("Account created successfully");
+      toast.success("Account created and registered globally");
     } catch (err) {
       console.error("Add account failed:", err);
       toast.error("Failed to add account");
@@ -626,20 +788,22 @@ function TransactionsContent() {
 
   const handleDeleteAccount = async (id, name) => {
     try {
-      await base44.db.deleteRow('user_accounts', id);
+      // Rule 2: Delete from month only
+      await deleteAccountMonthly(id);
       
       // Migration Engine: Reassign all staged transactions to the Manual Vault
       const migrate = (items) => items.map(item => item.account_id === id ? { ...item, account_id: null, account: "Manual Vault" } : item);
       const updatedIncs = migrate(incomes);
       const updatedExps = migrate(expenses);
+      const updatedTransfers = migrate(transfers);
       
       setIncomes(updatedIncs);
       setExpenses(updatedExps);
+      setTransfers(updatedTransfers);
       setHasChanges(true); // Flag for Commit synchronization
 
-      const accounts = await base44.db.getTable("user_accounts");
+      const accounts = await base44.db.getTable("user_accounts", { month: monthKey });
       setDbAccounts(accounts || []);
-      toast.success("Account deleted. Transactions migrated to Manual Vault.");
     } catch (err) {
       console.error("Delete account failed:", err);
       toast.error("Failed to delete account");
@@ -649,7 +813,8 @@ function TransactionsContent() {
   const handlePurgeMonth = async () => {
     setIsLoading(true);
     try {
-      // 1. Purge raw transactions for the month using a bounded date range deletion
+      // 1. Purge raw transactions for the month using both central month filter and date prefix (safety fallback)
+      await base44.db.deleteByFilter('transactions', 'month', monthKey);
       await base44.db.deleteByDatePrefix('transactions', 'date', monthKey);
       
       // 2. Purge budget state
@@ -666,7 +831,7 @@ function TransactionsContent() {
       console.error("Purge failed:", err);
       toast.error("Failed to purge: " + (err.message || err));
     } finally {
-      setIsLoading(true);
+      setIsLoading(false);
     }
   };
 
@@ -684,6 +849,7 @@ function TransactionsContent() {
       spend_type: manualForm.type === 'income' ? 'income' : (manualForm.spendType || 'variable'),
       date:       manualForm.date,
       account_id: manualForm.account_id || null,
+      month:      monthKey,
     };
     console.log('[handleManualAdd] Saving transaction:', newItem);
 
@@ -721,7 +887,20 @@ function TransactionsContent() {
   };
 
   const handleUpdateItem = async (id, updates, type) => {
-    const targetState = type === 'income' ? incomes : expenses;
+    let targetState = expenses;
+    let setState = setExpenses;
+    
+    if (type === 'income') {
+      targetState = incomes;
+      setState = setIncomes;
+    } else if (type === 'transfer') {
+      targetState = transfers;
+      setState = setTransfers;
+    } else if (type === 'uncategorized') {
+      targetState = uncategorized;
+      setState = setUncategorized;
+    }
+
     const item = targetState.find(i => i.id === id);
     if (!item) return;
 
@@ -742,12 +921,11 @@ function TransactionsContent() {
       await base44.db.upsertRow('transactions', dbRecord);
 
       // 3. Update local state
-      if (type === 'income') {
-        setIncomes(incomes.map(i => i.id === id ? updatedItem : i));
-      } else {
-        setExpenses(expenses.map(e => e.id === id ? updatedItem : e));
-      }
+      setState(targetState.map(i => i.id === id ? updatedItem : i));
       toast.success("Transaction updated");
+      
+      // 4. Force full data refresh for accurate totals
+      await fetchData();
     } catch (err) {
       console.error("Inline update failed:", err);
       toast.error("Update failed");
@@ -772,52 +950,66 @@ function TransactionsContent() {
     if (type === 'income') {
       const updated = incomes.filter(i => i.id !== id);
       setIncomes(updated);
-      persistTransactionData(updated, expenses);
+    } else if (type === 'transfer') {
+      const updated = transfers.filter(i => i.id !== id);
+      setTransfers(updated);
+    } else if (type === 'uncategorized') {
+      const updated = uncategorized.filter(i => i.id !== id);
+      setUncategorized(updated);
     } else {
       const updated = expenses.filter(e => e.id !== id);
       setExpenses(updated);
-      persistTransactionData(incomes, updated);
     }
     toast.info("Transaction removed and purged from ledger");
+    
+    // 3. Force full data refresh
+    await fetchData();
   };
 
   const handleBankSync = async (newItems) => {
-    const fallbackDate = selectedDate.toLocaleString('default', { month: 'short' });
-    const formatted = newItems.map(item => ({
-      id: Date.now() + Math.random(),
-      name: item.name || item.merchant || item.description || "Synced Transaction",
-      category: item.category || "Uncategorized",
-      amount: item.amount,
-      date: item.date || `${fallbackDate} 01`
-    }));
-    const existing = new Set(expenses.map(e => `${e.name}-${e.amount}`));
-    const uniqueNew = formatted.filter(f => !existing.has(`${f.name}-${f.amount}`));
-    
-    if (uniqueNew.length > 0) {
-      try {
-        // Map to DB schema
-        const toInsert = uniqueNew.map(item => ({
-          merchant: item.name,
-          amount: item.amount,
-          category: item.category,
-          date: item.date,
-          spend_type: 'variable', // Default for bank sync
-          type: 'expense'
-        }));
+    try {
+      // 1. Get existing ledger for deduplication and learning
+      const existingLedger = await base44.db.getTable('transactions') || [];
+      
+      // 2. Run the AI Scanner Engine
+      const enriched = await enrichTransactions(newItems, existingLedger, selectedAccountId);
+      
+      // 3. Filter out duplicates
+      const toInsertRaw = enriched.filter(item => !item.isDuplicate);
+
+      if (toInsertRaw.length > 0) {
+        // 4. Map to DB schema with dynamic month assignment
+        const toInsert = toInsertRaw.map(item => {
+          // Extract YYYY-MM from the date string (handles both ISO and other formats)
+          let txMonth = monthKey; 
+          if (item.date) {
+            const dateMatch = item.date.match(/(\d{4})-(\d{2})/);
+            if (dateMatch) txMonth = `${dateMatch[1]}-${dateMatch[2]}`;
+          }
+
+          return {
+            merchant: item.name || item.merchant,
+            amount: item.amount,
+            category: item.category || "Uncategorized",
+            date: item.date,
+            spend_type: 'variable',
+            type: item.type || 'expense',
+            month: txMonth,
+            account_id: selectedAccountId // Track which account it came from
+          };
+        });
         
-        // Bulk insert to production ledger
+        // 5. Bulk insert to production ledger
         await base44.db.insertRows('transactions', toInsert);
         
-        const updated = [...expenses, ...uniqueNew];
-        setExpenses(updated);
-        toast.success(`Synced ${uniqueNew.length} new transactions to ledger!`);
-        fetchData(); // Refresh to get DB IDs
-      } catch (err) {
-        console.error("Bank sync persistence failed:", err);
-        toast.error("Failed to save synced transactions");
+        toast.success(`AI successfully categorized and synced ${toInsert.length} new transactions!`);
+        fetchData(); // Refresh UI
+      } else {
+        toast.info("No new transactions to sync.");
       }
-    } else {
-      toast.info("No new transactions found.");
+    } catch (err) {
+      console.error("Bank sync engine failure:", err);
+      toast.error("AI scanning failed during sync.");
     }
   };
 
@@ -844,54 +1036,93 @@ function TransactionsContent() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Top Header - Institutional Grade */}
-    <header className="h-14 bg-[#5e1d8d] flex items-center justify-between px-6 shrink-0 transition-all">
-        <div className="flex items-center gap-4">
-          <h1 className="text-white text-lg font-medium tracking-tight">Transactions</h1>
-          <div className="h-4 w-[1px] bg-white/20 mx-2" />
+    <div className="w-full px-2 pt-4 bg-white shrink-0">
+      <header className="h-16 bg-white flex items-center justify-between px-8 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/40 transition-all">
+        <div className="flex items-center gap-6">
+          <h1 className="text-slate-700 text-lg font-medium tracking-tight leading-none">Transactions</h1>
+          <div className="h-4 w-[1px] bg-slate-200 mx-1" />
           
-          {/* Date Picker - High Visibility */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="bg-white/10 hover:bg-white/20 border-white/20 text-white text-xs font-bold gap-3 px-4 h-9 shadow-sm"
-              >
-                <CalendarIcon className="w-4 h-4 text-purple-200" />
-                {format(startOfMonth(selectedDate), "MMMM yyyy")}
-                <ChevronDown className="w-3 h-3 text-white/50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-[#5e1d8d] border-purple-400/30" align="start">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => d && setSelectedDate(d)}
-                month={selectedDate}
-                onMonthChange={setSelectedDate}
-                initialFocus
-                className="rounded-xl border-none bg-[#5e1d8d]"
-                classNames={{
-                  day_selected: "bg-white text-purple-600 hover:bg-white hover:text-purple-600 focus:bg-white focus:text-purple-600",
-                  day_today: "bg-white/10 text-white",
-                  head_cell: "text-white/50",
-                  nav_button: "hover:bg-white/10 text-white",
-                  day: "text-white hover:bg-white/10",
-                  caption_label: "text-white font-medium"
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          {/* Premium Month/Year Navigation */}
+          <div className="flex items-center bg-white rounded-2xl p-1 border border-slate-200 shadow-sm">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
+              onClick={() => setSelectedDate(prev => subMonths(prev, 1))}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="h-8 px-4 text-slate-900 text-[11px] font-black uppercase tracking-[0.15em] hover:bg-slate-100 rounded-xl transition-all flex items-center gap-3 min-w-[140px] justify-center"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-amber-600" />
+                  {format(selectedDate, "MMM yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-5 bg-white border-none shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[24px]" align="center">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between px-1">
+                    <button 
+                      onClick={() => setSelectedDate(prev => subMonths(prev, 12))}
+                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">{format(selectedDate, "yyyy")}</span>
+                    <button 
+                      onClick={() => setSelectedDate(prev => addMonths(prev, 12))}
+                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
+                      <button
+                        key={m}
+                        onClick={() => {
+                          setSelectedDate(prev => setMonth(prev, idx));
+                          setIsMonthPickerOpen(false); // Auto-close
+                        }}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                          selectedDate.getMonth() === idx 
+                            ? "bg-amber-600 text-white shadow-xl shadow-amber-600/30 ring-2 ring-amber-600/10" 
+                            : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
+                        )}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
+              onClick={() => setSelectedDate(prev => addMonths(prev, 1))}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="relative group">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 group-focus-within:text-white transition-colors" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-slate-600 transition-colors" />
             <input 
               type="text" 
               placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 text-white text-xs rounded-full py-1.5 pl-9 pr-8 w-64 outline-none focus:bg-white/20 transition-all placeholder:text-white/40"
+              className="bg-white text-slate-900 text-[11px] font-medium rounded-2xl py-2 pl-9 pr-8 w-72 outline-none border border-slate-200 shadow-sm focus:ring-2 focus:ring-amber-600/10 transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pt-px">
@@ -900,42 +1131,51 @@ function TransactionsContent() {
                         setSaveSearchName(searchQuery || "");
                         setIsSaveSearchModalOpen(true);
                     }}
-                    className="text-white/40 hover:text-white transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-[#C5A059] transition-colors"
                     title="Save this search"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
-                  <div className="w-[1px] h-3 bg-white/20 mx-0.5" />
+                  <div className="w-[1px] h-3 bg-slate-200 mx-0.5" />
                   <button 
                     onClick={() => setSearchQuery("")}
-                    className="text-white/40 hover:text-white transition-colors"
+                    className="text-slate-300 hover:text-slate-600 transition-colors"
                   >
                     <Plus className="w-3 h-3 rotate-45" />
                   </button>
                </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-white/70">
-            <button 
-              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-              className="p-2 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white"
-              title={viewMode === 'list' ? "Switch to Grid View" : "Switch to List View"}
-            >
-              {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
-            </button>
+          <div className="flex items-center gap-4">
+             <div className="flex items-center bg-slate-50 rounded-xl p-1 border border-slate-100">
+               <button 
+                 onClick={() => setViewMode('grid')}
+                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                 <LayoutGrid className="w-4 h-4" />
+               </button>
+               <button 
+                 onClick={() => setViewMode('list')}
+                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                 <List className="w-4 h-4" />
+               </button>
+             </div>
+             <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white font-medium text-[10px]">SP</div>
           </div>
         </div>
       </header>
+    </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Secondary Sidebar */}
-        <aside className="w-72 bg-[#f8f9fa] border-r border-slate-200 overflow-y-auto p-4 flex flex-col gap-8 shrink-0">
+        <aside className="w-72 bg-white border-r border-slate-100 overflow-y-auto p-4 flex flex-col gap-8 shrink-0">
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Overview</p>
             <div className="space-y-1">
-              <div className="bg-slate-200/50 rounded-lg p-3 border border-slate-200 mb-4 text-center">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4 text-center">
                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Monthly Balance</span>
-                 <span className={`text-sm font-bold ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                 <span className={`text-sm font-normal ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                    {formatAmount(summary.balance)}
                  </span>
               </div>
@@ -944,7 +1184,7 @@ function TransactionsContent() {
                 <button 
                   key={item.id}
                   onClick={() => handleSidebarFilter('tab', item.id)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id && !selectedCategory && !selectedAccountId ? 'bg-purple-600 text-white shadow-md' : (selectedTab === item.id ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-white hover:shadow-sm')}`}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${selectedTab === item.id && !selectedCategory && !selectedAccountId ? 'bg-amber-600 text-white shadow-md' : (selectedTab === item.id ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-white hover:shadow-sm')}`}
                 >
                   <div className="flex items-center gap-3">
                     <item.icon className={`w-4 h-4 ${selectedTab === item.id ? 'text-white' : item.color}`} />
@@ -974,7 +1214,7 @@ function TransactionsContent() {
                   >
                     <button 
                       onClick={() => applySavedSearch(s)}
-                      className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 pr-10 truncate ${searchQuery === s.query ? 'bg-white shadow-sm text-purple-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
+                      className={`w-full text-left px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-2 pr-10 truncate ${searchQuery === s.query ? 'bg-white shadow-sm text-amber-600 font-bold' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`}
                     >
                       <Search className="w-3 h-3 text-slate-300" /> 
                       <span className="truncate">{s.name}</span>
@@ -996,7 +1236,7 @@ function TransactionsContent() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Accounts</p>
               <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
                 <DialogTrigger asChild>
-                  <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-purple-600 transition-colors">
+                  <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-amber-600 transition-colors">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </DialogTrigger>
@@ -1036,7 +1276,7 @@ function TransactionsContent() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleAddAccount} className="w-full bg-purple-600 hover:bg-purple-700">Create Account</Button>
+                    <Button onClick={handleAddAccount} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase tracking-widest text-[10px] h-12">Create Account</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1046,13 +1286,13 @@ function TransactionsContent() {
                 <div 
                   key={acc.id} 
                   onClick={() => handleSidebarFilter('account', acc.id)}
-                  className={`relative space-y-1 cursor-pointer group pr-8 p-1.5 rounded-xl transition-all ${selectedAccountId === acc.id ? 'bg-purple-50 ring-1 ring-purple-100 shadow-sm' : 'hover:bg-slate-50'}`}
+                  className={`relative space-y-1 cursor-pointer group pr-8 p-1.5 rounded-xl transition-all ${selectedAccountId === acc.id ? 'bg-amber-50 ring-1 ring-amber-100 shadow-sm' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${acc.color}`} />
-                    <span className={`text-xs font-medium transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-purple-600 font-bold' : 'text-slate-600 group-hover:text-purple-600'}`}>{acc.name}</span>
+                    <span className={`text-xs font-medium transition-colors uppercase tracking-tight ${selectedAccountId === acc.id ? 'text-amber-600' : 'text-slate-600 group-hover:text-amber-600'}`}>{acc.name}</span>
                   </div>
-                  <p className="text-[11px] font-bold text-slate-800 tabular-nums ml-5">
+                  <p className="text-[11px] font-normal text-slate-600 tabular-nums ml-5">
                     {(acc.balance || 0) < 0 ? `(${Math.abs(acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})` : (acc.balance || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                   </p>
                   
@@ -1096,7 +1336,7 @@ function TransactionsContent() {
                 <button 
                   key={c} 
                   onClick={() => handleSidebarFilter("category", c)}
-                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${selectedCategory === c ? 'text-purple-600 font-bold bg-purple-50 rounded-lg shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}
+                  className={`w-full text-left px-4 py-1.5 text-xs transition-colors truncate ${selectedCategory === c ? 'text-amber-600 font-bold bg-amber-50 rounded-lg shadow-sm' : 'text-slate-500 hover:text-amber-600'}`}
                 >
                   {c}
                 </button>
@@ -1108,54 +1348,33 @@ function TransactionsContent() {
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           {/* Premium Header Metrics */}
-          <div className="px-6 py-4 bg-[#fcfcfc] border-b border-slate-100 flex items-center justify-between shadow-sm">
+          <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-10">
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Income</span>
-                 <span className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
+                 <span className="text-lg font-normal text-emerald-600 tabular-nums">{formatAmount(summary.totalIncome)}</span>
                </div>
                <div className="w-[1px] h-8 bg-slate-100" />
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Expenses</span>
-                 <span className="text-lg font-bold text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
+                 <span className="text-lg font-normal text-slate-700 tabular-nums">{formatAmount(summary.totalExpenses)}</span>
                </div>
                <div className="w-[1px] h-8 bg-slate-100" />
                <div className="flex flex-col gap-0.5">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Balance</span>
-                 <span className={`text-lg font-bold tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                 <span className={`text-lg font-normal tabular-nums ${summary.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                    {formatAmount(summary.balance)}
                  </span>
                </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
 
-                <BankConnect onSyncSuccess={handleBankSync} />
                 
-                <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all">
-                      <Download className="w-4 h-4" /> Import
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-black tracking-tighter">Institutional Data Importer</DialogTitle>
-                    </DialogHeader>
-                    <SmartImporter 
-                      accounts={dbAccounts}
-                      onComplete={() => {
-                        setIsImportModalOpen(false);
-                        fetchData();
-                      }}
-                      onCancel={() => setIsImportModalOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
 
                 <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+                    <Button variant="outline" className="h-9 w-36 justify-center gap-1.5 text-xs font-medium border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
                       <Plus className="w-4 h-4 text-slate-400" /> Add Manually
                     </Button>
                   </DialogTrigger>
@@ -1236,32 +1455,6 @@ function TransactionsContent() {
                   </DialogContent>
                 </Dialog>
 
-                <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={(e) => {
-                  if (e.currentTarget.dataset.confirmed === 'true') {
-                    handlePurgeMonth();
-                  } else {
-                    e.currentTarget.dataset.confirmed = 'true';
-                    e.currentTarget.classList.add('bg-rose-600', 'text-white', 'border-rose-600');
-                    e.currentTarget.classList.remove('bg-rose-50', 'text-rose-600', 'border-rose-200');
-                    e.currentTarget.querySelector('span').innerText = 'Click again to confirm';
-                    setTimeout(() => {
-                      if (e.currentTarget) {
-                        e.currentTarget.dataset.confirmed = 'false';
-                        e.currentTarget.classList.remove('bg-rose-600', 'text-white', 'border-rose-600');
-                        e.currentTarget.classList.add('border-rose-200', 'text-rose-600');
-                        e.currentTarget.querySelector('span').innerText = 'Purge Month';
-                      }
-                    }, 3000);
-                  }
-                }}
-                className="h-9 px-4 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all font-medium flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Purge Month</span>
-              </Button>
 
 
               </div>
@@ -1288,7 +1481,7 @@ function TransactionsContent() {
                     <DialogFooter>
                         <Button 
                             onClick={handleSaveCurrentSearch}
-                            className="w-full bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-12 shadow-lg shadow-purple-100"
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 shadow-lg shadow-amber-100"
                         >
                             Save Selection
                         </Button>
@@ -1382,7 +1575,7 @@ function TransactionsContent() {
                         </Button>
                         <Button 
                             onClick={handleSaveEdit}
-                            className="bg-[#5e1d8d] hover:bg-[#4a1670] text-white font-bold h-11 px-8"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold h-11 px-8"
                         >
                             Update Transaction
                         </Button>
@@ -1411,14 +1604,14 @@ function TransactionsContent() {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-amber-50 hover:text-amber-600 transition-all"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 
-                <div className="flex items-center gap-2 px-3 h-8 bg-slate-100/50 rounded-full border border-slate-100">
+                <div className="flex items-center gap-2 px-3 h-8 bg-white rounded-full border border-slate-200">
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page</span>
                    <span className="text-xs font-medium text-slate-900 tabular-nums">{currentPage}</span>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">of</span>
@@ -1428,7 +1621,7 @@ function TransactionsContent() {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-purple-50 hover:text-purple-600 transition-all"
+                  className="h-8 w-8 rounded-full border-slate-200 hover:bg-amber-50 hover:text-amber-600 transition-all"
                   onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTransactions.length / itemsPerPage), prev + 1))}
                   disabled={currentPage >= Math.ceil(filteredTransactions.length / itemsPerPage)}
                 >
@@ -1437,22 +1630,79 @@ function TransactionsContent() {
               </div>
             </div>
 
-          <div className="px-6 py-3 bg-[#fcfcfc] border-t border-slate-100 text-center">
+          {/* Search Intelligence Bar (Dynamic Aggregator) */}
+          {searchTotals && (
+            <div className="px-8 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-6 shadow-[inner_0_1px_2px_rgba(0,0,0,0.02)]">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Search Results</p>
+                    <p className="text-xs font-bold text-slate-900">{searchTotals.count} items filtered</p>
+                  </div>
+               </div>
+
+               <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
+
+               <div className="flex items-center gap-8">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">
+                      {searchTotals.isSpecificCategory ? "Total Amount" : "Total Spent"}
+                    </span>
+                    <span className={`text-sm font-black tabular-nums ${searchTotals.isSpecificCategory ? 'text-slate-900' : 'text-rose-600'}`}>
+                      {formatAmount(searchTotals.isSpecificCategory ? searchTotals.totalAmount : searchTotals.totalExpense)}
+                    </span>
+                  </div>
+                  {(searchTotals.totalIncome > 0 || searchTotals.selectedAccountId) && !searchTotals.isSpecificCategory && (
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-0.5">Total Income</span>
+                      <span className="text-sm font-black text-emerald-600 tabular-nums">{formatAmount(searchTotals.totalIncome)}</span>
+                    </div>
+                  )}
+               </div>
+
+               {searchTotals.categories.length > 0 && (
+                 <>
+                   <div className="h-8 w-[1px] bg-slate-200 hidden lg:block" />
+                   <div className="flex items-center gap-3 overflow-hidden">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Breakdown:</span>
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                        {searchTotals.categories.slice(0, 5).map(cat => (
+                          <div key={cat.name} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: (typeof getCategoryColor === 'function' ? getCategoryColor(cat.name) : '#f59e0b') }} />
+                            <span className="text-[10px] font-bold text-slate-700 whitespace-nowrap">{cat.name}:</span>
+                            <span className="text-[10px] font-black text-slate-900 tabular-nums">{formatAmount(cat.total)}</span>
+                          </div>
+                        ))}
+                        {searchTotals.categories.length > 5 && (
+                          <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+                            +{searchTotals.categories.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                   </div>
+                 </>
+               )}
+            </div>
+          )}
+
+          <div className="px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between">
             <p className="text-[10px] font-bold text-slate-400 italic">
               Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} items.
             </p>
             {selectedTransactions.length > 0 && (
-              <span className="bg-purple-600 text-white px-3 py-1 rounded-full font-medium shadow-sm shadow-purple-100 animate-in zoom-in-50">
-                {selectedTransactions.length} selected
+              <span className="bg-amber-600 text-white px-3 py-1 rounded-full text-[11px] font-bold shadow-lg shadow-amber-100 animate-in zoom-in-50">
+                {selectedTransactions.length} transactions selected
               </span>
             )}
           </div>
 
           {/* Table Area */}
-          <div className="flex-1 overflow-auto bg-[#f8fafc]/50">
+          <div className="flex-1 overflow-auto bg-white">
             {viewMode === 'list' ? (
               <Table className="w-full border-collapse">
-                <TableHeader className="bg-slate-50/50 sticky top-0 z-20 backdrop-blur-md">
+                <TableHeader className="bg-white sticky top-0 z-20">
                   <TableRow className="hover:bg-transparent border-slate-100 h-12">
                     <TableHead className="w-12 p-4 text-center">
                       <Checkbox 
@@ -1466,6 +1716,7 @@ function TransactionsContent() {
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Amount</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Category</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Type</TableHead>
+                    <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Nature</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4">Account</TableHead>
                     <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-widest p-4 text-right">Balance</TableHead>
                   </TableRow>
@@ -1475,7 +1726,7 @@ function TransactionsContent() {
                     .slice((currentPage - 1) * parseInt(itemsPerPage), currentPage * parseInt(itemsPerPage))
                     .map((tx) => (
                     <React.Fragment key={tx.id}>
-                      <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-purple-50/50' : 'hover:bg-slate-50/50'}`}>
+                      <TableRow className={`group transition-colors ${selectedTransactions.includes(tx.id) ? 'bg-amber-50/50' : 'hover:bg-slate-50/50'}`}>
                         <TableCell className="p-4">
                           <Checkbox 
                             checked={selectedTransactions.includes(tx.id)} 
@@ -1524,14 +1775,14 @@ function TransactionsContent() {
                               value={tx.category || "Uncategorized"} 
                               onValueChange={(v) => handleUpdateItem(tx.id, { category: v }, tx.type)}
                             >
-                              <SelectTrigger className="h-8 bg-white text-[11px] font-medium border-slate-200 px-3 w-[150px] hover:border-purple-300 hover:shadow-sm transition-all text-slate-700">
+                              <SelectTrigger className="h-8 bg-white text-[11px] font-medium border-slate-200 px-3 w-[150px] hover:border-amber-300 hover:shadow-sm transition-all text-slate-700">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px] w-[180px]">
                                 {categories
                                   .filter(c => c.name.toLowerCase() !== "uncategorized")
                                   .map(c => (
-                                    <SelectItem key={c.id || c.name} value={c.name} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                    <SelectItem key={c.id || c.name} value={c.name} className="text-[11px] py-1.5 focus:bg-amber-50">
                                       <div className="flex items-center gap-2.5">
                                         <CategoryIcon iconId={c.icon_id || c.iconId} category={c.name} className="w-3.5 h-3.5 shrink-0" />
                                         <span className="truncate leading-none">{c.name}</span>
@@ -1539,7 +1790,7 @@ function TransactionsContent() {
                                     </SelectItem>
                                   ))}
                                 {!categories.some(c => c.name.toLowerCase() === (tx.category || "").toLowerCase()) && tx.category && tx.category !== "Uncategorized" && (
-                                  <SelectItem value={tx.category} className="text-[11px] py-1.5 focus:bg-purple-50">
+                                  <SelectItem value={tx.category} className="text-[11px] py-1.5 focus:bg-amber-50">
                                     <div className="flex items-center gap-2.5">
                                       <CategoryIcon category={tx.category} className="w-3.5 h-3.5 shrink-0" />
                                       <span className="truncate leading-none">{tx.category}</span>
@@ -1556,7 +1807,7 @@ function TransactionsContent() {
                             </Select>
                             <button 
                               onClick={() => handleSidebarFilter("all", tx.category)}
-                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-purple-600 transition-colors"
+                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-amber-600 transition-colors"
                               title="Filter by this category"
                             >
                               <Filter className="w-3 h-3" />
@@ -1564,28 +1815,49 @@ function TransactionsContent() {
                           </div>
                         </TableCell>
                         <TableCell className="p-4">
-                          <Select 
-                            value={tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
-                            onValueChange={(v) => handleUpdateItem(tx.id, { spendType: v }, tx.type)}
-                            disabled={tx.type === 'income'}
-                          >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-purple-300 transition-all">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
-                              <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
-                              <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
-                              <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
+                           <Select 
+                             value={tx.type} 
+                             onValueChange={(v) => handleUpdateItem(tx.id, { type: v }, tx.type)}
+                           >
+                             <SelectTrigger className={cn(
+                               "h-7 text-[10px] font-bold px-2 py-0.5 w-[100px] rounded-md transition-all border shadow-sm",
+                               tx.type === 'income' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                               tx.type === 'transfer' ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                               "bg-rose-50 text-rose-700 border-rose-200"
+                             )}>
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="income" className="text-[10px] font-bold text-emerald-600">Income</SelectItem>
+                               <SelectItem value="expense" className="text-[10px] font-bold text-rose-600">Expense</SelectItem>
+                               <SelectItem value="transfer" className="text-[10px] font-bold text-indigo-600">Transfer</SelectItem>
+                               <SelectItem value="uncategorized" className="text-[10px] font-bold text-slate-400">Uncategorized</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </TableCell>
+                         <TableCell className="p-4">
+                           <Select 
+                             value={tx.spend_type || tx.spendType || (tx.type === 'income' ? 'income' : 'variable')} 
+                             onValueChange={(v) => handleUpdateItem(tx.id, { spend_type: v }, tx.type)}
+                             disabled={tx.type === 'income'}
+                           >
+                             <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[100px] hover:border-amber-300 transition-all text-slate-600">
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="fixed" className="text-[10px]">Fixed</SelectItem>
+                               <SelectItem value="variable" className="text-[10px]">Variable</SelectItem>
+                               <SelectItem value="savings" className="text-[10px]">Savings</SelectItem>
+                               <SelectItem value="income" className="text-[10px]" disabled>Income</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </TableCell>
                         <TableCell className="p-4">
                           <Select 
                             value={tx.account_id || "manual"} 
                             onValueChange={(v) => handleUpdateItem(tx.id, { account_id: v }, tx.type)}
                           >
-                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-purple-300 transition-all text-slate-700">
+                            <SelectTrigger className="h-7 bg-white text-[10px] font-normal border-slate-200 px-2 py-0.5 w-[140px] hover:border-amber-300 transition-all text-slate-700">
                               <SelectValue placeholder="Manual Vault" />
                             </SelectTrigger>
                             <SelectContent side="top">
@@ -1611,7 +1883,7 @@ function TransactionsContent() {
                   .map((tx) => (
                     <div 
                       key={tx.id} 
-                      className={`group relative p-6 rounded-[32px] border shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer flex flex-col justify-between overflow-hidden ${selectedTransactions.includes(tx.id) ? 'ring-2 ring-purple-600' : ''}`}
+                      className={`group relative p-6 rounded-[32px] border shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer flex flex-col justify-between overflow-hidden ${selectedTransactions.includes(tx.id) ? 'ring-2 ring-amber-600' : ''}`}
                       style={{ 
                         backgroundColor: getCategoryColor(tx.category) + '0a', 
                         borderColor: getCategoryColor(tx.category) + '30' 
@@ -1684,7 +1956,7 @@ function TransactionsContent() {
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{formatDate(tx.date)}</span>
                           <span className="text-xs font-black text-slate-700 tracking-tight flex items-center gap-1.5 opacity-60">
-                            <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                             {tx.account || "Manual Vault"}
                           </span>
                         </div>

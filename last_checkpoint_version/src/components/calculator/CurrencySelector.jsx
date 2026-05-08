@@ -31,7 +31,7 @@ export function getCurrencySymbol(code) {
 export default function CurrencySelector({ value, onChange }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="bg-[#2D3748] !text-[#E5C48B] px-3 py-2 text-sm font-bold rounded-xl flex w-full items-center justify-between whitespace-nowrap border border-[#E5C48B]/30 shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-[#E5C48B]/50 disabled:cursor-not-allowed disabled:opacity-50 h-10 [&_svg]:!text-[#E5C48B] [&_svg]:!opacity-100 [&_span]:!text-[#E5C48B]">
+      <SelectTrigger className="bg-white !text-slate-900 px-3 py-2 text-sm font-bold rounded-xl flex w-full items-center justify-between whitespace-nowrap border border-slate-200 shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-indigo-500/50 disabled:cursor-not-allowed disabled:opacity-50 h-10 [&_svg]:!text-slate-400 [&_svg]:!opacity-100 [&_span]:!text-slate-900">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="max-h-64">

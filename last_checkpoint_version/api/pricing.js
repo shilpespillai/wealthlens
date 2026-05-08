@@ -12,16 +12,23 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Safety Check: Missing Config
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.warn('[Pricing API] Missing Supabase Configuration. Using defaults.');
+    if (req.method === 'GET') return res.status(200).json({ price: "29.99" });
+    return res.status(500).json({ error: 'System configuration missing' });
+  }
+
   try {
     if (req.method === 'GET') {
+      // Use the generic user_data vault for global settings
       const { data, error } = await supabase
-        .from('users')
-        .select('stripe_customer_id')
-        .eq('email', 'system_price@wealthlens.com')
-        .single();
+        .from('user_data')
+        .select('payload')
+        .eq('key', 'global_app_pricing')
+        .maybeSingle();
 
-      // Default to 10 if not set
-      const price = data?.stripe_customer_id || "10";
+      const price = data?.payload?.price || "29.99";
       return res.status(200).json({ price });
     }
 
@@ -32,13 +39,13 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
+      // Store in the global app settings vault
       const { error } = await supabase
-        .from('users')
+        .from('user_data')
         .upsert({ 
-          email: 'system_price@wealthlens.com', 
-          stripe_customer_id: price.toString(),
-          is_premium: false // ensure it's not counted as a real user
-        }, { onConflict: 'email' });
+          key: 'global_app_pricing', 
+          payload: { price: price.toString(), updated_by: adminEmail }
+        }, { onConflict: 'key' });
 
       if (error) throw error;
       return res.status(200).json({ success: true });
@@ -47,8 +54,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[Pricing API Error]', err);
-    // If table doesn't exist, just return default for GET, but error for POST
-    if (req.method === 'GET') return res.status(200).json({ price: "10" });
+    if (req.method === 'GET') return res.status(200).json({ price: "29.99" });
     return res.status(500).json({ error: err.message });
   }
 }

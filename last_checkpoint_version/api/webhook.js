@@ -36,29 +36,31 @@ export default async function handler(req, res) {
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    const userId = session.metadata?.userId;
     const email = session.customer_details?.email || session.metadata?.email;
 
-    if (!email) {
-      console.error('[Webhook] No email in session', session.id);
-      return res.status(400).json({ error: 'No email found in session' });
+    if (!userId) {
+      console.error('[Webhook] No userId in session metadata', session.id);
+      return res.status(400).json({ error: 'No userId found in session metadata' });
     }
 
-    console.log(`[Webhook] Payment confirmed for: ${email}`);
+    console.log(`[Webhook] Payment confirmed for userId: ${userId} (${email})`);
 
-    // Grant premium access in Supabase
-    const { error } = await supabase.from('users').upsert({
-      email,
-      is_premium: true,
-      premium_granted_at: new Date().toISOString(),
-      stripe_customer_id: session.customer,
-    }, { onConflict: 'email' });
+    // Grant premium access in Supabase Auth Metadata (The fastest way for frontend to see it)
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        is_premium: true,
+        premium_granted_at: new Date().toISOString(),
+        stripe_customer_id: session.customer,
+      }
+    });
 
     if (error) {
-      console.error('[Webhook] Supabase error:', error);
-      return res.status(500).json({ error: 'Failed to update user premium status' });
+      console.error('[Webhook] Supabase Auth error:', error);
+      return res.status(500).json({ error: 'Failed to update user premium metadata' });
     }
 
-    console.log(`[Webhook] Premium granted to: ${email}`);
+    console.log(`[Webhook] Premium granted to userId: ${userId}`);
   }
 
   return res.status(200).json({ received: true });

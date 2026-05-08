@@ -32,6 +32,9 @@ export default function MarketSentiment({ instrument, currency, params }) {
     setError(null);
     try {
       const result = await base44.integrations.Core.InvokeLLM({
+        type: 'market',
+        currency: currency,
+        instrument: instrument,
         prompt: `Analyze the current market conditions for ${instrumentNames[instrument]} in ${currency} currency. 
         The investor has a ${params?.years || 20}-year time horizon.
         Provide a concise analysis covering:

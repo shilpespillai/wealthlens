@@ -13,6 +13,9 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [hasLaunchPass, setHasLaunchPass] = useState(() => {
+    return sessionStorage.getItem('wl_session_launch_pass') === 'active';
+  });
 
   // Unified user mapping with premium check
   const mapUserWithPremium = React.useCallback(async (supabaseUser) => {
@@ -119,10 +122,16 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.clear();
     setUser(null);
     setIsAuthenticated(false);
+    setHasLaunchPass(false);
     
     setTimeout(() => {
         window.location.href = '/';
     }, 100);
+  };
+
+  const activateLaunchPass = () => {
+    sessionStorage.setItem('wl_session_launch_pass', 'active');
+    setHasLaunchPass(true);
   };
 
   const navigateToLogin = (returnUrl) => {
@@ -148,9 +157,12 @@ export const AuthProvider = ({ children }) => {
         user?.subscription_tier === 'pro' || 
         user?.subscription_tier === 'premium' || 
         user?.is_premium === true ||
-        user?.email === 'admin@wealthlens.com'
+        user?.email === 'admin@wealthlens.com' ||
+        hasLaunchPass === true
       ),
       isAdmin: user?.email === 'admin@wealthlens.com',
+      hasLaunchPass,
+      activateLaunchPass,
       logout,
       navigateToLogin,
       checkAppState

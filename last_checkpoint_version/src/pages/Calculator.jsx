@@ -21,7 +21,7 @@ import PropertyVsETF from "@/components/calculator/PropertyVsETF";
 import EquityUnlockPlanner from "@/components/calculator/EquityUnlockPlanner";
 import PortfolioOverview from "@/components/calculator/PortfolioOverview";
 import RetirementPlanner from "@/components/calculator/RetirementPlanner";
-import StockPillarAnalyzer from "@/components/calculator/StockPillarAnalyzer";
+
 import FairValueCalculator from "@/components/calculator/FairValueCalculator";
 import SaveExport from "@/components/calculator/SaveExport";
 import { calculateInvestment, calculateScenarios } from "@/components/calculator/calculationEngine";
@@ -194,15 +194,15 @@ function CalculatorContent() {
   return (
     <div className="min-h-screen bg-white">
       {/* Container for Navbar Area — purely white background */}
-      <div className="w-full px-6 pt-4 pb-2">
-        <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+      <div className="w-full px-2 pt-4 pb-2">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 overflow-hidden border border-slate-100">
           {/* Header Area */}
-          <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#2D3748] flex items-center justify-center border border-[#C5A059]/30">
-                <Calculator className="w-4 h-4 text-[#C5A059]" />
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center border border-amber-100">
+                <Calculator className="w-4 h-4 text-amber-600" />
               </div>
-              <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Financial Calculator</h1>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Financial Calculator</h1>
             </div>
 
             <div className="flex items-center gap-3">
@@ -247,35 +247,33 @@ function CalculatorContent() {
       {/* Main Panel starts below Navbar */}
       <div className="bg-slate-50 min-h-screen">
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-slate-500/5 rounded-full blur-3xl" />
         </div>
 
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+         <div className="max-w-full mx-auto px-2 py-6 relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="mb-6 bg-[#111827] rounded-[32px] p-5 border border-white/5 shadow-2zl overflow-hidden relative"
+            className="mb-6 bg-white rounded-[32px] p-5 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden relative"
           >
             {/* Background decorative elements */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#C5A059]/5 rounded-full blur-3xl -mr-24 -mt-24" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl -mr-24 -mt-24" />
             
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 relative z-10">
-              <div className="xl:col-span-4">
+            <div className="flex flex-col gap-10 relative z-10">
+              <div className="w-full">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-1 rounded-full bg-[#C5A059]" />
-                  <h2 className="text-[8px] font-black text-[#C5A059] uppercase tracking-[0.35em]">Quick Start Profiles</h2>
+                  <div className="w-1 h-1 rounded-full bg-amber-600" />
+                  <h2 className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.35em]">Quick Start Profiles</h2>
                 </div>
                 <InvestmentProfiles onSelect={(defaults) => setParams((prev) => ({ ...prev, ...defaults }))} />
               </div>
 
-              <div className="hidden xl:block w-px bg-white/5 h-16 self-center mx-auto" />
-
-              <div className="xl:col-span-7">
+              <div className="w-full">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-1 rounded-full bg-[#C5A059]" />
-                  <h2 className="text-[8px] font-black text-[#C5A059] uppercase tracking-[0.35em]">Select Asset Class</h2>
+                  <div className="w-1 h-1 rounded-full bg-amber-600" />
+                  <h2 className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.35em]">Select Asset Class</h2>
                 </div>
                 <InstrumentSelector selected={instrument} onSelect={handleInstrumentChange} />
               </div>
@@ -291,7 +289,7 @@ function CalculatorContent() {
             className="lg:col-span-4">
               <div className="bg-white/60 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-lg p-8">
                 <h3 className="text-sm font-medium text-slate-900 mb-8 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
                     <Calculator className="w-4 h-4 text-white" />
                   </div>
                   Investment Parameters
@@ -344,11 +342,7 @@ function CalculatorContent() {
                 </PremiumGate>
               </TabsContent>
 
-              <TabsContent value="pillars" className="mt-6">
-                <PremiumGate featureName="8-Pillar Stock Analysis" isPremium={isPremium}>
-                  <StockPillarAnalyzer onOpenFairValue={() => setActiveTab("fairvalue")} />
-                </PremiumGate>
-              </TabsContent>
+
 
               <TabsContent value="fairvalue" className="mt-6">
                 <PremiumGate featureName="Fair Value Calculator" isPremium={isPremium}>
@@ -396,19 +390,19 @@ function CalculatorContent() {
             
                   <div className="mt-8">
                     {!showAdvisorLogic ? (
-                      <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl shadow-slate-200 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+                         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -mr-20 -mt-20 blur-3xl" />
                          <div className="flex-1 relative z-10">
                             <div className="flex items-center gap-2 mb-2">
-                              <Sparkles className="w-5 h-5 text-indigo-300" />
-                              <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200">New Beta Feature</span>
+                              <Sparkles className="w-5 h-5 text-amber-400" />
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-amber-200">New Beta Feature</span>
                             </div>
                             <h3 className="text-2xl font-black mb-2">AdvisorLogic™ Orchestration</h3>
-                            <p className="text-indigo-100 font-medium max-w-md">Collaborate with a panel of specialized AI agents for a rigorous, multi-point audit of your strategy.</p>
+                            <p className="text-slate-300 font-medium max-w-md">Collaborate with a panel of specialized AI agents for a rigorous, multi-point audit of your strategy.</p>
                          </div>
                          <Button 
                            onClick={() => setShowAdvisorLogic(true)}
-                           className="bg-white text-indigo-600 hover:bg-gray-100 font-black px-8 py-6 rounded-2xl shadow-2xl relative z-10 uppercase tracking-widest"
+                           className="bg-amber-600 text-white hover:bg-gray-100 font-black px-8 py-6 rounded-2xl shadow-2xl relative z-10 uppercase tracking-widest"
                          >
                            Start AdvisorLogic Review
                          </Button>

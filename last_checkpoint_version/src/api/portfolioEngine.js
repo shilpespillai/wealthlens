@@ -22,7 +22,7 @@ export const calculatePortfolioHoldings = (rows = [], endDate = new Date()) => {
   rows.forEach(row => {
     if (row.holdings && Array.isArray(row.holdings)) {
       row.holdings.forEach(h => {
-        flattenedRows.push({ ...h, snapshot_date: row.snapshot_date, user_id: row.user_id, id: row.id });
+        flattenedRows.push({ ...h, snapshot_date: row.snapshot_date, user_id: row.user_id, id: h.id || row.id });
       });
     } else {
       flattenedRows.push(row);
@@ -34,7 +34,7 @@ export const calculatePortfolioHoldings = (rows = [], endDate = new Date()) => {
     
     // Only consider history up to selected end date
     if (rowDate <= timeCutoff) {
-      const labelKey = (row.label || row.name || "Unlabeled Asset").trim().toLowerCase();
+      const labelKey = `${(row.label || row.name || "Unlabeled Asset").trim().toLowerCase()}_${row.id || ''}`;
       
       if (!latestByLabel[labelKey] || rowDate > new Date(latestByLabel[labelKey].snapshot_date).getTime()) {
         latestByLabel[labelKey] = row;
@@ -51,7 +51,10 @@ export const calculatePortfolioHoldings = (rows = [], endDate = new Date()) => {
 export const getPortfolioMetrics = (holdings = []) => {
   const totalValue = holdings.reduce((sum, h) => sum + (Number(h.current_value) || 0), 0);
   const totalInvested = holdings.reduce((sum, h) => sum + (Number(h.invested_amount) || 0), 0);
+  const totalMortgage = holdings.reduce((sum, h) => sum + (Number(h.mortgage_amount) || 0), 0);
+  
   const totalGain = totalValue - totalInvested;
+  const netValue = totalValue - totalMortgage;
   const returnPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
   // Group by asset class
@@ -65,7 +68,9 @@ export const getPortfolioMetrics = (holdings = []) => {
   return {
     totalValue,
     totalInvested,
+    totalMortgage,
     totalGain,
+    netValue,
     returnPct,
     classGroups,
     count: holdings.length

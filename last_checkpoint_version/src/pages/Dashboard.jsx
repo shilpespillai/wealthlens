@@ -69,8 +69,10 @@ export function DashboardContent() {
     formatCurrencyShort, 
     getProductionLedger,
     getDatabaseTable,
+    calculateMetrics,
     getNormalizedLedger,
-    normalizeTransactionData 
+    normalizeTransactionData,
+    rulesLoaded 
   } = useFinancialParser();
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const [params, setParams] = useState(null);
@@ -90,20 +92,21 @@ export function DashboardContent() {
     portfolio: [],
     budgets: [],
     currentMonthBudgets: [],
+    latestAccounts: [],
     vaultBuckets: []
   });
 
   const ASSET_THEMES = {
-    'Cash & Savings': { color: '#6366f1', bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-600' },
+    'Cash & Savings': { color: '#475569', bg: 'bg-slate-50', border: 'border-slate-100', text: 'text-slate-600' },
     'Stocks / ETFs': { color: '#14b8a6', bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-600' },
     'Property': { color: '#f59e0b', bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-600' },
-    'Crypto': { color: '#8b5cf6', bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-600' },
+    'Crypto': { color: '#d97706', bg: 'bg-amber-50/50', border: 'border-amber-100/50', text: 'text-amber-700' },
     'Liabilities': { color: '#f43f5e', bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-600' },
-    'Other': { color: '#64748b', bg: 'bg-slate-50', border: 'border-slate-100', text: 'text-slate-600' }
+    'Other': { color: '#94a3b8', bg: 'bg-slate-50/30', border: 'border-slate-100/30', text: 'text-slate-500' }
   };
 
   const [columns, setColumns] = useState({
-    col1: ["accounts", "networth_card", "fire_gauge", "vault_allocation"],
+    col1: ["accounts", "fire_gauge", "vault_allocation"],
     col2: ["transactions", "liquidity_runway"],
     col3: ["bills", "subscription_audit"],
     col4: ["budgets_short", "velocity", "budgets_detailed"]
@@ -244,8 +247,9 @@ export function DashboardContent() {
   // Dynamic Period-Based Accounts (Balances as of periodInfo.endDate)
   // Treasury-Locked Accounts (Always stuck to LATEST truth)
   const periodAccounts = useMemo(() => {
-    return (liveData.accounts || []).map(acc => ({ ...acc }));
-  }, [liveData.accounts]);
+    const source = liveData.latestAccounts?.length > 0 ? liveData.latestAccounts : (liveData.accounts || []);
+    return source.map(acc => ({ ...acc }));
+  }, [liveData.latestAccounts, liveData.accounts]);
 
   // Summarized Treasury Allocation — Portfolio by asset class + Cash (Always stuck to LATEST truth)
   const treasuryAllocation = useMemo(() => {
@@ -262,18 +266,21 @@ export function DashboardContent() {
 
     // 1. Cash bucket (Latest Truth)
     const cashTotal = periodAccounts
-      .filter(acc => (Number(acc.base_balance || 0)) > 0)
-      .reduce((sum, acc) => sum + (Number(acc.base_balance || 0)), 0);
+      .filter(acc => acc.type === 'asset' || (!acc.type && Number(acc.base_balance || 0) > 0))
+      .reduce((sum, acc) => sum + Math.max(0, Number(acc.base_balance || 0)), 0);
     if (cashTotal > 0) groups['Cash & Savings'] = cashTotal;
 
     // 2. Liabilities & Debt (Latest Truth)
-    const debtTotal = periodAccounts
-      .filter(acc => (Number(acc.base_balance || 0)) < 0)
-      .reduce((sum, acc) => sum + (Number(acc.base_balance || 0)), 0);
-    if (debtTotal < 0) groups['Liabilities'] = debtTotal;
+    const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
+    const { totalMortgage } = getPortfolioMetrics(latestHoldings);
+    const consumerDebt = periodAccounts
+      .filter(acc => acc.type === 'debt' || (!acc.type && Number(acc.base_balance || 0) < 0))
+      .reduce((sum, acc) => sum + Math.abs(Number(acc.base_balance || 0)), 0);
+    
+    const debtTotal = consumerDebt + totalMortgage;
+    if (debtTotal > 0) groups['Liabilities'] = -debtTotal;
 
     // 3. Portfolio assets — Fixed to TODAY'S snapshot for Treasury stability
-    const latestHoldings = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
 
     latestHoldings.forEach(p => {
       const label = ASSET_LABELS[p.asset_class] || (p.asset_class ? p.asset_class.charAt(0).toUpperCase() + p.asset_class.slice(1) : 'Other');
@@ -321,7 +328,7 @@ export function DashboardContent() {
     
     const focusDate = new Date(periodInfo.focusMonthKey + '-01');
     return normalizeTransactionData(budgetRow, focusDate, liveData.currentMonthTransactions || [], liveData.accounts || []);
-  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, liveData.accounts, periodInfo.focusMonthKey, normalizeTransactionData]);
+  }, [liveData.currentMonthBudgets, liveData.currentMonthTransactions, liveData.accounts, periodInfo.focusMonthKey, normalizeTransactionData, rulesLoaded]);
 
   // Consumption Target summary ALWAYS anchored to the CURRENT MONTH'S PRE-CALCULATED STATE
   const budgetSummary = useMemo(() => {
@@ -387,7 +394,7 @@ export function DashboardContent() {
       remaining,
       breakdown: [...breakdown.filter(b => b.value > 0 || b.total > 0), { name: 'Remaining', value: remaining, isRemaining: true }]
     };
-  }, [liveData.budgets, liveData.transactions, liveData.accounts, periodInfo, getNormalizedLedger]);
+  }, [liveData.budgets, liveData.transactions, liveData.accounts, periodInfo, getNormalizedLedger, rulesLoaded]);
 
   // --- HOLISTIC LOGIC ---
   const { chartData, holisticMetrics } = useMemo(() => {
@@ -427,27 +434,9 @@ export function DashboardContent() {
         return d >= intStart && d <= intEnd && d >= start && d <= end;
       });
 
-      const actualSpent = periodTx.reduce((sum, t) => {
-        const category = resolveCanonicalCategory(t.category);
-        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
-        
-        const rawAmt = Number(t.amount || 0);
-        const isExpense = t.type === 'expense' || (t.type !== 'income' && rawAmt < 0);
-        return isExpense ? sum + Math.abs(rawAmt) : sum;
-      }, 0);
-
-      const actualEarned = periodTx.reduce((sum, t) => {
-        const category = resolveCanonicalCategory(t.category);
-        if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(category)) return sum;
-        
-        const rawAmt = Number(t.amount || 0);
-        // Exclude Credit Card Payments from income totals (Account-aware filtering)
-        const isCreditCardIncome = t.account_id && accounts.find(a => String(a.id) === String(t.account_id))?.type === 'debt';
-        if (isCreditCardIncome) return sum;
-
-        const isIncome = t.type === 'income' || (t.type !== 'expense' && rawAmt > 0);
-        return isIncome ? sum + Math.abs(rawAmt) : sum;
-      }, 0);
+      const { incomes, expenses } = getNormalizedLedger(periodTx, accounts);
+      const actualSpent = expenses.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+      const actualEarned = incomes.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
 
       // Scale Budgets into Bucket Interval:
       // We calculate the fraction of a month this bucket represents to show an accurate target line.
@@ -485,17 +474,23 @@ export function DashboardContent() {
 
     // 3. Holistic Health Calculations (Institutional AR Anchor)
     // We use the LATEST data for the Treasury Hub, not historical snapshots.
-    const latestAccounts = liveData.accounts || [];
+    const latestAccounts = (liveData.latestAccounts && liveData.latestAccounts.length > 0) 
+      ? liveData.latestAccounts 
+      : (liveData.accounts || []);
     
     const totalLiquidOnly = latestAccounts
-      .filter(a => Number(a.base_balance || 0) > 0)
+      .filter(a => a.type === 'asset' && Number(a.base_balance || 0) > 0)
       .reduce((sum, a) => sum + Number(a.base_balance || 0), 0);
     
-    // Total Invested (Latest Snapshot)
     const latestPortfolio = calculatePortfolioHoldings(liveData.portfolio || [], new Date());
+    const { totalMortgage: pMortgage } = getPortfolioMetrics(latestPortfolio);
+    
+    // Total Invested (Latest Snapshot)
     const totalInvested = latestPortfolio.reduce((sum, p) => sum + (Number(p.current_value) || 0), 0);
-      
-    const netWorth = latestAccounts.reduce((sum, a) => sum + (Number(a.base_balance || a.balance || 0)), 0) + totalInvested;
+    const netWorth = latestAccounts.reduce((sum, a) => {
+      const val = Math.abs(Number(a.base_balance || a.balance || 0));
+      return a.type === 'debt' ? sum - val : sum + val;
+    }, 0) + totalInvested - pMortgage;
 
     const totalMonthlyTarget = (horizonBudgets.length > 0) 
       ? horizonBudgets.reduce((sum, b) => sum + (b.data || []).reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0), 0) / horizonBudgets.length
@@ -508,8 +503,19 @@ export function DashboardContent() {
     const periodStart = new Date(periodInfo.startDate);
     const periodEnd   = new Date(periodInfo.endDate);
     const periodTxAll = (liveData.transactions || []).filter(t => {
-      const dObj = robustParseDate(t.date);
+      const rawDate = t.date || t.actualDate;
+      if (!rawDate) return false;
+      
+      const dObj = robustParseDate(rawDate);
       if (!dObj) return false;
+      
+      // Strict Parity: Use month/year check for monthly horizons to match Family Overview
+      if (selectedPeriod === 'This Month' || selectedPeriod === 'Last Month') {
+        const targetMonthKey = periodInfo.focusMonthKey; // e.g. "2026-04"
+        const [y, m] = targetMonthKey.split('-').map(Number);
+        return dObj.getFullYear() === y && (dObj.getMonth() + 1) === m;
+      }
+      
       return dObj >= periodStart && dObj <= periodEnd;
     });
 
@@ -520,14 +526,26 @@ export function DashboardContent() {
     // We use the CENTRALIZED normalization engine (The "Common Place")
     const { incomes: normIncs, expenses: normExps } = getNormalizedLedger(periodTxAll, latestAccounts);
     
-    const incomeCurrent = normIncs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-    const spendCurrent  = normExps.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    // Use calculateMetrics for absolute parity with Family Overview
+    const metrics = calculateMetrics(normIncs, normExps, latestAccounts);
+    const incomeCurrent = metrics.totalIncome;
+    const spendCurrent  = metrics.totalExpenses;
     
     const savingsRate  = incomeCurrent > 0 ? ((incomeCurrent - spendCurrent) / incomeCurrent) * 100 : 0;
 
     let score = 50;
     score += Math.min(25, (savingsRate > 0 ? (savingsRate / 40) * 25 : 0));
     score += Math.min(25, (cashRunway / 6) * 25);
+
+    // 5. LATEST Metrics for pinned widgets (Freedom Horizon / Treasury)
+    // These ALWAYS use currentMonthTransactions and latestAccounts regardless of selection
+    const { incomes: latestIncs, expenses: latestExps } = getNormalizedLedger(liveData.currentMonthTransactions || [], latestAccounts);
+    const incomeLatest = latestIncs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    const spendLatest  = latestExps.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    
+    // avgMonthlySpend for latest is just the current budget target
+    const currentBudgetsFlat = (liveData.currentMonthBudgets || []).flatMap(b => b.data || []);
+    const latestMonthlyTarget = currentBudgetsFlat.reduce((s, item) => (item.type !== 'income') ? s + Number(item.monthly_target || 0) : s, 0);
 
     return {
       chartData: buckets,
@@ -540,10 +558,14 @@ export function DashboardContent() {
         income30: incomeCurrent,
         spend30: spendCurrent,
         burnRate: spendCurrent,
-        avgMonthlySpend
+        avgMonthlySpend,
+        // Absolute latest truth for pinned widgets
+        incomeLatest,
+        spendLatest,
+        latestMonthlyTarget
       }
     };
-  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency]);
+  }, [liveData.accounts, liveData.transactions, liveData.currentMonthBudgets, budgetSummary, periodInfo, parseCurrency, getNormalizedLedger, normalizeTransactionData, calculateMetrics, rulesLoaded]);
 
   const currentPeriodMetrics = useMemo(() => {
     return {
@@ -574,7 +596,8 @@ export function DashboardContent() {
         console.log("[Dashboard] Initializing Static Profile...");
         const user = await base44.auth.me();
         
-        const dbAccounts = await base44.db.getTable('user_accounts');
+        const currentMonthKey = format(new Date(), 'yyyy-MM');
+        const dbAccounts = await base44.db.getTable('user_accounts', { month: currentMonthKey });
         const dbPortfolio = await base44.db.getTable('portfolio_holdings');
         const dbBudgets = await base44.db.getTable('budgets');
         // ── LAYOUT PERSISTENCE ENGINE (One-time Load) ──────────────────────
@@ -582,7 +605,15 @@ export function DashboardContent() {
           const vaultLayout = await base44.user.loadData('wl_dashboard_layout');
           
           if (vaultLayout?.dashboard_layout) {
-            const layout = vaultLayout.dashboard_layout;
+            let layout = vaultLayout.dashboard_layout;
+            
+            // SURGICAL REMOVAL of wealth_projection (networth_card) as requested
+            Object.keys(layout).forEach(col => {
+              if (Array.isArray(layout[col])) {
+                layout[col] = layout[col].filter(item => item !== "networth_card");
+              }
+            });
+
             if (!Object.values(layout).flat().includes("fire_gauge")) {
               layout.col1 = ["fire_gauge", ...(layout.col1 || [])];
             }
@@ -664,13 +695,14 @@ export function DashboardContent() {
         const defaultBuckets = [
           { id: 'emergency_fund', label: 'Emergency Fund', target: 10000, icon: 'ShieldCheck', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
           { id: 'travel_fund', label: 'Family Travel', target: 5000, icon: 'Plane', color: 'bg-blue-500', textColor: 'text-blue-600' },
-          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: 'Target', color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+          { id: 'education_fund', label: 'Education Fund', target: 20000, icon: 'Target', color: 'bg-amber-500', textColor: 'text-amber-600' },
           { id: 'medical_fund', label: 'Medical Fund', target: 5000, icon: 'Zap', color: 'bg-rose-500', textColor: 'text-rose-600' }
         ];
 
         setLiveData(prev => ({
           ...prev,
           accounts: liveAccounts,
+          latestAccounts: liveAccounts,
           portfolio: dbPortfolio || [],
           transactions: allTransactions,
           currentMonthTransactions: currentMonthTx,
@@ -698,16 +730,19 @@ export function DashboardContent() {
   // Effect 2: Dynamic Horizon Synchronization
   useEffect(() => {
     async function syncHorizon() {
-      if (isLoading || !isAuthenticated) return; 
+      if (isLoading || !isAuthenticated || !rulesLoaded) return; 
       if (document.visibilityState !== 'visible') return;
 
       try {
         console.log("[Dashboard] Syncing Horizon Data...", periodInfo.startDate, periodInfo.endDate);
         
-        const horizonTx = await getProductionLedger({ 
-          startDate: periodInfo.startDate, 
-          endDate: periodInfo.endDate 
-        }); 
+        const [horizonTx, dbAccounts] = await Promise.all([
+          getProductionLedger({ 
+            startDate: periodInfo.startDate, 
+            endDate: periodInfo.endDate 
+          }),
+          base44.db.getTable('user_accounts', { month: periodInfo.focusMonthKey })
+        ]);
 
         const dbBudgets = await base44.db.getTable('budgets') || [];
         
@@ -722,6 +757,8 @@ export function DashboardContent() {
 
         setLiveData(prev => ({
           ...prev,
+          accounts: dbAccounts || prev.accounts,
+          latestAccounts: (periodInfo.focusMonthKey === format(new Date(), 'yyyy-MM')) ? (dbAccounts || prev.latestAccounts) : prev.latestAccounts,
           transactions: horizonTx || [],
           budgets: activeBudgets.map(b => ({ month: b.month, data: extractBudgetData(b.payload) }))
         }));
@@ -736,7 +773,7 @@ export function DashboardContent() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading, isAuthenticated, getProductionLedger]);
+  }, [periodInfo.startDate, periodInfo.endDate, periodInfo.focusMonthKey, isLoading, isAuthenticated, getProductionLedger, rulesLoaded]);
 
   const saveLayout = async (newColumns) => {
     try {
@@ -858,13 +895,15 @@ export function DashboardContent() {
                       ))}
                     </Pie>
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const theme = ASSET_THEMES[payload[0].name] || ASSET_THEMES['Other'];
                           return (
-                            <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-xl shadow-2xl">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
-                              <p className={cn("text-xs font-black", theme.text.replace('text-', 'text-[#'))}>{formatAmount(payload[0].value)}</p>
+                            <div className="bg-white/95 backdrop-blur-md border border-slate-100 p-3 rounded-xl shadow-xl ring-1 ring-black/5">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
+                              <p className={cn("text-xs font-black", theme.text)}>{formatAmount(payload[0].value)}</p>
                             </div>
                           );
                         }
@@ -1216,12 +1255,14 @@ export function DashboardContent() {
                       ))}
                     </Pie>
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg shadow-xl">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
-                              <p className="text-sm font-black text-white">{formatAmount(payload[0].value)}</p>
+                            <div className="bg-white/95 backdrop-blur-md border border-slate-100 p-3 rounded-xl shadow-xl ring-1 ring-black/5">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{payload[0].name}</p>
+                              <p className="text-sm font-black text-slate-900">{formatAmount(payload[0].value)}</p>
                             </div>
                           );
                         }
@@ -1312,15 +1353,15 @@ export function DashboardContent() {
         const useManualTarget = liveData.fireConfig?.useManualTarget || false;
         const manualTargetVal = liveData.fireConfig?.manualTarget || 2000000;
 
-        const budgetDerivedTarget = (holisticMetrics.avgMonthlySpend * 12) * fireMultiplier;
+        const budgetDerivedTarget = (holisticMetrics.latestMonthlyTarget * 12) * fireMultiplier;
         const fireTarget = useManualTarget ? manualTargetVal : budgetDerivedTarget;
         const fireProgress = fireTarget > 0 ? Math.min(100, (holisticMetrics.netWorth / fireTarget) * 100) : 0;
         
         // Sustainability Check
         const isUnderfunded = useManualTarget && manualTargetVal < budgetDerivedTarget;
         
-        // Calculate Time to FIRE
-        const monthlySavings = Math.max(0, (holisticMetrics.income30 - holisticMetrics.spend30));
+        // Calculate Time to FIRE (Always use latest income/spend truth)
+        const monthlySavings = Math.max(0, (holisticMetrics.incomeLatest - holisticMetrics.spendLatest));
         const currentCapital = holisticMetrics.netWorth;
         const monthlyRate = (fireExpectedReturn / 100) / 12;
         
@@ -1640,7 +1681,7 @@ export function DashboardContent() {
           </div>
         );
 
-      case "budgets_short":
+      case "consumption_targets":
         return (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="h-1 bg-indigo-600 w-full" />
@@ -1751,16 +1792,54 @@ export function DashboardContent() {
   if (!isAuthenticated && !isLoadingAuth && !isLoading) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900">
+    <div className="min-h-screen bg-white pb-20 font-sans text-slate-900">
       {/* Top Section: Net Worth Hero */}
-      <section className="bg-white border-b border-slate-200 pt-10 shadow-sm mb-10 overflow-hidden relative">
+      <section className="border-b border-slate-900/5 pt-10 mb-10 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500" />
-        <div className="max-w-[1550px] mx-auto px-6 sm:px-10 pb-12 relative z-10">
+        <div className="max-w-full mx-auto px-6 sm:px-16 pb-12 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
             <div className="flex-1 space-y-10">
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-indigo-500/10 rounded-full text-[10px] font-black tracking-widest text-indigo-600 border border-indigo-500/20 uppercase">Treasury Command</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-indigo-500/10 rounded-full text-[10px] font-black tracking-widest text-indigo-600 border border-indigo-500/20 uppercase">Treasury Command</span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-4 text-slate-900 border border-slate-200 shadow-sm min-w-[200px]">
+                    <p className="text-[8px] uppercase font-black tracking-[0.2em] text-slate-400 mb-2">Selected Time Horizon</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="flex items-center justify-between w-full group py-1 border-b border-slate-100 hover:border-slate-300 transition-all">
+                          <span className="text-sm font-bold text-slate-800 tracking-tight">{selectedPeriod}</span>
+                          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="end">
+                        <div className="grid grid-cols-3 bg-white">
+                          {[
+                            { title: "NOW", items: ["This Week", "This Month", "This Quarter", "This Year", "This Financial", "Custom Range"] },
+                            { title: "PAST", items: ["Last Week", "Last Month", "Last Quarter", "Last Year", "Last Financial"] },
+                            { title: "ROLL BACK", items: ["Rolling Week", "Rolling Month", "Rolling Quarter", "Rolling Year"] }
+                          ].map((section, idx) => (
+                            <div key={idx} className={`p-4 ${idx < 2 ? 'border-r border-slate-100' : ''}`}>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{section.title}</p>
+                              <div className="space-y-1">
+                                {section.items.map((item) => (
+                                  <button 
+                                    key={item} 
+                                    onClick={() => setSelectedPeriod(item)}
+                                    className={`w-full text-left px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedPeriod === item ? 'bg-[#00A381] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+                                  >
+                                    {item}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <h1 className="text-5xl sm:text-7xl font-black text-slate-900 tracking-tighter leading-none">
                   {formatCurrencyShort(holisticMetrics.netWorth)}
@@ -1810,51 +1889,11 @@ export function DashboardContent() {
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-6 h-full justify-between pb-2">
-              <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-xl shadow-slate-200 min-w-[200px]">
-                <p className="text-[8px] uppercase font-black tracking-[0.2em] text-slate-400 mb-2">Selected Time Horizon</p>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center justify-between w-full group py-1 border-b border-white/10 hover:border-white/30 transition-all">
-                      <span className="text-sm font-bold text-white tracking-tight">{selectedPeriod}</span>
-                      <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[450px] p-0 border-slate-200 shadow-2xl rounded-2xl overflow-hidden" align="end">
-                    <div className="grid grid-cols-3 bg-white">
-                      {[
-                        { title: "NOW", items: ["This Week", "This Month", "This Quarter", "This Year", "This Financial", "Custom Range"] },
-                        { title: "PAST", items: ["Last Week", "Last Month", "Last Quarter", "Last Year", "Last Financial"] },
-                        { title: "ROLL BACK", items: ["Rolling Week", "Rolling Month", "Rolling Quarter", "Rolling Year"] }
-                      ].map((section, idx) => (
-                        <div key={idx} className={`p-4 ${idx < 2 ? 'border-r border-slate-100' : ''}`}>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{section.title}</p>
-                          <div className="space-y-1">
-                            {section.items.map((item) => (
-                              <button 
-                                key={item} 
-                                onClick={() => setSelectedPeriod(item)}
-                                className={`w-full text-left px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedPeriod === item ? 'bg-[#00A381] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-                              >
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <div className="mt-3 flex items-center justify-end">
-                  <Settings className="w-4 h-4 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer" />
-                </div>
-              </div>
-            </div>
           </div>
           
-              <div className="w-full flex-1 flex flex-col mt-8 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="w-full flex-1 flex flex-col mt-8 border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-xl shadow-slate-200/40">
             
-            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-5 border-b border-slate-50 bg-slate-50/30 gap-4">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-purple-600" />
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">Spending Performance: {selectedPeriod}</p>
@@ -1986,7 +2025,7 @@ export function DashboardContent() {
         </div>
       </section>
 
-      <div className="max-w-[1550px] mx-auto px-6 sm:px-10">
+      <div className="max-w-full mx-auto px-6 sm:px-16">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {Object.entries(columns).map(([colId, panelIds]) => (

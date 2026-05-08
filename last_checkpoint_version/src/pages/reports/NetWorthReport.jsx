@@ -12,7 +12,8 @@ import {
   Target,
   X,
   ArrowRightLeft,
-  Download
+  Download,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -59,9 +60,10 @@ export default function NetWorthReport() {
   // Load from Production DB
   useEffect(() => {
     async function load() {
+      const monthContext = format(selectedDate, 'yyyy-MM');
       const [rawAccounts, portfolioSnapshots] = await Promise.all([
-        getDatabaseTable("user_accounts"),
-        getDatabaseTable("portfolio_holdings")
+        getDatabaseTable("user_accounts", { month: monthContext }),
+        getDatabaseTable("portfolio_holdings", { month: monthContext })
       ]);
 
       // Deduplicate accounts by id
@@ -87,7 +89,8 @@ export default function NetWorthReport() {
           name: s.label || s.name,
           category: s.asset_class === 'property' ? 'Property' : 'Investments',
           type: 'asset',
-          value: Number(s.current_value)
+          value: Number(s.current_value),
+          mortgage: Number(s.mortgage_amount || 0)
         }));
         merged = [...merged, ...converted];
       }
@@ -98,7 +101,7 @@ export default function NetWorthReport() {
       setAllTransactions(ledger);
     }
     load();
-  }, [getDatabaseTable, getProductionLedger]);
+  }, [getDatabaseTable, getProductionLedger, selectedDate]);
 
   // Unified Save
   const saveAccounts = async (updated) => {
@@ -134,6 +137,20 @@ export default function NetWorthReport() {
     }
   };
 
+  const handleDeleteAccount = async (accountId) => {
+    if (!window.confirm("Are you sure you want to delete this account? This will remove it from all monthly snapshots.")) return;
+    
+    const loadingToast = toast.loading("Deleting account...");
+    const result = await base44.db.deleteRow("user_accounts", accountId);
+
+    if (result && !result.error) {
+      setAccounts(accounts.filter(a => a.id !== accountId));
+      toast.success("Account deleted successfully", { id: loadingToast });
+    } else {
+      toast.error("Failed to delete account", { id: loadingToast });
+    }
+  };
+
   // Temporal Logic: Calculate Cumulative Surplus up to Selected Month
   const cumulativeSurplus = useMemo(() => {
     const endOfSelected = endOfMonth(selectedDate);
@@ -153,15 +170,19 @@ export default function NetWorthReport() {
         const baseVal = Number(a.value || a.base_balance || 0);
         return { ...a, value: baseVal + cumulativeSurplus };
       }
-      return { ...a, value: Number(a.value || a.base_balance || 0) };
+      return { ...a, value: Number(a.value || a.base_balance || 0), mortgage: Number(a.mortgage || 0) };
     });
   }, [accounts, cumulativeSurplus]);
+
+  const portfolioMortgages = useMemo(() => {
+    return temporalAccounts.reduce((sum, a) => sum + (Number(a.mortgage) || 0), 0);
+  }, [temporalAccounts]);
 
   const assets = temporalAccounts.filter(a => a.type === 'asset');
   const debts = temporalAccounts.filter(a => a.type === 'debt');
   
   const totalAssets = assets.reduce((s, a) => s + Math.abs(a.value || 0), 0);
-  const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0);
+  const totalDebts = debts.reduce((s, d) => s + Math.abs(d.value || 0), 0) + portfolioMortgages;
   const netWorth = totalAssets - totalDebts;
 
   const handleExportPDF = async () => {
@@ -203,42 +224,47 @@ export default function NetWorthReport() {
     <div id="networth-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden relative">
       {!isPaidUser && <PremiumOverlay featureName="Net Worth Intelligence" />}
       {/* Premium Header */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
-        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between">
+      <div className="w-full px-2 pt-4 pb-2 bg-white z-20">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
                <Building2 className="w-6 h-6 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Net Worth Breakdown</h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Net Worth Breakdown</h1>
             </div>
             
             <div className="flex items-center gap-6">
-               <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors">
-                      <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
-                      {format(selectedDate, "MMMM yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(d) => d && setSelectedDate(d)}
-                      initialFocus
-                      className="text-white"
-                    />
-                  </PopoverContent>
-               </Popover>
-               
-               <div className="flex items-center border border-slate-700 rounded-xl bg-slate-800 overflow-hidden shadow-inner">
-                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 border-r border-slate-700 transition-all"><ChevronLeft className="w-4 h-4" /></button>
-                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ChevronRight className="w-4 h-4" /></button>
-               </div>
+                <div className="flex items-center border border-slate-100 rounded-xl bg-slate-50 overflow-hidden shadow-sm h-10">
+                  <button onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-100 transition-all h-full">
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="px-4 text-[10px] font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-100 transition-all h-full border-r border-slate-100 flex items-center gap-2">
+                        <CalendarIcon className="w-3.5 h-3.5 text-[#C5A059]" />
+                        {format(selectedDate, "MMM yyyy")}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(d) => d && setSelectedDate(d)}
+                        initialFocus
+                        className="bg-white"
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <button onClick={() => setSelectedDate(addMonths(selectedDate, 1))} className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all h-full">
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
 
                <Button 
                   onClick={handleExportPDF}
                   variant="outline" 
-                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+                  className="bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
                >
                  <Download className="w-4 h-4 text-[#C5A059]" />
                  Export
@@ -248,37 +274,37 @@ export default function NetWorthReport() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-12 pt-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-2">
+        <div className="max-w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Analysis View (Left Card) */}
-          <div className="lg:col-span-4 bg-[#E0E7FF] border border-slate-200 rounded-[32px] p-10 flex flex-col items-center shadow-lg relative overflow-hidden min-h-[600px]">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/50 rounded-full -mr-12 -mt-12 blur-3xl opacity-50" />
+           {/* Analysis View (Left Card) */}
+          <div className="lg:col-span-4 bg-white border border-slate-100 rounded-[32px] p-10 flex flex-col items-center shadow-xl relative overflow-hidden min-h-[600px]">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-12 -mt-12 blur-3xl opacity-50" />
              
-             <div className="flex items-center bg-white/50 backdrop-blur-sm rounded-xl p-1 mb-8 self-center shadow-sm border border-white/50">
+             <div className="flex items-center bg-slate-50 rounded-xl p-1 mb-8 self-center shadow-sm border border-slate-100">
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('assets')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'assets' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'assets' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Assets</Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('networth')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'networth' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'networth' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Net Worth</Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setViewMode('debt')}
-                  className={cn("text-[10px] font-medium uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'debt' ? "bg-[#4338CA] text-white shadow-md rounded-lg" : "text-slate-500")}
+                  className={cn("text-[10px] font-bold uppercase tracking-widest px-6 h-8 transition-all", viewMode === 'debt' ? "bg-slate-900 text-white shadow-md rounded-lg" : "text-slate-400")}
                 >Debt</Button>
              </div>
 
              <div className="text-center mb-8 relative z-10">
-                <p className="text-[10px] font-medium text-indigo-600 uppercase tracking-[0.2em] mb-1">{viewMode.toUpperCase()}</p>
-                <p className="text-4xl font-medium text-slate-900 tracking-tight">{formatCurrency(displayValue)}</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em] mb-1">{viewMode.toUpperCase()}</p>
+                <p className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(displayValue)}</p>
              </div>
 
              <div className="w-full h-[280px] mb-8 relative">
@@ -300,17 +326,18 @@ export default function NetWorthReport() {
                         })}
                       </Pie>
                       <Tooltip 
-                        position={{ x: 10, y: -20 }}
+                        allowEscapeViewBox={{ x: true, y: true }}
+                        offset={20}
                         contentStyle={{ 
                           backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                          border: '1px solid #E2E8F0', 
+                          border: '1px solid #F1F5F9', 
                           borderRadius: '16px', 
                           padding: '12px 16px',
                           color: '#0F172A', 
-                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
                           backdropFilter: 'blur(8px)'
                         }}
-                        itemStyle={{ fontSize: '11px', fontWeight: 'medium', color: '#334155' }}
+                        itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                         formatter={(value) => formatCurrency(value)}
                       />
                    </PieChart>
@@ -363,7 +390,15 @@ export default function NetWorthReport() {
                                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{asset.category}</span>
                               </div>
                            </div>
-                           <span className="text-sm font-medium text-slate-800">{formatCurrency(asset.value)}</span>
+                           <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-slate-800">{formatCurrency(asset.value)}</span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAccount(asset.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all text-slate-300"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
                         </div>
                       </div>
                    ))}
@@ -434,10 +469,35 @@ export default function NetWorthReport() {
                                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{debt.category}</span>
                               </div>
                            </div>
-                           <span className="text-sm font-medium text-slate-800">({formatCurrency(debt.value)})</span>
+                           <div className="flex items-center gap-3">
+                              <span className="text-sm font-medium text-slate-800">({formatCurrency(debt.value)})</span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAccount(debt.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-all text-slate-300"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
                         </div>
                       </div>
                    ))}
+
+                   {portfolioMortgages > 0 && (
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg group transition-all">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-[#C5A059]">
+                                 <Building2 className="w-5 h-5" />
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-xs font-medium text-white">Portfolio Mortgages</span>
+                                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Secured Debt</span>
+                              </div>
+                           </div>
+                           <span className="text-sm font-medium text-white">({formatCurrency(portfolioMortgages)})</span>
+                        </div>
+                      </div>
+                   )}
 
                    <Dialog open={addMode === 'debt'} onOpenChange={(val) => setAddMode(val ? 'debt' : null)}>
                       <DialogTrigger asChild>

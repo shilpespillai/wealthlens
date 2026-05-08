@@ -25,7 +25,8 @@ import {
   BookOpen,
   Lock,
   Crown,
-  Trash2
+  Trash2,
+  Database
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import IntelligenceDialog from "../intelligence/IntelligenceDialog";
@@ -56,12 +57,12 @@ export default function Sidebar() {
   const [supportOpen, setSupportOpen] = React.useState(false);
 
   return (
-    <aside className="w-64 bg-[#111827] border-r border-white/5 flex flex-col h-screen overflow-y-auto shrink-0 z-10 transition-all">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen overflow-y-auto shrink-0 z-10 transition-all">
       {/* Sidebar Branding - Top Padding */}
       <div className="p-8 pb-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#C5A059] rounded-lg flex items-center justify-center text-[#111827] font-medium text-lg">W</div>
-          <span className="text-sm font-serif font-medium text-[#C5A059] tracking-tight italic">Wealth<span className="text-[#E5C48B]">Lens</span></span>
+          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-medium text-lg">W</div>
+          <span className="text-sm font-serif font-medium text-slate-900 tracking-tight italic">Wealth<span className="text-orange-600">Lens</span></span>
         </div>
       </div>
 
@@ -69,25 +70,25 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 space-y-2">
         {isAdmin ? (
           <>
-            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Command center</p>
+            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Command center</p>
             <Link 
               to="/AdminDashboard" 
-              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/AdminDashboard') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/AdminDashboard') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
             >
-              <LayoutDashboard className={`w-4 h-4 ${isActive('/AdminDashboard') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+              <LayoutDashboard className={`w-4 h-4 ${isActive('/AdminDashboard') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-700'}`} />
               <span className="text-xs font-medium uppercase tracking-widest">Global Analytics</span>
               {isActive('/AdminDashboard') && <div className="ml-auto w-1 h-4 bg-[#C5A059] rounded-full" />}
             </Link>
           </>
         ) : (
           <>
-            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Command center</p>
+            <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Command center</p>
             
             <Link 
               to="/Dashboard" 
-              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/Dashboard') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/Dashboard') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
             >
-              <LayoutDashboard className={`w-4 h-4 ${isActive('/Dashboard') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+              <LayoutDashboard className={`w-4 h-4 ${isActive('/Dashboard') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-700'}`} />
               <span className="text-xs font-medium uppercase tracking-widest">Dashboard</span>
               {isActive('/Dashboard') && <div className="ml-auto w-1 h-4 bg-[#C5A059] rounded-full" />}
             </Link>
@@ -96,9 +97,9 @@ export default function Sidebar() {
             <div className="space-y-1">
               <div 
                 onClick={() => setCalculatorOpen(!calculatorOpen)}
-                className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${location.pathname === '/Calculator' ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${location.pathname === '/Calculator' ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
               >
-                <Calculator className={`w-4 h-4 ${location.pathname === '/Calculator' ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                <Calculator className={`w-4 h-4 ${location.pathname === '/Calculator' ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-700'}`} />
                 <span className="text-xs font-medium uppercase tracking-widest">Calculator</span>
                 <Menu className={`ml-auto w-3 h-3 transition-transform ${calculatorOpen ? 'rotate-90' : ''}`} />
               </div>
@@ -107,22 +108,21 @@ export default function Sidebar() {
                 <div className="ml-4 pl-4 border-l border-white/5 space-y-1 mt-1 animate-in slide-in-from-top-2 duration-200">
                   <Link 
                     to="/Calculator" 
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Calculator') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Calculator') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                   >
                     Overview
                   </Link>
                   
                   <div className="pt-2 pb-1 px-4">
-                    <p className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em]">Analysis Suite</p>
+                    <p className="text-[8px] font-medium text-slate-400 uppercase tracking-[0.2em]">Analysis Suite</p>
                   </div>
 
                   {[
                     { id: "coach", label: "AI Coach", icon: Sparkles },
-                    { id: "pillars", label: "8-Pillars", icon: BarChart3 },
                     { id: "fairvalue", label: "Fair Value", icon: Target },
                     { id: "retirement", label: "Retirement", icon: Palmtree },
                     { id: "chart", label: "Growth Chart", icon: LineChart },
-                    { id: "market", label: "Market analysis", icon: TrendingUp },
+                    { id: 'maintenance', label: 'Data Management Hub', icon: Database, path: '/maintenance' },
                     { id: "tax", label: "Tax Strategies", icon: Shield },
                     { id: "scenarios", label: "Scenarios", icon: Layers },
                     { id: "table", label: "Breakdown", icon: Table2 },
@@ -132,7 +132,7 @@ export default function Sidebar() {
                       <Link 
                         key={item.id}
                         to={isPaidUser ? `/Calculator?tab=${item.id}` : "#"} 
-                        className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Calculator', item.id) ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                        className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Calculator', item.id) ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                         onClick={(e) => {
                           if (!isPaidUser) {
                             e.preventDefault();
@@ -151,9 +151,9 @@ export default function Sidebar() {
             
             <Link 
               to="/Portfolio" 
-              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/Portfolio') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/Portfolio') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
             >
-              <Wallet className={`w-4 h-4 ${isActive('/Portfolio') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+              <Wallet className={`w-4 h-4 ${isActive('/Portfolio') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-700'}`} />
               <span className="text-xs font-medium uppercase tracking-widest">Portfolio</span>
               {isActive('/Portfolio') && <div className="ml-auto w-1 h-4 bg-[#C5A059] rounded-full" />}
             </Link>
@@ -161,9 +161,9 @@ export default function Sidebar() {
             <div className="space-y-1">
               <div 
                 onClick={() => setFamilyBudgetOpen(!familyBudgetOpen)}
-                className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${isActive('/FamilyBudget') || isActive('/SetBudget') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${isActive('/FamilyBudget') || isActive('/SetBudget') ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'}`}
               >
-                <LineChart className={`w-4 h-4 ${isActive('/FamilyBudget') || isActive('/SetBudget') ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                <LineChart className={`w-4 h-4 ${isActive('/FamilyBudget') || isActive('/SetBudget') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-slate-700'}`} />
                 <span className="text-xs font-medium uppercase tracking-widest">Family Budget</span>
                 <Menu className={`ml-auto w-3 h-3 transition-transform ${familyBudgetOpen ? 'rotate-90' : ''}`} />
               </div>
@@ -172,25 +172,25 @@ export default function Sidebar() {
                 <div className="ml-4 pl-4 border-l border-white/5 space-y-1 mt-1 animate-in slide-in-from-top-2 duration-200">
                   <Link 
                     to="/FamilyBudget" 
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/FamilyBudget') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/FamilyBudget') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                   >
                     Overview
                   </Link>
                   <Link 
                     to="/SetBudget" 
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/SetBudget') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/SetBudget') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                   >
                     Set Budget
                   </Link>
                   <Link 
                     to="/BudgetCalendar" 
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/BudgetCalendar') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/BudgetCalendar') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                   >
                     Calendar
                   </Link>
                   <Link 
                     to="/Transactions" 
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Transactions') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-[10px] font-medium uppercase tracking-widest transition-all ${isActive('/Transactions') ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-900/5'}`}
                   >
                     Transactions
                   </Link>
@@ -200,7 +200,7 @@ export default function Sidebar() {
 
             {/* Intelligence Reports Section */}
             <div className="pt-8">
-              <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence Reports</p>
+              <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Intelligence Reports</p>
               <div className="space-y-1">
                 {[
                   { to: "/reports/IncomeExpense", icon: BarChart3, label: "Income & Expense" },
@@ -221,11 +221,11 @@ export default function Sidebar() {
                         });
                       }
                     }}
-                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive(item.to) ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive(item.to) ? 'bg-[#C5A059]/10 text-[#C5A059]' : 'text-slate-500 hover:text-slate-900 hover:bg-[#C5A059]/5'}`}
                   >
-                    <item.icon className={`w-3.5 h-3.5 ${isActive(item.to) ? 'text-[#C5A059]' : 'text-gray-500 group-hover:text-gray-400'}`} />
+                    <item.icon className={`w-3.5 h-3.5 ${isActive(item.to) ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
                     <span className="text-[10px] font-medium uppercase tracking-widest">{item.label}</span>
-                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
+                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
                   </Link>
                 ))}
               </div>
@@ -237,77 +237,71 @@ export default function Sidebar() {
       {/* Systems Section (Visible to all) */}
       <nav className="px-4 space-y-1">
         <div className="pt-8">
-          <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-gray-500 mb-4">Intelligence</p>
+          <p className="px-4 text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 mb-4">Intelligence</p>
           <div className="space-y-1">
-              <Link 
-                 to="/PrivacyProtocol"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+              {!isAdmin && (
+                <>
+                  <Link 
+                     to="/PrivacyProtocol"
+                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 ${isActive('/PrivacyProtocol') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
+                  >
+                     <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-slate-400 group-hover:text-[#C5A059]'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
+                  </Link>
+
+                  <Link 
+                     to="/DataMaintenance"
+                     className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
+                  >
+                     <Database className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                     <span className="text-[10px] font-medium uppercase tracking-widest">Data Management Hub</span>
+                  </Link>
+                </>
+              )}
+
+              <div 
+                 onClick={() => {
+                    if (isPaidUser || isAdmin) {
+                      setIntelOpen(true);
+                    } else {
+                      toast.error("Pro Feature", {
+                        description: "Configuring the AI Brain is reserved for Pro members."
+                      });
+                    }
+                 }}
+                 className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
               >
-                 <Shield className={`w-4 h-4 ${isActive('/PrivacyProtocol') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Privacy Protocol</span>
-              </Link>
+                 <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
+                 <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
+                 {!isPaidUser && !isAdmin && <Lock className="ml-auto w-2.5 h-2.5 text-slate-400" />}
+              </div>
 
-              <Link 
-                 to="/HelpCenter"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/HelpCenter') ? 'bg-[#C5A059]/10 text-[#C5A059]' : ''}`}
-              >
-                 <BookOpen className={`w-4 h-4 ${isActive('/HelpCenter') ? 'text-[#C5A059]' : 'text-gray-600 group-hover:text-gray-400'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Documentation</span>
-              </Link>
-
-              <Link 
-                 to="/DataMaintenance"
-                 className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-400' : ''}`}
-              >
-                 <Trash2 className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-400' : 'text-gray-600 group-hover:text-gray-400'}`} />
-                 <span className="text-[10px] font-medium uppercase tracking-widest">Maintenance Hub</span>
-              </Link>
-
-             {!isAdmin && (
-               <>
-                 <div 
-                    onClick={() => {
-                       if (isPaidUser) {
-                         setIntelOpen(true);
-                       } else {
-                         toast.error("Pro Feature", {
-                           description: "Configuring the AI Brain is reserved for Pro members."
-                         });
-                       }
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
-                 >
-                    <Sparkles className="w-4 h-4 text-gray-600 group-hover:text-indigo-400" />
-                    <span className="text-[10px] font-medium uppercase tracking-widest">Configure Brain</span>
-                    {!isPaidUser && <Lock className="ml-auto w-2.5 h-2.5 text-gray-700" />}
-                 </div>
-
-                 <div 
-                    onClick={() => setSupportOpen(true)}
-                    className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5"
-                 >
-                    <HelpCircle className="w-4 h-4 text-gray-600 group-hover:text-emerald-400" />
-                    <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
-                 </div>
-               </>
-             )}
+              {!isAdmin && (
+                <div 
+                   onClick={() => setSupportOpen(true)}
+                   className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5"
+                >
+                   <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
+                   <span className="text-[10px] font-medium uppercase tracking-widest">Direct Support</span>
+                </div>
+              )}
              
              {isAdmin && (
                 <Link 
                    to="/AdminSettings"
-                   className={`flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white cursor-pointer group rounded-xl transition-all hover:bg-white/5 ${isActive('/AdminSettings') ? 'bg-indigo-500/10 text-indigo-400' : ''}`}
+                   className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/AdminSettings') ? 'bg-amber-500/10 text-amber-600' : ''}`}
                 >
-                   <Settings className={`w-4 h-4 ${isActive('/AdminSettings') ? 'text-indigo-400' : 'text-gray-600 group-hover:text-gray-400'}`} />
-                   <span className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Control</span>
+                   <Settings className={`w-4 h-4 ${isActive('/AdminSettings') ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                   <span className="text-[10px] font-medium uppercase tracking-widest">Admin Control</span>
                 </Link>
              )}
 
              {isAuthenticated && (
                 <div 
                   onClick={() => logout()}
-                  className="flex items-center gap-3 px-4 py-3 text-[#C5A059]/80 hover:text-[#C5A059] cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 border border-transparent hover:border-[#C5A059]/10"
+                  className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-[#C5A059] cursor-pointer group rounded-xl transition-all hover:bg-[#C5A059]/5 border border-transparent hover:border-[#C5A059]/10"
                 >
-                  <LogOut className="w-4 h-4 text-[#C5A059]/60 group-hover:text-[#C5A059]" />
+                  <LogOut className="w-4 h-4 text-slate-400 group-hover:text-[#C5A059]" />
                   <span className="text-[10px] font-medium uppercase tracking-widest leading-none">Terminal Exit</span>
                 </div>
              )}
@@ -316,13 +310,13 @@ export default function Sidebar() {
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-6 border-t border-white/5 bg-black/20 mt-auto">
+      <div className="p-6 border-t border-slate-100 bg-white mt-auto">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C5A059] to-[#E5C48B] flex items-center justify-center text-[10px] font-medium text-[#111827]">
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : (user?.email?.[0] || 'U')}
           </div>
           <div>
-            <p className="text-[10px] font-medium text-white uppercase tracking-widest truncate max-w-[120px] flex items-center gap-1.5">
+            <p className="text-[10px] font-bold text-[#C5A059] uppercase tracking-widest truncate max-w-[120px] flex items-center gap-1.5">
               {user?.full_name || user?.email?.split('@')[0] || "User"}
               {(isPaidUser || isAdmin) && <Crown className="w-2.5 h-2.5 text-[#C5A059] fill-[#C5A059]/20" />}
             </p>

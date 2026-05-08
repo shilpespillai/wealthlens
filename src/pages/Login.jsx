@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Loader2, ShieldCheck, TrendingUp, Zap, Lock, Sparkles, Globe, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
 
 export default function Login() {
   const [isConnecting, setIsConnecting] = useState(null);
@@ -15,6 +17,8 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [honeypot, setHoneypot] = useState(""); // Bot protection (Honeypot)
+  const [launchCode, setLaunchCode] = useState("");
+  const { activateLaunchPass } = useAuth();
 
   const getRedirectUrl = () => {
     const params = new URLSearchParams(window.location.search);
@@ -52,6 +56,31 @@ export default function Login() {
     if (!email || !password) return;
     setIsConnecting('signin');
     setError(null);
+
+    // Optional: Validate Launch Code if provided
+    if (launchCode) {
+      try {
+        const config = await base44.user.loadData('wl_public_launch_config');
+        if (config && config.code) {
+          const isExpired = config.expiry && new Date(config.expiry) < new Date();
+          if (isExpired) {
+            setError("Launch Access Period has ended. Standard authentication required.");
+            setIsConnecting(null);
+            return;
+          }
+          if (launchCode.toUpperCase() === config.code.toUpperCase()) {
+            activateLaunchPass();
+          } else {
+            setError("Invalid Launch Access Code. Please verify your credentials.");
+            setIsConnecting(null);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Launch code validation error:", err);
+      }
+    }
+
     if (isSupabaseEnabled) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setError(error.message); setIsConnecting(null); return; }
@@ -70,6 +99,31 @@ export default function Login() {
     if (!email || !password) return;
     setIsConnecting('signup');
     setError(null);
+
+    // Optional: Validate Launch Code if provided
+    if (launchCode) {
+      try {
+        const config = await base44.user.loadData('wl_public_launch_config');
+        if (config && config.code) {
+          const isExpired = config.expiry && new Date(config.expiry) < new Date();
+          if (isExpired) {
+            setError("Launch Access Period has ended. Standard activation required.");
+            setIsConnecting(null);
+            return;
+          }
+          if (launchCode.toUpperCase() === config.code.toUpperCase()) {
+            activateLaunchPass();
+          } else {
+            setError("Invalid Launch Access Code. Please verify your credentials.");
+            setIsConnecting(null);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Launch code validation error:", err);
+      }
+    }
+
     if (isSupabaseEnabled) {
       const { error } = await supabase.auth.signUp({
         email, password,
@@ -243,6 +297,19 @@ export default function Login() {
                     minLength={6}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between ml-2">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Launch Access Code (Optional)</label>
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="E.G. WEALTH2026" 
+                    value={launchCode} 
+                    onChange={e => setLaunchCode(e.target.value.toUpperCase())}
+                    className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-900 placeholder-slate-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all text-xs font-black tracking-widest"
                   />
                 </div>
 

@@ -22,7 +22,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialParser } from "@/hooks/useFinancialParser";
+import { useCategories } from "@/hooks/useCategories";
 import { base44 } from "@/api/base44Client";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isSameMonth, subMonths, eachDayOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -33,31 +35,60 @@ import { generateManualPdf } from "@/utils/generateManualPdf";
 
 const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
-// Mock Budget Data (Institutional Defaults)
-const CATEGORY_BUDGETS = {
-  "Salary and Wages": 5500,
-  "Household": 1850,
-  "Food": 600,
-  "Entertainment": 1500,
-  "Fuel / Gas": 120,
-  "Healthcare": 210,
-  "All categories": 2500
-};
-
 // Mock generation removed per user request for production data integrity.
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl space-y-3 min-w-[200px]">
+        <p className="font-bold text-slate-800 border-b border-slate-100 pb-2 text-xs uppercase tracking-widest">{label}</p>
+        
+        <div className="space-y-2">
+          {payload.map((entry, index) => {
+            if (!entry.value || entry.value === 0 || entry.dataKey === 'budgeted') return null;
+            return (
+              <div key={index} className="flex justify-between items-center gap-6 text-xs">
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                   <span className="text-slate-500 font-medium capitalize">{entry.name}</span>
+                </div>
+                <span className="font-bold text-slate-700">
+                   {formatCurrency(entry.value)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-slate-100 pt-2 space-y-1">
+           <div className="flex justify-between items-center gap-6 text-xs">
+              <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Budgeted</span>
+              <span className="font-black text-[#4C1D95]">{formatCurrency(data.budgeted)}</span>
+           </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function TrendsReport() {
   const { isPaidUser } = useAuth();
   const { formatAmount, getProductionLedger } = useFinancialParser();
+  const { categories } = useCategories({ global: true });
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState("All categories");
   const [showType, setShowType] = useState('expense'); // expense or income
   const [isBurndownOpen, setIsBurndownOpen] = useState(false);
-  
   const [dateRange, setDateRange] = useState({
     from: subMonths(new Date(), 6),
     to: new Date()
   });
+
+  const categoryNames = useMemo(() => {
+    return ["All categories", ...categories.map(c => c.name).sort()];
+  }, [categories]);
 
   const [allTransactions, setAllTransactions] = useState([]);
   const [dbBudgets, setDbBudgets] = useState({}); // { '2026-01': payload, ... }
@@ -71,12 +102,13 @@ export default function TrendsReport() {
 
   const activeInterval = useMemo(() => {
     try {
-      if (!dateRange.from || !dateRange.to) return [new Date(2026, 4, 1)];
+      if (!dateRange || !dateRange.from || !dateRange.to) return [new Date()];
       return eachMonthOfInterval({ start: dateRange.from, end: dateRange.to });
     } catch (e) {
-      return [new Date(2026, 4, 1)];
+      return [new Date()];
     }
   }, [dateRange]);
+
 
   useEffect(() => {
     async function load() {
@@ -120,7 +152,7 @@ export default function TrendsReport() {
       const monthBudgetPayload = dbBudgets[monthKey];
       
       let actual = 0;
-      let budgeted = CATEGORY_BUDGETS[selectedCategory] || 2500;
+      let budgeted = selectedCategory === "All categories" ? 2500 : 0;
 
       // Try to find the real budget from DB first
       if (monthBudgetPayload) {
@@ -159,17 +191,15 @@ export default function TrendsReport() {
       const overspent = isPending ? 0 : Math.max(0, actual - budgeted);
       const saved = isPending ? 0 : Math.max(0, budgeted - actual);
       const pending = isPending ? budgeted : 0;
-      const spent = 0; // Removed hardcoded 'Nov' start segment for production accuracy
 
       return {
-        month: format(month, "MMM d"),
-        within,
-        overspent,
-        saved,
-        pending,
-        spent,
-        budgeted,
-        totalActual: actual
+        month: format(month, "MMM yyyy"),
+        within: Math.round(within * 100) / 100,
+        overspent: Math.round(overspent * 100) / 100,
+        saved: Math.round(saved * 100) / 100,
+        pending: Math.round(pending * 100) / 100,
+        budgeted: Math.round(budgeted * 100) / 100,
+        totalActual: Math.round(actual * 100) / 100
       };
     });
   }, [allTransactions, activeInterval, selectedCategory, showType, dbBudgets]);
@@ -191,86 +221,98 @@ export default function TrendsReport() {
   }, [chartData]);
 
   const burndownData = useMemo(() => {
-    // Sync with the end of the selected date range for the burndown view
-    const refMonth = dateRange.to || new Date(2026, 4, 1);
-    const start = startOfMonth(refMonth);
-    const end = endOfMonth(refMonth);
-    const days = eachDayOfInterval({ start, end });
-    const monthKey = format(start, "yyyy-MM");
-    const monthBudgetPayload = dbBudgets[monthKey];
-    
-    let budget = CATEGORY_BUDGETS[selectedCategory] || (showType === 'income' ? 5500 : 2800);
-    
-    if (monthBudgetPayload) {
-      if (selectedCategory === "All categories") {
-        const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
-        if (budgetsArray) {
-          budget = budgetsArray.reduce((sum, b) => sum + (Number(b.monthly_target) || 0), 0);
-        }
-      } else {
-        const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
-        const found = flatBudgets.find(b => 
-          String(b.category || "") === String(selectedCategory || "") || 
-          String(b.id || "") === String(selectedCategory || "")
-        );
-        if (found) {
-          budget = Number(found.monthly_target) || 0;
+    // 1. Calculate total budget across the entire activeInterval
+    let totalBudget = 0;
+    const monthlyBudgets = activeInterval.map(month => {
+      const monthKey = format(month, "yyyy-MM");
+      const monthBudgetPayload = dbBudgets[monthKey];
+      let b = selectedCategory === "All categories" ? (showType === 'income' ? 5500 : 2800) : 0;
+      
+      if (monthBudgetPayload) {
+        if (selectedCategory === "All categories") {
+          const budgetsArray = showType === 'income' ? monthBudgetPayload.incomes : monthBudgetPayload.expenses;
+          if (budgetsArray) {
+            b = budgetsArray.reduce((sum, item) => sum + (Number(item.monthly_target) || 0), 0);
+          }
+        } else {
+          const flatBudgets = [...(monthBudgetPayload.incomes || []), ...(monthBudgetPayload.expenses || [])];
+          const found = flatBudgets.find(item => 
+            String(item.category || "") === String(selectedCategory || "") || 
+            String(item.id || "") === String(selectedCategory || "")
+          );
+          if (found) {
+            b = Number(found.monthly_target) || 0;
+          }
         }
       }
-    }
-    
-    // Filter transactions for the selected category in the reference month
-    const monthTxs = allTransactions.filter(t => {
-      const d = new Date(t.date || t.actualDate);
-      const categoryMatch = selectedCategory === "All categories" 
-        ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
-        : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
-      return isSameMonth(d, start) && categoryMatch;
+      totalBudget += b;
+      return { month, budget: b };
     });
 
+    // 2. Map over each month to calculate cumulative spend and ideal burndown
     let cumulativeSpend = 0;
-    return days.map((day, idx) => {
-      const daySpend = monthTxs
-        .filter(t => format(new Date(t.date || t.actualDate), "d") === format(day, "d"))
-        .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-      
-      cumulativeSpend += daySpend;
-      
-      return {
-        day: format(day, "d"),
-        remaining: Math.max(0, budget - cumulativeSpend),
-        ideal: budget - (idx * (budget / (days.length - 1)))
-      };
+    let idealRemaining = totalBudget;
+    
+    // We want to show a data point for the "Start" (before any spend) to make the chart look like a true burndown.
+    const result = [];
+    result.push({
+      day: "Start",
+      remaining: totalBudget,
+      ideal: totalBudget
     });
-  }, [allTransactions, selectedCategory, dateRange, showType, dbBudgets]);
+
+    activeInterval.forEach((month, idx) => {
+      const monthTxs = allTransactions.filter(t => {
+        const d = new Date(t.date || t.actualDate);
+        const categoryMatch = selectedCategory === "All categories" 
+          ? (showType === 'income' ? (t.type === 'income' || t.spendType === 'income') : (t.type === 'expense' || t.spendType === 'expense'))
+          : (String(t.category || "")).toLowerCase() === String(selectedCategory || "").toLowerCase();
+        return isSameMonth(d, month) && categoryMatch;
+      });
+
+      const monthSpend = monthTxs.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+      cumulativeSpend += monthSpend;
+      
+      const currentMonthBudget = monthlyBudgets[idx].budget;
+      idealRemaining -= currentMonthBudget;
+
+      result.push({
+        day: format(month, "MMM ''yy"),
+        remaining: Math.round(Math.max(0, totalBudget - cumulativeSpend) * 100) / 100,
+        ideal: Math.round(idealRemaining * 100) / 100
+      });
+    });
+    
+    return result;
+  }, [allTransactions, activeInterval, selectedCategory, showType, dbBudgets]);
 
   return (
     <div id="trends-export-area" className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden text-slate-900 relative">
       {!isPaidUser && <PremiumOverlay featureName="Historical Trend Intelligence" />}
       {/* Premium Header */}
-      <div className="w-full px-6 pt-4 pb-2 bg-white z-20">
-        <div className="bg-[#1E293B] rounded-3xl shadow-xl overflow-hidden border border-slate-700/30">
-          <div className="px-8 py-5 flex items-center justify-between">
+      <div className="w-full px-2 pt-4 pb-2 bg-white z-20">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
                <TrendsIcon className="w-5 h-5 text-[#C5A059]" />
-               <h1 className="text-xl font-medium text-white tracking-tight">Trends <span className="text-slate-500 font-normal px-2">›</span> <span className="text-[#C5A059]">{selectedCategory}</span></h1>
+               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Trends <span className="text-slate-300 font-normal px-2">›</span> <span className="text-[#C5A059]">{selectedCategory}</span></h1>
             </div>
             <div className="flex items-center gap-6">
                 
                <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-5 rounded-xl gap-3 text-xs font-medium uppercase tracking-widest transition-all">
+                    <Button variant="outline" className="bg-slate-50 border-slate-100 text-slate-900 hover:bg-slate-100 h-10 px-5 rounded-xl gap-3 text-[10px] font-bold uppercase tracking-widest transition-all shadow-sm">
                       <CalendarIcon className="w-4 h-4 text-[#C5A059]" />
                       {dateRange?.from ? (
-                        format(dateRange.from, "MMM dd, yyyy") + (dateRange.to ? ` - ${format(dateRange.to, "MMM dd, yyyy")}` : "")
+                        format(dateRange.from, "MMM yyyy") + (dateRange?.to ? ` - ${format(dateRange.to, "MMM yyyy")}` : "")
                       ) : "Pick date range"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-[#1E293B] border-slate-700 shadow-2xl overflow-hidden rounded-3xl" align="end">
+                  <PopoverContent className="w-auto p-0 bg-white border-slate-100 shadow-2xl overflow-hidden rounded-3xl" align="end">
                     <div className="flex h-[360px]">
                       {/* Presets Sidebar */}
-                      <div className="w-40 border-r border-slate-700/50 p-4 space-y-2 flex flex-col justify-center bg-black/20">
-                         <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 px-2">Cycle Presets</p>
+                      <div className="w-40 border-r border-slate-100 p-4 space-y-2 flex flex-col justify-center bg-slate-50">
+                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">Cycle Presets</p>
                          {[
                            { label: "Last 3 Months", get: () => ({ from: subMonths(new Date(), 3), to: new Date() }) },
                            { label: "Last 6 Months", get: () => ({ from: subMonths(new Date(), 6), to: new Date() }) },
@@ -284,25 +326,68 @@ export default function TrendsReport() {
                            <button 
                              key={p.label}
                              onClick={() => setDateRange(p.get())}
-                             className="w-full text-left px-3 py-2 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:bg-[#C5A059]/10 hover:text-[#C5A059] transition-all"
+                             className="w-full text-left px-3 py-2 rounded-lg text-[9px] font-bold text-slate-500 uppercase tracking-wider hover:bg-amber-600 hover:text-white transition-all"
                            >
                              {p.label}
                            </button>
                          ))}
                       </div>
-                      <div className="p-2">
-                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus className="text-white bg-transparent" />
+                      <div className="p-6 flex flex-col gap-6 justify-center w-64">
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Custom Range</p>
+                         <div className="space-y-4">
+                           <div>
+                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Start Month</label>
+                             <input 
+                               type="month" 
+                               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                               value={dateRange?.from ? format(dateRange.from, "yyyy-MM") : ""}
+                               onChange={(e) => {
+                                 const val = e.target.value;
+                                 if (val) {
+                                   const [y, m] = val.split('-');
+                                   setDateRange(prev => ({ ...prev, from: new Date(y, m - 1, 1) }));
+                                 }
+                               }}
+                             />
+                           </div>
+                           <div>
+                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">End Month</label>
+                             <input 
+                               type="month" 
+                               className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                               value={dateRange?.to ? format(dateRange.to, "yyyy-MM") : ""}
+                               onChange={(e) => {
+                                 const val = e.target.value;
+                                 if (val) {
+                                   const [y, m] = val.split('-');
+                                   setDateRange(prev => ({ ...prev, to: new Date(y, m - 1, 1) }));
+                                 }
+                               }}
+                             />
+                           </div>
+                         </div>
                       </div>
                     </div>
                   </PopoverContent>
                </Popover>
 
+               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                 <SelectTrigger className="w-[200px] h-10 bg-slate-50 border-slate-100 rounded-xl shadow-sm text-xs font-bold text-slate-700">
+                   <SelectValue placeholder="Select category" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {categoryNames.map(cat => (
+                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+
                {selectedCategory === "All categories" && (
                  <Button 
                    onClick={() => setShowType(prev => prev === 'expense' ? 'income' : 'expense')}
                    className={cn(
-                     "h-10 px-6 rounded-full text-[10px] font-medium uppercase tracking-widest transition-all shadow-lg",
-                     showType === 'expense' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-teal-500 hover:bg-teal-600 text-white"
+                     "h-10 px-6 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-md",
+                     showType === 'expense' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-emerald-500 hover:bg-emerald-600 text-white"
                    )}
                  >
                    Showing {showType.charAt(0).toUpperCase() + showType.slice(1)}
@@ -312,7 +397,7 @@ export default function TrendsReport() {
                <Button 
                   onClick={handleExportPDF}
                   variant="outline" 
-                  className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700 h-10 px-4 rounded-xl gap-2 text-xs font-medium uppercase tracking-widest transition-colors"
+                  className="bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100 h-10 px-4 rounded-xl gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
                >
                  <Download className="w-4 h-4 text-[#C5A059]" />
                  Export
@@ -323,37 +408,9 @@ export default function TrendsReport() {
       </div>
 
       <div className="flex flex-1 overflow-hidden bg-[#F8F9FB]">
-        {/* Category Sidebar */}
-        <aside className="w-80 bg-white border-r border-slate-200 overflow-y-auto p-8 space-y-8 shadow-sm transition-all hidden lg:block">
-           <div className="flex items-center justify-between bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-              <span className="text-xs font-medium text-slate-500 tracking-tight">Roll up budgets</span>
-              <Switch />
-           </div>
-
-           <div className="space-y-4">
-              <p className="text-[10px] uppercase font-medium tracking-[0.2em] text-slate-400 px-2">Categories</p>
-              <div className="space-y-1">
-                 {Object.keys(CATEGORY_BUDGETS).map((cat) => (
-                    <button 
-                      key={cat}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left group",
-                        selectedCategory === cat ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-500 hover:bg-slate-50'
-                      )}
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                       <div className={cn("w-1.5 h-1.5 rounded-full transition-all", selectedCategory === cat ? 'bg-indigo-500 scale-125' : 'bg-slate-300 group-hover:bg-slate-400')} />
-                       <span className="text-xs tracking-tight">{cat}</span>
-                       {selectedCategory === cat && <ChevronRight className="w-4 h-4 ml-auto text-indigo-400" />}
-                    </button>
-                 ))}
-              </div>
-           </div>
-        </aside>
-
         {/* Main Chart Area */}
-        <main className="flex-1 overflow-y-auto p-12 pt-6 bg-[#F8F9FB]">
-           <div className="max-w-6xl mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto p-2 bg-[#F8F9FB]">
+           <div className="max-w-full mx-auto space-y-8">
               
               <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                   {/* Large Chart Card */}
@@ -380,12 +437,7 @@ export default function TrendsReport() {
                                 tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }} 
                                 tickFormatter={(val) => `$${val/1000}k`}
                              />
-                             <Tooltip 
-                                contentStyle={{ backgroundColor: 'rgba(255,255,255,0.98)', border: '1px solid #E2E8F0', borderRadius: '16px', color: '#1E293B', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', backdropFilter: 'blur(12px)' }}
-                                cursor={{ fill: '#F8F9FB' }}
-                                itemStyle={{ fontSize: 11, fontWeight: 500 }}
-                             />
-                             <Bar dataKey="spent" stackId="a" fill="#7C3AED" radius={[4, 4, 0, 0]} barSize={40} />
+                             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F8F9FB' }} />
                              <Bar dataKey="within" stackId="a" fill="#3B82F6" barSize={40} />
                              <Bar dataKey="saved" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} barSize={40} />
                              <Bar dataKey="overspent" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} barSize={40} />
@@ -431,10 +483,6 @@ export default function TrendsReport() {
                                 <div className="w-3.5 h-3.5 bg-[#F43F5E] rounded-sm" />
                                 <span className="text-xs font-medium text-slate-600 tracking-tight">Overspent limit</span>
                              </div>
-                             <div className="flex items-center gap-3">
-                                <div className="w-3.5 h-3.5 bg-[#7C3AED] rounded-sm" />
-                                <span className="text-xs font-medium text-slate-600 tracking-tight">Total actual spend</span>
-                             </div>
                           </div>
                        </div>
 
@@ -465,22 +513,22 @@ export default function TrendsReport() {
                       className="bg-white border border-slate-200 rounded-[40px] p-10 shadow-sm h-full flex flex-col justify-between hover:shadow-xl transition-all duration-300"
                     >
                        <div>
-                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em] mb-4">Current Period Audit</p>
-                          <h3 className="text-2xl font-medium text-slate-900 mb-2 truncate">{selectedCategory}</h3>
-                          <p className="text-xs font-medium text-indigo-500 tracking-tight mb-10 flex items-center gap-2 uppercase tracking-wide">
-                             {format(dateRange.from, "MMM")} - {format(dateRange.to, "MMM")} Cycle
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Current Period Audit</p>
+                          <h3 className="text-2xl font-black text-slate-900 mb-2 truncate">{selectedCategory}</h3>
+                          <p className="text-[10px] font-bold text-amber-600 tracking-tight mb-10 flex items-center gap-2 uppercase tracking-[0.2em]">
+                             {dateRange?.from ? format(dateRange.from, "MMM") : ""} - {dateRange?.to ? format(dateRange.to, "MMM") : ""} Cycle
                           </p>
                           
                  <div className="space-y-10">
                     <div className="space-y-2">
-                       <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Target</p>
-                       <p className="text-xl font-medium text-slate-900">{formatCurrency(stats.budgeted)}</p>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Period Target</p>
+                       <p className="text-xl font-black text-slate-900">{formatCurrency(stats.budgeted)}</p>
                     </div>
 
                     <div className="space-y-6 pt-8 border-t border-slate-100">
                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Total Period Actual</p>
-                          <p className="text-xl font-medium text-indigo-600">{formatCurrency(stats.totalActual)}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Period Actual</p>
+                          <p className="text-xl font-black text-amber-600">{formatCurrency(stats.totalActual)}</p>
                        </div>
 
                        <div className="space-y-4 pt-2">
@@ -513,7 +561,7 @@ export default function TrendsReport() {
                              <DialogHeader className="mb-10">
                                 <DialogTitle className="text-2xl font-medium text-slate-900 tracking-tight flex items-center gap-3 underline decoration-teal-500/20 underline-offset-8">
                                    <Activity className="w-6 h-6 text-teal-500" />
-                                   Spending Velocity: {selectedCategory}
+                                   Cumulative Trajectory: {selectedCategory}
                                 </DialogTitle>
                              </DialogHeader>
                              <div className="w-full h-[400px]">
@@ -535,12 +583,12 @@ export default function TrendsReport() {
                                 </ResponsiveContainer>
                              </div>
                              <div className="mt-8 flex items-center justify-between text-[10px] text-slate-400 font-medium uppercase tracking-widest border-t border-slate-50 pt-8">
-                                <span>Day 1 of Month</span>
+                                <span>Start of Period</span>
                                 <div className="flex items-center gap-8">
-                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 bg-teal-500" /> Actual Spend Path</div>
-                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 border-t-2 border-dashed border-slate-300" /> Ideal Velocity</div>
+                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 bg-teal-500" /> Actual Cumulative Path</div>
+                                   <div className="flex items-center gap-2"><div className="w-8 h-0.5 border-t-2 border-dashed border-slate-300" /> Ideal Trajectory</div>
                                 </div>
-                                <span>Day 31 of Month</span>
+                                <span>End of Period</span>
                              </div>
                           </DialogContent>
                        </Dialog>

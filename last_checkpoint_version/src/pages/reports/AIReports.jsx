@@ -10,10 +10,11 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, subMonths, startOfMonth } from 'date-fns';
 import { resolveCanonicalCategory } from '@/utils/constants';
 import { getCurrencySymbol } from "@/components/calculator/CurrencySelector";
 
@@ -22,25 +23,25 @@ const PROMPT_TEMPLATES = [
     id: 'lifestyle_audit',
     name: 'The Lifestyle Audit',
     description: 'Analyzes discretionary spending to detect lifestyle creep and inflation.',
-    systemText: 'Analyze the provided financial data to identify patterns of discretionary spending. Highlight areas where spending is increasing month-over-month. Generate a professional markdown report with clear headers and analysis.'
+    systemText: 'Analyze the provided financial data to identify patterns of discretionary spending. Highlight areas where spending is increasing month-over-month. MANDATORY: Present all data comparisons, spending breakdowns, and findings in clean Markdown Tables. Minimize conversational text. Focus on data-driven tabular analysis.'
   },
   {
     id: 'subscription_hunter',
     name: 'Subscription Leakage Hunter',
     description: 'Finds recurring payments and calculates long-term compounding loss.',
-    systemText: 'Act as a professional financial analyst. Identify recurring subscriptions or recurring fees in the provided data. Calculate the 10-year potential savings if the bottom 30% of these were redirected to a savings account. Output a detailed markdown report.'
+    systemText: 'Act as a professional financial analyst. Identify recurring subscriptions or recurring fees. MANDATORY: Provide the identification results, frequency analysis, and 10-year projection in Markdown Tables. Avoid long paragraphs. Use concise tabular formats.'
   },
   {
     id: 'stress_test',
     name: '50/30/20 Stress Test',
     description: 'Diagnoses exact transactions causing breaches in the 50/30/20 rule.',
-    systemText: 'Analyze the provided data against the 50/30/20 budgeting framework. Identify the key categories contributing to any budget overages. Generate a formal financial markdown report with suggested adjustments.'
+    systemText: 'Analyze the data against the 50/30/20 framework. MANDATORY: Present the budget breakdown (Target vs Actual) and the list of breach transactions in Markdown Tables. Summarize insights in a bulleted or tabular format. No verbose paragraphs.'
   },
   {
     id: 'custom',
     name: 'Custom Deep Dive',
     description: 'Ask any specific question against your ledger data.',
-    systemText: 'Analyze the provided ledger data to answer the user\'s specific question. Provide a detailed, data-driven markdown report.'
+    systemText: 'Analyze the provided ledger data to answer the user\'s specific question. MANDATORY: Structure your response primarily with Markdown Tables. Use text only for brief executive summaries.'
   }
 ];
 
@@ -62,6 +63,7 @@ export default function AIReports() {
   const [selectedPrompt, setSelectedPrompt] = useState(PROMPT_TEMPLATES[0].id);
   const [customQuery, setCustomQuery] = useState('');
   const [reportMarkdown, setReportMarkdown] = useState('');
+  const [historicalContext, setHistoricalContext] = useState([]);
   const reportRef = useRef(null);
 
   const monthKey = useMemo(() => {
@@ -70,23 +72,86 @@ export default function AIReports() {
     return `${y}-${m}`;
   }, [selectedDate]);
 
+  // 1. Auto-discover latest month with actual transaction data on mount
+  useEffect(() => {
+    async function discover() {
+      if (!isPaidUser) return;
+      try {
+        // Scan the entire ledger to find the "truth" about which months have data
+        const allTransactions = await getProductionLedger(); 
+        if (allTransactions && allTransactions.length > 0) {
+          const months = allTransactions.map(t => {
+            const d = new Date(t.date || t.actualDate);
+            return isNaN(d.getTime()) ? null : format(d, 'yyyy-MM');
+          }).filter(Boolean);
+          
+          const uniqueMonths = [...new Set(months)].sort((a,b) => b.localeCompare(a));
+          const latest = uniqueMonths[0];
+          if (latest) {
+            const [y, m] = latest.split('-').map(Number);
+            setSelectedDate(new Date(y, m - 1, 1));
+          }
+        } else {
+          // Fallback to budget discovery if no transactions exist yet
+          const allBudgets = await getDatabaseTable("budgets");
+          if (allBudgets && allBudgets.length > 0) {
+            const sorted = [...allBudgets].sort((a,b) => b.month.localeCompare(a.month));
+            const latest = sorted[0].month;
+            const [y, m] = latest.split('-').map(Number);
+            setSelectedDate(new Date(y, m - 1, 1));
+          }
+        }
+      } catch (e) {
+        console.error("Month discovery failed", e);
+      }
+    }
+    discover();
+  }, [isPaidUser, getDatabaseTable, getProductionLedger]);
+
   useEffect(() => {
     async function initData() {
       if (!isPaidUser) return;
       setIsLoading(true);
       try {
         const allBudgets = await getDatabaseTable("budgets");
-        const saved = (allBudgets || []).find(b => b.month === monthKey);
-        const ledger = await getProductionLedger({ month: monthKey });
         const accounts = await getDatabaseTable("user_accounts");
         setDbAccounts(accounts || []);
-        
+
+        // 1. Fetch Primary Month
+        const saved = (allBudgets || []).find(b => b.month === monthKey);
+        const ledger = await getProductionLedger({ month: monthKey });
         const { incomes: normIncs, expenses: normExps } = normalizeTransactionData(saved, selectedDate, ledger, accounts || []);
         
         setTransactions(ledger);
         setIncomes(normIncs);
         setExpenses(normExps);
         if (saved?.currency) setCurrency(saved.currency);
+
+        // 2. Fetch Historical Context (Last 2 months)
+        const context = [];
+        for (let i = 1; i <= 2; i++) {
+          const d = subMonths(startOfMonth(selectedDate), i);
+          const mk = format(d, 'yyyy-MM');
+          const hLedger = await getProductionLedger({ month: mk });
+          const hBudget = (allBudgets || []).find(b => b.month === mk);
+          
+          if (hLedger.length > 0) {
+            const { incomes: hIncs, expenses: hExps } = normalizeTransactionData(hBudget, d, hLedger, accounts || []);
+            const hMetrics = calculateMetrics(hIncs, hExps, accounts || []);
+            context.push({
+              month: mk,
+              summary: {
+                income: hMetrics.totalIncomes,
+                expenses: hMetrics.totalExpenses,
+                surplus: hMetrics.surplus,
+                expenseCount: hExps.length
+              },
+              topExpenses: hExps.sort((a,b) => b.amount - a.amount).slice(0, 5).map(e => ({ cat: e.category || e.name, amt: e.amount }))
+            });
+          }
+        }
+        setHistoricalContext(context);
+
       } catch (err) {
         console.error("AI Report initialization failed:", err);
       } finally {
@@ -94,14 +159,7 @@ export default function AIReports() {
       }
     }
     initData();
-  }, [monthKey, selectedDate, isPaidUser]);
-
-  const changeMonth = (offset) => {
-    const next = new Date(selectedDate);
-    next.setMonth(next.getMonth() + offset);
-    setSelectedDate(next);
-    setReportMarkdown(''); 
-  };
+  }, [monthKey, selectedDate, isPaidUser, getDatabaseTable, getProductionLedger, normalizeTransactionData, calculateMetrics]);
 
   const handleGenerateReport = async () => {
     if (!isPaidUser) return;
@@ -119,6 +177,7 @@ export default function AIReports() {
       
       const payload = {
         metrics,
+        historicalContext,
         expenses: expenses.map(e => ({ cat: e.category || e.name, amt: e.amount, count: e.count })),
         topTransactions: transactions
           .filter(t => {
@@ -270,42 +329,41 @@ export default function AIReports() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
       {/* Dynamic Header */}
-      <div className="bg-[#1E293B] pb-32 pt-12 px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C5A059]/5 rounded-full blur-[120px] -mr-48 -mt-48" />
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="bg-white pb-32 pt-12 px-2 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px] -mr-48 -mt-48" />
+        <div className="max-w-full mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/20 text-[#C5A059] text-[10px] font-black uppercase tracking-widest mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-200 text-amber-600 text-[10px] font-black uppercase tracking-widest mb-4">
               <Sparkles className="w-3 h-3" /> Institutional Intelligence
             </div>
-            <h1 className="text-4xl font-black text-white tracking-tighter leading-none">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
               AI Insight <span className="text-[#C5A059]">Engine</span>
             </h1>
-            <p className="text-slate-400 mt-4 font-medium tracking-wide max-w-xl text-sm leading-relaxed">
+            <p className="text-slate-500 mt-4 font-medium tracking-wide max-w-xl text-sm leading-relaxed">
               Transforming raw ledger data into high-fidelity financial narratives and actionable institutional reporting.
             </p>
           </div>
           
-          <div className="flex items-center gap-6 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-2xl">
-            <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-[#C5A059] transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-[270deg]" /></button>
-            <div className="text-center min-w-[120px]">
-              <p className="text-[10px] font-bold text-[#C5A059] uppercase tracking-widest opacity-80">Analysis Period</p>
-              <span className="text-lg font-black text-white uppercase tracking-tight">
-                {format(selectedDate, 'MMM yyyy')}
+          <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+            <TrendingUp className="w-4 h-4 text-amber-600" />
+            <div className="text-left">
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest opacity-80">Latest Analysis Period</p>
+              <span className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                {format(selectedDate, 'MMMM yyyy')}
               </span>
             </div>
-            <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-[#C5A059] transition-all hover:scale-110 active:scale-95"><TrendingUp className="w-5 h-5 rotate-90" /></button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20">
+      <div className="max-w-full mx-auto px-2 -mt-20 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Column: Config */}
           <div className="lg:col-span-4 space-y-8">
             <div className="bg-white rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100">
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-[#1E293B] flex items-center justify-center shadow-lg shadow-slate-900/20">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
                   <Bot className="w-6 h-6 text-[#C5A059]" />
                 </div>
                 <div>
@@ -343,7 +401,7 @@ export default function AIReports() {
               <button
                 onClick={handleGenerateReport}
                 disabled={isGenerating || isLoading || transactions.length === 0}
-                className="w-full mt-8 bg-[#1E293B] hover:bg-[#0F172A] text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.97] disabled:opacity-50 flex justify-center items-center gap-3 uppercase tracking-[0.2em] text-[10px]"
+                className="w-full mt-8 bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-[0.97] disabled:opacity-50 flex justify-center items-center gap-3 uppercase tracking-[0.2em] text-[10px]"
               >
                 {isGenerating ? <><Loader2 className="w-5 h-5 animate-spin text-[#C5A059]" /> Analyzing...</> : <><Sparkles className="w-5 h-5 text-[#C5A059]" /> Generate Narrative</>}
               </button>
@@ -372,7 +430,7 @@ export default function AIReports() {
                   <span>Intelligence_Output.md</span>
                 </div>
                 {reportMarkdown && (
-                  <button onClick={exportToPDF} className="flex items-center gap-2 text-[10px] font-black text-slate-600 hover:text-white hover:bg-[#1E293B] bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-widest transition-all">
+                  <button onClick={exportToPDF} className="flex items-center gap-2 text-[10px] font-black text-slate-600 hover:text-white hover:bg-slate-900 bg-white px-4 py-2 rounded-xl border border-slate-200 uppercase tracking-widest transition-all">
                     <Download className="w-3.5 h-3.5" /> Export PDF
                   </button>
                 )}
@@ -383,53 +441,6 @@ export default function AIReports() {
                 {reportMarkdown ? (
                   <div ref={reportRef} className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     
-                    {/* Automated Visual Intelligence Header */}
-                    <div className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[3rem] border border-slate-100 shadow-sm relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-[#C5A059]/5 rounded-full -mr-16 -mt-16 blur-2xl" />
-                       <div className="flex items-center gap-4 mb-10">
-                          <div className="w-12 h-12 rounded-2xl bg-[#C5A059]/10 flex items-center justify-center">
-                             <PieChart className="w-6 h-6 text-[#C5A059]" />
-                          </div>
-                          <div>
-                             <h2 className="text-2xl font-black text-slate-800 tracking-tight">{visualTitle}</h2>
-                             <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-[0.3em]">Automated Graphical Audit</p>
-                          </div>
-                       </div>
-
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                          <div className="space-y-6">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center border-b border-slate-50 pb-2">{radarLabel}</p>
-                             <div className="h-64 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={dynamicRadarData}>
-                                    <PolarGrid stroke="#E2E8F0" />
-                                    <PolarAngleAxis dataKey="subject" tick={{fontSize: 9, fontWeight: 900, fill: '#64748B'}} />
-                                    <Radar name="Budget" dataKey="A" stroke="#C5A059" fill="#C5A059" fillOpacity={0.5} />
-                                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontWeight: 800, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                  </RadarChart>
-                                </ResponsiveContainer>
-                             </div>
-                          </div>
-                          <div className="space-y-6">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center border-b border-slate-50 pb-2">{barLabel}</p>
-                             <div className="h-64 w-full flex items-center">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={dynamicBarData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
-                                    <XAxis dataKey="name" hide />
-                                    <YAxis hide />
-                                    <Tooltip cursor={{fill: 'transparent'}} formatter={(value) => `${sym}${value.toLocaleString()}`} contentStyle={{ borderRadius: '16px', border: 'none', fontWeight: 800, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                                    <Bar dataKey="value" radius={[12, 12, 12, 12]} barSize={32}>
-                                      {dynamicBarData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                      ))}
-                                    </Bar>
-                                  </BarChart>
-                                </ResponsiveContainer>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
                     {/* AI Narrative Section */}
                     <div className="prose prose-slate max-w-none 
                         prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-[#1E293B]
@@ -439,10 +450,13 @@ export default function AIReports() {
                         prose-p:text-slate-600 prose-p:leading-relaxed prose-p:font-medium prose-p:text-base
                         prose-strong:text-[#1E293B] prose-strong:font-black
                         prose-ul:my-8 prose-li:text-slate-600 prose-li:font-medium
+                        prose-table:border-2 prose-table:border-slate-100 prose-table:rounded-3xl prose-table:overflow-hidden
+                        prose-thead:bg-slate-50 prose-th:px-6 prose-th:py-4 prose-th:text-[10px] prose-th:uppercase prose-th:tracking-widest prose-th:text-slate-500
+                        prose-td:px-6 prose-td:py-4 prose-td:border-t prose-td:border-slate-50 prose-td:text-sm prose-td:font-bold
                         prose-blockquote:border-l-8 prose-blockquote:border-[#C5A059] prose-blockquote:bg-[#F8FAFC] prose-blockquote:py-6 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:font-bold prose-blockquote:text-slate-700 prose-blockquote:italic
                         pb-20"
                     >
-                      <ReactMarkdown>{reportMarkdown}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportMarkdown}</ReactMarkdown>
                     </div>
 
                   </div>

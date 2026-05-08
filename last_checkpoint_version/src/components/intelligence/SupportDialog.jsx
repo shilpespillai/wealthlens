@@ -26,20 +26,11 @@ export default function SupportDialog({ open, onOpenChange, userEmail }) {
   const [isSent, setIsSent] = useState(false);
 
   const handleSendEmail = () => {
-    const supportEmail = "aihealthtech@gmail.com";
-    const body = `
---- SUPPORT REQUEST ---
-User: ${userEmail || 'Unauthenticated User'}
-App: WealthLens Premium (v1.0.0)
-Device: ${navigator.userAgent}
+    const supportEmail = "aihealthtec@gmail.com";
+    const body = formData.message.trim();
 
-MESSAGE:
-${formData.message}
------------------------
-`.trim();
-
-    const mailtoUrl = `mailto:${supportEmail}?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${supportEmail}&su=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(body)}`;
+    window.open(gmailUrl, '_blank');
     
     setIsSent(true);
     setTimeout(() => {
@@ -117,7 +108,7 @@ ${formData.message}
 
             <div className="mt-10 pt-6 border-t border-white/5 text-center relative z-10">
                 <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-                    aihealthtech@gmail.com <br/> Infrastructure support
+                    aihealthtec@gmail.com <br/> Infrastructure support
                 </p>
             </div>
         </div>

@@ -144,7 +144,14 @@ function BudgetRow({ item, onEdit, onDelete }) {
           </div>
         </div>
 
-        {/* Amount Column */}
+        {/* Actual Column */}
+        <div className="w-32 px-4 text-right">
+           <span className="text-[11px] font-bold text-slate-700 tabular-nums">
+             {formatAmount(item.actual || 0, { useParentheses: false })}
+           </span>
+        </div>
+
+        {/* Budget Column (Target) */}
         <div className="w-48 px-6 text-right">
            <span className={`text-[11px] font-bold tabular-nums ${(String(item.amount || "").includes('earned') || item.type === "income") ? 'text-emerald-600' : 'text-slate-500'}`}>
              {(() => {
@@ -201,83 +208,41 @@ const flattenCategories = (items) => {
 };
 
 // Utility: Normalize structure against the core registry AND user's personal registry
-const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}, formatAmount) => {
+const normalizeStructure = (savedItems = [], userCategories = [], currentActuals = {}, formatAmount, hiddenCategories = []) => {
   const finalMap = new Map();
+  const hasSavedItems = savedItems.length > 0;
+  const mutedSet = new Set(hiddenCategories.map(c => c.toLowerCase().trim()));
   
-  // 1. Start with the Core Category Registry (Baseline)
-  // This ensures the user always sees a standard set of categories to start with.
-  CORE_CATEGORY_REGISTRY
-    .filter(cat => cat.type !== 'income')
-    .forEach(cat => {
-      const canonical = resolveCanonicalCategory(cat.name).trim();
-      const key = canonical.toLowerCase();
-      finalMap.set(key, {
-        id: `core-${key}`,
-        ...cat,
-        category: canonical,
-        monthly_target: 0,
-        amount: "0",
-        budget: "$0",
-        status: "NO TARGET SET",
-        type: 'item'
-      });
-    });
-
-  // 2. Merge User-Defined Categories
-  userCategories
-    .filter(cat => cat.type !== 'income')
-    .forEach(cat => {
-      const name = cat.name || cat.category;
-      const canonical = resolveCanonicalCategory(name).trim();
-      const key = canonical.toLowerCase();
-      const existing = finalMap.get(key);
-      
-      finalMap.set(key, {
-        ...(existing || { id: `user-${cat.id || Date.now()}` }),
-        ...cat,
-        category: canonical,
-        monthly_target: existing?.monthly_target || 0,
-        amount: existing?.amount || "0",
-        budget: existing?.budget || "$0",
-        status: existing?.status || "NO TARGET SET"
-      });
-    });
-
-  // 3. Overlay Saved Items (The user's defined budget targets)
+  // 1. Initialize with Saved Items
   savedItems.forEach(s => {
     const name = s.category || s.name || "Uncategorized";
     const canonical = resolveCanonicalCategory(name).trim();
     const key = canonical.toLowerCase();
-    if (!key) return;
+    if (!key || mutedSet.has(key)) return;
     
-    const existing = finalMap.get(key);
     finalMap.set(key, { 
-      ...(existing || {}),
       ...s, 
       category: canonical,
-      id: s.id || (existing?.id) || `saved-${key}`
+      id: s.id || `saved-${key}`,
+      type: s.type === 'income' ? 'income' : 'item'
     });
   });
 
-  // 4. Add Active Spending (Ensures visibility of unbudgeted expenses)
+  // 2. Add Active Spending
   Object.keys(currentActuals).forEach(rawKey => {
     const key = rawKey.trim().toLowerCase();
+    if (mutedSet.has(key)) return;
     const spent = currentActuals[rawKey] || 0;
     
     if (spent > 0) {
       const existing = finalMap.get(key);
       if (existing) {
-        // Just ensure the budget string reflects the spending
         existing.budget = formatAmount(spent);
       } else {
         const canonical = resolveCanonicalCategory(key).trim();
-        const coreMatch = CORE_CATEGORY_REGISTRY.find(c => c.name.toLowerCase() === canonical.toLowerCase());
-        
         finalMap.set(key, {
           id: `auto-${key}`,
           category: canonical,
-          iconId: coreMatch?.iconId || 'circle',
-          color: coreMatch?.color || 'slate',
           monthly_target: 0,
           amount: "0",
           budget: formatAmount(spent),
@@ -288,21 +253,70 @@ const normalizeStructure = (savedItems, userCategories = [], currentActuals = {}
     }
   });
 
+  // 3. Registry Baseline
+  const registries = [...CORE_CATEGORY_REGISTRY, ...userCategories];
+  registries.forEach(reg => {
+    if (reg.type === 'income') return;
+    
+    const name = reg.name || reg.category;
+    const canonical = resolveCanonicalCategory(name).trim();
+    const key = canonical.toLowerCase();
+    
+    if (key && !finalMap.has(key) && !mutedSet.has(key)) {
+      finalMap.set(key, {
+        id: `reg-${key}`,
+        ...reg,
+        category: canonical,
+        monthly_target: 0,
+        amount: "0",
+        budget: formatAmount(0),
+        status: "NO TARGET SET",
+        type: 'item'
+      });
+    }
+  });
+
+  // 4. Metadata Enrichment: Overlay icons/colors from registries for ANY item missing them
+  const enrichFromRegistry = (registry) => {
+    registry.forEach(reg => {
+      const canonical = resolveCanonicalCategory(reg.name || reg.category).trim();
+      const key = canonical.toLowerCase();
+      const existing = finalMap.get(key);
+      if (existing) {
+        existing.iconId = existing.iconId || reg.iconId || reg.icon_id;
+        existing.color = existing.color || reg.color;
+      }
+    });
+  };
+
+  enrichFromRegistry(CORE_CATEGORY_REGISTRY);
+  enrichFromRegistry(userCategories);
+
   return Array.from(finalMap.values()).sort((a, b) => a.category.localeCompare(b.category));
 };
 
 export default function SetBudget() {
-  const { parseCurrency, formatAmount } = useFinancialParser();
-  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories();
+  const { parseCurrency, formatAmount, normalizeTransactionData } = useFinancialParser();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const monthKey = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    return `${y}-${m}`;
+  }, [selectedDate]);
+
+  const { categories, addCategory, seedCategories, isLoading: categoriesLoading } = useCategories(monthKey, { global: true });
 
   const [data, setData] = useState([]);
   const [isNewBudgetOpen, setIsNewBudgetOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [editingItem, setEditingItem] = useState(null);
   const [budgetId, setBudgetId] = useState(null);
+  const [hiddenCategories, setHiddenCategories] = useState([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [editingItem, setEditingItem] = useState(null);
   const [expectedIncome, setExpectedIncome] = useState(0);
+  const [actualIncome, setActualIncome] = useState(0);
   const [actualsMap, setActualsMap] = useState({});
   const [monthTransactions, setMonthTransactions] = useState([]);
   const hasGroups = useMemo(() => data.some(item => item.type === "group"), [data]);
@@ -311,17 +325,14 @@ export default function SetBudget() {
     []
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const monthKey = useMemo(() => {
-    const y = selectedDate.getFullYear();
-    const m = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-    return `${y}-${m}`;
-  }, [selectedDate]);
 
   const loadBudgetAndActuals = useCallback(async () => {
     if (isSaving) return;
     try {
       setIsInitialLoading(true);
+      // CRITICAL: Reset identifiers to prevent cross-month data leakage
+      setBudgetId(null);
+      setHiddenCategories([]);
       
       // 1. Fetch budget definition
       let results = await base44.db.query("budgets", {
@@ -335,117 +346,81 @@ export default function SetBudget() {
         // DATA INTEGRITY: If multiple records exist for the same month, 
         // always prioritize the most recently updated one.
         saved = results.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
+        setBudgetId(saved.id);
+        const savedHidden = saved.payload?.hiddenCategories || [];
+        setHiddenCategories(savedHidden);
       } else {
-        const allBudgets = await base44.db.getTable("budgets");
+        const allBudgets = await base44.db.getTable("budgets", { month: monthKey });
         if (allBudgets && allBudgets.length > 0) {
           const sorted = allBudgets.sort((a, b) => b.month.localeCompare(a.month));
           saved = sorted[0];
           isTemplate = true;
+          setHiddenCategories([]); // Do not inherit hidden status from templates
+        } else {
+          setHiddenCategories([]);
         }
       }
 
       // 2. Fetch actual transactions for this month to calculate consumption
-      const txResults = await base44.db.getTable("transactions");
-      const [targetYear, targetMonth] = monthKey.split('-').map(Number);
-
-      const monthTransactions = (txResults || []).filter(tx => 
-        isSameMonthYear(tx.date || tx.actualDate, targetMonth, targetYear)
-      );
-
-      // Aggregate spent amounts by canonical category name
-      const currentActuals = {};
-      const EXCLUDED_CATEGORIES = ['Transfer', 'Reimbursement', 'Payment', 'Internal Transfer', 'Credit Card Payment'];
+      const txResults = await base44.db.getTable("transactions", { month: monthKey });
       
-      monthTransactions.forEach(tx => {
-        const canonical = resolveCanonicalCategory(tx.category);
-        if (EXCLUDED_CATEGORIES.includes(canonical)) return;
-        
-        const rawAmt = parseFloat(tx.amount) || 0;
-        const isExpense = tx.type === 'expense' || (tx.type !== 'income' && rawAmt < 0);
-        
-        if (isExpense) {
-          const amount = Math.abs(rawAmt);
-          currentActuals[canonical.toLowerCase()] = (currentActuals[canonical.toLowerCase()] || 0) + amount;
-        }
+      // 3. Normalize data using the UNIFIED PARSER for 100% parity
+      const effectiveHidden = isTemplate ? [] : (saved?.payload?.hiddenCategories || []);
+      const { expenses: normExps, incomes: normIncs } = normalizeTransactionData(saved, selectedDate, txResults, categories, {
+        hiddenCategories: effectiveHidden
+      });
+      
+      // Aggressively deduplicate and ensure every category has its actual total
+      const currentActuals = {};
+      normExps.forEach(e => {
+        const key = resolveCanonicalCategory(e.category).trim().toLowerCase();
+        currentActuals[key] = (currentActuals[key] || 0) + (Number(e.amount) || 0);
       });
 
+      const totalActualInc = normIncs.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      setActualIncome(totalActualInc);
       setActualsMap(currentActuals);
-      setMonthTransactions(monthTransactions);
+      setMonthTransactions(txResults);
 
-      if (saved) {
-        if (!isTemplate) setBudgetId(saved.id);
+      if (saved || Object.keys(currentActuals).length > 0) {
+        if (saved && !isTemplate) setBudgetId(saved.id);
         else setBudgetId(null);
 
-        if (saved.payload && saved.payload.expectedIncome !== undefined) {
+        if (saved && saved.payload && saved.payload.expectedIncome !== undefined) {
            setExpectedIncome(Number(saved.payload.expectedIncome));
-        } else if (saved.payload && saved.payload.incomes) {
-           const legacySum = saved.payload.incomes.reduce((s, i) => s + Number(i.monthly_target || 0), 0);
-           setExpectedIncome(legacySum);
+        } else {
+           setExpectedIncome(totalActualInc);
         }
 
-        let dataToLoad = [];
-        if (saved.payload) {
-          dataToLoad = saved.payload.visualData || saved.payload.expenses || [];
-        }
+        const structuralData = normalizeStructure(
+          (saved?.payload?.visualData || saved?.payload?.expenses || []).filter(item => item.type !== 'income'), 
+          categories,
+          currentActuals,
+          formatAmount,
+          effectiveHidden
+        );
         
-        if (dataToLoad.length > 0 || Object.keys(currentActuals).length > 0) {
-          const structuralData = normalizeStructure(
-            dataToLoad.filter(item => item.type !== 'income'), 
-            categories,
-            currentActuals,
-            formatAmount
-          );
+        // Inject actuals into the loaded data
+        const finalArray = structuralData.map(item => {
+          const canonical = resolveCanonicalCategory(item.category || item.name).trim();
+          const spent = currentActuals[canonical.toLowerCase()] || 0;
+          const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
           
-          // Inject actuals into the loaded data
-          const enrichedData = structuralData.map(item => {
-            const canonical = resolveCanonicalCategory(item.category || item.name).trim();
-            const spent = currentActuals[canonical.toLowerCase()] || 0;
-            const target = parseFloat(item.monthly_target) || parseCurrency(item.amount || "0") || 0;
-            
-            return {
-              ...item,
-              category: canonical,
-              budget: formatAmount(spent),
-              status: target > 0 
-                ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
-                : (spent > 0 ? "UNBUDGETED" : "NO TARGET SET")
-            };
-          });
+          return {
+            ...item,
+            category: canonical,
+            actual: spent,
+            budget: formatAmount(spent),
+            status: target > 0 
+              ? (spent > target ? `${formatAmount(spent - target)} over` : `${formatAmount(target - spent)} left`)
+              : (spent > 0 ? "UNBUDGETED" : "NO TARGET SET")
+          };
+        }).sort((a, b) => a.category.localeCompare(b.category));
 
-          // Final state-level deduplication
-          const uniqueMap = new Map();
-          enrichedData.forEach(item => {
-             const key = resolveCanonicalCategory(item.category).trim().toLowerCase();
-             const existing = uniqueMap.get(key);
-             if (existing) {
-                const itemTarget = parseFloat(item.monthly_target) || 0;
-                const existingTarget = parseFloat(existing.monthly_target) || 0;
-                if (itemTarget >= existingTarget) uniqueMap.set(key, item);
-             } else {
-                uniqueMap.set(key, item);
-             }
-          });
-
-          const finalArray = Array.from(uniqueMap.values())
-            .sort((a, b) => a.category.localeCompare(b.category));
-
-          setData(finalArray);
-        }
-      } else {
-        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount);
-        const enrichedDefaults = structuralData.map(item => {
-           const canonical = resolveCanonicalCategory(item.category || item.name).trim();
-           const spent = currentActuals[canonical.toLowerCase()] || 0;
-           return {
-              ...item,
-              category: canonical,
-              budget: formatAmount(spent),
-              status: spent > 0 ? "UNBUDGETED" : "NO TARGET SET"
-           };
-        });
-        
-        const finalArray = enrichedDefaults.sort((a, b) => a.category.localeCompare(b.category));
         setData(finalArray);
+      } else {
+        const structuralData = normalizeStructure([], categories, currentActuals, formatAmount, hiddenCategories);
+        setData(structuralData);
         setBudgetId(null);
       }
     } catch (err) {
@@ -501,10 +476,11 @@ export default function SetBudget() {
     }
   };
 
-  const handleSaveBudget = async (overrideData = null) => {
+  const handleSaveBudget = async (overrideData = null, overrideHidden = null) => {
     setIsSaving(true);
     try {
       const activeData = overrideData || data;
+      const activeHidden = overrideHidden || hiddenCategories;
       const flatItems = flattenCategories(activeData);
       const expensesToSave = flatItems.filter(i => i.type !== "income");
 
@@ -514,7 +490,8 @@ export default function SetBudget() {
         month: monthKey, 
         payload: { 
           visualData: expensesToSave,
-          expenses: expensesToSave.map(i => ({ ...i, icon: null }))
+          expenses: expensesToSave.map(i => ({ ...i, icon: null })),
+          hiddenCategories: activeHidden
         } 
       });
 
@@ -575,38 +552,24 @@ export default function SetBudget() {
   
   const totals = useMemo(() => {
     let plannedExpense = 0;
-    let actualExpense = 0;
     
     flatItems.forEach(item => {
       const val = Number(item.monthly_target || parseCurrency(item.amount || "0"));
       plannedExpense += val;
-      
-      const canonical = resolveCanonicalCategory(item.category || item.name);
-      actualExpense += (actualsMap[canonical.toLowerCase()] || 0);
     });
 
-    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
-    // Actually, it's easier to just sum all actuals from monthTransactions that are income
-    // Calculate actual income from actualsMap (we need to update actualsMap to include income)
-    const actualIncome = monthTransactions.reduce((sum, tx) => {
-       const category = resolveCanonicalCategory(tx.category);
-       const EXCLUDED = ['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment', 'Reimbursement'];
-       if (EXCLUDED.includes(category)) return sum;
-       
-       const rawAmt = Number(tx.amount || 0);
-       const isIncome = tx.type === 'income' || (tx.type !== 'expense' && rawAmt > 0);
-       return isIncome ? sum + Math.abs(rawAmt) : sum;
-    }, 0);
-    
+    // Rule: Total Actual Expense must include ALL expenses, including those not explicitly budgeted
+    const globalActualExpense = Object.values(actualsMap).reduce((sum, val) => sum + (Number(val) || 0), 0);
+
     return {
       income: expectedIncome,
-      actualIncome,
+      actualIncome: actualIncome,
       expense: plannedExpense,
-      actualExpense,
+      actualExpense: globalActualExpense,
       net: expectedIncome - plannedExpense,
-      actualNet: actualIncome - actualExpense
+      actualNet: actualIncome - globalActualExpense
     };
-  }, [flatItems, expectedIncome, parseCurrency, actualsMap, monthTransactions]);
+  }, [flatItems, expectedIncome, actualIncome, parseCurrency, actualsMap]);
 
 
   const handleEditItem = (item) => {
@@ -636,22 +599,24 @@ export default function SetBudget() {
   };
 
   const handleDeleteItem = (targetId) => {
-    const itemToDelete = data.find(i => i.id === targetId);
+    const itemToDelete = flatItems.find(i => i.id === targetId);
     if (!itemToDelete) return;
     
-    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category).toLowerCase().trim();
+    const canonicalToDelete = resolveCanonicalCategory(itemToDelete.category || itemToDelete.name).toLowerCase().trim();
     
     const updated = data.filter(item => {
-      const itemCanonical = resolveCanonicalCategory(item.category).toLowerCase().trim();
-      // Remove both the specific ID and any canonical duplicates
+      const itemCanonical = resolveCanonicalCategory(item.category || item.name).toLowerCase().trim();
       return item.id !== targetId && itemCanonical !== canonicalToDelete;
     });
+
+    const updatedHidden = [...new Set([...hiddenCategories, canonicalToDelete])];
+    setHiddenCategories(updatedHidden);
     
-    const sorted = updated.sort((a, b) => a.category.localeCompare(b.category));
-    setData(sorted);
+    setData(updated);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
-    handleSaveBudget(updated);
+    
+    handleSaveBudget(updated, updatedHidden);
     toast.success(`Removed ${itemToDelete.category} from budget.`);
   };
 
@@ -698,14 +663,17 @@ export default function SetBudget() {
 
     updatedData = [...filteredData, budgetItem];
 
+    const updatedHidden = hiddenCategories.filter(c => c !== targetCanonical);
+    setHiddenCategories(updatedHidden);
+
     const sorted = updatedData.sort((a, b) => a.category.localeCompare(b.category));
     setData(sorted);
     toast.success(`${editingItem ? 'Updated' : 'Created'} budget for ${budgetItem.category}. Auto-saving...`);
     setIsNewBudgetOpen(false);
     setEditingItem(null);
     
-    // Trigger automated save
-    handleSaveBudget(updatedData);
+    // Trigger automated save with updated data AND updated hidden list
+    handleSaveBudget(updatedData, updatedHidden);
   };
 
   const toggleGroup = (id) => {
@@ -766,7 +734,8 @@ export default function SetBudget() {
         {/* Header Area */}
         <div className="w-full px-6 pt-6 pb-4 border-b border-slate-100">
            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-end w-full gap-4">
+              <div className="flex items-center justify-between w-full gap-4">
+                  <h1 className="text-[28px] font-medium text-slate-800 tracking-tight">Budget Planner</h1>
                   {/* Institutional Premium Date Navigator */}
                   <div className="flex items-center gap-1.5 bg-slate-50/80 border border-slate-200/60 rounded-2xl p-1 shadow-sm backdrop-blur-sm">
                      <Button 
@@ -859,7 +828,9 @@ export default function SetBudget() {
                       <DialogContent className="sm:max-w-[480px] p-0 rounded-[24px] overflow-hidden border-none shadow-2xl">
                         <DialogHeader className="bg-[#f2f1ef] px-6 py-4 flex flex-row items-center justify-between border-b border-slate-200/60">
                           <div className="space-y-0.5">
-                            <DialogTitle className="text-[22px] font-medium text-slate-700 tracking-tight">New budget</DialogTitle>
+                             <DialogTitle className="text-[22px] font-medium text-slate-700 tracking-tight">
+                               {editingItem ? "Edit budget" : "New budget"}
+                             </DialogTitle>
                             <p className="text-[11px] font-medium text-slate-400">Scheduled for Apr 10, 2026</p>
                           </div>
                           <div className="text-right">
@@ -1016,11 +987,14 @@ export default function SetBudget() {
                <div className="flex-1 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2 min-w-[300px]">
                   Category
                </div>
-               <div className="w-80 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  Money flow
+               <div className="w-80 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400">
+                  Budget Progress
                </div>
-               <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right flex items-center justify-end gap-2">
-                  Amount
+               <div className="w-32 px-4 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right">
+                  Actual
+               </div>
+               <div className="w-48 px-6 text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 text-right">
+                  Target
                </div>
                <div className="w-24" />
                <div className="w-16" />
@@ -1038,36 +1012,52 @@ export default function SetBudget() {
               ))}
             </div>
 
-            {/* Institutional Signature Summary */}
-            <div className="mx-0 my-0 p-8 pt-10 pb-12 bg-white border-t border-slate-100 flex items-center relative overflow-hidden">
-               <div className="flex-1 flex items-center gap-10 px-12">
-                  <div className="flex flex-col gap-1">
-                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Target Surplus</p>
-                     <p className={`text-xl font-black tabular-nums tracking-tighter ${totals.net >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-                        {formatAmount(totals.net)}
-                     </p>
+            {/* Institutional Pulse Bar */}
+            <div className="mx-0 my-0 p-10 bg-slate-50/30 border-t border-slate-100 relative overflow-hidden">
+               <div className="max-w-7xl mx-auto flex items-center justify-between w-full bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm">
+                  
+                  {/* Pillar 1: Total Target */}
+                  <div className="flex-1 flex flex-col gap-2">
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Total Target</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
+                           {formatAmount(totals.expense)}
+                        </p>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Target</span>
+                     </div>
                   </div>
-               </div>
 
-               {/* Right: Aligned Total Amount with Institutional Accents */}
-               <div className="flex items-center">
-                  <div className="w-80 flex justify-end pr-12">
-                     <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 text-right leading-tight">
-                        TOTAL MONTHLY<br />EXPENSE TARGET
-                     </p>
+                  <div className="h-12 w-px bg-slate-100" />
+
+                  {/* Pillar 2: Actual Spent */}
+                  <div className="flex-1 flex flex-col gap-2 px-12">
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Actual Spent</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
+                           {formatAmount(totals.actualExpense)}
+                        </p>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 rounded-lg">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                           <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">On Track</span>
+                        </div>
+                     </div>
                   </div>
-                  
-                  {/* The Figure: Aligned to Amount Column */}
-                  <div className="w-48 px-6 text-right relative">
-                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#C5A059] rounded-full opacity-30" />
-                     <p className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">
-                        {formatAmount(totals.expense)}
-                     </p>
+
+                  <div className="h-12 w-px bg-slate-100" />
+
+                  {/* Pillar 3: Budget Variance */}
+                  <div className="flex-1 flex flex-col gap-2 items-end">
+                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 text-right">Budget Variance</p>
+                     <div className="flex items-baseline gap-2">
+                        <p className={`text-lg font-bold tabular-nums tracking-tight ${totals.expense - totals.actualExpense >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                           {formatAmount(totals.expense - totals.actualExpense)}
+                        </p>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${totals.expense - totals.actualExpense >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                           {totals.expense - totals.actualExpense >= 0 ? 'Savings' : 'Overspend'}
+                        </span>
+                     </div>
                   </div>
-                  
-                  <div className="w-16 flex items-center justify-center">
-                     <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.5)]" />
-                  </div>
+
                </div>
             </div>
 

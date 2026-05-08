@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { email, amount, successUrl, cancelUrl } = req.body;
+    const { email, userId, amount, successUrl, cancelUrl } = req.body;
 
     if (!email || !amount || !successUrl || !cancelUrl) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { email }, // Store email for webhook lookup
+      metadata: { userId, email }, // Store userId for webhook lookup
     });
 
     return res.status(200).json({ url: session.url, sessionId: session.id });

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { 
   ChevronRight,
   TrendingUp,
@@ -87,7 +88,8 @@ function FamilyBudgetContent() {
     normalizeTransactionData,
     getDatabaseTable,
     getProductionLedger,
-    getNormalizedLedger
+    getNormalizedLedger,
+    rulesLoaded
   } = useFinancialParser();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -110,6 +112,7 @@ function FamilyBudgetContent() {
   // Load from server
   useEffect(() => {
     async function initData() {
+      if (!rulesLoaded) return;
       setIsLoading(true);
       try {
         // 1. Fetch budget for this month from the centralized table
@@ -120,7 +123,7 @@ function FamilyBudgetContent() {
         const productionLedger = await getProductionLedger({ month: monthKey });
         
         // 3. Fetch accounts to enable credit card income exclusion
-        const accounts = await getDatabaseTable("user_accounts");
+        const accounts = await getDatabaseTable("user_accounts", { month: monthKey });
         setDbAccounts(accounts || []);
         
         // 4. Use the CENTRALIZED normalization engine (The "Common Place")
@@ -137,7 +140,7 @@ function FamilyBudgetContent() {
       }
     }
     initData();
-  }, [monthKey, normalizeTransactionData, selectedDate, getDatabaseTable, getProductionLedger]);
+  }, [monthKey, normalizeTransactionData, selectedDate, getDatabaseTable, getProductionLedger, getNormalizedLedger, rulesLoaded]);
 
   const changeMonth = (offset) => {
     const next = new Date(selectedDate);
@@ -156,8 +159,7 @@ function FamilyBudgetContent() {
 
     const aggregatedIncomes = useMemo(() => {
     const groups = incomes.reduce((acc, curr) => {
-      const canonical = resolveCanonicalCategory(curr.category || curr.name);
-      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      // Input 'incomes' is already filtered by getNormalizedLedger (Transfer exclusion)
       
       const catName = curr.category || "Income";
       const key = catName.toLowerCase();
@@ -172,8 +174,7 @@ function FamilyBudgetContent() {
 
   const aggregatedExpenses = useMemo(() => {
     const groups = expenses.reduce((acc, curr) => {
-      const canonical = resolveCanonicalCategory(curr.category || curr.name);
-      if (['Transfer', 'Internal Transfer', 'Credit Card Payment', 'Payment'].includes(canonical)) return acc;
+      // Input 'expenses' is already filtered by getNormalizedLedger (Transfer exclusion)
       
       const catName = curr.category || "Uncategorized";
       const key = catName.toLowerCase();
@@ -264,12 +265,12 @@ function FamilyBudgetContent() {
 
     const colors = {
       income: "#06b6d4",    // Cyan
-      fixed: "#f59e0b",     // Amber
+      fixed: "#C5A059",     // Amber
       variable: "#f43f5e",  // Rose
       savings: "#10b981",   // Emerald
       tax: "#f97316",       // Orange
-      surplus: "#6366f1",   // Indigo
-      gross: "#8b5cf6"      // Violet
+      surplus: "#C5A059",   // Amber
+      gross: "#94a3b8"      // Slate
     };
 
     const getSectionColor = (name, category = "", spendType = "") => {
@@ -495,41 +496,41 @@ function FamilyBudgetContent() {
 
   return (
     <div className="min-h-screen bg-white font-sans pb-10 flex flex-col">
-      {/* Container for Navbar Area — purely white background */}
-      <div className="w-full px-6 pt-4 pb-2">
-        <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
-          {/* Header Area */}
-          <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-[#2D3748] flex items-center justify-center border border-[#C5A059]/30">
-                  <PiggyBank className="w-4 h-4 text-[#C5A059]" />
-                </div>
-                <div className="flex flex-col">
-                  <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Budget Planner</h1>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-[#2D3748] rounded text-[#C5A059]/60 hover:text-[#C5A059]">
-                      <TrendingUp className="w-3 h-3 rotate-[270deg]" />
+      {/* Premium Institutional Header */}
+      <div className="w-full px-2 pt-4 pb-0 bg-white">
+        <div className="bg-white rounded-t-3xl shadow-xl overflow-hidden border-x border-t border-slate-100">
+          <div className="px-8 py-6 flex items-center justify-between border-b border-slate-50">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100">
+                <PiggyBank className="w-5 h-5 text-[#C5A059]" />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-widest leading-none mb-1.5">Family Budget</h1>
+                <div className="flex items-center gap-2">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Live Cycle Tracking <span className="px-2 text-slate-200">|</span></p>
+                   <div className="flex items-center gap-1.5">
+                    <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-amber-600 transition-colors">
+                      <TrendingUp className="w-3.5 h-3.5 rotate-[270deg]" />
                     </button>
                     
                     <Popover>
                       <PopoverTrigger asChild>
-                        <button className="text-sm font-medium text-[#C5A059] bg-[#2D3748] px-3 py-1 rounded-md uppercase tracking-wider hover:bg-[#1A202C] border border-[#C5A059]/20 transition-colors flex items-center gap-2">
-                          {selectedDate.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                        <button className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-[0.15em] hover:bg-amber-100 border border-amber-200/50 transition-all flex items-center gap-2">
+                          {format(selectedDate, "MMMM yyyy")}
                           <Calendar className="w-3 h-3" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-slate-200">
-                        <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
-                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() - 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
+                      <PopoverContent className="w-64 p-4 rounded-3xl shadow-2xl border-slate-100 bg-white" align="start">
+                        <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() - 1)} className="p-1 hover:bg-slate-50 rounded text-slate-400">
                             <TrendingUp className="w-3 h-3 rotate-[270deg]" />
                           </button>
-                          <span className="font-bold text-slate-700">{selectedDate.getFullYear()}</span>
-                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-400">
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{selectedDate.getFullYear()}</span>
+                          <button onClick={() => selectMonthYear(undefined, selectedDate.getFullYear() + 1)} className="p-1 hover:bg-slate-50 rounded text-slate-400">
                             <TrendingUp className="w-3 h-3 rotate-90" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-1">
                           {Array.from({ length: 12 }).map((_, i) => {
                             const monthName = new Date(0, i).toLocaleString('default', { month: 'short' });
                             const isSelected = selectedDate.getMonth() === i;
@@ -537,7 +538,7 @@ function FamilyBudgetContent() {
                               <button
                                 key={i}
                                 onClick={() => selectMonthYear(i)}
-                                className={`py-2 text-xs font-bold rounded-lg transition-all ${isSelected ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                                className={`py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${isSelected ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
                               >
                                 {monthName}
                               </button>
@@ -547,59 +548,53 @@ function FamilyBudgetContent() {
                       </PopoverContent>
                     </Popover>
 
-                    <button onClick={() => changeMonth(1)} className="p-1 hover:bg-[#2D3748] rounded text-[#C5A059]/60 hover:text-[#C5A059]">
-                      <TrendingUp className="w-3 h-3 rotate-90" />
+                    <button onClick={() => changeMonth(1)} className="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-amber-600 transition-colors">
+                      <TrendingUp className="w-3.5 h-3.5 rotate-90" />
                     </button>
-                  </div>
+                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-24">
-                <CurrencySelector value={currency} onChange={setCurrency} />
-              </div>
+            <div className="flex items-center gap-4">
+               <CurrencySelector value={currency} onChange={setCurrency} />
+               <Button onClick={() => navigate('/SetBudget')} className="bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] h-11 px-6 rounded-xl shadow-lg">
+                 Configure Strategy
+               </Button>
             </div>
           </div>
 
-          {/* Metric Banner Area */}
-          <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
-            <div className="flex items-center justify-between max-w-7xl mx-auto">
-              <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalIncome.toLocaleString()}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INCOME</p>
+          {/* Institutional Metric Banner */}
+          <div className="bg-slate-50/50 py-8 px-10 border-b border-slate-100">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-8 max-w-full">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Gross Revenue</span>
+                <p className="text-xl font-black text-slate-900 tabular-nums tracking-tighter">{sym}{metrics.totalIncome.toLocaleString()}</p>
               </div>
-              <div className="text-center w-full px-2 border-l border-white/5">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.totalExpenses.toLocaleString()}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SPENT</p>
+              <div className="flex flex-col gap-1.5 border-l border-slate-200/60 pl-8">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Total Outflows</span>
+                <p className="text-xl font-black text-slate-900 tabular-nums tracking-tighter">{sym}{metrics.totalExpenses.toLocaleString()}</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL SAVED</p>
+              <div className="flex flex-col gap-1.5 border-l border-slate-200/60 pl-8">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Strategic Reserve</span>
+                <p className="text-xl font-black text-amber-600 tabular-nums tracking-tighter">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{metrics.savings.toLocaleString()}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL DEBT PAID</p>
+              <div className="flex flex-col gap-1.5 border-l border-slate-200/60 pl-8">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Liability Liquidation</span>
+                <p className="text-xl font-black text-emerald-600 tabular-nums tracking-tighter">{sym}{metrics.savings.toLocaleString()}</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">LEFT TO SPEND</p>
+              <div className="flex flex-col gap-1.5 border-l border-slate-200/60 pl-8">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">Capital Available</span>
+                <p className="text-xl font-black text-slate-900 tabular-nums tracking-tighter">{sym}{Math.max(0, metrics.balance).toLocaleString()}</p>
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
-
-      {/* Main Panel starts below Navbar */}
-      <div className="bg-slate-50 min-h-screen pt-4">
-
-
-
-
-      {/* Sankey Chart Re-Positioned to the top under metrics */}
-      <div className="bg-white border-b border-slate-200 shadow-sm relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {/* Sankey Chart Full Width Section */}
+      <div className="w-full px-2">
+        <div className="bg-white border-x border-b border-slate-100 shadow-xl rounded-b-3xl relative overflow-hidden">
+          <div className="max-w-full mx-auto px-10 py-12">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">Financial Flow Intelligence</h3>
@@ -726,7 +721,7 @@ function FamilyBudgetContent() {
         </div>
       ) : (
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 space-y-4">
+        <div className="max-w-full mx-auto px-4 sm:px-6 mt-4 space-y-4">
         
         {/* Top Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -838,12 +833,12 @@ function FamilyBudgetContent() {
                             <div 
                               key={index}
                               onClick={() => navigate(`/Transactions?search=${encodeURIComponent(item.name)}&month=${monthParam}`)}
-                              className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-500/5 hover:-translate-y-0.5 cursor-pointer transition-all duration-300 group"
+                              className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-amber-200 hover:shadow-xl hover:shadow-amber-500/5 hover:-translate-y-0.5 cursor-pointer transition-all duration-300 group"
                             >
                               <div className="flex items-center gap-4">
                                 <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-current ring-4 ring-offset-0 ring-current/10" style={{ color: item.flow === 'income' ? '#06b6d4' : (item.spendType === 'fixed' ? '#f59e0b' : (item.spendType === 'savings' ? '#10b981' : '#f43f5e')), backgroundColor: 'currentColor' }} />
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-slate-800 tracking-tight group-hover:text-purple-600 transition-colors uppercase">{item.name}</span>
+                                  <span className="text-sm font-bold text-slate-800 tracking-tight group-hover:text-amber-600 transition-colors uppercase">{item.name}</span>
                                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.count} Transactions</span>
                                 </div>
                               </div>

@@ -1,6 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
+import { Star, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 const TESTIMONIALS = [
   {
@@ -57,6 +64,42 @@ const TESTIMONIALS = [
       "Market sentiment analysis is on point. I use it every week before making moves. The scenario comparison feature is a game-changer for risk management.",
     stars: 5,
   },
+  {
+    name: "Alex C.",
+    role: "Privacy advocate",
+    avatar: "AC",
+    avatarColor: "from-slate-700 to-slate-900",
+    quote:
+      "The local encryption is what sold me. My financial data stays on my machine, encrypted. Finally, a tool that respects my privacy without sacrificing features.",
+    stars: 5,
+  },
+  {
+    name: "Jessica H.",
+    role: "Digital nomad",
+    avatar: "JH",
+    avatarColor: "from-blue-400 to-indigo-600",
+    quote:
+      "Seamless cloud sync across my laptop and tablet while I travel. I love that it uses my own infrastructure — I'm in total control of my data shard.",
+    stars: 5,
+  },
+  {
+    name: "Robert D.",
+    role: "Data enthusiast",
+    avatar: "RD",
+    avatarColor: "from-emerald-400 to-teal-700",
+    quote:
+      "The export/import feature is flawless. I can take my entire financial history with me in a simple JSON file. No vendor lock-in, just pure data portability.",
+    stars: 5,
+  },
+  {
+    name: "Benjamin S.",
+    role: "Portfolio Manager",
+    avatar: "BS",
+    avatarColor: "from-amber-600 to-yellow-500",
+    quote:
+      "The new Rule Engine is a masterclass in financial UX. Being able to define custom 'Contains' and 'Not Equals' logic for my high-volume accounts has automated 90% of my ledger maintenance. It's surgical precision for personal finance.",
+    stars: 5,
+  },
 ];
 
 function StarRating({ count }) {
@@ -71,43 +114,62 @@ function StarRating({ count }) {
 
 export default function Testimonials() {
   return (
-    <section className="bg-gray-50 py-10 sm:py-14">
+    <section className="bg-gray-50 py-16 sm:py-24 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-10"
+          className="text-center mb-16"
         >
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Loved by Investors</h2>
-          <p className="text-gray-500 text-sm max-w-xl mx-auto">
-            From first-time investors to seasoned traders — here's what people are saying.
+          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">Loved by Investors</h2>
+          <p className="text-gray-500 text-sm max-w-xl mx-auto font-medium">
+            From first-time investors to seasoned traders — here's why thousands trust WealthLens with their financial horizon.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {TESTIMONIALS.map((t, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.08 }}
-              className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-md transition-shadow flex flex-col"
-            >
-              <StarRating count={t.stars} />
-              <p className="text-sm text-gray-700 leading-relaxed flex-1 mb-5">"{t.quote}"</p>
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-                  {t.avatar}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-900">{t.name}</p>
-                  <p className="text-xs text-gray-400">{t.role}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+        <div className="relative px-12">
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-4">
+              {TESTIMONIALS.map((t, idx) => {
+                const id = t.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+$/, '');
+                return (
+                  <CarouselItem key={idx} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                    <a href={`/testimonials#${id}`} className="block h-full group">
+                      <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-[#C5A059]/30 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-500 h-full flex flex-col group">
+                        <StarRating count={t.stars} />
+                        <p className="text-sm text-gray-600 leading-relaxed flex-1 mb-8 italic">"{t.quote}"</p>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}>
+                            {t.avatar}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{t.name}</p>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.role}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  </CarouselItem>
+                );
+              })}
+            </CarouselContent>
+            
+            <CarouselPrevious className="hidden md:flex -left-6 w-12 h-12 rounded-2xl bg-white border-gray-100 shadow-xl hover:bg-gray-900 hover:text-white transition-all duration-300" />
+            <CarouselNext className="hidden md:flex -right-6 w-12 h-12 rounded-2xl bg-white border-gray-100 shadow-xl hover:bg-gray-900 hover:text-white transition-all duration-300" />
+          </Carousel>
+        </div>
+
+        <div className="mt-12 flex justify-center gap-2 md:hidden">
+            <div className="w-2 h-2 rounded-full bg-gray-900" />
+            <div className="w-2 h-2 rounded-full bg-gray-200" />
+            <div className="w-2 h-2 rounded-full bg-gray-200" />
         </div>
       </div>
     </section>

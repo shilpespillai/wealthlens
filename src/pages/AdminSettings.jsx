@@ -33,11 +33,42 @@ export default function AdminSettings() {
   const [testimonials, setTestimonials] = useState([]);
   const [savingTestimonial, setSavingTestimonial] = useState(null);
   const [draftingAI, setDraftingAI] = useState(null);
+  const [launchConfig, setLaunchConfig] = useState({ code: '', expiry: '' });
+  const [savingLaunch, setSavingLaunch] = useState(false);
 
   useEffect(() => {
     fetchCurrentPrice();
     fetchTestimonials();
+    fetchLaunchConfig();
   }, []);
+
+  const fetchLaunchConfig = async () => {
+    try {
+      const stored = await base44.user.loadData('wl_public_launch_config');
+      if (stored) setLaunchConfig(stored);
+    } catch (e) {
+      console.error("Failed to fetch launch config:", e);
+    }
+  };
+
+  const saveLaunchConfig = async () => {
+    setSavingLaunch(true);
+    try {
+      await base44.user.saveData('wl_public_launch_config', launchConfig);
+      toast({
+        title: "Launch Protocol Updated",
+        description: `The code "${launchConfig.code}" is now live until ${launchConfig.expiry}.`,
+      });
+    } catch (e) {
+      toast({
+        title: "Update Failed",
+        description: "Could not sync launch configuration.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingLaunch(false);
+    }
+  };
 
   const fetchTestimonials = async () => {
     try {
@@ -256,6 +287,45 @@ export default function AdminSettings() {
                     <p className="text-[10px] text-indigo-700 font-medium leading-relaxed">This price affects the one-time activation fee for all new institutional members.</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Launch Control Segment */}
+              <div className="pt-8 border-t border-slate-100 mt-8 space-y-6">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center border border-pink-100">
+                      <Sparkles className="w-4 h-4 text-pink-500" />
+                   </div>
+                   <h3 className="text-lg font-black uppercase tracking-tight text-slate-900">Community Launch Protocol</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Master Launch Code</label>
+                      <Input 
+                        value={launchConfig.code}
+                        onChange={(e) => setLaunchConfig(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                        className="h-14 rounded-2xl border-slate-100 bg-slate-50 font-black tracking-[0.2em] uppercase focus:bg-white transition-all"
+                        placeholder="E.G. WEALTH2026"
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Global Expiry Date</label>
+                      <Input 
+                        type="date"
+                        value={launchConfig.expiry}
+                        onChange={(e) => setLaunchConfig(prev => ({ ...prev, expiry: e.target.value }))}
+                        className="h-14 rounded-2xl border-slate-100 bg-slate-50 font-bold focus:bg-white transition-all"
+                      />
+                   </div>
+                </div>
+
+                <Button 
+                  onClick={saveLaunchConfig}
+                  disabled={savingLaunch}
+                  className="w-full md:w-auto px-10 h-14 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200"
+                >
+                  {savingLaunch ? <Loader2 className="w-4 h-4 animate-spin" /> : "Authorize Launch Settings"}
+                </Button>
               </div>
             </div>
           </CardContent>

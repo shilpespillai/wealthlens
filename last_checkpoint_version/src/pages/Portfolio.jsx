@@ -28,6 +28,7 @@ const ASSET_CLASSES = [
   { id: "fixed_deposit", label: "Fixed Deposit", color: "#A8DADC" }, // Powder Blue
   { id: "mutual_funds", label: "Mutual Funds", color: "#DDBDF1" },  // Lavender
   { id: "gold", label: "Gold", color: "#FEEAFA" },       // Champagne
+  { id: "liability", label: "Liability / Debt", color: "#EF4444" }, // Red
 ];
 
 const CURRENCIES = ["USD", "AUD", "EUR", "GBP", "JPY", "CAD", "SGD", "INR", "NZD"];
@@ -69,13 +70,14 @@ function PortfolioContent() {
 
           // Filter for valid labeled holdings to prevent 'ghost rows'
           mapped = latestHoldings
-            .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0)
-            .map(d => ({
-              id: d.id,
+            .filter(d => (d.label && d.label.trim() !== "") || Number(d.current_value) > 0 || Number(d.mortgage_amount) > 0)
+            .map((d, index) => ({
+              id: d.id || `rec_${index}`,
               label: d.label || "",
               asset: d.asset_class,
               currentValue: Number(d.current_value),
-              invested: Number(d.invested_amount)
+              invested: Number(d.invested_amount),
+              mortgage: Number(d.mortgage_amount || 0)
             }));
 
           setHoldings(mapped);
@@ -126,7 +128,7 @@ function PortfolioContent() {
     const today = new Date().toISOString().split('T')[0];
     try {
       // 0. Garbage Collection: Filter out uninitialized rows (no label and zero value)
-      const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0);
+      const validHoldings = holdings.filter(h => (h.label && h.label.trim() !== "") || Number(h.currentValue) > 0 || Number(h.mortgage) > 0);
       
       // 1. Permanent Purge: Delete records for items removed during this session
       if (removedHoldings.length > 0) {
@@ -146,14 +148,17 @@ function PortfolioContent() {
 
       // 2. Snapshot Update: Save all valid holdings as a single daily snapshot
       if (validHoldings.length > 0) {
+        console.log(`[Portfolio] Saving ${validHoldings.length} valid holdings:`, validHoldings);
         const payload = {
           snapshot_date: today,
           currency: currency,
           holdings: validHoldings.map(h => ({
+            id: h.id,
             label: h.label,
             asset_class: h.asset,
             current_value: h.currentValue,
-            invested_amount: h.invested
+            invested_amount: h.invested,
+            mortgage_amount: h.mortgage
           }))
         };
 
@@ -195,7 +200,7 @@ function PortfolioContent() {
   };
 
   const addHolding = () => {
-    setHoldings([...holdings, { id: nextId, asset: "stocks", currentValue: 0, invested: 0, label: "" }]);
+    setHoldings([...holdings, { id: nextId, asset: "stocks", currentValue: 0, invested: 0, mortgage: 0, label: "" }]);
     setNextId(nextId + 1);
   };
 
@@ -212,47 +217,68 @@ function PortfolioContent() {
   };
 
   const metrics = useMemo(() => {
-    const totalValue = holdings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
-    const totalInvested = holdings.reduce((s, h) => s + Number(h.invested || 0), 0);
-    const totalGain = totalValue - totalInvested;
+    const totalGrossValue = holdings.reduce((s, h) => {
+      const val = Number(h.currentValue || 0);
+      return h.asset === 'liability' ? s - val : s + val;
+    }, 0);
+
+    const totalMortgage = holdings.reduce((s, h) => {
+      return s + (Number(h.mortgage || 0));
+    }, 0);
+
+    const totalValue = totalGrossValue - totalMortgage;
+
+    const totalInvested = holdings.reduce((s, h) => {
+      const val = Number(h.invested || 0);
+      return h.asset === 'liability' ? s - val : s + val;
+    }, 0);
+
+    const totalGain = totalGrossValue - totalInvested;
     const totalReturnPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
 
-    // Pie chart data — group by asset class
+    // Pie chart data — group by asset class (Net Equity Only)
     const grouped = {};
     holdings.forEach((h) => {
+      if (h.asset === 'liability') return; 
       if (!grouped[h.asset]) grouped[h.asset] = 0;
-      grouped[h.asset] += Number(h.currentValue || 0);
+      const netHValue = Number(h.currentValue || 0) - Number(h.mortgage || 0);
+      grouped[h.asset] += netHValue;
     });
     const pieData = Object.entries(grouped).map(([asset, value]) => {
       const cls = ASSET_CLASSES.find((a) => a.id === asset);
       return { name: cls?.label || asset, value, color: cls?.color || "#888" };
     }).filter((d) => d.value > 0);
-
+ 
     // Bar chart data — per holding
     const barData = holdings
-      .filter((h) => h.currentValue > 0 || h.invested > 0)
+      .filter((h) => h.currentValue > 0 || h.invested > 0 || h.asset === 'liability' || h.mortgage > 0)
       .map((h) => {
         const cls = ASSET_CLASSES.find((a) => a.id === h.asset);
+        const isLiability = h.asset === 'liability';
         return {
           name: h.label || cls?.label,
-          invested: Number(h.invested || 0),
-          value: Number(h.currentValue || 0),
-          gain: Number(h.currentValue || 0) - Number(h.invested || 0),
+          invested: isLiability ? -Number(h.invested || 0) : Number(h.invested || 0),
+          value: isLiability ? -Number(h.currentValue || 0) : Number(h.currentValue || 0),
+          mortgage: Number(h.mortgage || 0),
+          equity: Number(h.currentValue || 0) - Number(h.mortgage || 0),
+          gain: (Number(h.currentValue || 0) - Number(h.invested || 0)) * (isLiability ? -1 : 1),
         };
       });
 
     // Per-class summary
     const classSummary = ASSET_CLASSES.map((cls) => {
       const clsHoldings = holdings.filter((h) => h.asset === cls.id);
-      const value = clsHoldings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
+      const grossValue = clsHoldings.reduce((s, h) => s + Number(h.currentValue || 0), 0);
+      const mortgage = clsHoldings.reduce((s, h) => s + Number(h.mortgage || 0), 0);
+      const value = grossValue - mortgage;
       const invested = clsHoldings.reduce((s, h) => s + Number(h.invested || 0), 0);
-      const gain = value - invested;
+      const gain = grossValue - invested;
       const returnPct = invested > 0 ? (gain / invested) * 100 : 0;
       const allocation = totalValue > 0 ? (value / totalValue) * 100 : 0;
-      return { ...cls, value, invested, gain, returnPct, allocation, count: clsHoldings.length };
-    }).filter((c) => c.value > 0 || c.invested > 0);
+      return { ...cls, value, grossValue, mortgage, invested, gain, returnPct, allocation, count: clsHoldings.length };
+    }).filter((c) => c.grossValue > 0 || c.invested > 0);
 
-    return { totalValue, totalInvested, totalGain, totalReturnPct, pieData, barData, classSummary };
+    return { totalValue, totalGrossValue, totalMortgage, totalInvested, totalGain, totalReturnPct, pieData, barData, classSummary };
   }, [holdings]);
 
   if (!userLoaded) {
@@ -261,7 +287,7 @@ function PortfolioContent() {
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full mb-4"
+          className="w-12 h-12 border-4 border-amber-100 border-t-amber-600 rounded-full mb-4"
         />
         <p className="text-slate-500 font-medium animate-pulse">Loading secure portfolio data...</p>
       </div>
@@ -276,7 +302,7 @@ function PortfolioContent() {
         </div>
         <h2 className="text-2xl font-black text-slate-900 mb-2">Sync Error</h2>
         <p className="text-slate-500 text-center max-w-md mb-8">We couldn't securely load your portfolio data. To prevent overwriting your existing holdings, access has been temporarily disabled.</p>
-        <Button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 h-12 rounded-xl">
+        <Button onClick={() => window.location.reload()} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-8 h-12 rounded-xl">
           Try Again
         </Button>
       </div>
@@ -287,16 +313,19 @@ function PortfolioContent() {
     <div className="min-h-screen bg-white">
       {/* Rounded Navbar Panel - Full Length */}
       <div className="flex flex-col">
-        <div className="w-full px-6 pt-4 pb-2">
-          <div className="bg-[#3b4754] rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-700/30">
+        <div className="w-full px-2 pt-4 pb-2">
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/40 overflow-hidden border border-slate-100">
           {/* Header Area */}
-          <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-slate-50">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-medium text-[#C5A059] tracking-tight leading-none mb-1">Portfolio Dashboard</h1>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center border border-amber-100">
+                <PieChartIcon className="w-4 h-4 text-[#C5A059]" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Portfolio Dashboard</h1>
             </div>
             <div className="flex items-center gap-3">
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger className="w-28 h-9 text-sm bg-[#2D3748] border-[#C5A059]/20 text-[#C5A059]">
+                <SelectTrigger className="w-28 h-9 text-sm bg-white border-slate-200 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -310,14 +339,14 @@ function PortfolioContent() {
                 size="sm"
                 onClick={handleSave}
                 disabled={!hasChanges || isSaving}
-                className={`h-9 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all border-0 shadow-lg ${hasChanges ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 animate-pulse' : 'bg-slate-700 text-slate-400 cursor-default'}`}
+                className={`h-9 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all border-0 shadow-lg ${hasChanges ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' : 'bg-slate-100 text-slate-400 cursor-default'}`}
               >
                 {isSaving ? "Saving..." : "Save Portfolio"}
               </Button>
 
               <Button
                 size="sm"
-                className="bg-[#C5A059] hover:bg-[#D4B06A] text-[#1A202C] font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
+                className="bg-[#C5A059] hover:bg-[#D4B06A] text-white font-bold h-9 px-4 rounded-xl shadow-lg shadow-[#C5A059]/20 transition-all flex items-center gap-2 border-0 group"
                 onClick={() => {
                   if (!isPremium) {
                     toast.error("Premium subscription required for PDF export");
@@ -331,31 +360,31 @@ function PortfolioContent() {
                   }
                 }}
               >
-                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-[#1A202C]/60" />}
+                {isPremium ? <Download className="w-4 h-4" /> : <Crown className="w-4 h-4 text-white/60" />}
                 <span className="text-[10px] uppercase tracking-wider">Export PDF</span>
-                {!isPremium && <span className="text-[9px] bg-[#1A202C] text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
+                {!isPremium && <span className="text-[9px] bg-slate-900 text-[#C5A059] px-1.5 py-0.5 rounded ml-1 font-black">PRO</span>}
               </Button>
             </div>
           </div>
 
-          {/* Metric Banner Header - Institutional Dark Mode */}
-          <div className="bg-[#3b4754] text-[#C5A059] py-4 px-6 relative z-0">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
+          {/* Metric Banner Header - Institutional Light Mode */}
+          <div className="bg-slate-50/50 text-slate-900 py-4 px-6 relative z-0">
+            <div className="max-w-full mx-auto flex items-center justify-between">
               <div className="text-center w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalValue)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL PORTFOLIO VALUE</p>
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{fmt(metrics.totalGrossValue)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL ASSETS</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalInvested)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL INVESTED</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-rose-600">{fmt(metrics.totalMortgage)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">TOTAL SECURED DEBT</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{fmt(metrics.totalGain)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">TOTAL GAIN / LOSS</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-emerald-600">{fmt(metrics.totalValue)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">NET EQUITY VALUE</p>
               </div>
-              <div className="text-center border-l border-white/5 w-full px-2">
-                <p className="text-[17px] font-normal tracking-tight text-white">{pct(metrics.totalReturnPct)}</p>
-                <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-1">OVERALL RETURN</p>
+              <div className="text-center border-l border-slate-200 w-full px-2">
+                <p className="text-[17px] font-black tracking-tight text-slate-900">{pct(metrics.totalReturnPct)}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">PORTFOLIO YIELD</p>
               </div>
             </div>
           </div>
@@ -365,16 +394,16 @@ function PortfolioContent() {
 
 
       {/* Main Panel starts below Navbar */}
-      <div className="bg-slate-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
+      <div className="bg-slate-50/50 min-h-screen">
+        <div className="max-w-full mx-auto px-2 py-12 space-y-10">
 
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Allocation Pie */}
-          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
-              <PieChartIcon className="w-4 h-4 text-[#E5C48B]" /> Asset Allocation
+          <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-[#C5A059]" /> Asset Allocation
             </h3>
             {metrics.pieData.length > 0 ? (
               <div className="flex items-center gap-6">
@@ -385,8 +414,17 @@ function PortfolioContent() {
                         {metrics.pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                       </Pie>
                       <Tooltip 
+                        allowEscapeViewBox={{ x: true, y: true }}
+                        offset={20}
                         formatter={(v) => fmt(v)}
-                        contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: '1px solid #F1F5F9', 
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
+                          backdropFilter: 'blur(8px)'
+                        }}
+                        itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -396,7 +434,7 @@ function PortfolioContent() {
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
                       <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{entry.name}</span>
-                      <span className="text-[11px] font-medium text-white/90 ml-1">
+                      <span className="text-[11px] font-bold text-slate-900 ml-1">
                         {metrics.totalValue > 0 ? pct((entry.value / metrics.totalValue) * 100) : "0%"}
                       </span>
                     </div>
@@ -409,25 +447,34 @@ function PortfolioContent() {
           </div>
 
           {/* Bar Chart */}
-          <div className="bg-[#2D3748] border border-slate-700 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-            <h3 className="text-sm font-medium text-white/90 mb-6 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-[#B8D8BA]" /> Performance Blueprint
+          <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+            <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#C5A059]" /> Performance Blueprint
             </h3>
             {metrics.barData.length > 0 ? (
               <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={metrics.barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: "#94a3b8", fontWeight: 500 }} tickFormatter={(v) => `${sym}${(v/1000).toFixed(0)}k`} />
                     <Tooltip 
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      offset={20}
                       formatter={(v) => fmt(v)}
-                      contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#F3F4F6', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)' }}
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: '1px solid #F1F5F9', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
+                        backdropFilter: 'blur(8px)'
+                      }}
+                      itemStyle={{ fontSize: '11px', fontWeight: 'bold', color: '#334155' }}
                     />
                     <Legend wrapperStyle={{ fontSize: 10, paddingTop: '20px', color: '#94a3b8' }} />
-                    <Bar dataKey="invested" name="Invested Capital" fill="rgba(255,255,255,0.1)" radius={[4, 4, 0, 0]} barSize={12} />
-                    <Bar dataKey="value" name="Current Value" fill="#B8D8BA" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="equity" name="Net Equity" fill="#C5A059" radius={[0, 0, 0, 0]} stackId="a" barSize={16} />
+                    <Bar dataKey="mortgage" name="Mortgage Debt" fill="#EF4444" radius={[4, 4, 0, 0]} stackId="a" barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -448,9 +495,9 @@ function PortfolioContent() {
                 <thead>
                   <tr className="text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-100">
                     <th className="text-left pb-4 font-medium">Asset Class</th>
-                    <th className="text-right pb-4 font-medium">Invested</th>
-                    <th className="text-right pb-4 font-medium">Current Value</th>
-                    <th className="text-right pb-4 font-medium">Gain / Loss</th>
+                    <th className="text-right pb-4 font-medium">Market Value</th>
+                    <th className="text-right pb-4 font-medium">Mortgage</th>
+                    <th className="text-right pb-4 font-medium">Net Equity</th>
                     <th className="text-right pb-4 font-medium">Return</th>
                     <th className="text-right pb-4 font-medium">Allocation</th>
                   </tr>
@@ -465,11 +512,9 @@ function PortfolioContent() {
                           <span className="text-[10px] text-slate-400 font-medium">({cls.count})</span>
                         </div>
                       </td>
-                      <td className="py-3 text-right text-slate-500 font-medium">{fmt(cls.invested)}</td>
+                      <td className="py-3 text-right text-slate-500 font-medium">{fmt(cls.grossValue)}</td>
+                      <td className="py-3 text-right text-rose-500 font-medium">-{fmt(cls.mortgage)}</td>
                       <td className="py-3 text-right font-medium text-slate-900">{fmt(cls.value)}</td>
-                      <td className={`py-3 text-right font-medium ${cls.gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                        {cls.gain >= 0 ? "+" : ""}{fmt(cls.gain)}
-                      </td>
                       <td className={`py-3 text-right font-medium ${cls.returnPct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {cls.returnPct >= 0 ? "+" : ""}{pct(cls.returnPct)}
                       </td>
@@ -492,10 +537,10 @@ function PortfolioContent() {
         {/* Holdings Editor */}
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-sm font-medium text-slate-900 flex items-center gap-2 uppercase tracking-widest">
-              <DollarSign className="w-4 h-4 text-slate-400" /> My Holdings
+            <h3 className="text-[10px] font-bold text-slate-800 flex items-center gap-2 uppercase tracking-[0.2em]">
+              <DollarSign className="w-4 h-4 text-[#C5A059]" /> My Holdings
             </h3>
-            <Button onClick={addHolding} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+            <Button onClick={addHolding} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-2 rounded-xl font-bold uppercase tracking-widest text-[10px] px-6 h-10 shadow-lg shadow-amber-500/10 transition-all">
               <Plus className="w-4 h-4" /> Add Holding
             </Button>
           </div>
@@ -506,17 +551,17 @@ function PortfolioContent() {
               const returnPct = h.invested > 0 ? (gain / h.invested) * 100 : 0;
               return (
                 <div key={h.id} className="grid grid-cols-12 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="col-span-12 sm:col-span-3">
+                  <div className="col-span-12 sm:col-span-2">
                     <Input
-                      placeholder="Label (e.g. US Stocks)"
+                      placeholder="Label"
                       value={h.label}
                       onChange={(e) => updateHolding(h.id, "label", e.target.value)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
                     <Select value={h.asset} onValueChange={(v) => updateHolding(h.id, "asset", v)}>
-                      <SelectTrigger className="h-9 text-sm bg-white">
+                      <SelectTrigger className="h-9 text-[11px] bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -529,26 +574,32 @@ function PortfolioContent() {
                   <div className="col-span-6 sm:col-span-2">
                     <Input
                       type="number"
-                      placeholder={`Invested (${sym})`}
+                      placeholder={`Invested`}
                       value={h.invested || ""}
                       onChange={(e) => updateHolding(h.id, "invested", parseFloat(e.target.value) || 0)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
                     <Input
                       type="number"
-                      placeholder={`Current Value (${sym})`}
+                      placeholder={`Market Value`}
                       value={h.currentValue || ""}
                       onChange={(e) => updateHolding(h.id, "currentValue", parseFloat(e.target.value) || 0)}
-                      className="h-9 text-sm bg-white"
+                      className="h-9 text-[11px] bg-white border-emerald-100"
                     />
                   </div>
-                  <div className="col-span-5 sm:col-span-2 text-right">
-                    <span className={`text-sm font-medium ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {gain >= 0 ? "+" : ""}{pct(returnPct)}
-                    </span>
-                    <p className={`text-xs ${gain >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                  <div className="col-span-6 sm:col-span-2">
+                    <Input
+                      type="number"
+                      placeholder={`Mortgage / Debt`}
+                      value={h.mortgage || ""}
+                      onChange={(e) => updateHolding(h.id, "mortgage", parseFloat(e.target.value) || 0)}
+                      className="h-9 text-[11px] bg-white border-rose-100"
+                    />
+                  </div>
+                  <div className="col-span-5 sm:col-span-1 text-right">
+                    <p className={`text-[11px] font-bold ${gain >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {gain >= 0 ? "+" : ""}{fmt(gain)}
                     </p>
                   </div>

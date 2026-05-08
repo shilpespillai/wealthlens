@@ -657,6 +657,30 @@ export const base44 = {
     loadData: async (key) => {
       const { session } = await base44.db._getSession();
       const userId = session?.user?.id || 'anonymous';
+      
+      // PUBLIC ACCESS: Allow fetching of institutional settings without a session
+      if (!session?.user && key.startsWith('wl_public_')) {
+        if (isSupabaseEnabled) {
+          try {
+            // Fetch from a known 'System' record or the first available record for this public key
+            const { data, error } = await supabase
+              .from('user_data')
+              .select('payload')
+              .eq('key', key)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (!error && data) return data.payload;
+          } catch (e) {
+            console.warn("[base44] Public loadData failed:", e);
+          }
+        }
+        // Fallback to local storage (unscoped for public keys)
+        const publicStored = localStorage.getItem(key);
+        return publicStored ? JSON.parse(publicStored) : null;
+      }
+
       const storageKey = `${key}_${userId}`;
 
       // SECURITY: AI Configuration must remain local and NOT sync to DB
