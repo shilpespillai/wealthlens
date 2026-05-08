@@ -15,9 +15,15 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if we are in the 'update password' phase (triggered by clicking the email link)
-    // Supabase hash fragment contains type=recovery
-    if (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token=')) {
+    // Check if we are in the 'update password' phase
+    // Supabase hash fragment contains type=recovery or access_token
+    const hasRecoveryToken = 
+      window.location.hash.includes('type=recovery') || 
+      window.location.hash.includes('access_token=') ||
+      window.location.search.includes('type=recovery');
+
+    if (hasRecoveryToken) {
+      console.log("[ResetPassword] Recovery token detected. Switching to Update mode.");
       setView('update');
     }
   }, []);

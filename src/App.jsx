@@ -133,9 +133,13 @@ const MainContent = () => {
                       </LayoutWrapper>
                     </AuthGuard>
                   ) : (
-                    <LayoutWrapper currentPageName={path}>
+                    path === "ResetPassword" ? (
                       <Page />
-                    </LayoutWrapper>
+                    ) : (
+                      <LayoutWrapper currentPageName={path}>
+                        <Page />
+                      </LayoutWrapper>
+                    )
                   )
                 }
               />
