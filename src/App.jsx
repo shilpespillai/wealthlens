@@ -47,6 +47,16 @@ const MainContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // 0. Domain Normalization Guard (Force WWW)
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    // If on wealthlens.info (no www), force redirect to www
+    if (hostname === 'wealthlens.info') {
+      console.log("[App] Normalizing domain: Redirecting to www.wealthlens.info");
+      window.location.replace('https://www.wealthlens.info' + window.location.pathname + window.location.search + window.location.hash);
+    }
+  }, []);
+
   // 0. High-Priority Recovery Interceptor (Deep Freeze & Vault)
   useEffect(() => {
     const hash = window.location.hash || "";
