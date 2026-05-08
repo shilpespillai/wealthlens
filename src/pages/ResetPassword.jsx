@@ -23,10 +23,18 @@ export default function ResetPassword() {
   });
 
   useEffect(() => {
-    // Secondary check for delayed hydration (some browsers/frameworks might delay hash populating)
+    // Secondary check for delayed hydration
     const checkAgain = () => {
       const hash = window.location.hash || "";
       const search = window.location.search || "";
+      
+      // Check for errors
+      if (hash.includes('error_code=otp_expired') || search.includes('error_code=otp_expired')) {
+        setError("Your recovery link has expired or has already been used. Please request a new one below.");
+        setView('request');
+        return;
+      }
+
       const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery');
       
       if (isRecovery && view !== 'update') {
