@@ -254,9 +254,6 @@ export default function Sidebar() {
                      onClick={(e) => {
                        if (!isPaidUser) {
                          e.preventDefault();
-                         toast.error("Pro Feature", {
-                           description: "Advanced data lifecycle tools are reserved for Pro members."
-                         });
                        }
                      }}
                      className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
