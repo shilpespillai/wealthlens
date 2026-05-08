@@ -20,13 +20,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const SYSTEM_ID = '00000000-0000-0000-0000-000000000000'; // System-level identifier for global settings
+    const ADMIN_ID = 'a400d55d-ce84-4ad7-8715-88648d133668'; // System Admin ID
     const PRICING_KEY = 'wl_public_app_pricing';
 
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('user_data')
         .select('payload')
+        .eq('user_id', ADMIN_ID)
         .eq('key', PRICING_KEY)
         .maybeSingle();
 
@@ -41,11 +42,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid request parameters' });
       }
 
-      // Store in the global app settings vault with system ID
+      // Store in the global app settings vault with admin ID
       const { error } = await supabase
         .from('user_data')
         .upsert({ 
-          user_id: SYSTEM_ID,
+          user_id: ADMIN_ID,
           key: PRICING_KEY, 
           payload: { 
             price: (price || "29.99").toString(), 

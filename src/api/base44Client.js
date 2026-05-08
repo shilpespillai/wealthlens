@@ -665,18 +665,18 @@ export const base44 = {
   user: {
     loadData: async (key) => {
       const { session } = await base44.db._getSession();
-      const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
+      const ADMIN_ID = 'a400d55d-ce84-4ad7-8715-88648d133668';
       const userId = session?.user?.id || 'anonymous';
       
       // PUBLIC ACCESS: Allow fetching of institutional settings without a session or from System Vault
       if (key.startsWith('wl_public_')) {
         if (isSupabaseEnabled) {
           try {
-            // First attempt to fetch from the System ID (Production source of truth)
+            // First attempt to fetch from the Admin ID (Production source of truth)
             const { data, error } = await supabase
               .from('user_data')
               .select('payload')
-              .eq('user_id', SYSTEM_ID)
+              .eq('user_id', ADMIN_ID)
               .eq('key', key)
               .maybeSingle();
             
@@ -746,8 +746,8 @@ export const base44 = {
       }
 
       if (isSupabaseEnabled && session?.user) {
-        const SYSTEM_ID = '00000000-0000-0000-0000-000000000000';
-        const targetUserId = key.startsWith('wl_public_') ? SYSTEM_ID : userId;
+        const ADMIN_ID = 'a400d55d-ce84-4ad7-8715-88648d133668';
+        const targetUserId = key.startsWith('wl_public_') ? ADMIN_ID : userId;
 
         const { error } = await supabase
           .from('user_data')
