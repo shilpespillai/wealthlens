@@ -85,6 +85,7 @@ export function DashboardContent() {
   const { refreshUser } = useAuth();
   
   // ── RAPID SYNC ENGINE: Detect payment success and force metadata refresh ──
+  // ── SUPERCHARGED RAPID SYNC: Auto-Unlock Pro Features after Payment ──
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('payment') === 'success') {
@@ -95,16 +96,18 @@ export function DashboardContent() {
         attempts++;
         const updatedUser = await refreshUser();
         
-        // If we detect the premium flag, or have tried for 15 seconds, stop polling
-        if (updatedUser?.is_premium || attempts >= 5) {
-          console.log("[Dashboard] Status Synchronized:", updatedUser?.is_premium ? "PRO ACTIVE" : "STILL SYNCING");
+        if (updatedUser?.is_premium) {
+          console.log("[Dashboard] Status Synchronized: PRO ACTIVE. Refreshing interface...");
           clearInterval(interval);
-          
-          // Clean up the URL to prevent re-triggering on refresh
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
+          window.location.href = window.location.pathname + '?status=upgraded';
+          return;
         }
-      }, 3000); // Check every 3 seconds
+
+        if (attempts >= 15) {
+          console.warn("[Dashboard] Sync Timeout: Please refresh manually if Pro features are still locked.");
+          clearInterval(interval);
+        }
+      }, 2000);
 
       return () => clearInterval(interval);
     }
