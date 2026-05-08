@@ -15,16 +15,34 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if we are in the 'update password' phase
-    // Supabase hash fragment contains type=recovery or access_token
-    const hasRecoveryToken = 
-      window.location.hash.includes('type=recovery') || 
-      window.location.hash.includes('access_token=') ||
-      window.location.search.includes('type=recovery');
+    // Aggressive Token Detection
+    const checkToken = () => {
+      const hash = window.location.hash || "";
+      const search = window.location.search || "";
+      
+      console.log("[ResetPassword] Checking for tokens...", { hash: !!hash, search: !!search });
 
-    if (hasRecoveryToken) {
-      console.log("[ResetPassword] Recovery token detected. Switching to Update mode.");
-      setView('update');
+      const isRecovery = 
+        hash.includes('type=recovery') || 
+        hash.includes('access_token=') || 
+        search.includes('type=recovery') ||
+        search.includes('access_token=');
+
+      if (isRecovery) {
+        console.log("[ResetPassword] Recovery token confirmed! Entering Update Mode.");
+        setView('update');
+        return true;
+      }
+      return false;
+    };
+
+    // Run immediately
+    const found = checkToken();
+
+    // If not found immediately, wait a split second for Supabase to hydrate the hash
+    if (!found) {
+      const timer = setTimeout(checkToken, 500);
+      return () => clearTimeout(timer);
     }
   }, []);
 
