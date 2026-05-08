@@ -22,11 +22,29 @@ export default function ResetPassword() {
   });
 
   useEffect(() => {
-    // Secondary check for delayed hydration
-    const checkAgain = () => {
+    // Aggressive Debugging & Detection
+    const checkAgain = async () => {
+      const url = window.location.href;
       const hash = window.location.hash || "";
       const search = window.location.search || "";
       
+      console.log("[ResetPassword] Debug:", { url, hash: !!hash, search: !!search });
+
+      // Handle modern PKCE 'code' flow
+      const urlParams = new URLSearchParams(search);
+      const code = urlParams.get('code');
+      if (code && view !== 'update') {
+        console.log("[ResetPassword] PKCE code detected. Exchanging...");
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+          setView('update');
+          return;
+        } else {
+          console.error("[ResetPassword] PKCE exchange failed:", error.message);
+          setError("Invalid or expired security code. Please request a new one.");
+        }
+      }
+
       // Check for errors
       if (hash.includes('error_code=otp_expired') || search.includes('error_code=otp_expired')) {
         setError("Your recovery link has expired or has already been used. Please request a new one below.");
@@ -34,7 +52,7 @@ export default function ResetPassword() {
         return;
       }
 
-      const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery');
+      const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || !!code;
       
       if (isRecovery && view !== 'update') {
         setView('update');
