@@ -36,37 +36,60 @@ export default async function handler(req, res) {
   // Handle successful payment
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const userId = session.metadata?.userId;
-    const email = session.customer_details?.email || session.metadata?.email;
+    const userId = session.client_reference_id;
 
     if (!userId) {
-      console.error('[Webhook] No userId in session metadata', session.id);
-      return res.status(400).json({ error: 'No userId found in session metadata' });
+      console.error('[Webhook] Missing client_reference_id in session:', session.id);
+      return res.status(400).json({ error: 'Missing userId' });
     }
 
-    console.log(`[Webhook] Payment confirmed for userId: ${userId} (${email})`);
+    console.log(`[Webhook] Success! Promoting user ${userId} to PRO...`);
 
-    // Grant premium access in Supabase Auth Metadata
-    // We update BOTH user_metadata and app_metadata for maximum redundancy
-    const { error } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        is_premium: true, // Boolean true as expected by get_admin_stats()
-        subscription_tier: 'pro',
-        premium_granted_at: new Date().toISOString(),
-        stripe_customer_id: session.customer,
-      },
-      app_metadata: {
+    // 1. Update Auth Metadata (Master Identity)
+    const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { 
         is_premium: true,
-        subscription_tier: 'pro'
+        premium_granted_at: new Date().toISOString(),
+        stripe_customer_id: session.customer 
+      },
+      app_metadata: { 
+        is_premium: true, 
+        subscription_tier: 'pro' 
       }
     });
 
-    if (error) {
-      console.error('[Webhook] Supabase Auth update failed:', error.message);
-      return res.status(500).json({ error: `Database update failed: ${error.message}` });
+    if (authError) {
+      console.error('[Webhook] Auth Update Error:', authError.message);
     }
 
-    console.log(`[Webhook] Institutional elevation successful for userId: ${userId}`);
+    // 2. Update User Data Vault (Feature Locks & Profile)
+    // We attempt to fetch existing profile to merge, or fallback to a new one
+    const { data: existingData } = await supabase
+      .from('user_data')
+      .select('payload')
+      .eq('user_id', userId)
+      .eq('key', 'profile')
+      .maybeSingle();
+
+    const newPayload = { 
+      ...(existingData?.payload || {}), 
+      is_premium: true, 
+      updated_at: new Date().toISOString() 
+    };
+
+    const { error: vaultError } = await supabase
+      .from('user_data')
+      .upsert({
+        user_id: userId,
+        key: 'profile',
+        payload: newPayload
+      }, { onConflict: 'user_id,key' });
+
+    if (vaultError) {
+      console.error('[Webhook] Vault Update Error:', vaultError.message);
+    }
+
+    console.log(`[Webhook] User ${userId} successfully promoted to PRO in all systems.`);
   }
 
   return res.status(200).json({ received: true });
