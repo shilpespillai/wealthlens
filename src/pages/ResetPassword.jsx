@@ -13,10 +13,14 @@ export default function ResetPassword() {
   const [successMsg, setSuccessMsg] = useState(null);
   const [view, setView] = useState(() => {
     const url = window.location.href.toLowerCase();
+    const vault = (sessionStorage.getItem('recovery_vault') || "").toLowerCase();
     const hasToken = 
       url.includes('access_token=') || 
       url.includes('type=recovery') ||
-      url.includes('code=');
+      url.includes('code=') ||
+      vault.includes('access_token=') ||
+      vault.includes('type=recovery') ||
+      vault.includes('code=');
     
     return hasToken ? 'update' : 'request';
   });
@@ -25,27 +29,39 @@ export default function ResetPassword() {
     // High-Priority Handshake Detection
     const runHandshake = async () => {
       const url = window.location.href;
+      const vault = sessionStorage.getItem('recovery_vault') || "";
       const hash = window.location.hash || "";
       const search = window.location.search || "";
       
-      // Detect code in either search or hash (Supabase can be inconsistent here)
-      const urlParams = new URLSearchParams(search || hash.replace('#', '?'));
+      // Combine all possible sources of truth
+      const combinedSource = url + hash + search + vault;
+      
+      // Detect code
+      const urlParams = new URLSearchParams(search || hash.replace('#', '?') || vault.replace('#', '?'));
       const code = urlParams.get('code');
-      const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || !!code;
+      const isRecovery = combinedSource.includes('type=recovery') || combinedSource.includes('access_token=') || !!code;
 
       if (isRecovery) {
-        console.log("[ResetPassword] Recovery signal detected. Mode: Update.");
+        console.log("[ResetPassword] Recovery signal detected in vault or URL. Mode: Update.");
         
+        // Save to vault if it's in the URL
+        if (hash || search) {
+            sessionStorage.setItem('recovery_vault', hash + search);
+        }
+
         if (code) {
           console.log("[ResetPassword] Exchanging PKCE code...");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
             console.error("[ResetPassword] Exchange failed:", error.message);
+            // Don't clear vault yet, might be a temporary network error
             setError("The security link is invalid or has already been used.");
             return;
           }
         }
         
+        // Success! We can clear the vault now that we are in update mode
+        sessionStorage.removeItem('recovery_vault');
         setView('update');
       }
     };

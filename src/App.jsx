@@ -47,18 +47,20 @@ const MainContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // 0. High-Priority Recovery Interceptor (Deep Freeze)
+  // 0. High-Priority Recovery Interceptor (Deep Freeze & Vault)
   useEffect(() => {
     const hash = window.location.hash || "";
     const search = window.location.search || "";
     const hasToken = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || search.includes('access_token=') || search.includes('code=');
 
     if (hasToken) {
-      console.log("[App] CRITICAL: Recovery token detected. Freezing app to ResetPassword.");
+      console.log("[App] CRITICAL: Recovery token detected. Vaulting and Freezing.");
+      // Lock the token in a vault (sessionStorage) so it can't be lost during redirect
+      sessionStorage.setItem('recovery_vault', hash + search);
+      
       const currentPath = window.location.pathname.toLowerCase();
       if (currentPath !== '/resetpassword') {
-        const resetPath = "/ResetPassword" + (window.location.search || "") + (window.location.hash || "");
-        window.location.replace(resetPath);
+        window.location.replace('/ResetPassword');
       }
     }
   }, []);
