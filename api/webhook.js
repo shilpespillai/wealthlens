@@ -46,21 +46,27 @@ export default async function handler(req, res) {
 
     console.log(`[Webhook] Payment confirmed for userId: ${userId} (${email})`);
 
-    // Grant premium access in Supabase Auth Metadata (The fastest way for frontend to see it)
+    // Grant premium access in Supabase Auth Metadata
+    // We update BOTH user_metadata and app_metadata for maximum redundancy
     const { error } = await supabase.auth.admin.updateUserById(userId, {
       user_metadata: {
-        is_premium: true,
+        is_premium: true, // Boolean true as expected by get_admin_stats()
+        subscription_tier: 'pro',
         premium_granted_at: new Date().toISOString(),
         stripe_customer_id: session.customer,
+      },
+      app_metadata: {
+        is_premium: true,
+        subscription_tier: 'pro'
       }
     });
 
     if (error) {
-      console.error('[Webhook] Supabase Auth error:', error);
-      return res.status(500).json({ error: 'Failed to update user premium metadata' });
+      console.error('[Webhook] Supabase Auth update failed:', error.message);
+      return res.status(500).json({ error: `Database update failed: ${error.message}` });
     }
 
-    console.log(`[Webhook] Premium granted to userId: ${userId}`);
+    console.log(`[Webhook] Institutional elevation successful for userId: ${userId}`);
   }
 
   return res.status(200).json({ received: true });
