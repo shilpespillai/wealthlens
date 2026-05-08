@@ -288,7 +288,12 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2">Security Key</label>
+                  <div className="flex items-center justify-between ml-2">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Security Key</label>
+                    <Link to="/ResetPassword" id="forgot-password-link" className="text-[7px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">
+                      Forgot Key?
+                    </Link>
+                  </div>
                   <input 
                     type="password" 
                     placeholder="••••••••" 

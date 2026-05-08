@@ -80,6 +80,7 @@ import AdminSettings from './pages/AdminSettings';
 import AdminDashboard from './pages/AdminDashboard';
 import DataMaintenance from './pages/DataMaintenance';
 import Testimonials from './pages/TestimonialsPage';
+import ResetPassword from './pages/ResetPassword';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -116,6 +117,7 @@ export const PAGES = {
     "AdminDashboard": AdminDashboard,
     "DataMaintenance": DataMaintenance,
     "Testimonials": Testimonials,
+    "ResetPassword": ResetPassword,
 }
 
 export const pagesConfig = {
