@@ -577,7 +577,16 @@ export const base44 = {
         }).catch(() => ({ status: 404 }));
         
         if (resp.status === 404) return { success: true, mock: true };
-        return await resp.json();
+        
+        // Safety: Only parse if we have a real response object and it's JSON
+        if (resp.json && typeof resp.json === 'function') {
+           const contentType = resp.headers?.get("content-type");
+           if (contentType && contentType.includes("application/json")) {
+             return await resp.json();
+           }
+        }
+        
+        return { error: `Server returned ${resp.status} (Non-JSON)` };
       } catch (e) {
         return { error: e.message };
       }

@@ -37,8 +37,8 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { price, adminEmail } = req.body;
 
-      if (adminEmail !== 'admin@wealthlens.com') {
-        return res.status(403).json({ error: 'Unauthorized' });
+      if (!price || adminEmail !== 'admin@wealthlens.com') {
+        return res.status(400).json({ error: 'Invalid request parameters' });
       }
 
       // Store in the global app settings vault with system ID
@@ -47,17 +47,24 @@ export default async function handler(req, res) {
         .upsert({ 
           user_id: SYSTEM_ID,
           key: PRICING_KEY, 
-          payload: { price: price.toString(), updated_by: adminEmail, updated_at: new Date().toISOString() }
+          payload: { 
+            price: (price || "29.99").toString(), 
+            updated_by: adminEmail, 
+            updated_at: new Date().toISOString() 
+          }
         }, { onConflict: 'user_id,key' });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Pricing API] Database Error:', error.message);
+        return res.status(500).json({ error: error.message });
+      }
+      
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[Pricing API Error]', err);
-    if (req.method === 'GET') return res.status(200).json({ price: "29.99" });
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Internal Server Error: ' + err.message });
   }
 }
