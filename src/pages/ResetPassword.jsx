@@ -13,16 +13,17 @@ export default function ResetPassword() {
   const [successMsg, setSuccessMsg] = useState(null);
   const [view, setView] = useState(() => {
     const url = window.location.href.toLowerCase();
-    const vault = (localStorage.getItem('recovery_vault_v2') || "").toLowerCase();
-    const hasToken = 
-      url.includes('access_token=') || 
-      url.includes('type=recovery') ||
-      url.includes('code=') ||
-      vault.includes('access_token=') ||
-      vault.includes('type=recovery') ||
-      vault.includes('code=');
+    const hasUrlToken = url.includes('access_token=') || url.includes('type=recovery') || url.includes('code=');
     
-    return hasToken ? 'update' : 'request';
+    // If we have a token in the URL, trust it.
+    if (hasUrlToken) return 'update';
+
+    // If we DON'T have a token in the URL, check the vault
+    const vault = (localStorage.getItem('recovery_vault_v2') || "").toLowerCase();
+    const hasVaultToken = vault.includes('access_token=') || vault.includes('type=recovery') || vault.includes('code=');
+    
+    // If even the vault is empty, it's a fresh request
+    return hasVaultToken ? 'update' : 'request';
   });
 
   useEffect(() => {
@@ -129,7 +130,11 @@ export default function ResetPassword() {
       </div>
 
       <div className="w-full max-w-sm space-y-8 relative z-10">
-        <Link to="/Login" className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors group mb-4">
+        <Link 
+          to="/Login" 
+          onClick={() => localStorage.removeItem('recovery_vault_v2')}
+          className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-colors group mb-4"
+        >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest">Back to Terminal</span>
         </Link>
