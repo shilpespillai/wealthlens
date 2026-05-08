@@ -22,46 +22,36 @@ export default function ResetPassword() {
   });
 
   useEffect(() => {
-    // Aggressive Debugging & Detection
-    const checkAgain = async () => {
+    // High-Priority Handshake Detection
+    const runHandshake = async () => {
       const url = window.location.href;
       const hash = window.location.hash || "";
       const search = window.location.search || "";
       
-      console.log("[ResetPassword] Debug:", { url, hash: !!hash, search: !!search });
-
-      // Handle modern PKCE 'code' flow
-      const urlParams = new URLSearchParams(search);
+      // Detect code in either search or hash (Supabase can be inconsistent here)
+      const urlParams = new URLSearchParams(search || hash.replace('#', '?'));
       const code = urlParams.get('code');
-      if (code && view !== 'update') {
-        console.log("[ResetPassword] PKCE code detected. Exchanging...");
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
-          setView('update');
-          return;
-        } else {
-          console.error("[ResetPassword] PKCE exchange failed:", error.message);
-          setError("Invalid or expired security code. Please request a new one.");
-        }
-      }
-
-      // Check for errors
-      if (hash.includes('error_code=otp_expired') || search.includes('error_code=otp_expired')) {
-        setError("Your recovery link has expired or has already been used. Please request a new one below.");
-        setView('request');
-        return;
-      }
-
       const isRecovery = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || !!code;
-      
-      if (isRecovery && view !== 'update') {
+
+      if (isRecovery) {
+        console.log("[ResetPassword] Recovery signal detected. Mode: Update.");
+        
+        if (code) {
+          console.log("[ResetPassword] Exchanging PKCE code...");
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error("[ResetPassword] Exchange failed:", error.message);
+            setError("The security link is invalid or has already been used.");
+            return;
+          }
+        }
+        
         setView('update');
       }
     };
 
-    const timer = setTimeout(checkAgain, 100);
-    return () => clearTimeout(timer);
-  }, [view]);
+    runHandshake();
+  }, []);
 
   const handleRequestReset = async (e) => {
     e.preventDefault();
