@@ -57,9 +57,8 @@ const MainContent = () => {
       console.log("[App] CRITICAL: Recovery token detected. Freezing app to ResetPassword.");
       const currentPath = window.location.pathname.toLowerCase();
       if (currentPath !== '/resetpassword') {
-        // Preserve the full token string during the redirect
-        const tokenData = hash || search;
-        window.location.replace('/ResetPassword' + tokenData);
+        const resetPath = "/ResetPassword" + (window.location.search || "") + (window.location.hash || "");
+        window.location.replace(resetPath);
       }
     }
   }, []);

@@ -11,13 +11,12 @@ export default function ResetPassword() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
-  // Determine initial view based on URL
   const [view, setView] = useState(() => {
+    const url = window.location.href.toLowerCase();
     const hasToken = 
-      window.location.hash.includes('access_token=') || 
-      window.location.hash.includes('type=recovery') ||
-      window.location.search.includes('type=recovery') ||
-      window.location.search.includes('access_token=');
+      url.includes('access_token=') || 
+      url.includes('type=recovery') ||
+      url.includes('code=');
     
     return hasToken ? 'update' : 'request';
   });
