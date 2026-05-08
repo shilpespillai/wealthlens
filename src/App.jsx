@@ -61,9 +61,12 @@ const MainContent = () => {
   useEffect(() => {
     const hash = window.location.hash || "";
     const search = window.location.search || "";
-    const hasToken = hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery') || search.includes('access_token=') || search.includes('code=');
+    const isRecoveryToken = 
+      hash.includes('type=recovery') || 
+      search.includes('type=recovery') ||
+      (search.includes('code=') && window.location.pathname === '/ResetPassword');
 
-    if (hasToken) {
+    if (isRecoveryToken) {
       console.log("[App] CRITICAL: Recovery token detected. Vaulting and Freezing.");
       // Lock the token in a PERMANENT vault (localStorage) to survive reloads/domain shifts
       localStorage.setItem('recovery_vault_v2', hash + search);

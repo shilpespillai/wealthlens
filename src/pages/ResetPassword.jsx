@@ -127,14 +127,6 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Visual Debug Monitor (Temporary) */}
-      <div className="fixed top-0 left-0 right-0 bg-slate-900 text-white p-2 text-[8px] font-mono z-[9999] flex justify-center gap-6">
-        <span>MODE: {view.toUpperCase()}</span>
-        <span>HAS_HASH: {window.location.hash ? 'YES' : 'NO'}</span>
-        <span>HAS_SEARCH: {window.location.search ? 'YES' : 'NO'}</span>
-        <span className="opacity-50">URL: {window.location.pathname}</span>
-      </div>
-
       {/* Background Ambience */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] opacity-40" />
