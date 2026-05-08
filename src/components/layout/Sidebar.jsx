@@ -250,7 +250,15 @@ export default function Sidebar() {
                   </Link>
 
                   <Link 
-                     to="/DataMaintenance"
+                     to={isPaidUser ? "/DataMaintenance" : "#"}
+                     onClick={(e) => {
+                       if (!isPaidUser) {
+                         e.preventDefault();
+                         toast.error("Pro Feature", {
+                           description: "Advanced data lifecycle tools are reserved for Pro members."
+                         });
+                       }
+                     }}
                      className={`flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 cursor-pointer group rounded-xl transition-all hover:bg-slate-900/5 ${isActive('/DataMaintenance') ? 'bg-rose-500/10 text-rose-500' : ''}`}
                   >
                      <Database className={`w-4 h-4 ${isActive('/DataMaintenance') ? 'text-rose-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
