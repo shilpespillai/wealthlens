@@ -67,8 +67,9 @@ const MainContent = () => {
     if (!isLoadingAuth && isAuthenticated && user) {
         const path = window.location.pathname.toLowerCase();
         const isLandingPage = path === '/' || path === '' || path === '/login';
+        const isResetPage = path === '/resetpassword';
         
-        if (isLandingPage) {
+        if (isLandingPage && !isResetPage) {
             const hasRedirected = sessionStorage.getItem('wl_init_redirect');
             if (hasRedirected === 'true' && path !== '/login') return;
 
